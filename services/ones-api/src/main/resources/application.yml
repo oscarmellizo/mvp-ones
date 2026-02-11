@@ -1,0 +1,20 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: ones-api
+
+ones:
+  auth:
+    google:
+      client-id: ${GOOGLE_CLIENT_ID:}
+  dynamodb:
+    table-name: ${ONES_EVENTS_TABLE:ones-events}
+    endpoint: ${DYNAMODB_ENDPOINT:}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000,http://localhost:8080,http://localhost:5000,http://localhost:4000,http://localhost:1234,http://localhost:7357,http://localhost:56321,http://localhost:49234,http://localhost:40233}
+
+logging:
+  level:
+    org.springframework.security: INFO

@@ -1,0 +1,20 @@
+services:
+  dynamodb-local:
+    image: amazon/dynamodb-local:2.5.2
+    command: ["-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"]
+    ports:
+      - "8000:8000"
+
+  ones-api:
+    build:
+      context: .
+    ports:
+      - "8080:8080"
+    environment:
+      AWS_REGION: us-east-1
+      DYNAMODB_ENDPOINT: http://dynamodb-local:8000
+      ONES_EVENTS_TABLE: ones-events
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+    depends_on:
+      - dynamodb-local
