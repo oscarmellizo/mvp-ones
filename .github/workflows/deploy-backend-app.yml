@@ -1,0 +1,71 @@
+name: Deploy Backend App (ECR -> ECS)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-backend-app
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  BACKEND_STACK_NAME: ones-backend
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_GITHUB_OIDC_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}
+
+      - name: Resolve ECR repo URI from CloudFormation outputs
+        id: cfn
+        run: |
+          repoUri=$(aws cloudformation describe-stacks \
+            --stack-name "${BACKEND_STACK_NAME}" \
+            --query "Stacks[0].Outputs[?OutputKey=='EcrRepositoryUri'].OutputValue" \
+            --output text)
+          clusterName=$(aws cloudformation describe-stacks \
+            --stack-name "${BACKEND_STACK_NAME}" \
+            --query "Stacks[0].Outputs[?OutputKey=='ClusterName'].OutputValue" \
+            --output text)
+          serviceName=$(aws cloudformation describe-stacks \
+            --stack-name "${BACKEND_STACK_NAME}" \
+            --query "Stacks[0].Outputs[?OutputKey=='ServiceName'].OutputValue" \
+            --output text)
+          echo "repoUri=${repoUri}" >> $GITHUB_OUTPUT
+          echo "clusterName=${clusterName}" >> $GITHUB_OUTPUT
+          echo "serviceName=${serviceName}" >> $GITHUB_OUTPUT
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image (latest)
+        working-directory: services/ones-api
+        run: |
+          docker build -t "${{ steps.cfn.outputs.repoUri }}:latest" .
+          docker push "${{ steps.cfn.outputs.repoUri }}:latest"
+
+      - name: Force new ECS deployment
+        run: |
+          aws ecs update-service \
+            --cluster "${{ steps.cfn.outputs.clusterName }}" \
+            --service "${{ steps.cfn.outputs.serviceName }}" \
+            --force-new-deployment
+
+      - name: Show ALB URL
+        run: |
+          aws cloudformation describe-stacks --stack-name "${BACKEND_STACK_NAME}" \
+            --query "Stacks[0].Outputs[?OutputKey=='AlbUrl'].OutputValue" \
+            --output text

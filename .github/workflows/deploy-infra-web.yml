@@ -1,0 +1,45 @@
+name: Deploy Infra (Web)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-infra-web
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  STACK_PREFIX: ones
+  WEB_STACK_NAME: ones-web
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_GITHUB_OIDC_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}
+
+      - name: Deploy web stack
+        run: |
+          aws cloudformation deploy \
+            --stack-name "${WEB_STACK_NAME}" \
+            --template-file infra/cloudformation/web.yml \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameter-overrides \
+              StackPrefix="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}"
+
+      - name: Show outputs
+        run: |
+          aws cloudformation describe-stacks --stack-name "${WEB_STACK_NAME}" \
+            --query "Stacks[0].Outputs" --output table

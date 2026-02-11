@@ -1,0 +1,84 @@
+name: Deploy Web App (Flutter -> S3 + CloudFront)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-web-app
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  WEB_STACK_NAME: ones-web
+  BACKEND_STACK_NAME: ones-backend
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_GITHUB_OIDC_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}
+
+      - name: Resolve web outputs
+        id: web
+        run: |
+          bucket=$(aws cloudformation describe-stacks \
+            --stack-name "${WEB_STACK_NAME}" \
+            --query "Stacks[0].Outputs[?OutputKey=='BucketName'].OutputValue" \
+            --output text)
+          distId=$(aws cloudformation describe-stacks \
+            --stack-name "${WEB_STACK_NAME}" \
+            --query "Stacks[0].Outputs[?OutputKey=='DistributionId'].OutputValue" \
+            --output text)
+          echo "bucket=${bucket}" >> $GITHUB_OUTPUT
+          echo "distId=${distId}" >> $GITHUB_OUTPUT
+
+      - name: Resolve backend ALB URL
+        id: backend
+        run: |
+          albUrl=$(aws cloudformation describe-stacks \
+            --stack-name "${BACKEND_STACK_NAME}" \
+            --query "Stacks[0].Outputs[?OutputKey=='AlbUrl'].OutputValue" \
+            --output text)
+          echo "albUrl=${albUrl}" >> $GITHUB_OUTPUT
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Build Flutter web
+        working-directory: apps/ones_app
+        run: |
+          flutter pub get
+          flutter build web --release \
+            --dart-define=ONES_API_BASE_URL="${{ steps.backend.outputs.albUrl }}" \
+            --dart-define=GOOGLE_WEB_CLIENT_ID="${{ vars.GOOGLE_WEB_CLIENT_ID }}"
+
+      - name: Upload to S3
+        run: |
+          aws s3 sync apps/ones_app/build/web "s3://${{ steps.web.outputs.bucket }}" --delete
+
+      - name: Invalidate CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ steps.web.outputs.distId }}" \
+            --paths "/*"
+
+      - name: Show CloudFront URL
+        run: |
+          aws cloudformation describe-stacks --stack-name "${WEB_STACK_NAME}" \
+            --query "Stacks[0].Outputs[?OutputKey=='CloudFrontUrl'].OutputValue" \
+            --output text
