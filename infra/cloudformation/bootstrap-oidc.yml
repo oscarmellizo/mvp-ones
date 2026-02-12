@@ -145,6 +145,7 @@ Resources:
                   - ec2:AuthorizeSecurityGroupEgress
                   - ec2:DeleteSecurityGroup
                   - ec2:CreateVpc
+                  - ec2:ModifyVpcAttribute
                   - ec2:DeleteVpc
                   - ec2:CreateSubnet
                   - ec2:DeleteSubnet
