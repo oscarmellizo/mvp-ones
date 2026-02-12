@@ -1,0 +1,94 @@
+name: Destroy Infra (Backend)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: destroy-infra-backend
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  BACKEND_STACK_NAME: ones-backend
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_GITHUB_OIDC_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}
+
+      - name: Resolve stack outputs
+        id: stack
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          repoUri=$(aws cloudformation describe-stacks \
+            --stack-name "${BACKEND_STACK_NAME}" \
+            --query "Stacks[0].Outputs[?OutputKey=='EcrRepositoryUri'].OutputValue" \
+            --output text)
+
+          clusterName=$(aws cloudformation describe-stacks \
+            --stack-name "${BACKEND_STACK_NAME}" \
+            --query "Stacks[0].Outputs[?OutputKey=='ClusterName'].OutputValue" \
+            --output text)
+
+          serviceName=$(aws cloudformation describe-stacks \
+            --stack-name "${BACKEND_STACK_NAME}" \
+            --query "Stacks[0].Outputs[?OutputKey=='ServiceName'].OutputValue" \
+            --output text)
+
+          repoName=$(echo "${repoUri}" | awk -F'/' '{print $2}')
+
+          echo "repoUri=${repoUri}" >> "$GITHUB_OUTPUT"
+          echo "repoName=${repoName}" >> "$GITHUB_OUTPUT"
+          echo "clusterName=${clusterName}" >> "$GITHUB_OUTPUT"
+          echo "serviceName=${serviceName}" >> "$GITHUB_OUTPUT"
+
+      - name: Scale ECS service to 0
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          aws ecs update-service \
+            --cluster "${{ steps.stack.outputs.clusterName }}" \
+            --service "${{ steps.stack.outputs.serviceName }}" \
+            --desired-count 0 \
+            --no-cli-pager
+
+      - name: Empty ECR repository (delete images)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          repo="${{ steps.stack.outputs.repoName }}"
+
+          aws ecr list-images --repository-name "${repo}" --output json > images.json
+          jq '.imageIds' images.json > image-ids.json
+
+          if [ "$(jq 'length' image-ids.json)" -gt 0 ]; then
+            aws ecr batch-delete-image \
+              --repository-name "${repo}" \
+              --image-ids file://image-ids.json \
+              --no-cli-pager
+          fi
+
+      - name: Delete stack
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          aws cloudformation delete-stack --stack-name "${BACKEND_STACK_NAME}" --no-cli-pager
+          aws cloudformation wait stack-delete-complete --stack-name "${BACKEND_STACK_NAME}" --no-cli-pager

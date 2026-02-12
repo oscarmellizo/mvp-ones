@@ -1,0 +1,64 @@
+name: Destroy Infra (Web)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: destroy-infra-web
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  WEB_STACK_NAME: ones-web
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_GITHUB_OIDC_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}
+
+      - name: Resolve stack outputs
+        id: stack
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          bucket=$(aws cloudformation describe-stacks \
+            --stack-name "${WEB_STACK_NAME}" \
+            --query "Stacks[0].Outputs[?OutputKey=='BucketName'].OutputValue" \
+            --output text)
+
+          distId=$(aws cloudformation describe-stacks \
+            --stack-name "${WEB_STACK_NAME}" \
+            --query "Stacks[0].Outputs[?OutputKey=='DistributionId'].OutputValue" \
+            --output text)
+
+          echo "bucket=${bucket}" >> "$GITHUB_OUTPUT"
+          echo "distId=${distId}" >> "$GITHUB_OUTPUT"
+
+      - name: Empty S3 bucket
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          aws s3 rm "s3://${{ steps.stack.outputs.bucket }}" --recursive
+
+      - name: Delete stack
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          aws cloudformation delete-stack --stack-name "${WEB_STACK_NAME}" --no-cli-pager
+          aws cloudformation wait stack-delete-complete --stack-name "${WEB_STACK_NAME}" --no-cli-pager
