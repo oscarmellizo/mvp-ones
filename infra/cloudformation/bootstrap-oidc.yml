@@ -100,6 +100,7 @@ Resources:
                 Effect: Allow
                 Action:
                   - ecr:CreateRepository
+                  - ecr:DeleteRepository
                   - ecr:DescribeRepositories
                   - ecr:BatchCheckLayerAvailability
                   - ecr:CompleteLayerUpload
@@ -110,10 +111,22 @@ Resources:
                   - ecr:BatchGetImage
                 Resource: '*'
 
+              - Sid: CloudWatchLogs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:DeleteLogGroup
+                  - logs:DescribeLogGroups
+                  - logs:PutRetentionPolicy
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+
               - Sid: ECSAndELB
                 Effect: Allow
                 Action:
                   - ecs:CreateCluster
+                  - ecs:DeleteCluster
                   - ecs:Describe*
                   - ecs:RegisterTaskDefinition
                   - ecs:CreateService
