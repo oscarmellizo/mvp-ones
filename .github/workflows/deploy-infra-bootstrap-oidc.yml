@@ -1,0 +1,44 @@
+name: Deploy Infra (Bootstrap OIDC)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-infra-bootstrap-oidc
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  BOOTSTRAP_STACK_NAME: ones-bootstrap-oidc
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_GITHUB_OIDC_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}
+
+      - name: Deploy stack (bootstrap OIDC)
+        run: |
+          aws cloudformation deploy \
+            --stack-name "${BOOTSTRAP_STACK_NAME}" \
+            --template-file infra/cloudformation/bootstrap-oidc.yml \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-cli-pager
+
+      - name: Show outputs
+        run: |
+          aws cloudformation describe-stacks --stack-name "${BOOTSTRAP_STACK_NAME}" \
+            --query "Stacks[0].Outputs" --output table \
+            --no-cli-pager
