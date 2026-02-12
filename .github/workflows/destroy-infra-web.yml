@@ -35,6 +35,15 @@ jobs:
         run: |
           set -euo pipefail
 
+          if ! aws cloudformation describe-stacks --stack-name "${WEB_STACK_NAME}" --no-cli-pager >/dev/null 2>&1; then
+            echo "stackExists=false" >> "$GITHUB_OUTPUT"
+            echo "bucket=" >> "$GITHUB_OUTPUT"
+            echo "distId=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "stackExists=true" >> "$GITHUB_OUTPUT"
+
           bucket=$(aws cloudformation describe-stacks \
             --stack-name "${WEB_STACK_NAME}" \
             --query "Stacks[0].Outputs[?OutputKey=='BucketName'].OutputValue" \
@@ -53,12 +62,28 @@ jobs:
         run: |
           set -euo pipefail
 
-          aws s3 rm "s3://${{ steps.stack.outputs.bucket }}" --recursive
+          if [ "${{ steps.stack.outputs.stackExists }}" != "true" ]; then
+            echo "Stack ${WEB_STACK_NAME} does not exist. Skipping bucket empty."
+            exit 0
+          fi
+
+          bucket="${{ steps.stack.outputs.bucket }}"
+          if [ -z "${bucket}" ] || [ "${bucket}" = "None" ]; then
+            echo "BucketName output is empty. Skipping bucket empty."
+            exit 0
+          fi
+
+          aws s3 rm "s3://${bucket}" --recursive
 
       - name: Delete stack
         shell: bash
         run: |
           set -euo pipefail
+
+          if ! aws cloudformation describe-stacks --stack-name "${WEB_STACK_NAME}" --no-cli-pager >/dev/null 2>&1; then
+            echo "Stack ${WEB_STACK_NAME} does not exist. Nothing to delete."
+            exit 0
+          fi
 
           aws cloudformation delete-stack --stack-name "${WEB_STACK_NAME}" --no-cli-pager
           aws cloudformation wait stack-delete-complete --stack-name "${WEB_STACK_NAME}" --no-cli-pager
