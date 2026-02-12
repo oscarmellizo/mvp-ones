@@ -198,7 +198,9 @@ Resources:
                 Resource: '*'
                 Condition:
                   StringEquals:
-                    iam:AWSServiceName: elasticloadbalancing.amazonaws.com
+                    iam:AWSServiceName:
+                      - elasticloadbalancing.amazonaws.com
+                      - ecs.amazonaws.com
 
 Outputs:
   GitHubActionsDeployRoleArn:
