@@ -107,6 +107,8 @@ Resources:
                   - ecr:CreateRepository
                   - ecr:DeleteRepository
                   - ecr:DescribeRepositories
+                  - ecr:ListImages
+                  - ecr:BatchDeleteImage
                   - ecr:BatchCheckLayerAvailability
                   - ecr:CompleteLayerUpload
                   - ecr:GetAuthorizationToken
