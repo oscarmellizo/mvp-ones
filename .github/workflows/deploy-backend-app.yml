@@ -62,6 +62,7 @@ jobs:
           aws ecs update-service \
             --cluster "${{ steps.cfn.outputs.clusterName }}" \
             --service "${{ steps.cfn.outputs.serviceName }}" \
+            --desired-count 1 \
             --force-new-deployment
 
       - name: Show ALB URL
