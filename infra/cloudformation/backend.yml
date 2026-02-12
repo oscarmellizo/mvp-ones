@@ -254,6 +254,7 @@ Resources:
       ServiceName: !Sub "${StackPrefix}-ones-api"
       Cluster: !Ref Cluster
       DesiredCount: 0
+      HealthCheckGracePeriodSeconds: 120
       LaunchType: FARGATE
       TaskDefinition: !Ref TaskDefinition
       NetworkConfiguration:
