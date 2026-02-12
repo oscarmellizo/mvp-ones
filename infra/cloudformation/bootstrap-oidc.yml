@@ -190,6 +190,15 @@ Resources:
                   - iam:PassRole
                 Resource: '*'
 
+              - Sid: IAMServiceLinkedRoles
+                Effect: Allow
+                Action:
+                  - iam:CreateServiceLinkedRole
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    iam:AWSServiceName: elasticloadbalancing.amazonaws.com
+
 Outputs:
   GitHubActionsDeployRoleArn:
     Value: !GetAtt GitHubActionsDeployRole.Arn
