@@ -253,7 +253,7 @@ Resources:
     Properties:
       ServiceName: !Sub "${StackPrefix}-ones-api"
       Cluster: !Ref Cluster
-      DesiredCount: 1
+      DesiredCount: 0
       LaunchType: FARGATE
       TaskDefinition: !Ref TaskDefinition
       NetworkConfiguration:
