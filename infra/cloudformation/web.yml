@@ -10,7 +10,6 @@ Resources:
   WebBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "${StackPrefix}-ones-web-${AWS::AccountId}-${AWS::Region}"
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -21,7 +20,7 @@ Resources:
     Type: AWS::CloudFront::OriginAccessControl
     Properties:
       OriginAccessControlConfig:
-        Name: !Sub "${StackPrefix}-oac"
+        Name: !Sub ${AWS::StackName}-oac
         OriginAccessControlOriginType: s3
         SigningBehavior: always
         SigningProtocol: sigv4
@@ -75,14 +74,14 @@ Resources:
               Service: cloudfront.amazonaws.com
             Action:
               - s3:GetObject
-            Resource: !Sub "${WebBucket.Arn}/*"
+            Resource: !Sub ${WebBucket.Arn}/*
             Condition:
               StringEquals:
-                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${Distribution}"
+                AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${Distribution}
 
 Outputs:
   CloudFrontUrl:
-    Value: !Sub "https://${Distribution.DomainName}"
+    Value: !Sub https://${Distribution.DomainName}
   BucketName:
     Value: !Ref WebBucket
   DistributionId:
