@@ -1,0 +1,80 @@
+name: Deploy Infra (Bootstrap OIDC) [Validated]
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-infra-bootstrap-oidc-validated
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  BOOTSTRAP_STACK_NAME: ones-bootstrap-oidc
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_GITHUB_OIDC_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}
+
+      - name: Deploy stack (bootstrap OIDC)
+        run: |
+          aws cloudformation deploy \
+            --stack-name "${BOOTSTRAP_STACK_NAME}" \
+            --template-file infra/cloudformation/bootstrap-oidc.yml \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-cli-pager
+
+      - name: Validate stack status
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          status=$(aws cloudformation describe-stacks \
+            --stack-name "${BOOTSTRAP_STACK_NAME}" \
+            --query "Stacks[0].StackStatus" \
+            --output text \
+            --no-cli-pager)
+
+          echo "StackStatus=${status}"
+
+          if [ "${status}" != "CREATE_COMPLETE" ] && [ "${status}" != "UPDATE_COMPLETE" ]; then
+            echo "Unexpected stack status: ${status}"
+            exit 1
+          fi
+
+      - name: Validate required outputs exist
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          roleArn=$(aws cloudformation describe-stacks \
+            --stack-name "${BOOTSTRAP_STACK_NAME}" \
+            --query "Stacks[0].Outputs[?OutputKey=='GitHubActionsDeployRoleArn'].OutputValue" \
+            --output text \
+            --no-cli-pager)
+
+          if [ -z "${roleArn}" ] || [ "${roleArn}" = "None" ]; then
+            echo "Missing output GitHubActionsDeployRoleArn"
+            exit 1
+          fi
+
+          echo "GitHubActionsDeployRoleArn=${roleArn}"
+
+      - name: Show outputs
+        run: |
+          aws cloudformation describe-stacks --stack-name "${BOOTSTRAP_STACK_NAME}" \
+            --query "Stacks[0].Outputs" --output table \
+            --no-cli-pager
