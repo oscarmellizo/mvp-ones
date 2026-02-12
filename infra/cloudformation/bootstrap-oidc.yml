@@ -133,12 +133,16 @@ Resources:
                   - ecs:UpdateService
                   - ecs:DeleteService
                   - ecs:List*
+                  - ecs:TagResource
+                  - ecs:UntagResource
                   - elasticloadbalancing:CreateLoadBalancer
                   - elasticloadbalancing:CreateTargetGroup
                   - elasticloadbalancing:CreateListener
                   - elasticloadbalancing:Modify*
                   - elasticloadbalancing:Describe*
                   - elasticloadbalancing:Delete*
+                  - elasticloadbalancing:AddTags
+                  - elasticloadbalancing:RemoveTags
                   - ec2:Describe*
                   - ec2:CreateSecurityGroup
                   - ec2:AuthorizeSecurityGroupIngress
@@ -148,6 +152,7 @@ Resources:
                   - ec2:ModifyVpcAttribute
                   - ec2:DeleteVpc
                   - ec2:CreateSubnet
+                  - ec2:ModifySubnetAttribute
                   - ec2:DeleteSubnet
                   - ec2:CreateInternetGateway
                   - ec2:AttachInternetGateway
@@ -158,6 +163,8 @@ Resources:
                   - ec2:CreateRoute
                   - ec2:AssociateRouteTable
                   - ec2:DisassociateRouteTable
+                  - ec2:CreateTags
+                  - ec2:DeleteTags
                 Resource: '*'
 
               - Sid: DynamoDB
