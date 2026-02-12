@@ -144,6 +144,7 @@ Resources:
                   - elasticloadbalancing:AddTags
                   - elasticloadbalancing:RemoveTags
                   - ec2:Describe*
+                  - ec2:GetSecurityGroupsForVpc
                   - ec2:CreateSecurityGroup
                   - ec2:AuthorizeSecurityGroupIngress
                   - ec2:AuthorizeSecurityGroupEgress
