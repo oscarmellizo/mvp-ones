@@ -53,6 +53,15 @@ jobs:
             --output text)
           echo "albUrl=${albUrl}" >> $GITHUB_OUTPUT
 
+      - name: Resolve CloudFront URL
+        id: cf
+        run: |
+          cfUrl=$(aws cloudformation describe-stacks \
+            --stack-name "${WEB_STACK_NAME}" \
+            --query "Stacks[0].Outputs[?OutputKey=='CloudFrontUrl'].OutputValue" \
+            --output text)
+          echo "cfUrl=${cfUrl}" >> $GITHUB_OUTPUT
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -64,7 +73,7 @@ jobs:
         run: |
           flutter pub get
           flutter build web --release \
-            --dart-define=ONES_API_BASE_URL="${{ steps.backend.outputs.albUrl }}" \
+            --dart-define=ONES_API_BASE_URL="${{ steps.cf.outputs.cfUrl }}/api" \
             --dart-define=GOOGLE_WEB_CLIENT_ID="${{ vars.GOOGLE_WEB_CLIENT_ID }}"
 
       - name: Upload to S3

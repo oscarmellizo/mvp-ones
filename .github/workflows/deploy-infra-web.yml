@@ -15,6 +15,7 @@ env:
   AWS_REGION: us-east-1
   STACK_PREFIX: ones
   WEB_STACK_NAME: ones-web
+  BACKEND_STACK_NAME: ones-backend
 
 jobs:
   deploy:
@@ -32,12 +33,18 @@ jobs:
 
       - name: Deploy web stack
         run: |
+          albDns=$(aws cloudformation describe-stacks \
+            --stack-name "${BACKEND_STACK_NAME}" \
+            --query "Stacks[0].Outputs[?OutputKey=='AlbDnsName'].OutputValue" \
+            --output text)
+
           aws cloudformation deploy \
             --stack-name "${WEB_STACK_NAME}" \
             --template-file infra/cloudformation/web.yml \
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
-              StackPrefix="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}"
+              StackPrefix="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}" \
+              BackendAlbDnsName="${albDns}"
 
       - name: Show outputs
         run: |

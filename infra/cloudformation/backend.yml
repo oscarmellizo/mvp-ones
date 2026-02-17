@@ -273,6 +273,8 @@ Resources:
 Outputs:
   AlbUrl:
     Value: !Sub http://${LoadBalancer.DNSName}
+  AlbDnsName:
+    Value: !GetAtt LoadBalancer.DNSName
   EcrRepositoryUri:
     Value: !GetAtt EcrRepository.RepositoryUri
   ClusterName:

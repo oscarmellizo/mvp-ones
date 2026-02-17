@@ -6,6 +6,10 @@ Parameters:
     Type: String
     Default: ones
 
+  BackendAlbDnsName:
+    Type: String
+    Description: DNS name of the backend ALB (without protocol)
+
 Resources:
   WebBucket:
     Type: AWS::S3::Bucket
@@ -15,6 +19,25 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+
+  ApiPathRewriteFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub ${AWS::StackName}-api-rewrite
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Rewrite /api/* to /* for ALB origin
+        Runtime: cloudfront-js-1.0
+      FunctionCode: |
+        function handler(event) {
+          var request = event.request;
+          if (request.uri && request.uri.startsWith('/api/')) {
+            request.uri = request.uri.substring(4);
+          } else if (request.uri === '/api') {
+            request.uri = '/';
+          }
+          return request;
+        }
 
   OriginAccessControl:
     Type: AWS::CloudFront::OriginAccessControl
@@ -37,6 +60,12 @@ Resources:
             DomainName: !GetAtt WebBucket.RegionalDomainName
             S3OriginConfig: {}
             OriginAccessControlId: !Ref OriginAccessControl
+          - Id: apiorigin
+            DomainName: !Ref BackendAlbDnsName
+            CustomOriginConfig:
+              OriginProtocolPolicy: http-only
+              OriginSSLProtocols:
+                - TLSv1.2
         DefaultCacheBehavior:
           TargetOriginId: s3origin
           ViewerProtocolPolicy: redirect-to-https
@@ -53,6 +82,37 @@ Resources:
             QueryString: true
             Cookies:
               Forward: none
+        CacheBehaviors:
+          - PathPattern: /api/*
+            TargetOriginId: apiorigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+              - PUT
+              - POST
+              - PATCH
+              - DELETE
+            CachedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            Compress: true
+            MinTTL: 0
+            DefaultTTL: 0
+            MaxTTL: 0
+            ForwardedValues:
+              QueryString: true
+              Headers:
+                - Authorization
+                - Content-Type
+                - Origin
+              Cookies:
+                Forward: none
+            FunctionAssociations:
+              - EventType: viewer-request
+                FunctionARN: !GetAtt ApiPathRewriteFunction.FunctionARN
         CustomErrorResponses:
           - ErrorCode: 403
             ResponseCode: 200
