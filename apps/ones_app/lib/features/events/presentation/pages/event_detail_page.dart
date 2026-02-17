@@ -659,8 +659,8 @@ class _DetailsTabState extends State<_DetailsTab> {
   final _emailController = TextEditingController();
 
   final List<_Invitee> _invitees = [
-    const _Invitee(email: 'andrea@example.com', accepted: true),
-    const _Invitee(email: 'luis@example.com', accepted: false),
+    const _Invitee(name: 'Andrea', email: 'andrea@example.com', accepted: true),
+    const _Invitee(name: 'Luis', email: 'luis@example.com', accepted: false),
   ];
 
   String? _inviteError;
@@ -703,6 +703,7 @@ class _DetailsTabState extends State<_DetailsTab> {
       _invitees.insert(
         0,
         _Invitee(
+          name: _nameFromEmail(normalizedEmail),
           email: normalizedEmail,
           accepted: false,
         ),
@@ -711,6 +712,23 @@ class _DetailsTabState extends State<_DetailsTab> {
       _emailController.clear();
       FocusScope.of(context).unfocus();
     });
+  }
+
+  String _nameFromEmail(String email) {
+    final at = email.indexOf('@');
+    final raw = (at > 0 ? email.substring(0, at) : email)
+        .replaceAll('.', ' ')
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ')
+        .trim();
+    if (raw.isEmpty) return 'Guest';
+    final parts = raw.split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
+    final titled = parts
+        .map((p) => p.length == 1
+            ? p.toUpperCase()
+            : '${p[0].toUpperCase()}${p.substring(1)}')
+        .join(' ');
+    return titled;
   }
 
   void _removeInvitee(_Invitee invitee) {
@@ -824,14 +842,13 @@ class _DetailsTabState extends State<_DetailsTab> {
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(
-                      invitee.email,
+                      invitee.name,
                       style: const TextStyle(fontWeight: FontWeight.w900),
                     ),
                     subtitle: Text(
-                      statusText,
+                      invitee.email,
                       style: TextStyle(
                         color: Colors.black.withOpacity(0.6),
-                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     trailing: Row(
@@ -871,10 +888,12 @@ class _DetailsTabState extends State<_DetailsTab> {
 }
 
 class _Invitee {
+  final String name;
   final String email;
   final bool accepted;
 
-  const _Invitee({required this.email, required this.accepted});
+  const _Invitee(
+      {required this.name, required this.email, required this.accepted});
 }
 
 class _DetailsCard extends StatelessWidget {
