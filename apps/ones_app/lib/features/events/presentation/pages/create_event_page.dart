@@ -6,7 +6,24 @@ import '../events_controller.dart';
 class CreateEventPage extends StatefulWidget {
   static const routeName = '/events/create';
 
-  const CreateEventPage({super.key});
+  final String? initialTitle;
+  final String? initialEventType;
+  final String? initialLocation;
+  final DateTime? initialStartDate;
+  final TimeOfDay? initialStartTime;
+  final DateTime? initialEndDate;
+  final TimeOfDay? initialEndTime;
+
+  const CreateEventPage({
+    super.key,
+    this.initialTitle,
+    this.initialEventType,
+    this.initialLocation,
+    this.initialStartDate,
+    this.initialStartTime,
+    this.initialEndDate,
+    this.initialEndTime,
+  });
 
   @override
   State<CreateEventPage> createState() => _CreateEventPageState();
@@ -31,6 +48,30 @@ class _CreateEventPageState extends State<CreateEventPage> {
 
   String _eventType = 'Birthday Party';
   bool _allowGuestsUpload = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    if (widget.initialTitle != null && widget.initialTitle!.trim().isNotEmpty) {
+      _nameController.text = widget.initialTitle!.trim();
+    }
+
+    if (widget.initialLocation != null &&
+        widget.initialLocation!.trim().isNotEmpty) {
+      _locationController.text = widget.initialLocation!.trim();
+    }
+
+    if (widget.initialEventType != null &&
+        widget.initialEventType!.trim().isNotEmpty) {
+      _eventType = widget.initialEventType!.trim();
+    }
+
+    _startDate = widget.initialStartDate ?? _startDate;
+    _startTime = widget.initialStartTime ?? _startTime;
+    _endDate = widget.initialEndDate ?? _endDate;
+    _endTime = widget.initialEndTime ?? _endTime;
+  }
 
   @override
   void dispose() {
