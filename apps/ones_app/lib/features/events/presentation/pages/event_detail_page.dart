@@ -645,32 +645,97 @@ class _BottomAuthorChip extends StatelessWidget {
   }
 }
 
-class _DetailsTab extends StatelessWidget {
+class _DetailsTab extends StatefulWidget {
   final String title;
   final DateTime createdAt;
 
   const _DetailsTab({required this.title, required this.createdAt});
 
   @override
-  Widget build(BuildContext context) {
-    const attendees = [
-      'Oscar',
-      'Andrea',
-      'Camila',
-      'Luis',
-      'Sofia',
-      'Mateo',
-    ];
+  State<_DetailsTab> createState() => _DetailsTabState();
+}
 
-    final start = createdAt.add(const Duration(days: 2));
-    final end = createdAt.add(const Duration(days: 2, hours: 5));
+class _DetailsTabState extends State<_DetailsTab> {
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+
+  final List<_Invitee> _invitees = [
+    const _Invitee(name: 'Andrea', email: 'andrea@example.com'),
+    const _Invitee(name: 'Luis', email: 'luis@example.com'),
+  ];
+
+  String? _inviteError;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  void _addInvitee() {
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+
+    final normalizedEmail = email.toLowerCase();
+
+    if (name.isEmpty || email.isEmpty) {
+      setState(() {
+        _inviteError = 'Please enter name and email.';
+      });
+      return;
+    }
+
+    if (!_looksLikeEmail(normalizedEmail)) {
+      setState(() {
+        _inviteError = 'Please enter a valid email.';
+      });
+      return;
+    }
+
+    final alreadyExists =
+        _invitees.any((i) => i.email.toLowerCase() == normalizedEmail);
+    if (alreadyExists) {
+      setState(() {
+        _inviteError = 'This email is already invited.';
+      });
+      return;
+    }
+
+    setState(() {
+      _invitees.insert(0, _Invitee(name: name, email: normalizedEmail));
+      _inviteError = null;
+      _nameController.clear();
+      _emailController.clear();
+      FocusScope.of(context).unfocus();
+    });
+  }
+
+  void _removeInvitee(_Invitee invitee) {
+    setState(() {
+      _invitees.removeWhere((i) => i.email == invitee.email);
+    });
+  }
+
+  bool _looksLikeEmail(String value) {
+    final v = value.trim();
+    if (!v.contains('@')) return false;
+    if (v.startsWith('@') || v.endsWith('@')) return false;
+    if (!v.contains('.')) return false;
+    return true;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final start = widget.createdAt.add(const Duration(days: 2));
+    final end = widget.createdAt.add(const Duration(days: 2, hours: 5));
 
     return ListView(
       children: [
         _DetailsCard(
           title: 'Event Details',
           children: [
-            _DetailRow(label: 'Event Name', value: title),
+            _DetailRow(label: 'Event Name', value: widget.title),
             _DetailRow(label: 'Event Type', value: 'Birthday Party'),
             _DetailRow(label: 'Starts', value: _formatMonthDayYear(start)),
             _DetailRow(label: 'Ends', value: _formatMonthDayYear(end)),
@@ -680,36 +745,130 @@ class _DetailsTab extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         _DetailsCard(
-          title: 'Attendees',
+          title: 'Invite Guests',
           children: [
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: attendees
-                  .map(
-                    (a) => Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(18),
-                        border:
-                            Border.all(color: Colors.black.withOpacity(0.06)),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _nameController,
+                    textInputAction: TextInputAction.next,
+                    decoration: InputDecoration(
+                      hintText: 'Name',
+                      filled: true,
+                      fillColor: const Color(0xFFF7F3EA),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
                       ),
-                      child: Text(
-                        a,
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 12),
                     ),
-                  )
-                  .toList(growable: false),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _addInvitee(),
+                    decoration: InputDecoration(
+                      hintText: 'Email',
+                      filled: true,
+                      fillColor: const Color(0xFFF7F3EA),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
             ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF6A0D73),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                onPressed: _addInvitee,
+                child: const Text(
+                  'Invite',
+                  style: TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
+            ),
+            if (_inviteError != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                _inviteError!,
+                style: const TextStyle(
+                  color: Color(0xFFE25555),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+            const SizedBox(height: 14),
+            const Text(
+              'Invited',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            if (_invitees.isEmpty)
+              Text(
+                'No invited guests yet.',
+                style: TextStyle(color: Colors.black.withOpacity(0.55)),
+              )
+            else
+              ListView.separated(
+                itemCount: _invitees.length,
+                physics: const NeverScrollableScrollPhysics(),
+                shrinkWrap: true,
+                separatorBuilder: (_, __) => Divider(
+                  height: 14,
+                  color: Colors.black.withOpacity(0.06),
+                ),
+                itemBuilder: (context, index) {
+                  final invitee = _invitees[index];
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      invitee.name,
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    subtitle: Text(
+                      invitee.email,
+                      style: TextStyle(color: Colors.black.withOpacity(0.6)),
+                    ),
+                    trailing: IconButton(
+                      onPressed: () => _removeInvitee(invitee),
+                      icon: const Icon(Icons.close),
+                    ),
+                  );
+                },
+              ),
           ],
         ),
         const SizedBox(height: 100),
       ],
     );
   }
+}
+
+class _Invitee {
+  final String name;
+  final String email;
+
+  const _Invitee({required this.name, required this.email});
 }
 
 class _DetailsCard extends StatelessWidget {
