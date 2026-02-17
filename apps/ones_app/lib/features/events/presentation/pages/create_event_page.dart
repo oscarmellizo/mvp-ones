@@ -19,8 +19,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
   final _inviteEmailController = TextEditingController();
 
   final List<_Invitee> _invitees = [
-    const _Invitee(email: 'andrea@example.com', accepted: true),
-    const _Invitee(email: 'luis@example.com', accepted: false),
+    const _Invitee(name: 'Andrea', email: 'andrea@example.com'),
+    const _Invitee(name: 'Luis', email: 'luis@example.com'),
   ];
   String? _inviteError;
 
@@ -68,11 +68,31 @@ class _CreateEventPageState extends State<CreateEventPage> {
     }
 
     setState(() {
-      _invitees.insert(0, _Invitee(email: normalizedEmail, accepted: false));
+      _invitees.insert(
+        0,
+        _Invitee(name: _nameFromEmail(normalizedEmail), email: normalizedEmail),
+      );
       _inviteError = null;
       _inviteEmailController.clear();
       FocusScope.of(context).unfocus();
     });
+  }
+
+  String _nameFromEmail(String email) {
+    final at = email.indexOf('@');
+    final raw = (at > 0 ? email.substring(0, at) : email)
+        .replaceAll('.', ' ')
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ')
+        .trim();
+    if (raw.isEmpty) return 'Guest';
+    final parts = raw.split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
+    final titled = parts
+        .map((p) => p.length == 1
+            ? p.toUpperCase()
+            : '${p[0].toUpperCase()}${p.substring(1)}')
+        .join(' ');
+    return titled;
   }
 
   void _removeInvitee(_Invitee invitee) {
@@ -216,6 +236,14 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         ),
                       ),
                       const SizedBox(height: 16),
+                      _InviteGuestsCard(
+                        emailController: _inviteEmailController,
+                        inviteError: _inviteError,
+                        invitees: _invitees,
+                        onInvite: _addInvitee,
+                        onRemove: _removeInvitee,
+                      ),
+                      const SizedBox(height: 16),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 14),
@@ -255,14 +283,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
                             )
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      _InviteGuestsCard(
-                        emailController: _inviteEmailController,
-                        inviteError: _inviteError,
-                        invitees: _invitees,
-                        onInvite: _addInvitee,
-                        onRemove: _removeInvitee,
                       ),
                     ],
                   ),
@@ -441,47 +461,21 @@ class _InviteGuestsCard extends StatelessWidget {
               ),
               itemBuilder: (context, index) {
                 final invitee = invitees[index];
-                final statusText = invitee.accepted ? 'Accepted' : 'Pending';
-                final statusBg = invitee.accepted
-                    ? const Color(0xFF58C7C7)
-                    : const Color(0xFFFFC857);
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(
-                    invitee.email,
+                    invitee.name,
                     style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
                   subtitle: Text(
-                    statusText,
+                    invitee.email,
                     style: TextStyle(
                       color: Colors.black.withOpacity(0.6),
-                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: statusBg,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Text(
-                          statusText,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      IconButton(
-                        onPressed: () => onRemove(invitee),
-                        icon: const Icon(Icons.close),
-                      ),
-                    ],
+                  trailing: IconButton(
+                    onPressed: () => onRemove(invitee),
+                    icon: const Icon(Icons.close),
                   ),
                 );
               },
@@ -493,10 +487,10 @@ class _InviteGuestsCard extends StatelessWidget {
 }
 
 class _Invitee {
+  final String name;
   final String email;
-  final bool accepted;
 
-  const _Invitee({required this.email, required this.accepted});
+  const _Invitee({required this.name, required this.email});
 }
 
 class _FieldLabel extends StatelessWidget {
