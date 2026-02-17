@@ -15,6 +15,7 @@ import 'features/events/application/get_event_use_case.dart';
 import 'features/events/application/list_events_use_case.dart';
 import 'features/events/presentation/events_controller.dart';
 import 'features/events/presentation/pages/event_detail_page.dart';
+import 'features/events/presentation/pages/home_shell_page.dart';
 import 'features/events/presentation/pages/events_list_page.dart';
 import 'features/events/presentation/pages/create_event_page.dart';
 import 'features/auth/presentation/pages/login_page.dart';
@@ -105,6 +106,6 @@ class _RootRouter extends StatelessWidget {
       return const LoginPage();
     }
 
-    return const EventsListPage();
+    return const HomeShellPage();
   }
 }
