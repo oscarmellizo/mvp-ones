@@ -96,6 +96,14 @@ Resources:
                   - cloudfront:GetOriginAccessControlConfig
                   - cloudfront:UpdateOriginAccessControl
                   - cloudfront:ListOriginAccessControls
+                  - cloudfront:CreateFunction
+                  - cloudfront:UpdateFunction
+                  - cloudfront:DescribeFunction
+                  - cloudfront:GetFunction
+                  - cloudfront:PublishFunction
+                  - cloudfront:TestFunction
+                  - cloudfront:DeleteFunction
+                  - cloudfront:ListFunctions
                   - cloudfront:TagResource
                   - cloudfront:UntagResource
                   - cloudfront:ListTagsForResource
