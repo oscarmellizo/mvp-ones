@@ -36,6 +36,53 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <style>
+    #splash {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #F4B64E;
+      z-index: 9999;
+      font-family: Arial, sans-serif;
+    }
+
+    #splash .content {
+      text-align: center;
+    }
+
+    #splash img {
+      width: 180px;
+      max-width: 60vw;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+    }
+
+    #splash .subtitle {
+      margin-top: 16px;
+      color: #3B1D6D;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+  </style>
+
+  <div id="splash">
+    <div class="content">
+      <img src="splash/symbol_purple.png" alt="Ones" />
+      <div class="subtitle">Cargando Experiencia</div>
+    </div>
+  </div>
+
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var el = document.getElementById('splash');
+      if (el) el.remove();
+    });
+  </script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

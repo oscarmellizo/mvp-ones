@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'core/config/app_config.dart';
 import 'core/http/ones_api_factory.dart';
+import 'core/ui/splash_page.dart';
 import 'features/auth/adapters/google/google_auth_repository.dart';
 import 'features/auth/application/get_id_token_use_case.dart';
 import 'features/auth/application/sign_in_with_google_use_case.dart';
@@ -97,7 +98,7 @@ class _RootRouter extends StatelessWidget {
     final auth = context.watch<AuthController>();
 
     if (auth.isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const SplashPage();
     }
 
     if (!auth.isSignedIn) {
