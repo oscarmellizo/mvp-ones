@@ -38,7 +38,6 @@ jobs:
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
               StackPrefix="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}" \
-              EventsTableName="${{ vars.ONES_EVENTS_TABLE != '' && vars.ONES_EVENTS_TABLE || 'ones-events' }}" \
               GoogleClientId="${{ vars.GOOGLE_CLIENT_ID }}"
 
       - name: Show outputs
