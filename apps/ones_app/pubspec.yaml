@@ -69,6 +69,7 @@ flutter:
 
   assets:
     - assets/splash/
+    - assets/auth/
 
 flutter_native_splash:
   color: "#F4B64E"
