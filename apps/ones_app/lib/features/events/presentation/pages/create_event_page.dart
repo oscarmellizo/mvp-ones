@@ -16,6 +16,13 @@ class _CreateEventPageState extends State<CreateEventPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _locationController = TextEditingController();
+  final _inviteEmailController = TextEditingController();
+
+  final List<_Invitee> _invitees = [
+    const _Invitee(email: 'andrea@example.com', accepted: true),
+    const _Invitee(email: 'luis@example.com', accepted: false),
+  ];
+  String? _inviteError;
 
   DateTime? _startDate;
   TimeOfDay? _startTime;
@@ -29,7 +36,57 @@ class _CreateEventPageState extends State<CreateEventPage> {
   void dispose() {
     _nameController.dispose();
     _locationController.dispose();
+    _inviteEmailController.dispose();
     super.dispose();
+  }
+
+  void _addInvitee() {
+    final email = _inviteEmailController.text.trim();
+    final normalizedEmail = email.toLowerCase();
+
+    if (email.isEmpty) {
+      setState(() {
+        _inviteError = 'Please enter an email.';
+      });
+      return;
+    }
+
+    if (!_looksLikeEmail(normalizedEmail)) {
+      setState(() {
+        _inviteError = 'Please enter a valid email.';
+      });
+      return;
+    }
+
+    final alreadyExists =
+        _invitees.any((i) => i.email.toLowerCase() == normalizedEmail);
+    if (alreadyExists) {
+      setState(() {
+        _inviteError = 'This email is already invited.';
+      });
+      return;
+    }
+
+    setState(() {
+      _invitees.insert(0, _Invitee(email: normalizedEmail, accepted: false));
+      _inviteError = null;
+      _inviteEmailController.clear();
+      FocusScope.of(context).unfocus();
+    });
+  }
+
+  void _removeInvitee(_Invitee invitee) {
+    setState(() {
+      _invitees.removeWhere((i) => i.email == invitee.email);
+    });
+  }
+
+  bool _looksLikeEmail(String value) {
+    final v = value.trim();
+    if (!v.contains('@')) return false;
+    if (v.startsWith('@') || v.endsWith('@')) return false;
+    if (!v.contains('.')) return false;
+    return true;
   }
 
   @override
@@ -199,6 +256,14 @@ class _CreateEventPageState extends State<CreateEventPage> {
                           ],
                         ),
                       ),
+                      const SizedBox(height: 16),
+                      _InviteGuestsCard(
+                        emailController: _inviteEmailController,
+                        inviteError: _inviteError,
+                        invitees: _invitees,
+                        onInvite: _addInvitee,
+                        onRemove: _removeInvitee,
+                      ),
                     ],
                   ),
                 ),
@@ -275,6 +340,163 @@ class _CreateEventPageState extends State<CreateEventPage> {
     );
     if (picked != null) onPicked(picked);
   }
+}
+
+class _InviteGuestsCard extends StatelessWidget {
+  final TextEditingController emailController;
+  final String? inviteError;
+  final List<_Invitee> invitees;
+  final VoidCallback onInvite;
+  final ValueChanged<_Invitee> onRemove;
+
+  const _InviteGuestsCard({
+    required this.emailController,
+    required this.inviteError,
+    required this.invitees,
+    required this.onInvite,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Invite Guests',
+            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: emailController,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => onInvite(),
+            decoration: InputDecoration(
+              hintText: 'Email (required)',
+              filled: true,
+              fillColor: const Color(0xFFF7F3EA),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF6A0D73),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: onInvite,
+              child: const Text(
+                'Invite',
+                style: TextStyle(fontWeight: FontWeight.w900),
+              ),
+            ),
+          ),
+          if (inviteError != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              inviteError!,
+              style: const TextStyle(
+                color: Color(0xFFE25555),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          const Text(
+            'Invited',
+            style: TextStyle(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 8),
+          if (invitees.isEmpty)
+            Text(
+              'No invited guests yet.',
+              style: TextStyle(color: Colors.black.withOpacity(0.55)),
+            )
+          else
+            ListView.separated(
+              itemCount: invitees.length,
+              physics: const NeverScrollableScrollPhysics(),
+              shrinkWrap: true,
+              separatorBuilder: (_, __) => Divider(
+                height: 14,
+                color: Colors.black.withOpacity(0.06),
+              ),
+              itemBuilder: (context, index) {
+                final invitee = invitees[index];
+                final statusText = invitee.accepted ? 'Accepted' : 'Pending';
+                final statusBg = invitee.accepted
+                    ? const Color(0xFF58C7C7)
+                    : const Color(0xFFFFC857);
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    invitee.email,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  subtitle: Text(
+                    statusText,
+                    style: TextStyle(
+                      color: Colors.black.withOpacity(0.6),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: statusBg,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          statusText,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      IconButton(
+                        onPressed: () => onRemove(invitee),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Invitee {
+  final String email;
+  final bool accepted;
+
+  const _Invitee({required this.email, required this.accepted});
 }
 
 class _FieldLabel extends StatelessWidget {
