@@ -45,7 +45,7 @@ Resources:
   EcrRepository:
     Type: AWS::ECR::Repository
     Properties:
-      RepositoryName: !Sub "${StackPrefix}-ones-api"
+      RepositoryName: !Sub ${StackPrefix}-ones-api
       ImageScanningConfiguration:
         ScanOnPush: true
 
@@ -57,7 +57,7 @@ Resources:
       EnableDnsHostnames: true
       Tags:
         - Key: Name
-          Value: !Sub "${StackPrefix}-vpc"
+          Value: !Sub ${StackPrefix}-vpc
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
@@ -86,7 +86,7 @@ Resources:
     Properties:
       VpcId: !Ref Vpc
       CidrBlock: 10.0.0.0/24
-      AvailabilityZone: !Sub "${AWS::Region}a"
+      AvailabilityZone: !Sub ${AWS::Region}a
       MapPublicIpOnLaunch: true
 
   PublicSubnetB:
@@ -94,7 +94,7 @@ Resources:
     Properties:
       VpcId: !Ref Vpc
       CidrBlock: 10.0.1.0/24
-      AvailabilityZone: !Sub "${AWS::Region}b"
+      AvailabilityZone: !Sub ${AWS::Region}b
       MapPublicIpOnLaunch: true
 
   PublicSubnetARouteTableAssociation:
@@ -134,7 +134,7 @@ Resources:
   LoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Name: !Sub "${StackPrefix}-alb"
+      Name: !Sub ${StackPrefix}-alb
       Scheme: internet-facing
       Type: application
       Subnets:
@@ -146,7 +146,7 @@ Resources:
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      Name: !Sub "${StackPrefix}-tg"
+      Name: !Sub ${StackPrefix}-tg
       Port: 8080
       Protocol: HTTP
       VpcId: !Ref Vpc
@@ -168,7 +168,7 @@ Resources:
   Cluster:
     Type: AWS::ECS::Cluster
     Properties:
-      ClusterName: !Sub "${StackPrefix}-cluster"
+      ClusterName: !Sub ${StackPrefix}-cluster
 
   TaskExecutionRole:
     Type: AWS::IAM::Role
@@ -205,18 +205,18 @@ Resources:
                   - dynamodb:Query
                 Resource:
                   - !GetAtt EventsTable.Arn
-                  - !Sub "${EventsTable.Arn}/index/*"
+                  - !Sub ${EventsTable.Arn}/index/*
 
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/ecs/${StackPrefix}-ones-api"
+      LogGroupName: !Sub /ecs/${StackPrefix}-ones-api
       RetentionInDays: 7
 
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Family: !Sub "${StackPrefix}-ones-api"
+      Family: !Sub ${StackPrefix}-ones-api
       Cpu: '256'
       Memory: '512'
       NetworkMode: awsvpc
@@ -226,7 +226,7 @@ Resources:
       TaskRoleArn: !GetAtt TaskRole.Arn
       ContainerDefinitions:
         - Name: ones-api
-          Image: !Sub "${EcrRepository.RepositoryUri}:latest"
+          Image: !Sub ${EcrRepository.RepositoryUri}:latest
           PortMappings:
             - ContainerPort: 8080
               Protocol: tcp
@@ -251,7 +251,7 @@ Resources:
     DependsOn:
       - Listener
     Properties:
-      ServiceName: !Sub "${StackPrefix}-ones-api"
+      ServiceName: !Sub ${StackPrefix}-ones-api
       Cluster: !Ref Cluster
       DesiredCount: 0
       HealthCheckGracePeriodSeconds: 120
@@ -272,7 +272,7 @@ Resources:
 
 Outputs:
   AlbUrl:
-    Value: !Sub "http://${LoadBalancer.DNSName}"
+    Value: !Sub http://${LoadBalancer.DNSName}
   EcrRepositoryUri:
     Value: !GetAtt EcrRepository.RepositoryUri
   ClusterName:
