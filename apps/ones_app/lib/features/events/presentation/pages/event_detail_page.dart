@@ -656,32 +656,29 @@ class _DetailsTab extends StatefulWidget {
 }
 
 class _DetailsTabState extends State<_DetailsTab> {
-  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
 
   final List<_Invitee> _invitees = [
-    const _Invitee(name: 'Andrea', email: 'andrea@example.com'),
-    const _Invitee(name: 'Luis', email: 'luis@example.com'),
+    const _Invitee(email: 'andrea@example.com', accepted: true),
+    const _Invitee(email: 'luis@example.com', accepted: false),
   ];
 
   String? _inviteError;
 
   @override
   void dispose() {
-    _nameController.dispose();
     _emailController.dispose();
     super.dispose();
   }
 
   void _addInvitee() {
-    final name = _nameController.text.trim();
     final email = _emailController.text.trim();
 
     final normalizedEmail = email.toLowerCase();
 
-    if (name.isEmpty || email.isEmpty) {
+    if (email.isEmpty) {
       setState(() {
-        _inviteError = 'Please enter name and email.';
+        _inviteError = 'Please enter an email.';
       });
       return;
     }
@@ -703,9 +700,14 @@ class _DetailsTabState extends State<_DetailsTab> {
     }
 
     setState(() {
-      _invitees.insert(0, _Invitee(name: name, email: normalizedEmail));
+      _invitees.insert(
+        0,
+        _Invitee(
+          email: normalizedEmail,
+          accepted: false,
+        ),
+      );
       _inviteError = null;
-      _nameController.clear();
       _emailController.clear();
       FocusScope.of(context).unfocus();
     });
@@ -747,46 +749,22 @@ class _DetailsTabState extends State<_DetailsTab> {
         _DetailsCard(
           title: 'Invite Guests',
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _nameController,
-                    textInputAction: TextInputAction.next,
-                    decoration: InputDecoration(
-                      hintText: 'Name',
-                      filled: true,
-                      fillColor: const Color(0xFFF7F3EA),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 12),
-                    ),
-                  ),
+            TextField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _addInvitee(),
+              decoration: InputDecoration(
+                hintText: 'Email (required)',
+                filled: true,
+                fillColor: const Color(0xFFF7F3EA),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TextField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => _addInvitee(),
-                    decoration: InputDecoration(
-                      hintText: 'Email',
-                      filled: true,
-                      fillColor: const Color(0xFFF7F3EA),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 12),
-                    ),
-                  ),
-                ),
-              ],
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              ),
             ),
             const SizedBox(height: 10),
             SizedBox(
@@ -839,19 +817,47 @@ class _DetailsTabState extends State<_DetailsTab> {
                 ),
                 itemBuilder: (context, index) {
                   final invitee = _invitees[index];
+                  final statusText = invitee.accepted ? 'Accepted' : 'Pending';
+                  final statusBg = invitee.accepted
+                      ? const Color(0xFF58C7C7)
+                      : const Color(0xFFFFC857);
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(
-                      invitee.name,
+                      invitee.email,
                       style: const TextStyle(fontWeight: FontWeight.w900),
                     ),
                     subtitle: Text(
-                      invitee.email,
-                      style: TextStyle(color: Colors.black.withOpacity(0.6)),
+                      statusText,
+                      style: TextStyle(
+                        color: Colors.black.withOpacity(0.6),
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                    trailing: IconButton(
-                      onPressed: () => _removeInvitee(invitee),
-                      icon: const Icon(Icons.close),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: statusBg,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            statusText,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        IconButton(
+                          onPressed: () => _removeInvitee(invitee),
+                          icon: const Icon(Icons.close),
+                        ),
+                      ],
                     ),
                   );
                 },
@@ -865,10 +871,10 @@ class _DetailsTabState extends State<_DetailsTab> {
 }
 
 class _Invitee {
-  final String name;
   final String email;
+  final bool accepted;
 
-  const _Invitee({required this.name, required this.email});
+  const _Invitee({required this.email, required this.accepted});
 }
 
 class _DetailsCard extends StatelessWidget {
