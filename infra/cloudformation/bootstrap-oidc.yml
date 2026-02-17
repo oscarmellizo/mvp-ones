@@ -177,6 +177,7 @@ Resources:
                   - ec2:CreateRouteTable
                   - ec2:DeleteRouteTable
                   - ec2:CreateRoute
+                  - ec2:DeleteRoute
                   - ec2:AssociateRouteTable
                   - ec2:DisassociateRouteTable
                   - ec2:CreateTags
