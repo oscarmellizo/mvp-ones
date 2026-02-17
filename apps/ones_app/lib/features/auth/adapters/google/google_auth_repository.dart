@@ -1,4 +1,5 @@
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../domain/auth_repository.dart';
 import '../../domain/auth_user.dart';
@@ -12,7 +13,7 @@ class GoogleAuthRepository implements AuthRepository {
 
   GoogleSignIn get _signIn {
     return _googleSignIn ??= GoogleSignIn(
-      clientId: webClientId,
+      clientId: kIsWeb ? null : webClientId,
       scopes: const ['email', 'profile', 'openid'],
     );
   }
@@ -31,11 +32,14 @@ class GoogleAuthRepository implements AuthRepository {
     }
 
     if (idToken == null || idToken.isEmpty) {
-      await _signIn.signInSilently();
-      final current = _signIn.currentUser;
-      if (current != null) {
-        final auth = await current.authentication;
-        idToken = auth.idToken;
+      for (var i = 0; i < 5 && (idToken == null || idToken.isEmpty); i++) {
+        await Future<void>.delayed(Duration(milliseconds: 250 * (i + 1)));
+        await _signIn.signInSilently(reAuthenticate: true);
+        final current = _signIn.currentUser;
+        if (current != null) {
+          final auth = await current.authentication;
+          idToken = auth.idToken;
+        }
       }
     }
 
