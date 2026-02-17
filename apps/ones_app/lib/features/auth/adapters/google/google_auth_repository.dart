@@ -24,10 +24,26 @@ class GoogleAuthRepository implements AuthRepository {
       throw StateError('Sign-in aborted');
     }
 
-    final auth = await account.authentication;
-    final idToken = auth.idToken;
+    String? idToken;
+    {
+      final auth = await account.authentication;
+      idToken = auth.idToken;
+    }
+
     if (idToken == null || idToken.isEmpty) {
-      throw StateError('Missing Google idToken');
+      await _signIn.signInSilently();
+      final current = _signIn.currentUser;
+      if (current != null) {
+        final auth = await current.authentication;
+        idToken = auth.idToken;
+      }
+    }
+
+    if (idToken == null || idToken.isEmpty) {
+      throw StateError(
+        'Missing Google idToken (webClientId=${webClientId ?? 'null'}). '
+        'Verify Google OAuth Authorized JavaScript origins and that the web client id matches GOOGLE_WEB_CLIENT_ID.',
+      );
     }
 
     return AuthUser(
