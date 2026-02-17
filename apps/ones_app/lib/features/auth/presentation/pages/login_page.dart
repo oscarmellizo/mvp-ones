@@ -36,18 +36,8 @@ class LoginPage extends StatelessWidget {
                     children: [
                       const Image(
                         image: AssetImage('assets/splash/symbol_purple.png'),
-                        width: 52,
-                      ),
-                      const SizedBox(width: 14),
-                      Text(
-                        'ONES',
-                        style:
-                            Theme.of(context).textTheme.headlineLarge?.copyWith(
-                                  color: _purple,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 1.2,
-                                ),
-                      ),
+                        width: 66,
+                      )
                     ],
                   ),
                   const SizedBox(height: 24),
