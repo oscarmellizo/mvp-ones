@@ -2,6 +2,11 @@ name: Deploy Infra (Backend)
 
 on:
   workflow_dispatch:
+    inputs:
+      backendDesiredCount:
+        description: 'ECS desired count for ones-api service'
+        required: false
+        default: '0'
 
 permissions:
   id-token: write
@@ -38,7 +43,8 @@ jobs:
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
               StackPrefix="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}" \
-              GoogleClientId="${{ vars.GOOGLE_CLIENT_ID }}"
+              GoogleClientId="${{ vars.GOOGLE_CLIENT_ID }}" \
+              BackendDesiredCount="${{ inputs.backendDesiredCount }}"
 
       - name: Show outputs
         run: |

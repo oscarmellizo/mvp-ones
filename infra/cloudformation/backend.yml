@@ -8,6 +8,9 @@ Parameters:
   GoogleClientId:
     Type: String
     Default: CHANGE_ME
+  BackendDesiredCount:
+    Type: Number
+    Default: 0
 
 Resources:
   EventsTable:
@@ -253,7 +256,7 @@ Resources:
       - Listener
     Properties:
       Cluster: !Ref Cluster
-      DesiredCount: 0
+      DesiredCount: !Ref BackendDesiredCount
       HealthCheckGracePeriodSeconds: 120
       LaunchType: FARGATE
       TaskDefinition: !Ref TaskDefinition
