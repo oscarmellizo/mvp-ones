@@ -323,3 +323,211 @@ Nota: esto borra recursos y datos. Para etapa MVP esto es aceptable.
 - Backend local: `services/ones-api/README.md`
 - Frontend local: `apps/ones_app/README.md`
 - Contrato: `contracts/openapi.yaml`
+
+---
+
+## Casos de uso
+
+> Cada caso de uso se documenta end-to-end siguiendo la arquitectura hexagonal:
+>
+>- **Frontend (Flutter)**: `presentation` -> `application` -> `domain (ports)` -> `adapters`
+>- **Backend (Spring Boot)**: `adapters/inbound` -> `application` -> `domain` -> `application ports` -> `adapters/outbound`
+
+<details>
+<summary><strong>1) Autenticarse (Google) y almacenar/actualizar el usuario en DynamoDB</strong></summary>
+
+### Frontend (Flutter)
+
+#### UI -> Controller
+
+- **Archivo**: `apps/ones_app/lib/features/auth/presentation/pages/login_page.dart`
+  - **Método**: `LoginPage.build`
+    - Acción: botón "Sign in with Google" ejecuta `auth.signIn()`.
+
+- **Archivo**: `apps/ones_app/lib/features/auth/presentation/auth_controller.dart`
+  - **Método**: `AuthController.signIn`
+    - `signInWithGoogle.execute()`
+    - `getIdToken.execute()`
+    - `ensureUser.execute(token)`
+      - Si falla, se ignora (el usuario queda autenticado igual).
+
+#### Application (use cases)
+
+- **Archivo**: `apps/ones_app/lib/features/auth/application/sign_in_with_google_use_case.dart`
+  - **Método**: `SignInWithGoogleUseCase.execute`
+    - Delegación: `AuthRepository.signInWithGoogle()`
+
+- **Archivo**: `apps/ones_app/lib/features/auth/application/get_id_token_use_case.dart`
+  - **Método**: `GetIdTokenUseCase.execute`
+    - Delegación: `AuthRepository.getIdToken()`
+
+- **Archivo**: `apps/ones_app/lib/features/users/application/ensure_user_use_case.dart`
+  - **Método**: `EnsureUserUseCase.execute(String idToken)`
+    - Delegación: `UsersRepository.ensureUser(idToken)`
+
+#### Domain (ports)
+
+- **Archivo**: `apps/ones_app/lib/features/auth/domain/auth_repository.dart`
+  - **Port**: `AuthRepository`
+    - `signInWithGoogle()`
+    - `getIdToken()`
+
+- **Archivo**: `apps/ones_app/lib/features/users/domain/users_repository.dart`
+  - **Port**: `UsersRepository`
+    - `ensureUser(String idToken)`
+
+#### Adapters
+
+- **Archivo**: `apps/ones_app/lib/features/auth/adapters/google/google_auth_repository.dart`
+  - **Métodos**:
+    - `GoogleAuthRepository.signInWithGoogle()`
+      - Ejecuta Google Sign-In y devuelve `AuthUser`.
+    - `GoogleAuthRepository.getIdToken()`
+      - Lee el `idToken` desde `GoogleSignInAccount.authentication`.
+
+- **Archivo**: `apps/ones_app/lib/core/http/ones_api_factory.dart`
+  - **Método**: `OnesApiFactory.create({String? idToken})`
+    - Configura `basePathOverride`.
+    - Si hay token: `client.setBearerAuth('bearerAuth', idToken)`.
+
+- **Archivo**: `apps/ones_app/lib/features/users/adapters/api/users_api_repository.dart`
+  - **Método**: `UsersApiRepository.ensureUser(String idToken)`
+    - HTTP: `POST /v1/users/ensure`
+    - Incluye metadata `Options(extra: {'secure': [...]})` para que el interceptor genere `Authorization: Bearer <token>`.
+
+### Backend (Spring Boot)
+
+#### Seguridad (valida JWT y extrae `sub`)
+
+- **Archivo**: `services/ones-api/src/main/java/com/ones/api/configuration/SecurityConfig.java`
+  - **Métodos**:
+    - `securityFilterChain(...)`
+      - `permitAll`: `/health`, swagger.
+      - `anyRequest().authenticated()` para el resto.
+    - `jwtDecoder(@Value("${ones.auth.google.client-id:}") ...)`
+      - Valida issuer y audience (`aud`) del token.
+    - `jwtAuthenticationConverter()`
+      - `converter.setPrincipalClaimName("sub")`
+      - Resultado: `authentication.getName()` devuelve el `sub`.
+
+#### Inbound adapter (REST)
+
+- **Archivo**: `services/ones-api/src/main/java/com/ones/api/adapters/inbound/rest/users/UsersController.java`
+  - **Método**: `UsersController.ensure(Authentication authentication)`
+    - `userId = authentication.getName()` (Google `sub`).
+    - Lee claims desde `JwtAuthenticationToken`:
+      - `email`, `name`, `given_name`, `family_name`, `picture`
+    - Construye `EnsureUserCommand`.
+    - Ejecuta `ensureUserUseCase.execute(cmd)`.
+
+#### Application (use case)
+
+- **Archivo**: `services/ones-api/src/main/java/com/ones/api/application/users/EnsureUserUseCase.java`
+  - **Método**: `EnsureUserUseCase.execute(EnsureUserCommand command)`
+    - Busca existente: `repository.findById(command.userId())`.
+    - Si existe: actualiza campos y `updatedAt`.
+    - Si no existe: crea usuario con `createdAt/updatedAt`.
+    - Persiste con `repository.upsert(user)`.
+
+#### Application port
+
+- **Archivo**: `services/ones-api/src/main/java/com/ones/api/application/users/ports/UsersRepository.java`
+  - **Port**:
+    - `Optional<User> findById(String userId)`
+    - `User upsert(User user)`
+
+#### Outbound adapter (DynamoDB)
+
+- **Archivo**: `services/ones-api/src/main/java/com/ones/api/adapters/outbound/dynamodb/DynamoDbUsersRepository.java`
+  - **Métodos**:
+    - `findById(userId)` -> `table.getItem(Key.builder().partitionValue(userId).build())`
+    - `upsert(user)` -> `table.putItem(toItem(user))`
+
+- **Tabla DynamoDB**: `ones-users`
+  - PK: `userId` (String)
+
+</details>
+
+<details>
+<summary><strong>2) Crear Evento</strong></summary>
+
+### Frontend (Flutter)
+
+#### UI -> Controller
+
+- **Archivo**: `apps/ones_app/lib/features/events/presentation/pages/create_event_page.dart`
+  - **Método**: `_CreateEventPageState._submit(BuildContext context)`
+    - Valida formulario.
+    - Ejecuta: `controller.createNew(_nameController.text.trim())`.
+
+- **Archivo**: `apps/ones_app/lib/features/events/presentation/events_controller.dart`
+  - **Método**: `EventsController.createNew(String title)`
+    - Ejecuta: `createEvent.execute(title)`
+    - Inserta el evento creado en memoria: `_events = [created, ..._events]`.
+
+#### Application (use case)
+
+- **Archivo**: `apps/ones_app/lib/features/events/application/create_event_use_case.dart`
+  - **Método**: `CreateEventUseCase.execute(String title)`
+    - Delegación: `EventsRepository.createEvent(title)`
+
+#### Domain (port)
+
+- **Archivo**: `apps/ones_app/lib/features/events/domain/events_repository.dart`
+  - **Port**: `EventsRepository`
+    - `Future<Event> createEvent(String title)`
+
+#### Adapter (HTTP)
+
+- **Archivo**: `apps/ones_app/lib/features/events/adapters/api/events_api_repository.dart`
+  - **Método**: `EventsApiRepository.createEvent(String title)`
+    - Construye request: `api.CreateEventRequest((b) => b..title = title)`
+    - Llama al cliente generado: `_defaultApi(_idToken).createEvent(...)`
+
+- **Archivo**: `apps/ones_app/lib/core/http/ones_api_factory.dart`
+  - **Método**: `OnesApiFactory.create({String? idToken})`
+    - Configura bearer auth: `setBearerAuth('bearerAuth', idToken)`.
+
+### Backend (Spring Boot)
+
+#### Seguridad
+
+- **Archivo**: `services/ones-api/src/main/java/com/ones/api/configuration/SecurityConfig.java`
+  - El endpoint `/v1/events` requiere auth.
+  - `authentication.getName()` es el `sub` del token (ownerId).
+
+#### Inbound adapter (REST)
+
+- **Archivo**: `services/ones-api/src/main/java/com/ones/api/adapters/inbound/rest/events/EventsController.java`
+  - **Método**: `EventsController.create(Authentication authentication, CreateEventRequest request)`
+    - `ownerId = authentication.getName()`.
+    - Ejecuta: `createEventUseCase.execute(ownerId, request.title())`.
+
+#### Application (use case)
+
+- **Archivo**: `services/ones-api/src/main/java/com/ones/api/application/events/CreateEventUseCase.java`
+  - **Método**: `CreateEventUseCase.execute(String ownerId, String title)`
+    - Genera `eventId = UUID.randomUUID().toString()`
+    - `createdAt = Instant.now(clock)`
+    - Crea dominio: `new Event(eventId, ownerId, createdAt, title)`
+    - Persiste: `repository.save(event)`
+
+#### Application port
+
+- **Archivo**: `services/ones-api/src/main/java/com/ones/api/application/events/ports/EventsRepository.java`
+  - **Port**: `save(Event event)`
+
+#### Outbound adapter (DynamoDB)
+
+- **Archivo**: `services/ones-api/src/main/java/com/ones/api/adapters/outbound/dynamodb/DynamoDbEventsRepository.java`
+  - **Método**: `save(Event event)`
+    - `table.putItem(toItem(event))`
+    - Indexación para listar por owner:
+      - `gsi1pk = ownerId`
+      - `gsi1sk = createdAt`
+
+- **Tabla DynamoDB**: `ones-events`
+  - PK: `eventId` (String)
+  - GSI: `gsi1` (partition: `gsi1pk`, sort: `gsi1sk`)
+
+</details>
