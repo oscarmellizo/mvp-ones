@@ -43,7 +43,7 @@ jobs:
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
               StackPrefix="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}" \
-              GoogleClientId="${{ vars.GOOGLE_CLIENT_ID }}" \
+              GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}" \
               BackendDesiredCount="${{ inputs.backendDesiredCount }}"
 
       - name: Show outputs
