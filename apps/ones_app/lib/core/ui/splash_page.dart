@@ -25,13 +25,18 @@ class _Content extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: const [
-        Image(
-          image: AssetImage('assets/splash/symbol_purple.png'),
-          width: 380,
+          Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Image(
+              image: AssetImage('assets/splash/symbol_purple.png'),
+              width: 380,
+            )
+          ],
         ),
-        SizedBox(height: 16),
+        SizedBox(height: 24),
         Text(
-          'Cargando Experiencia',
+          'Loading Experience',
           style: TextStyle(
             color: SplashPage._textColor,
             fontSize: 16,
