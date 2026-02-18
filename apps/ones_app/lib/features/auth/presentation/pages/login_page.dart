@@ -35,7 +35,7 @@ class LoginPage extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Image(
-                        image: AssetImage('assets/splash/symbol_purple.png'),
+                        image: AssetImage('assets/splash/ones_logo_transparent.png'),
                         width: 380,
                       )
                     ],
