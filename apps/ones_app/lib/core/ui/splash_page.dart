@@ -27,7 +27,7 @@ class _Content extends StatelessWidget {
       children: const [
         Image(
           image: AssetImage('assets/splash/symbol_purple.png'),
-          width: 180,
+          width: 380,
         ),
         SizedBox(height: 16),
         Text(

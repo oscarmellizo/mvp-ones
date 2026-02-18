@@ -36,7 +36,7 @@ class LoginPage extends StatelessWidget {
                     children: [
                       const Image(
                         image: AssetImage('assets/splash/symbol_purple.png'),
-                        width: 66,
+                        width: 380,
                       )
                     ],
                   ),
