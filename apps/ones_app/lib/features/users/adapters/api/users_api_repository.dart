@@ -14,6 +14,19 @@ class UsersApiRepository implements UsersRepository {
 
   @override
   Future<void> ensureUser(String idToken) async {
-    await _dioFactory(idToken).post('/v1/users/ensure');
+    await _dioFactory(idToken).post(
+      '/v1/users/ensure',
+      options: Options(
+        extra: {
+          'secure': [
+            {
+              'type': 'http',
+              'scheme': 'bearer',
+              'name': 'bearerAuth',
+            }
+          ],
+        },
+      ),
+    );
   }
 }
