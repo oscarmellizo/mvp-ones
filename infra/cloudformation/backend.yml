@@ -34,6 +34,17 @@ Resources:
           Projection:
             ProjectionType: ALL
 
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+
   EcrRepository:
     Type: AWS::ECR::Repository
     Properties:
@@ -194,6 +205,7 @@ Resources:
                 Resource:
                   - !GetAtt EventsTable.Arn
                   - !Sub ${EventsTable.Arn}/index/*
+                  - !GetAtt UsersTable.Arn
 
   LogGroup:
     Type: AWS::Logs::LogGroup
@@ -222,6 +234,8 @@ Resources:
               Value: !Ref AWS::Region
             - Name: ONES_EVENTS_TABLE
               Value: !Ref EventsTable
+            - Name: ONES_USERS_TABLE
+              Value: !Ref UsersTable
             - Name: GOOGLE_CLIENT_ID
               Value: !Ref GoogleClientId
             - Name: CORS_ALLOWED_ORIGINS
@@ -269,3 +283,5 @@ Outputs:
     Value: !GetAtt Service.Name
   EventsTableName:
     Value: !Ref EventsTable
+  UsersTableName:
+    Value: !Ref UsersTable

@@ -14,6 +14,8 @@ import 'features/events/application/create_event_use_case.dart';
 import 'features/events/application/get_event_use_case.dart';
 import 'features/events/application/list_events_use_case.dart';
 import 'features/events/presentation/events_controller.dart';
+import 'features/users/adapters/api/users_api_repository.dart';
+import 'features/users/application/ensure_user_use_case.dart';
 import 'features/events/presentation/pages/event_detail_page.dart';
 import 'features/events/presentation/pages/home_shell_page.dart';
 import 'features/events/presentation/pages/events_list_page.dart';
@@ -36,6 +38,9 @@ class OnesApp extends StatelessWidget {
     final signOut = SignOutUseCase(authRepository);
     final getIdToken = GetIdTokenUseCase(authRepository);
 
+    final usersRepository = UsersApiRepository(apiFactory);
+    final ensureUser = EnsureUserUseCase(usersRepository);
+
     final eventsRepository = EventsApiRepository(apiFactory);
     final listEvents = ListEventsUseCase(eventsRepository);
     final getEvent = GetEventUseCase(eventsRepository);
@@ -49,6 +54,7 @@ class OnesApp extends StatelessWidget {
             signInWithGoogle: signInWithGoogle,
             signOut: signOut,
             getIdToken: getIdToken,
+            ensureUser: ensureUser,
           ),
         ),
         ChangeNotifierProxyProvider<AuthController, EventsController>(

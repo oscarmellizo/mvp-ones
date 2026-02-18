@@ -9,6 +9,8 @@ import com.ones.api.application.events.CreateEventUseCase;
 import com.ones.api.application.events.GetEventUseCase;
 import com.ones.api.application.events.ListEventsUseCase;
 import com.ones.api.application.events.ports.EventsRepository;
+import com.ones.api.application.users.EnsureUserUseCase;
+import com.ones.api.application.users.ports.UsersRepository;
 
 @Configuration
 public class ApplicationConfig {
@@ -31,5 +33,10 @@ public class ApplicationConfig {
     @Bean
     GetEventUseCase getEventUseCase(EventsRepository repository) {
         return new GetEventUseCase(repository);
+    }
+
+    @Bean
+    EnsureUserUseCase ensureUserUseCase(UsersRepository repository, Clock clock) {
+        return new EnsureUserUseCase(repository, clock);
     }
 }

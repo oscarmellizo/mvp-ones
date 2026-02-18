@@ -4,11 +4,13 @@ import '../application/get_id_token_use_case.dart';
 import '../application/sign_in_with_google_use_case.dart';
 import '../application/sign_out_use_case.dart';
 import '../domain/auth_user.dart';
+import '../../users/application/ensure_user_use_case.dart';
 
 class AuthController extends ChangeNotifier {
   final SignInWithGoogleUseCase signInWithGoogle;
   final SignOutUseCase signOut;
   final GetIdTokenUseCase getIdToken;
+  final EnsureUserUseCase ensureUser;
 
   AuthUser? _user;
   String? _idToken;
@@ -19,6 +21,7 @@ class AuthController extends ChangeNotifier {
     required this.signInWithGoogle,
     required this.signOut,
     required this.getIdToken,
+    required this.ensureUser,
   });
 
   AuthUser? get user => _user;
@@ -33,6 +36,15 @@ class AuthController extends ChangeNotifier {
       _error = null;
       _user = await signInWithGoogle.execute();
       _idToken = await getIdToken.execute();
+
+      final token = _idToken;
+      if (token != null && token.isNotEmpty) {
+        try {
+          await ensureUser.execute(token);
+        } catch (_) {
+          // Intentionally ignored: user should still be signed in even if persistence fails.
+        }
+      }
     } catch (e) {
       _error = e;
       _user = null;
