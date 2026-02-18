@@ -30,6 +30,93 @@ class CreateEventPage extends StatefulWidget {
 }
 
 class _CreateEventPageState extends State<CreateEventPage> {
+  static const Map<String, List<String>> _eventTypeByCategory = {
+    'Eventos Sociales / Personales': [
+      'Cumpleaños',
+      'Boda',
+      'Baby shower',
+      'Bautizo',
+      'Primer año',
+      'Graduación',
+      'Aniversario',
+      'Despedida de soltero/a',
+      'Reunión familiar',
+      'Fiesta temática',
+    ],
+    'Eventos Académicos / Educativos': [
+      'Feria de la ciencia',
+      'Congreso académico',
+      'Seminario',
+      'Clase especial',
+      'Evento institucional',
+      'Graduación universitaria',
+      'Semana cultural',
+      'Exposición de proyectos',
+    ],
+    'Eventos Públicos': [
+      'Concierto',
+      'Festival',
+      'Evento deportivo',
+      'Maratón',
+      'Evento comunitario',
+      'Fiesta patronal',
+      'Lanzamiento público',
+    ],
+    'Eventos Corporativos': [
+      'Team building',
+      'Kickoff anual',
+      'Lanzamiento de producto',
+      'Networking',
+      'Convención empresarial',
+      'Fiesta corporativa',
+      'Capacitaciones internas',
+    ],
+    'Eventos Infantiles': [
+      'Cumpleaños infantil',
+      'Presentación escolares',
+      'Día del niño',
+      'Actividades extracurriculares',
+      'Fiesta temática',
+    ],
+    'Eventos Religiosos / Tradicionales': [
+      'Bautizos',
+      'Confirmaciones',
+      'Matrimonios religiosos',
+      'Procesiones',
+      'Celebraciones tradicionales',
+    ],
+    'Eventos Tech / Comunidades': [
+      'Hackathons',
+      'Meetups',
+      'Demo Day',
+      'Lanzamiento de startup',
+      'Webinar híbrido',
+    ],
+    'Eventos Artísticos / Culturales': [
+      'Obras de teatro',
+      'Recitales',
+      'Exposiciones',
+      'Presentaciones de danza',
+      'Eventos culturales locales',
+    ],
+    'Eventos Deportivos': [
+      'Torneo escolar',
+      'Campeonato',
+      'Maratón',
+      'Media Maratón',
+      'Carrera 5K',
+      'Carrera 10K',
+      'Competencia local',
+    ],
+    'Micro-eventos cotidianos': [
+      'Cena con amigos',
+      'Noche de juegos',
+      'Picnic familiar',
+      'Reunión pequeña',
+      'Viaje grupal',
+    ],
+  };
+
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _locationController = TextEditingController();
@@ -46,12 +133,15 @@ class _CreateEventPageState extends State<CreateEventPage> {
   DateTime? _endDate;
   TimeOfDay? _endTime;
 
-  String _eventType = 'Birthday Party';
-  bool _allowGuestsUpload = false;
+  late String _eventCategory;
+  late String _eventType;
 
   @override
   void initState() {
     super.initState();
+
+    _eventCategory = _eventTypeByCategory.keys.first;
+    _eventType = _eventTypeByCategory[_eventCategory]!.first;
 
     if (widget.initialTitle != null && widget.initialTitle!.trim().isNotEmpty) {
       _nameController.text = widget.initialTitle!.trim();
@@ -64,7 +154,16 @@ class _CreateEventPageState extends State<CreateEventPage> {
 
     if (widget.initialEventType != null &&
         widget.initialEventType!.trim().isNotEmpty) {
-      _eventType = widget.initialEventType!.trim();
+      final initial = widget.initialEventType!.trim();
+      final match = _eventTypeByCategory.entries
+          .where((e) => e.value.contains(initial))
+          .map((e) => e.key)
+          .cast<String?>()
+          .firstWhere((_) => true, orElse: () => null);
+      if (match != null) {
+        _eventCategory = match;
+        _eventType = initial;
+      }
     }
 
     _startDate = widget.initialStartDate ?? _startDate;
@@ -157,9 +256,9 @@ class _CreateEventPageState extends State<CreateEventPage> {
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F3EA),
+      backgroundColor: const Color(0xFFF4B64E),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF7F3EA),
+        backgroundColor: const Color(0xFFF4B64E),
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
@@ -168,25 +267,14 @@ class _CreateEventPageState extends State<CreateEventPage> {
               controller.loading ? null : () => Navigator.of(context).pop(),
         ),
         title: const Text(
-          'New Event',
+          'Create Event',
           style: TextStyle(
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w900,
             color: Colors.black,
           ),
         ),
         centerTitle: true,
-        actions: [
-          TextButton(
-            onPressed: controller.loading ? null : () => _submit(context),
-            child: const Text(
-              'Create',
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF3B1D6D),
-              ),
-            ),
-          ),
-        ],
+        actions: const [],
       ),
       body: SafeArea(
         child: Stack(
@@ -222,16 +310,26 @@ class _CreateEventPageState extends State<CreateEventPage> {
                             (v == null || v.trim().isEmpty) ? 'Required' : null,
                       ),
                       const SizedBox(height: 16),
+                      const _FieldLabel('Category'),
+                      const SizedBox(height: 8),
+                      _DropdownField(
+                        value: _eventCategory,
+                        items:
+                            _eventTypeByCategory.keys.toList(growable: false),
+                        onChanged: (v) {
+                          setState(() {
+                            _eventCategory = v;
+                            _eventType =
+                                _eventTypeByCategory[_eventCategory]!.first;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
                       const _FieldLabel('Event Type'),
                       const SizedBox(height: 8),
                       _DropdownField(
                         value: _eventType,
-                        items: const [
-                          'Birthday Party',
-                          'Concert',
-                          'Wedding',
-                          'Trip',
-                        ],
+                        items: _eventTypeByCategory[_eventCategory]!,
                         onChanged: (v) => setState(() => _eventType = v),
                       ),
                       const SizedBox(height: 16),
@@ -283,47 +381,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         invitees: _invitees,
                         onInvite: _addInvitee,
                         onRemove: _removeInvitee,
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 14),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Allow Guests to Upload',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Everyone can add photos to gallery',
-                                    style: TextStyle(
-                                      color: Colors.black.withOpacity(0.55),
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Switch(
-                              value: _allowGuestsUpload,
-                              activeColor: const Color(0xFF6A0D73),
-                              onChanged: (v) =>
-                                  setState(() => _allowGuestsUpload = v),
-                            )
-                          ],
-                        ),
                       ),
                     ],
                   ),

@@ -159,23 +159,36 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Image(
-          image: AssetImage('assets/splash/symbol_purple.png'),
-          width: 56,
-        ),
-        const Spacer(),
-        IconButton(
-          onPressed: onBell,
-          icon: const Icon(Icons.notifications_none),
-        ),
-        const SizedBox(width: 4),
-        IconButton(
-          onPressed: onDevice,
-          icon: const Icon(Icons.phone_android),
-        ),
-      ],
+    return SizedBox(
+      height: 56,
+      child: Stack(
+        children: [
+          const Align(
+            alignment: Alignment.center,
+            child: Image(
+              image: AssetImage('assets/splash/symbol_purple.png'),
+              width: 120,
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  onPressed: onBell,
+                  icon: const Icon(Icons.notifications_none),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  onPressed: onDevice,
+                  icon: const Icon(Icons.phone_android),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -54,6 +54,7 @@ class GoogleAuthRepository implements AuthRepository {
       userId: account.id,
       email: account.email,
       displayName: account.displayName,
+      pictureUrl: account.photoUrl,
     );
   }
 

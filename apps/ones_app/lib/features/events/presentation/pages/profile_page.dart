@@ -42,27 +42,19 @@ class _ProfilePageState extends State<ProfilePage> {
     final user = auth.user;
     final displayName = user?.displayName;
     final email = user?.email;
+    final pictureUrl = user?.pictureUrl;
     final parts = _splitDisplayName(displayName);
     final firstName = parts.$1;
     final lastName = parts.$2;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F3EA),
+      backgroundColor: const Color(0xFFF4B64E),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Profile',
-                style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 22,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 12),
               if (user == null)
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -76,12 +68,59 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 )
               else ...[
+                Center(
+                  child: Container(
+                    width: 88,
+                    height: 88,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: ClipOval(
+                      child: (pictureUrl != null && pictureUrl.isNotEmpty)
+                          ? Image.network(
+                              pictureUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, _, __) => const Center(
+                                child: Icon(
+                                  Icons.person,
+                                  size: 44,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                            )
+                          : const Center(
+                              child: Icon(
+                                Icons.person,
+                                size: 44,
+                                color: Colors.black54,
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
                 _Card(
                   title: 'Account',
                   children: [
-                    _ReadOnlyField(label: 'First name', value: firstName),
-                    const SizedBox(height: 12),
-                    _ReadOnlyField(label: 'Last name', value: lastName),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _ReadOnlyField(
+                            label: 'First name',
+                            value: firstName,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _ReadOnlyField(
+                            label: 'Last name',
+                            value: lastName,
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 12),
                     _ReadOnlyField(label: 'Email', value: email ?? ''),
                   ],
@@ -111,11 +150,45 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'This is only used for how the app addresses you.',
+                      'This name is used to indicate which are your photos.',
                       style: TextStyle(
                         color: Colors.black.withOpacity(0.55),
                         fontWeight: FontWeight.w600,
                         fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF6A0D73),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        onPressed: auth.isLoading
+                            ? null
+                            : () {
+                                final value =
+                                    _preferredNameController.text.trim();
+                                FocusScope.of(context).unfocus();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      value.isEmpty
+                                          ? 'Preferences saved.'
+                                          : 'Preferences saved: $value',
+                                    ),
+                                  ),
+                                );
+                              },
+                        child: const Text(
+                          'Save preferences',
+                          style: TextStyle(fontWeight: FontWeight.w900),
+                        ),
                       ),
                     ),
                   ],
@@ -168,6 +241,7 @@ class _Card extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -196,6 +270,7 @@ class _ReadOnlyField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final v = value.isEmpty ? '-' : value;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -207,17 +282,15 @@ class _ReadOnlyField extends StatelessWidget {
             fontSize: 12,
           ),
         ),
-        const SizedBox(height: 6),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF7F3EA),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Text(
-            value.isEmpty ? '-' : value,
-            style: const TextStyle(fontWeight: FontWeight.w800),
+        const SizedBox(height: 4),
+        Text(
+          v,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontWeight: FontWeight.w900,
+            fontSize: 14,
+            color: Colors.black,
           ),
         ),
       ],

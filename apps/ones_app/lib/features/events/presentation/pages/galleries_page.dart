@@ -77,15 +77,6 @@ class _GalleriesPageState extends State<GalleriesPage> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 120),
             children: [
-              const Text(
-                'Galleries',
-                style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 22,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 12),
               TextField(
                 controller: _searchController,
                 decoration: InputDecoration(

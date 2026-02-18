@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'dart:convert';
 
 import '../application/get_id_token_use_case.dart';
 import '../application/sign_in_with_google_use_case.dart';
@@ -36,6 +37,25 @@ class AuthController extends ChangeNotifier {
       _error = null;
       _user = await signInWithGoogle.execute();
       _idToken = await getIdToken.execute();
+      print(_idToken);
+
+      final tokenForClaims = _idToken;
+      if (_user != null &&
+          tokenForClaims != null &&
+          tokenForClaims.isNotEmpty) {
+        final picture = _tryGetPictureFromIdToken(tokenForClaims);
+        if ((_user?.pictureUrl == null || _user!.pictureUrl!.isEmpty) &&
+            picture != null &&
+            picture.isNotEmpty) {
+          final u = _user!;
+          _user = AuthUser(
+            userId: u.userId,
+            email: u.email,
+            displayName: u.displayName,
+            pictureUrl: picture,
+          );
+        }
+      }
 
       final token = _idToken;
       if (token != null && token.isNotEmpty) {
@@ -71,5 +91,23 @@ class AuthController extends ChangeNotifier {
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();
+  }
+
+  String? _tryGetPictureFromIdToken(String idToken) {
+    try {
+      final parts = idToken.split('.');
+      if (parts.length < 2) return null;
+      final payload = parts[1];
+      final normalized = base64Url.normalize(payload);
+      final jsonStr = utf8.decode(base64Url.decode(normalized));
+      final map = json.decode(jsonStr);
+      if (map is Map<String, dynamic>) {
+        final v = map['picture'];
+        if (v is String) return v;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
   }
 }
