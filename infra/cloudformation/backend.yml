@@ -87,6 +87,18 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub ${StackPrefix}-${Environment}-events-covers-tmp
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - '*'
+            AllowedMethods:
+              - GET
+              - HEAD
+            AllowedHeaders:
+              - '*'
+            ExposedHeaders:
+              - ETag
+            MaxAge: 3000
       LifecycleConfiguration:
         Rules:
           - Id: delete-old-previews
@@ -97,6 +109,18 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub ${StackPrefix}-${Environment}-events-assets
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - '*'
+            AllowedMethods:
+              - GET
+              - HEAD
+            AllowedHeaders:
+              - '*'
+            ExposedHeaders:
+              - ETag
+            MaxAge: 3000
 
   OpenAiApiKeySecret:
     Type: AWS::SecretsManager::Secret
