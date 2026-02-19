@@ -49,8 +49,23 @@ jobs:
               StackPrefix="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}" \
               Environment="${{ inputs.environment }}" \
               GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}" \
-              OpenAiApiKey="${{ secrets.OPENAI_API_KEY }}" \
               BackendDesiredCount="${{ inputs.backendDesiredCount }}"
+
+      - name: Set OpenAI API key in Secrets Manager
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          secretName="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}/${{ inputs.environment }}/openai-api-key"
+
+          if [ -z "${OPENAI_API_KEY}" ]; then
+            echo "Missing required GitHub secret OPENAI_API_KEY"
+            exit 1
+          fi
+
+          aws secretsmanager put-secret-value \
+            --secret-id "${secretName}" \
+            --secret-string "${OPENAI_API_KEY}" \
+            --no-cli-pager
 
       - name: Show outputs
         run: |

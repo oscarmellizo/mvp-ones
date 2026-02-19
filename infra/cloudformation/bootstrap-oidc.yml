@@ -194,6 +194,20 @@ Resources:
                   - dynamodb:ListTables
                 Resource: '*'
 
+              - Sid: SecretsManager
+                Effect: Allow
+                Action:
+                  - secretsmanager:CreateSecret
+                  - secretsmanager:UpdateSecret
+                  - secretsmanager:PutSecretValue
+                  - secretsmanager:DescribeSecret
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:TagResource
+                  - secretsmanager:UntagResource
+                  - secretsmanager:DeleteSecret
+                  - secretsmanager:ListSecrets
+                Resource: '*'
+
               - Sid: IAMForEcsTasks
                 Effect: Allow
                 Action:
