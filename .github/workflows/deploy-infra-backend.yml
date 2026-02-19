@@ -3,6 +3,10 @@ name: Deploy Infra (Backend)
 on:
   workflow_dispatch:
     inputs:
+      environment:
+        description: 'Environment (dev, staging, prod)'
+        required: false
+        default: 'dev'
       backendDesiredCount:
         description: 'ECS desired count for ones-api service'
         required: false
@@ -43,7 +47,9 @@ jobs:
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
               StackPrefix="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}" \
+              Environment="${{ inputs.environment }}" \
               GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}" \
+              OpenAiApiKey="${{ secrets.OPENAI_API_KEY }}" \
               BackendDesiredCount="${{ inputs.backendDesiredCount }}"
 
       - name: Show outputs

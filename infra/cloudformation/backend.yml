@@ -5,9 +5,20 @@ Parameters:
   StackPrefix:
     Type: String
     Default: ones
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
   GoogleClientId:
     Type: String
     Default: CHANGE_ME
+  OpenAiApiKey:
+    Type: String
+    Default: CHANGE_ME
+    Description: OpenAI API key for AI image generation (will be stored in Secrets Manager)
   BackendDesiredCount:
     Type: Number
     Default: 0
@@ -47,6 +58,56 @@ Resources:
       KeySchema:
         - AttributeName: userId
           KeyType: HASH
+
+  CoverPreviewsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: coverId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: coverId
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
+  CoverReservationsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: reservationId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: reservationId
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
+  EventsCoversTempBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${StackPrefix}-${Environment}-events-covers-tmp
+      LifecycleConfiguration:
+        Rules:
+          - Id: delete-old-previews
+            Status: Enabled
+            ExpirationInDays: 1
+
+  EventsAssetsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${StackPrefix}-${Environment}-events-assets
+
+  OpenAiApiKeySecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ${StackPrefix}/${Environment}/openai-api-key
+      Description: OpenAI API key for AI Event Cover generation
+      SecretString: !Ref OpenAiApiKey
 
   EcrRepository:
     Type: AWS::ECR::Repository
@@ -205,10 +266,33 @@ Resources:
                   - dynamodb:PutItem
                   - dynamodb:GetItem
                   - dynamodb:Query
+                  - dynamodb:DeleteItem
                 Resource:
                   - !GetAtt EventsTable.Arn
                   - !Sub ${EventsTable.Arn}/index/*
                   - !GetAtt UsersTable.Arn
+                  - !GetAtt CoverPreviewsTable.Arn
+                  - !GetAtt CoverReservationsTable.Arn
+        - PolicyName: ones-s3-covers
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub ${EventsCoversTempBucket.Arn}/*
+                  - !Sub ${EventsAssetsBucket.Arn}/*
+        - PolicyName: ones-secrets
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref OpenAiApiKeySecret
 
   LogGroup:
     Type: AWS::Logs::LogGroup
@@ -239,6 +323,16 @@ Resources:
               Value: !Ref EventsTable
             - Name: ONES_USERS_TABLE
               Value: !Ref UsersTable
+            - Name: ONES_COVER_PREVIEWS_TABLE
+              Value: !Ref CoverPreviewsTable
+            - Name: ONES_COVER_RESERVATIONS_TABLE
+              Value: !Ref CoverReservationsTable
+            - Name: ONES_EVENTS_COVERS_TEMP_BUCKET
+              Value: !Ref EventsCoversTempBucket
+            - Name: ONES_EVENTS_ASSETS_BUCKET
+              Value: !Ref EventsAssetsBucket
+            - Name: OPENAI_API_KEY_SECRET_NAME
+              Value: !Ref OpenAiApiKeySecret
             - Name: GOOGLE_CLIENT_ID
               Value: !Ref GoogleClientId
             - Name: CORS_ALLOWED_ORIGINS
@@ -288,3 +382,15 @@ Outputs:
     Value: !Ref EventsTable
   UsersTableName:
     Value: !Ref UsersTable
+  CoverPreviewsTableName:
+    Value: !Ref CoverPreviewsTable
+  CoverReservationsTableName:
+    Value: !Ref CoverReservationsTable
+  EventsCoversTempBucketName:
+    Value: !Ref EventsCoversTempBucket
+  EventsAssetsBucketName:
+    Value: !Ref EventsAssetsBucket
+  OpenAiApiKeySecretName:
+    Value: !Ref OpenAiApiKeySecret
+  OpenAiApiKeySecretArn:
+    Value: !GetAtt OpenAiApiKeySecret.Id
