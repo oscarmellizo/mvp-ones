@@ -52,15 +52,11 @@ jobs:
               BackendDesiredCount="${{ inputs.backendDesiredCount }}"
 
       - name: Set OpenAI API key in Secrets Manager
+        if: ${{ secrets.OPENAI_API_KEY != '' }}
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           secretName="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}/${{ inputs.environment }}/openai-api-key"
-
-          if [ -z "${OPENAI_API_KEY}" ]; then
-            echo "Missing required GitHub secret OPENAI_API_KEY"
-            exit 1
-          fi
 
           aws secretsmanager put-secret-value \
             --secret-id "${secretName}" \
