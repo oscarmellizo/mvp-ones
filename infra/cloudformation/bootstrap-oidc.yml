@@ -191,8 +191,10 @@ Resources:
                 Action:
                   - dynamodb:CreateTable
                   - dynamodb:UpdateTable
+                  - dynamodb:UpdateTimeToLive
                   - dynamodb:DeleteTable
                   - dynamodb:DescribeTable
+                  - dynamodb:DescribeTimeToLive
                   - dynamodb:ListTables
                 Resource: '*'
 
