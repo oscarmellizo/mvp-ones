@@ -29,6 +29,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,9 +55,7 @@ jobs:
               BackendDesiredCount="${{ inputs.backendDesiredCount }}"
 
       - name: Set OpenAI API key in Secrets Manager
-        if: ${{ secrets.OPENAI_API_KEY != '' }}
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        if: ${{ env.OPENAI_API_KEY != '' }}
         run: |
           secretName="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}/${{ inputs.environment }}/openai-api-key"
 
