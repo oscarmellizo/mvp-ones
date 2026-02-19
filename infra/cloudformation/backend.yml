@@ -103,9 +103,7 @@ Resources:
     Properties:
       Name: !Sub ${StackPrefix}/${Environment}/openai-api-key
       Description: OpenAI API key for AI Event Cover generation
-      GenerateSecretString:
-        SecretStringTemplate: '{}'
-        GenerateStringKey: placeholder
+      SecretString: '{}'
 
   EcrRepository:
     Type: AWS::ECR::Repository
