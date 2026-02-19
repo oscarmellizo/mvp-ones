@@ -75,9 +75,44 @@ jobs:
 
           repo="${{ steps.stack.outputs.repoName }}"
 
+          # ECR APIs have pagination and batch delete has a max of 100 imageIds per call.
+          # Loop until no images remain.
+          nextToken=""
+          while true; do
+            if [ -n "${nextToken}" ]; then
+              aws ecr list-images \
+                --repository-name "${repo}" \
+                --max-results 100 \
+                --next-token "${nextToken}" \
+                --output json > images.json
+            else
+              aws ecr list-images \
+                --repository-name "${repo}" \
+                --max-results 100 \
+                --output json > images.json
+            fi
+
+            jq '.imageIds' images.json > image-ids.json
+            count=$(jq 'length' image-ids.json)
+
+            if [ "${count}" -gt 0 ]; then
+              aws ecr batch-delete-image \
+                --repository-name "${repo}" \
+                --image-ids file://image-ids.json \
+                --no-cli-pager
+            fi
+
+            # If there is no nextToken, we've reached the end of the listing.
+            token=$(jq -r '.nextToken // empty' images.json)
+            if [ -z "${token}" ]; then
+              break
+            fi
+            nextToken="${token}"
+          done
+
+          # One more pass without pagination to ensure the repo is empty (eventual consistency).
           aws ecr list-images --repository-name "${repo}" --output json > images.json
           jq '.imageIds' images.json > image-ids.json
-
           if [ "$(jq 'length' image-ids.json)" -gt 0 ]; then
             aws ecr batch-delete-image \
               --repository-name "${repo}" \
