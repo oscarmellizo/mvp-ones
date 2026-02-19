@@ -39,6 +39,7 @@ class _EventsListPageState extends State<EventsListPage> {
     final events = controller.events;
     final upcoming = events.take(3).toList(growable: false);
     final galleries = events.skip(3).toList(growable: false);
+    final nextEvents = (galleries.isEmpty ? events : galleries);
 
     return ColoredBox(
       color: _bg,
@@ -55,11 +56,7 @@ class _EventsListPageState extends State<EventsListPage> {
               const SizedBox(height: 14),
               _SearchBar(controller: _searchController),
               const SizedBox(height: 18),
-              _SectionHeader(
-                title: 'This Weekend',
-                actionText: 'See All',
-                onAction: () {},
-              ),
+              const _SectionHeader(title: 'Today'),
               const SizedBox(height: 12),
               SizedBox(
                 height: 260,
@@ -75,6 +72,11 @@ class _EventsListPageState extends State<EventsListPage> {
                           }
 
                           final e = upcoming[index];
+                          final start = e.createdAt.toLocal();
+                          final end = start.add(const Duration(hours: 2));
+                          final now = DateTime.now();
+                          final isLiveNow =
+                              now.isAfter(start) || now.isAtSameMomentAs(start);
                           final cover = index.isEven
                               ? 'assets/auth/concierto.png'
                               : 'assets/auth/amigos.png';
@@ -82,7 +84,9 @@ class _EventsListPageState extends State<EventsListPage> {
                             title: e.title,
                             location: 'Brooklyn, NY',
                             imageAsset: cover,
-                            badgeText: 'LIVE NOW',
+                            timeText:
+                                '${_formatTimeOfDay(start)} - ${_formatTimeOfDay(end)}',
+                            badgeText: isLiveNow ? 'LIVE NOW' : null,
                             onTap: () => Navigator.of(context).pushNamed(
                               EventDetailPage.routeName,
                               arguments: e.id,
@@ -92,7 +96,7 @@ class _EventsListPageState extends State<EventsListPage> {
                       ),
               ),
               const SizedBox(height: 22),
-              const _SectionHeader(title: 'Your Galleries'),
+              const _SectionHeader(title: 'Next Events'),
               const SizedBox(height: 12),
               if (controller.error != null) ...[
                 Container(
@@ -109,28 +113,35 @@ class _EventsListPageState extends State<EventsListPage> {
                 const SizedBox(height: 12),
               ],
               if (!controller.loading)
-                ...List.generate(
-                  (galleries.isEmpty ? events : galleries).length,
-                  (i) {
-                    final e = (galleries.isEmpty ? events : galleries)[i];
-                    final privacy = _privacyForIndex(i);
-                    final count = 24 + (i * 7);
-                    final isPhotos = i.isEven;
-                    final thumb = i.isEven
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: nextEvents.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.55,
+                  ),
+                  itemBuilder: (context, i) {
+                    final e = nextEvents[i];
+                    final cover = i.isEven
                         ? 'assets/auth/amigos.png'
                         : 'assets/auth/concierto.png';
+                    final when = e.createdAt.toLocal();
+                    final end = when.add(const Duration(hours: 2));
+                    final location = i.isEven ? 'Brooklyn, NY' : 'NYC';
 
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _GalleryRow(
-                        title: e.title,
-                        privacy: privacy,
-                        countText: '$count ${isPhotos ? 'Photos' : 'Videos'}',
-                        thumbAsset: thumb,
-                        onTap: () => Navigator.of(context).pushNamed(
-                          EventDetailPage.routeName,
-                          arguments: e.id,
-                        ),
+                    return _NextEventCard(
+                      title: e.title,
+                      dateText: _formatMonthDayYear(when),
+                      timeText:
+                          '${_formatTimeOfDay(when)} - ${_formatTimeOfDay(end)}',
+                      location: location,
+                      imageAsset: cover,
+                      onTap: () => Navigator.of(context).pushNamed(
+                        EventDetailPage.routeName,
+                        arguments: e.id,
                       ),
                     );
                   },
@@ -277,13 +288,15 @@ class _UpcomingCard extends StatelessWidget {
   final String title;
   final String location;
   final String imageAsset;
-  final String badgeText;
+  final String? badgeText;
+  final String timeText;
   final VoidCallback onTap;
 
   const _UpcomingCard({
     required this.title,
     required this.location,
     required this.imageAsset,
+    required this.timeText,
     required this.badgeText,
     required this.onTap,
   });
@@ -318,22 +331,23 @@ class _UpcomingCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.25),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Text(
-                  badgeText,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
+              if (badgeText != null)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.25),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Text(
+                    badgeText!,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
-              ),
               const Spacer(),
               Text(
                 title,
@@ -342,6 +356,20 @@ class _UpcomingCard extends StatelessWidget {
                       fontWeight: FontWeight.w900,
                       height: 1.05,
                     ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Icon(Icons.access_time, size: 16, color: Colors.white),
+                  const SizedBox(width: 4),
+                  Text(
+                    timeText,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 6),
               Row(
@@ -365,18 +393,20 @@ class _UpcomingCard extends StatelessWidget {
   }
 }
 
-class _GalleryRow extends StatelessWidget {
+class _NextEventCard extends StatelessWidget {
   final String title;
-  final _Privacy privacy;
-  final String countText;
-  final String thumbAsset;
+  final String dateText;
+  final String timeText;
+  final String location;
+  final String imageAsset;
   final VoidCallback onTap;
 
-  const _GalleryRow({
+  const _NextEventCard({
     required this.title,
-    required this.privacy,
-    required this.countText,
-    required this.thumbAsset,
+    required this.dateText,
+    required this.timeText,
+    required this.location,
+    required this.imageAsset,
     required this.onTap,
   });
 
@@ -388,21 +418,24 @@ class _GalleryRow extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: Image.asset(
-                  thumbAsset,
-                  width: 56,
-                  height: 56,
-                  fit: BoxFit.cover,
-                ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(18),
+                topRight: Radius.circular(18),
               ),
-              const SizedBox(width: 12),
-              Expanded(
+              child: Image.asset(
+                imageAsset,
+                height: 52,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -410,19 +443,77 @@ class _GalleryRow extends StatelessWidget {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        height: 1.05,
+                        fontSize: 13,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        _PrivacyChip(privacy: privacy),
-                        const SizedBox(width: 10),
-                        Text(
-                          countText,
-                          style: TextStyle(
-                            color: Colors.black.withOpacity(0.55),
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
+                        Icon(
+                          Icons.calendar_today,
+                          size: 13,
+                          color: Colors.black.withOpacity(0.55),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            dateText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.black.withOpacity(0.65),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          size: 13,
+                          color: Colors.black.withOpacity(0.55),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            timeText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.black.withOpacity(0.65),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on,
+                          size: 13,
+                          color: Colors.black.withOpacity(0.55),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            location,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.black.withOpacity(0.65),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 11,
+                            ),
                           ),
                         ),
                       ],
@@ -430,63 +521,38 @@ class _GalleryRow extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Icon(Icons.chevron_right, color: Colors.black.withOpacity(0.35)),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-enum _Privacy { private, public, shared }
-
-_Privacy _privacyForIndex(int i) {
-  if (i % 3 == 0) return _Privacy.private;
-  if (i % 3 == 1) return _Privacy.public;
-  return _Privacy.shared;
+String _formatTimeOfDay(DateTime dt) {
+  final hour = dt.hour;
+  final minute = dt.minute;
+  final isPm = hour >= 12;
+  final h12 = hour % 12 == 0 ? 12 : hour % 12;
+  final mm = minute.toString().padLeft(2, '0');
+  final suffix = isPm ? 'PM' : 'AM';
+  return '$h12:$mm $suffix';
 }
 
-class _PrivacyChip extends StatelessWidget {
-  final _Privacy privacy;
-
-  const _PrivacyChip({required this.privacy});
-
-  @override
-  Widget build(BuildContext context) {
-    final (label, bg, fg) = switch (privacy) {
-      _Privacy.private => (
-          'Private',
-          const Color(0xFFE9DDFF),
-          const Color(0xFF4D2B8E),
-        ),
-      _Privacy.public => (
-          'Public',
-          const Color(0xFFD8F5DF),
-          const Color(0xFF1B7B3E),
-        ),
-      _Privacy.shared => (
-          'Shared',
-          const Color(0xFFE1E3FF),
-          const Color(0xFF2E3CC7),
-        ),
-    };
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: fg,
-          fontWeight: FontWeight.w800,
-          fontSize: 12,
-        ),
-      ),
-    );
-  }
+String _formatMonthDayYear(DateTime dt) {
+  const months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December'
+  ];
+  return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
 }

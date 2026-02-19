@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../auth/presentation/auth_controller.dart';
+
 import '../events_controller.dart';
 import 'photo_capture_page.dart';
 
@@ -42,7 +44,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
     final horizontalPadding = size.width >= 520 ? 28.0 : 16.0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F3EA),
+      backgroundColor: const Color(0xFFF4B64E),
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFF6A0D73),
         foregroundColor: Colors.white,
@@ -127,6 +129,16 @@ String _formatMonthDayYear(DateTime dt) {
     'December'
   ];
   return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
+}
+
+String _formatTimeOfDay(DateTime dt) {
+  final hour = dt.hour;
+  final minute = dt.minute;
+  final isPm = hour >= 12;
+  final h12 = hour % 12 == 0 ? 12 : hour % 12;
+  final mm = minute.toString().padLeft(2, '0');
+  final suffix = isPm ? 'PM' : 'AM';
+  return '$h12:$mm $suffix';
 }
 
 class _Header extends StatelessWidget {
@@ -658,10 +670,7 @@ class _DetailsTab extends StatefulWidget {
 class _DetailsTabState extends State<_DetailsTab> {
   final _emailController = TextEditingController();
 
-  final List<_Invitee> _invitees = [
-    const _Invitee(name: 'Andrea', email: 'andrea@example.com', accepted: true),
-    const _Invitee(name: 'Luis', email: 'luis@example.com', accepted: false),
-  ];
+  final List<_Invitee> _invitees = [];
 
   String? _inviteError;
 
@@ -671,7 +680,7 @@ class _DetailsTabState extends State<_DetailsTab> {
     super.dispose();
   }
 
-  void _addInvitee() {
+  Future<void> _addInvitee() async {
     final email = _emailController.text.trim();
 
     final normalizedEmail = email.toLowerCase();
@@ -699,11 +708,24 @@ class _DetailsTabState extends State<_DetailsTab> {
       return;
     }
 
+    final auth = context.read<AuthController>();
+    String displayName = normalizedEmail;
+    try {
+      final lookup = await auth.lookupUserByEmail(normalizedEmail);
+      final pn = lookup?.preferredName?.trim();
+      if (pn != null && pn.isNotEmpty) {
+        displayName = pn;
+      }
+    } catch (_) {
+      // ignore lookup errors and fall back to email
+    }
+
+    if (!mounted) return;
     setState(() {
       _invitees.insert(
         0,
         _Invitee(
-          name: _nameFromEmail(normalizedEmail),
+          name: displayName,
           email: normalizedEmail,
           accepted: false,
         ),
@@ -712,23 +734,6 @@ class _DetailsTabState extends State<_DetailsTab> {
       _emailController.clear();
       FocusScope.of(context).unfocus();
     });
-  }
-
-  String _nameFromEmail(String email) {
-    final at = email.indexOf('@');
-    final raw = (at > 0 ? email.substring(0, at) : email)
-        .replaceAll('.', ' ')
-        .replaceAll('_', ' ')
-        .replaceAll('-', ' ')
-        .trim();
-    if (raw.isEmpty) return 'Guest';
-    final parts = raw.split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
-    final titled = parts
-        .map((p) => p.length == 1
-            ? p.toUpperCase()
-            : '${p[0].toUpperCase()}${p.substring(1)}')
-        .join(' ');
-    return titled;
   }
 
   void _removeInvitee(_Invitee invitee) {
@@ -755,12 +760,47 @@ class _DetailsTabState extends State<_DetailsTab> {
         _DetailsCard(
           title: 'Event Details',
           children: [
-            _DetailRow(label: 'Event Name', value: widget.title),
-            _DetailRow(label: 'Event Type', value: 'Birthday Party'),
-            _DetailRow(label: 'Starts', value: _formatMonthDayYear(start)),
-            _DetailRow(label: 'Ends', value: _formatMonthDayYear(end)),
-            const _DetailRow(label: 'Location', value: 'NYC'),
-            const _DetailRow(label: 'Allow Guests to Upload', value: 'Yes'),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _ReadOnlyField(
+                    label: 'Event Name',
+                    value: widget.title,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _ReadOnlyField(
+                    label: 'Event Type',
+                    value: 'Birthday Party',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _ReadOnlyField(
+                    label: 'Starts',
+                    value:
+                        '${_formatMonthDayYear(start)} • ${_formatTimeOfDay(start)}',
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _ReadOnlyField(
+                    label: 'Ends',
+                    value:
+                        '${_formatMonthDayYear(end)} • ${_formatTimeOfDay(end)}',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const _ReadOnlyField(label: 'Location', value: 'NYC'),
           ],
         ),
         const SizedBox(height: 14),
@@ -771,7 +811,9 @@ class _DetailsTabState extends State<_DetailsTab> {
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _addInvitee(),
+              onSubmitted: (_) {
+                _addInvitee();
+              },
               decoration: InputDecoration(
                 hintText: 'Email (required)',
                 filled: true,
@@ -784,6 +826,16 @@ class _DetailsTabState extends State<_DetailsTab> {
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               ),
             ),
+            if (_inviteError != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                _inviteError!,
+                style: const TextStyle(
+                  color: Color(0xFFE25555),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
@@ -796,23 +848,15 @@ class _DetailsTabState extends State<_DetailsTab> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                onPressed: _addInvitee,
+                onPressed: () {
+                  _addInvitee();
+                },
                 child: const Text(
                   'Invite',
                   style: TextStyle(fontWeight: FontWeight.w900),
                 ),
               ),
             ),
-            if (_inviteError != null) ...[
-              const SizedBox(height: 10),
-              Text(
-                _inviteError!,
-                style: const TextStyle(
-                  color: Color(0xFFE25555),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
             const SizedBox(height: 14),
             const Text(
               'Invited',
@@ -925,37 +969,38 @@ class _DetailsCard extends StatelessWidget {
   }
 }
 
-class _DetailRow extends StatelessWidget {
+class _ReadOnlyField extends StatelessWidget {
   final String label;
   final String value;
 
-  const _DetailRow({required this.label, required this.value});
+  const _ReadOnlyField({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: Colors.black.withOpacity(0.55),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+    final v = value.isEmpty ? '-' : value;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.black.withOpacity(0.55),
+            fontWeight: FontWeight.w700,
+            fontSize: 12,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          v,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontWeight: FontWeight.w900,
+            fontSize: 14,
+            color: Colors.black,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
