@@ -11,6 +11,7 @@ public class User {
     private final String givenName;
     private final String familyName;
     private final String picture;
+    private final String preferredName;
     private final String provider;
     private final Instant createdAt;
     private final Instant updatedAt;
@@ -22,6 +23,7 @@ public class User {
             String givenName,
             String familyName,
             String picture,
+            String preferredName,
             String provider,
             Instant createdAt,
             Instant updatedAt
@@ -32,6 +34,7 @@ public class User {
         this.givenName = givenName;
         this.familyName = familyName;
         this.picture = picture;
+        this.preferredName = preferredName;
         this.provider = Objects.requireNonNull(provider);
         this.createdAt = Objects.requireNonNull(createdAt);
         this.updatedAt = Objects.requireNonNull(updatedAt);
@@ -59,6 +62,10 @@ public class User {
 
     public String getPicture() {
         return picture;
+    }
+
+    public String getPreferredName() {
+        return preferredName;
     }
 
     public String getProvider() {

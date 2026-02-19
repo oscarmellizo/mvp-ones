@@ -8,5 +8,7 @@ public interface UsersRepository {
 
     Optional<User> findById(String userId);
 
+    Optional<User> findByEmail(String email);
+
     User upsert(User user);
 }

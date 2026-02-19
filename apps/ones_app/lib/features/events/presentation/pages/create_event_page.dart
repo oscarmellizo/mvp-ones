@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../auth/presentation/auth_controller.dart';
 import '../events_controller.dart';
 
 class CreateEventPage extends StatefulWidget {
@@ -122,10 +123,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
   final _locationController = TextEditingController();
   final _inviteEmailController = TextEditingController();
 
-  final List<_Invitee> _invitees = [
-    const _Invitee(name: 'Andrea', email: 'andrea@example.com'),
-    const _Invitee(name: 'Luis', email: 'luis@example.com'),
-  ];
+  final List<_Invitee> _invitees = [];
   String? _inviteError;
 
   DateTime? _startDate;
@@ -180,7 +178,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
     super.dispose();
   }
 
-  void _addInvitee() {
+  Future<void> _addInvitee() async {
     final email = _inviteEmailController.text.trim();
     final normalizedEmail = email.toLowerCase();
 
@@ -207,32 +205,28 @@ class _CreateEventPageState extends State<CreateEventPage> {
       return;
     }
 
+    final auth = context.read<AuthController>();
+    String displayName = normalizedEmail;
+    try {
+      final lookup = await auth.lookupUserByEmail(normalizedEmail);
+      final pn = lookup?.preferredName?.trim();
+      if (pn != null && pn.isNotEmpty) {
+        displayName = pn;
+      }
+    } catch (_) {
+      // ignore lookup errors and fall back to email
+    }
+
+    if (!mounted) return;
     setState(() {
       _invitees.insert(
         0,
-        _Invitee(name: _nameFromEmail(normalizedEmail), email: normalizedEmail),
+        _Invitee(name: displayName, email: normalizedEmail),
       );
       _inviteError = null;
       _inviteEmailController.clear();
       FocusScope.of(context).unfocus();
     });
-  }
-
-  String _nameFromEmail(String email) {
-    final at = email.indexOf('@');
-    final raw = (at > 0 ? email.substring(0, at) : email)
-        .replaceAll('.', ' ')
-        .replaceAll('_', ' ')
-        .replaceAll('-', ' ')
-        .trim();
-    if (raw.isEmpty) return 'Guest';
-    final parts = raw.split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
-    final titled = parts
-        .map((p) => p.length == 1
-            ? p.toUpperCase()
-            : '${p[0].toUpperCase()}${p.substring(1)}')
-        .join(' ');
-    return titled;
   }
 
   void _removeInvitee(_Invitee invitee) {
@@ -464,7 +458,7 @@ class _InviteGuestsCard extends StatelessWidget {
   final TextEditingController emailController;
   final String? inviteError;
   final List<_Invitee> invitees;
-  final VoidCallback onInvite;
+  final Future<void> Function() onInvite;
   final ValueChanged<_Invitee> onRemove;
 
   const _InviteGuestsCard({
@@ -495,7 +489,9 @@ class _InviteGuestsCard extends StatelessWidget {
             controller: emailController,
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.done,
-            onSubmitted: (_) => onInvite(),
+            onSubmitted: (_) {
+              onInvite();
+            },
             decoration: InputDecoration(
               hintText: 'Email (required)',
               filled: true,
@@ -508,6 +504,16 @@ class _InviteGuestsCard extends StatelessWidget {
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             ),
           ),
+          if (inviteError != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              inviteError!,
+              style: const TextStyle(
+                color: Color(0xFFE25555),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
@@ -520,23 +526,15 @@ class _InviteGuestsCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              onPressed: onInvite,
+              onPressed: () {
+                onInvite();
+              },
               child: const Text(
                 'Invite',
                 style: TextStyle(fontWeight: FontWeight.w900),
               ),
             ),
           ),
-          if (inviteError != null) ...[
-            const SizedBox(height: 10),
-            Text(
-              inviteError!,
-              style: const TextStyle(
-                color: Color(0xFFE25555),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
           const SizedBox(height: 14),
           const Text(
             'Invited',

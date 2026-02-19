@@ -40,6 +40,9 @@ class OnesApp extends StatelessWidget {
 
     final usersRepository = UsersApiRepository(apiFactory);
     final ensureUser = EnsureUserUseCase(usersRepository);
+    final getPreferredName = GetPreferredNameUseCase(usersRepository);
+    final updatePreferredName = UpdatePreferredNameUseCase(usersRepository);
+    final lookupUserByEmail = LookupUserByEmailUseCase(usersRepository);
 
     final eventsRepository = EventsApiRepository(apiFactory);
     final listEvents = ListEventsUseCase(eventsRepository);
@@ -55,6 +58,9 @@ class OnesApp extends StatelessWidget {
             signOut: signOut,
             getIdToken: getIdToken,
             ensureUser: ensureUser,
+            getPreferredName: getPreferredName,
+            updatePreferredName: updatePreferredName,
+            lookupUserByEmailUseCase: lookupUserByEmail,
           ),
         ),
         ChangeNotifierProxyProvider<AuthController, EventsController>(
@@ -104,7 +110,7 @@ class _RootRouter extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
 
-    if (auth.isLoading) {
+    if (auth.isLoading && !auth.isSignedIn) {
       return const SplashPage();
     }
 

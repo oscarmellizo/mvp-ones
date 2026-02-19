@@ -9,6 +9,7 @@ public record EnsureUserResponse(
         String givenName,
         String familyName,
         String picture,
+        String preferredName,
         String provider,
         Instant createdAt,
         Instant updatedAt

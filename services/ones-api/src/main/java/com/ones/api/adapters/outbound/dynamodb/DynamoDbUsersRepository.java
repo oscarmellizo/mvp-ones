@@ -2,6 +2,7 @@ package com.ones.api.adapters.outbound.dynamodb;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
@@ -11,8 +12,11 @@ import com.ones.api.domain.users.User;
 
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
+import software.amazon.awssdk.enhanced.dynamodb.Expression;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
+import software.amazon.awssdk.enhanced.dynamodb.model.ScanEnhancedRequest;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 @Repository
 public class DynamoDbUsersRepository implements UsersRepository {
@@ -33,6 +37,30 @@ public class DynamoDbUsersRepository implements UsersRepository {
     }
 
     @Override
+    public Optional<User> findByEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return Optional.empty();
+        }
+
+        Expression filter = Expression.builder()
+                .expression("#email = :email")
+                .expressionNames(Map.of("#email", "email"))
+                .expressionValues(Map.of(":email", AttributeValue.builder().s(email.trim()).build()))
+                .build();
+
+        ScanEnhancedRequest request = ScanEnhancedRequest.builder()
+                .filterExpression(filter)
+                .limit(1)
+                .build();
+
+        return table.scan(request)
+                .items()
+                .stream()
+                .findFirst()
+                .map(DynamoDbUsersRepository::toDomain);
+    }
+
+    @Override
     public User upsert(User user) {
         table.putItem(toItem(user));
         return user;
@@ -46,6 +74,7 @@ public class DynamoDbUsersRepository implements UsersRepository {
         item.setGivenName(u.getGivenName());
         item.setFamilyName(u.getFamilyName());
         item.setPicture(u.getPicture());
+        item.setPreferredName(u.getPreferredName());
         item.setProvider(u.getProvider());
         item.setCreatedAt(u.getCreatedAt().toString());
         item.setUpdatedAt(u.getUpdatedAt().toString());
@@ -60,6 +89,7 @@ public class DynamoDbUsersRepository implements UsersRepository {
                 item.getGivenName(),
                 item.getFamilyName(),
                 item.getPicture(),
+                item.getPreferredName(),
                 item.getProvider(),
                 Instant.parse(item.getCreatedAt()),
                 Instant.parse(item.getUpdatedAt())

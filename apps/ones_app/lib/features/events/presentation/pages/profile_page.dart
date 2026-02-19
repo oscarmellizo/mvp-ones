@@ -28,6 +28,12 @@ class _ProfilePageState extends State<ProfilePage> {
     if (_seedUserId == user.userId) return;
     _seedUserId = user.userId;
 
+    final stored = auth.preferredName;
+    if (stored != null && stored.trim().isNotEmpty) {
+      _preferredNameController.text = stored.trim();
+      return;
+    }
+
     final parts = _splitDisplayName(user.displayName);
     final first = parts.$1;
     _preferredNameController.text = first.isNotEmpty ? first : 'Guest';
@@ -171,19 +177,31 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                         onPressed: auth.isLoading
                             ? null
-                            : () {
+                            : () async {
                                 final value =
                                     _preferredNameController.text.trim();
                                 FocusScope.of(context).unfocus();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      value.isEmpty
-                                          ? 'Preferences saved.'
-                                          : 'Preferences saved: $value',
+                                try {
+                                  await auth.savePreferredName(value);
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        value.isEmpty
+                                            ? 'Preferences saved.'
+                                            : 'Preferences saved: $value',
+                                      ),
                                     ),
-                                  ),
-                                );
+                                  );
+                                } catch (_) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content:
+                                          Text('Could not save preferences.'),
+                                    ),
+                                  );
+                                }
                               },
                         child: const Text(
                           'Save preferences',

@@ -27,12 +27,14 @@ public class EnsureUserUseCase {
                         coalesce(command.givenName(), existing.getGivenName()),
                         coalesce(command.familyName(), existing.getFamilyName()),
                         coalesce(command.picture(), existing.getPicture()),
+                        existing.getPreferredName(),
                         existing.getProvider(),
                         existing.getCreatedAt(),
                         now
                 ))
                 .map(repository::upsert)
                 .orElseGet(() -> {
+                    String preferredName = defaultPreferredName(command.givenName(), command.name());
                     User created = new User(
                             command.userId(),
                             command.email(),
@@ -40,6 +42,7 @@ public class EnsureUserUseCase {
                             command.givenName(),
                             command.familyName(),
                             command.picture(),
+                            preferredName,
                             command.provider(),
                             now,
                             now
@@ -50,5 +53,15 @@ public class EnsureUserUseCase {
 
     private static String coalesce(String a, String b) {
         return a != null ? a : b;
+    }
+
+    private static String defaultPreferredName(String givenName, String name) {
+        String raw = givenName != null && !givenName.isBlank() ? givenName : name;
+        if (raw == null || raw.isBlank()) {
+            return "Guest";
+        }
+        String trimmed = raw.trim();
+        int space = trimmed.indexOf(' ');
+        return (space > 0 ? trimmed.substring(0, space) : trimmed);
     }
 }

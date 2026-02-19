@@ -6,15 +6,20 @@ import '../application/sign_in_with_google_use_case.dart';
 import '../application/sign_out_use_case.dart';
 import '../domain/auth_user.dart';
 import '../../users/application/ensure_user_use_case.dart';
+import '../../users/domain/users_repository.dart';
 
 class AuthController extends ChangeNotifier {
   final SignInWithGoogleUseCase signInWithGoogle;
   final SignOutUseCase signOut;
   final GetIdTokenUseCase getIdToken;
   final EnsureUserUseCase ensureUser;
+  final GetPreferredNameUseCase getPreferredName;
+  final UpdatePreferredNameUseCase updatePreferredName;
+  final LookupUserByEmailUseCase lookupUserByEmailUseCase;
 
   AuthUser? _user;
   String? _idToken;
+  String? _preferredName;
   bool _isLoading = false;
   Object? _error;
 
@@ -23,10 +28,14 @@ class AuthController extends ChangeNotifier {
     required this.signOut,
     required this.getIdToken,
     required this.ensureUser,
+    required this.getPreferredName,
+    required this.updatePreferredName,
+    required this.lookupUserByEmailUseCase,
   });
 
   AuthUser? get user => _user;
   String? get idToken => _idToken;
+  String? get preferredName => _preferredName;
   bool get isSignedIn => _user != null;
   bool get isLoading => _isLoading;
   Object? get error => _error;
@@ -37,7 +46,6 @@ class AuthController extends ChangeNotifier {
       _error = null;
       _user = await signInWithGoogle.execute();
       _idToken = await getIdToken.execute();
-      print(_idToken);
 
       final tokenForClaims = _idToken;
       if (_user != null &&
@@ -61,6 +69,7 @@ class AuthController extends ChangeNotifier {
       if (token != null && token.isNotEmpty) {
         try {
           await ensureUser.execute(token);
+          _preferredName = await getPreferredName.execute(token);
         } catch (_) {
           // Intentionally ignored: user should still be signed in even if persistence fails.
         }
@@ -69,9 +78,32 @@ class AuthController extends ChangeNotifier {
       _error = e;
       _user = null;
       _idToken = null;
+      _preferredName = null;
     } finally {
       _setLoading(false);
     }
+  }
+
+  Future<void> savePreferredName(String value) async {
+    final token = _idToken;
+    if (token == null || token.isEmpty) return;
+    _setLoading(true);
+    try {
+      _error = null;
+      final updated = await updatePreferredName.execute(token, value);
+      _preferredName = updated ?? value;
+    } catch (e) {
+      _error = e;
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<UserLookup?> lookupUserByEmail(String email) async {
+    final token = _idToken;
+    if (token == null || token.isEmpty) return null;
+    return lookupUserByEmailUseCase.execute(token, email);
   }
 
   Future<void> logout() async {
@@ -81,6 +113,7 @@ class AuthController extends ChangeNotifier {
       await signOut.execute();
       _user = null;
       _idToken = null;
+      _preferredName = null;
     } catch (e) {
       _error = e;
     } finally {

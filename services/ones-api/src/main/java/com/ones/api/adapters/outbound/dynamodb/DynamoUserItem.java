@@ -13,6 +13,7 @@ public class DynamoUserItem {
     private String givenName;
     private String familyName;
     private String picture;
+    private String preferredName;
     private String provider;
     private String createdAt;
     private String updatedAt;
@@ -70,6 +71,15 @@ public class DynamoUserItem {
 
     public void setPicture(String picture) {
         this.picture = picture;
+    }
+
+    @DynamoDbAttribute("preferredName")
+    public String getPreferredName() {
+        return preferredName;
+    }
+
+    public void setPreferredName(String preferredName) {
+        this.preferredName = preferredName;
     }
 
     @DynamoDbAttribute("provider")
