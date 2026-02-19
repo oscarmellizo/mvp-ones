@@ -21,12 +21,18 @@ class CreateEventUseCaseTest {
         Clock clock = Clock.fixed(Instant.parse("2025-01-01T00:00:00Z"), ZoneOffset.UTC);
 
         CreateEventUseCase useCase = new CreateEventUseCase(repo, clock);
-        Event created = useCase.execute("user-123", "Hello");
+        Instant startAt = Instant.parse("2025-01-01T18:00:00Z");
+        Instant endAt = Instant.parse("2025-01-01T22:00:00Z");
+        Event created = useCase.execute("user-123", "Hello", "birthday", "San Jose, CR", startAt, endAt);
 
         assertNotNull(created.getEventId());
         assertEquals("user-123", created.getOwnerId());
         assertEquals("Hello", created.getTitle());
         assertEquals(Instant.parse("2025-01-01T00:00:00Z"), created.getCreatedAt());
+        assertEquals("birthday", created.getEventTypeId());
+        assertEquals("San Jose, CR", created.getLocation());
+        assertEquals(startAt, created.getStartAt());
+        assertEquals(endAt, created.getEndAt());
     }
 
     private static class InMemoryEventsRepository implements EventsRepository {

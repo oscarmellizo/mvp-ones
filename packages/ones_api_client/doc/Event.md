@@ -12,6 +12,10 @@ Name | Type | Description | Notes
 **ownerId** | **String** |  | 
 **createdAt** | [**DateTime**](DateTime.md) |  | 
 **title** | **String** |  | 
+**eventTypeId** | **String** |  | 
+**location** | **String** |  | 
+**startAt** | [**DateTime**](DateTime.md) |  | 
+**endAt** | [**DateTime**](DateTime.md) |  | 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

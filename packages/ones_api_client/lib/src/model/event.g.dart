@@ -15,6 +15,14 @@ class _$Event extends Event {
   final DateTime createdAt;
   @override
   final String title;
+  @override
+  final String eventTypeId;
+  @override
+  final String location;
+  @override
+  final DateTime startAt;
+  @override
+  final DateTime endAt;
 
   factory _$Event([void Function(EventBuilder)? updates]) =>
       (new EventBuilder()..update(updates))._build();
@@ -23,12 +31,20 @@ class _$Event extends Event {
       {required this.id,
       required this.ownerId,
       required this.createdAt,
-      required this.title})
+      required this.title,
+      required this.eventTypeId,
+      required this.location,
+      required this.startAt,
+      required this.endAt})
       : super._() {
     BuiltValueNullFieldError.checkNotNull(id, r'Event', 'id');
     BuiltValueNullFieldError.checkNotNull(ownerId, r'Event', 'ownerId');
     BuiltValueNullFieldError.checkNotNull(createdAt, r'Event', 'createdAt');
     BuiltValueNullFieldError.checkNotNull(title, r'Event', 'title');
+    BuiltValueNullFieldError.checkNotNull(eventTypeId, r'Event', 'eventTypeId');
+    BuiltValueNullFieldError.checkNotNull(location, r'Event', 'location');
+    BuiltValueNullFieldError.checkNotNull(startAt, r'Event', 'startAt');
+    BuiltValueNullFieldError.checkNotNull(endAt, r'Event', 'endAt');
   }
 
   @override
@@ -45,7 +61,11 @@ class _$Event extends Event {
         id == other.id &&
         ownerId == other.ownerId &&
         createdAt == other.createdAt &&
-        title == other.title;
+        title == other.title &&
+        eventTypeId == other.eventTypeId &&
+        location == other.location &&
+        startAt == other.startAt &&
+        endAt == other.endAt;
   }
 
   @override
@@ -55,6 +75,10 @@ class _$Event extends Event {
     _$hash = $jc(_$hash, ownerId.hashCode);
     _$hash = $jc(_$hash, createdAt.hashCode);
     _$hash = $jc(_$hash, title.hashCode);
+    _$hash = $jc(_$hash, eventTypeId.hashCode);
+    _$hash = $jc(_$hash, location.hashCode);
+    _$hash = $jc(_$hash, startAt.hashCode);
+    _$hash = $jc(_$hash, endAt.hashCode);
     _$hash = $jf(_$hash);
     return _$hash;
   }
@@ -65,7 +89,11 @@ class _$Event extends Event {
           ..add('id', id)
           ..add('ownerId', ownerId)
           ..add('createdAt', createdAt)
-          ..add('title', title))
+          ..add('title', title)
+          ..add('eventTypeId', eventTypeId)
+          ..add('location', location)
+          ..add('startAt', startAt)
+          ..add('endAt', endAt))
         .toString();
   }
 }
@@ -89,6 +117,22 @@ class EventBuilder implements Builder<Event, EventBuilder> {
   String? get title => _$this._title;
   set title(String? title) => _$this._title = title;
 
+  String? _eventTypeId;
+  String? get eventTypeId => _$this._eventTypeId;
+  set eventTypeId(String? eventTypeId) => _$this._eventTypeId = eventTypeId;
+
+  String? _location;
+  String? get location => _$this._location;
+  set location(String? location) => _$this._location = location;
+
+  DateTime? _startAt;
+  DateTime? get startAt => _$this._startAt;
+  set startAt(DateTime? startAt) => _$this._startAt = startAt;
+
+  DateTime? _endAt;
+  DateTime? get endAt => _$this._endAt;
+  set endAt(DateTime? endAt) => _$this._endAt = endAt;
+
   EventBuilder() {
     Event._defaults(this);
   }
@@ -100,6 +144,10 @@ class EventBuilder implements Builder<Event, EventBuilder> {
       _ownerId = $v.ownerId;
       _createdAt = $v.createdAt;
       _title = $v.title;
+      _eventTypeId = $v.eventTypeId;
+      _location = $v.location;
+      _startAt = $v.startAt;
+      _endAt = $v.endAt;
       _$v = null;
     }
     return this;
@@ -127,8 +175,16 @@ class EventBuilder implements Builder<Event, EventBuilder> {
                 ownerId, r'Event', 'ownerId'),
             createdAt: BuiltValueNullFieldError.checkNotNull(
                 createdAt, r'Event', 'createdAt'),
-            title: BuiltValueNullFieldError.checkNotNull(
-                title, r'Event', 'title'));
+            title:
+                BuiltValueNullFieldError.checkNotNull(title, r'Event', 'title'),
+            eventTypeId: BuiltValueNullFieldError.checkNotNull(
+                eventTypeId, r'Event', 'eventTypeId'),
+            location: BuiltValueNullFieldError.checkNotNull(
+                location, r'Event', 'location'),
+            startAt: BuiltValueNullFieldError.checkNotNull(
+                startAt, r'Event', 'startAt'),
+            endAt: BuiltValueNullFieldError.checkNotNull(
+                endAt, r'Event', 'endAt'));
     replace(_$result);
     return _$result;
   }

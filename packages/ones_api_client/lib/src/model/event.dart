@@ -15,6 +15,10 @@ part 'event.g.dart';
 /// * [ownerId] 
 /// * [createdAt] 
 /// * [title] 
+/// * [eventTypeId] 
+/// * [location] 
+/// * [startAt] 
+/// * [endAt] 
 @BuiltValue()
 abstract class Event implements Built<Event, EventBuilder> {
   @BuiltValueField(wireName: r'id')
@@ -28,6 +32,18 @@ abstract class Event implements Built<Event, EventBuilder> {
 
   @BuiltValueField(wireName: r'title')
   String get title;
+
+  @BuiltValueField(wireName: r'eventTypeId')
+  String get eventTypeId;
+
+  @BuiltValueField(wireName: r'location')
+  String get location;
+
+  @BuiltValueField(wireName: r'startAt')
+  DateTime get startAt;
+
+  @BuiltValueField(wireName: r'endAt')
+  DateTime get endAt;
 
   Event._();
 
@@ -71,6 +87,26 @@ class _$EventSerializer implements PrimitiveSerializer<Event> {
     yield serializers.serialize(
       object.title,
       specifiedType: const FullType(String),
+    );
+    yield r'eventTypeId';
+    yield serializers.serialize(
+      object.eventTypeId,
+      specifiedType: const FullType(String),
+    );
+    yield r'location';
+    yield serializers.serialize(
+      object.location,
+      specifiedType: const FullType(String),
+    );
+    yield r'startAt';
+    yield serializers.serialize(
+      object.startAt,
+      specifiedType: const FullType(DateTime),
+    );
+    yield r'endAt';
+    yield serializers.serialize(
+      object.endAt,
+      specifiedType: const FullType(DateTime),
     );
   }
 
@@ -122,6 +158,34 @@ class _$EventSerializer implements PrimitiveSerializer<Event> {
             specifiedType: const FullType(String),
           ) as String;
           result.title = valueDes;
+          break;
+        case r'eventTypeId':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(String),
+          ) as String;
+          result.eventTypeId = valueDes;
+          break;
+        case r'location':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(String),
+          ) as String;
+          result.location = valueDes;
+          break;
+        case r'startAt':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(DateTime),
+          ) as DateTime;
+          result.startAt = valueDes;
+          break;
+        case r'endAt':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(DateTime),
+          ) as DateTime;
+          result.endAt = valueDes;
           break;
         default:
           unhandled.add(key);

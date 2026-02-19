@@ -1,5 +1,4 @@
 .gitignore
-.openapi-generator-ignore
 README.md
 analysis_options.yaml
 doc/CreateEventRequest.md
@@ -24,8 +23,3 @@ lib/src/model/event.dart
 lib/src/model/health_response.dart
 lib/src/serializers.dart
 pubspec.yaml
-test/create_event_request_test.dart
-test/default_api_test.dart
-test/error_response_test.dart
-test/event_test.dart
-test/health_response_test.dart

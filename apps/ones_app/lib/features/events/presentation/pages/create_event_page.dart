@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../auth/presentation/auth_controller.dart';
+import '../../domain/events_metadata.dart';
+import '../events_metadata_controller.dart';
 import '../events_controller.dart';
 
 class CreateEventPage extends StatefulWidget {
@@ -31,92 +33,8 @@ class CreateEventPage extends StatefulWidget {
 }
 
 class _CreateEventPageState extends State<CreateEventPage> {
-  static const Map<String, List<String>> _eventTypeByCategory = {
-    'Eventos Sociales / Personales': [
-      'Cumpleaños',
-      'Boda',
-      'Baby shower',
-      'Bautizo',
-      'Primer año',
-      'Graduación',
-      'Aniversario',
-      'Despedida de soltero/a',
-      'Reunión familiar',
-      'Fiesta temática',
-    ],
-    'Eventos Académicos / Educativos': [
-      'Feria de la ciencia',
-      'Congreso académico',
-      'Seminario',
-      'Clase especial',
-      'Evento institucional',
-      'Graduación universitaria',
-      'Semana cultural',
-      'Exposición de proyectos',
-    ],
-    'Eventos Públicos': [
-      'Concierto',
-      'Festival',
-      'Evento deportivo',
-      'Maratón',
-      'Evento comunitario',
-      'Fiesta patronal',
-      'Lanzamiento público',
-    ],
-    'Eventos Corporativos': [
-      'Team building',
-      'Kickoff anual',
-      'Lanzamiento de producto',
-      'Networking',
-      'Convención empresarial',
-      'Fiesta corporativa',
-      'Capacitaciones internas',
-    ],
-    'Eventos Infantiles': [
-      'Cumpleaños infantil',
-      'Presentación escolares',
-      'Día del niño',
-      'Actividades extracurriculares',
-      'Fiesta temática',
-    ],
-    'Eventos Religiosos / Tradicionales': [
-      'Bautizos',
-      'Confirmaciones',
-      'Matrimonios religiosos',
-      'Procesiones',
-      'Celebraciones tradicionales',
-    ],
-    'Eventos Tech / Comunidades': [
-      'Hackathons',
-      'Meetups',
-      'Demo Day',
-      'Lanzamiento de startup',
-      'Webinar híbrido',
-    ],
-    'Eventos Artísticos / Culturales': [
-      'Obras de teatro',
-      'Recitales',
-      'Exposiciones',
-      'Presentaciones de danza',
-      'Eventos culturales locales',
-    ],
-    'Eventos Deportivos': [
-      'Torneo escolar',
-      'Campeonato',
-      'Maratón',
-      'Media Maratón',
-      'Carrera 5K',
-      'Carrera 10K',
-      'Competencia local',
-    ],
-    'Micro-eventos cotidianos': [
-      'Cena con amigos',
-      'Noche de juegos',
-      'Picnic familiar',
-      'Reunión pequeña',
-      'Viaje grupal',
-    ],
-  };
+  bool _metadataLoadTriggered = false;
+  bool _metadataApplied = false;
 
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
@@ -131,15 +49,12 @@ class _CreateEventPageState extends State<CreateEventPage> {
   DateTime? _endDate;
   TimeOfDay? _endTime;
 
-  late String _eventCategory;
-  late String _eventType;
+  String? _eventCategoryId;
+  String? _eventTypeId;
 
   @override
   void initState() {
     super.initState();
-
-    _eventCategory = _eventTypeByCategory.keys.first;
-    _eventType = _eventTypeByCategory[_eventCategory]!.first;
 
     if (widget.initialTitle != null && widget.initialTitle!.trim().isNotEmpty) {
       _nameController.text = widget.initialTitle!.trim();
@@ -148,20 +63,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
     if (widget.initialLocation != null &&
         widget.initialLocation!.trim().isNotEmpty) {
       _locationController.text = widget.initialLocation!.trim();
-    }
-
-    if (widget.initialEventType != null &&
-        widget.initialEventType!.trim().isNotEmpty) {
-      final initial = widget.initialEventType!.trim();
-      final match = _eventTypeByCategory.entries
-          .where((e) => e.value.contains(initial))
-          .map((e) => e.key)
-          .cast<String?>()
-          .firstWhere((_) => true, orElse: () => null);
-      if (match != null) {
-        _eventCategory = match;
-        _eventType = initial;
-      }
     }
 
     _startDate = widget.initialStartDate ?? _startDate;
@@ -246,6 +147,57 @@ class _CreateEventPageState extends State<CreateEventPage> {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<EventsController>();
+    final metadataController = context.watch<EventsMetadataController>();
+
+    if (!_metadataLoadTriggered) {
+      _metadataLoadTriggered = true;
+      Future.microtask(() async {
+        try {
+          await metadataController.ensureLoaded();
+        } catch (_) {
+          // ignore
+        }
+      });
+    }
+
+    final categories =
+        metadataController.metadata?.categories ?? const <EventCategory>[];
+
+    if (!_metadataApplied && categories.isNotEmpty) {
+      _metadataApplied = true;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+
+        final initial = widget.initialEventType?.trim();
+
+        String? categoryId;
+        String? eventTypeId;
+
+        if (initial != null && initial.isNotEmpty) {
+          for (final c in categories) {
+            for (final t in c.eventTypes) {
+              if (t.id == initial || t.label == initial) {
+                categoryId = c.id;
+                eventTypeId = t.id;
+                break;
+              }
+            }
+            if (categoryId != null) break;
+          }
+        }
+
+        final firstCategory = categories.first;
+        final firstType = firstCategory.eventTypes.isNotEmpty
+            ? firstCategory.eventTypes.first
+            : null;
+
+        setState(() {
+          _eventCategoryId = categoryId ?? firstCategory.id;
+          _eventTypeId = eventTypeId ?? firstType?.id;
+        });
+      });
+    }
 
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
@@ -307,14 +259,24 @@ class _CreateEventPageState extends State<CreateEventPage> {
                       const _FieldLabel('Category'),
                       const SizedBox(height: 8),
                       _DropdownField(
-                        value: _eventCategory,
-                        items:
-                            _eventTypeByCategory.keys.toList(growable: false),
+                        value: _eventCategoryId,
+                        items: categories
+                            .map((c) => _DropdownOption(
+                                  value: c.id,
+                                  label: c.label,
+                                ))
+                            .toList(growable: false),
                         onChanged: (v) {
+                          final selected = categories
+                              .where((c) => c.id == v)
+                              .cast<EventCategory?>()
+                              .firstWhere((_) => true, orElse: () => null);
                           setState(() {
-                            _eventCategory = v;
-                            _eventType =
-                                _eventTypeByCategory[_eventCategory]!.first;
+                            _eventCategoryId = v;
+                            _eventTypeId =
+                                selected?.eventTypes.isNotEmpty == true
+                                    ? selected!.eventTypes.first.id
+                                    : null;
                           });
                         },
                       ),
@@ -322,9 +284,21 @@ class _CreateEventPageState extends State<CreateEventPage> {
                       const _FieldLabel('Event Type'),
                       const SizedBox(height: 8),
                       _DropdownField(
-                        value: _eventType,
-                        items: _eventTypeByCategory[_eventCategory]!,
-                        onChanged: (v) => setState(() => _eventType = v),
+                        value: _eventTypeId,
+                        items: (() {
+                          final catId = _eventCategoryId;
+                          final selected = categories
+                              .where((c) => c.id == catId)
+                              .cast<EventCategory?>()
+                              .firstWhere((_) => true, orElse: () => null);
+                          return (selected?.eventTypes ?? const <EventType>[])
+                              .map((t) => _DropdownOption(
+                                    value: t.id,
+                                    label: t.label,
+                                  ))
+                              .toList(growable: false);
+                        })(),
+                        onChanged: (v) => setState(() => _eventTypeId = v),
                       ),
                       const SizedBox(height: 16),
                       _DateTimeCard(
@@ -424,7 +398,38 @@ class _CreateEventPageState extends State<CreateEventPage> {
     final controller = context.read<EventsController>();
     if (!_formKey.currentState!.validate()) return;
 
-    await controller.createNew(_nameController.text.trim());
+    final eventTypeId = _eventTypeId;
+    if (eventTypeId == null || eventTypeId.trim().isEmpty) return;
+
+    final startDate = _startDate;
+    final startTime = _startTime;
+    final endDate = _endDate;
+    final endTime = _endTime;
+    if (startDate == null || startTime == null) return;
+    if (endDate == null || endTime == null) return;
+
+    final startAt = DateTime(
+      startDate.year,
+      startDate.month,
+      startDate.day,
+      startTime.hour,
+      startTime.minute,
+    ).toUtc();
+    final endAt = DateTime(
+      endDate.year,
+      endDate.month,
+      endDate.day,
+      endTime.hour,
+      endTime.minute,
+    ).toUtc();
+
+    await controller.createNew(
+      _nameController.text.trim(),
+      eventTypeId,
+      _locationController.text.trim(),
+      startAt,
+      endAt,
+    );
     if (context.mounted) Navigator.of(context).pop();
   }
 
@@ -606,9 +611,16 @@ class _FieldLabel extends StatelessWidget {
   }
 }
 
-class _DropdownField extends StatelessWidget {
+class _DropdownOption {
   final String value;
-  final List<String> items;
+  final String label;
+
+  const _DropdownOption({required this.value, required this.label});
+}
+
+class _DropdownField extends StatelessWidget {
+  final String? value;
+  final List<_DropdownOption> items;
   final ValueChanged<String> onChanged;
 
   const _DropdownField({
@@ -632,8 +644,8 @@ class _DropdownField extends StatelessWidget {
           icon: const Icon(Icons.keyboard_arrow_down),
           items: items
               .map((e) => DropdownMenuItem<String>(
-                    value: e,
-                    child: Text(e),
+                    value: e.value,
+                    child: Text(e.label),
                   ))
               .toList(growable: false),
           onChanged: (v) {

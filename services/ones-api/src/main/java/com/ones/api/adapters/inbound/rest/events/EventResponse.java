@@ -6,6 +6,10 @@ public record EventResponse(
         String id,
         String ownerId,
         Instant createdAt,
-        String title
+        String title,
+        String eventTypeId,
+        String location,
+        Instant startAt,
+        Instant endAt
 ) {
 }

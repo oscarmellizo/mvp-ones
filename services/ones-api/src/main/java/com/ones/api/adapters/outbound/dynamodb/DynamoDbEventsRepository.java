@@ -67,17 +67,31 @@ public class DynamoDbEventsRepository implements EventsRepository {
         item.setCreatedAt(e.getCreatedAt().toString());
         item.setTitle(e.getTitle());
 
+        item.setEventTypeId(e.getEventTypeId());
+        item.setLocation(e.getLocation());
+        item.setStartAt(e.getStartAt().toString());
+        item.setEndAt(e.getEndAt().toString());
+
         item.setGsi1pk(e.getOwnerId());
         item.setGsi1sk(e.getCreatedAt().toString());
         return item;
     }
 
     private static Event toDomain(DynamoEventItem item) {
+        Instant createdAt = Instant.parse(item.getCreatedAt());
+        Instant startAt = item.getStartAt() != null ? Instant.parse(item.getStartAt()) : createdAt;
+        Instant endAt = item.getEndAt() != null ? Instant.parse(item.getEndAt()) : startAt;
+        String eventTypeId = item.getEventTypeId() != null ? item.getEventTypeId() : "";
+        String location = item.getLocation() != null ? item.getLocation() : "";
         return new Event(
                 item.getEventId(),
                 item.getOwnerId(),
-                Instant.parse(item.getCreatedAt()),
-                item.getTitle()
+                createdAt,
+                item.getTitle(),
+                eventTypeId,
+                location,
+                startAt,
+                endAt
         );
     }
 }

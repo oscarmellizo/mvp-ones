@@ -5,5 +5,11 @@ abstract interface class EventsRepository {
 
   Future<Event> getEvent(String id);
 
-  Future<Event> createEvent(String title);
+  Future<Event> createEvent(
+    String title,
+    String eventTypeId,
+    String location,
+    DateTime startAt,
+    DateTime endAt,
+  );
 }

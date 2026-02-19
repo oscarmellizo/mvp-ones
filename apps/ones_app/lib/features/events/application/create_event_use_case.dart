@@ -6,7 +6,13 @@ class CreateEventUseCase {
 
   CreateEventUseCase(this.repository);
 
-  Future<Event> execute(String title) {
-    return repository.createEvent(title);
+  Future<Event> execute(
+    String title,
+    String eventTypeId,
+    String location,
+    DateTime startAt,
+    DateTime endAt,
+  ) {
+    return repository.createEvent(title, eventTypeId, location, startAt, endAt);
   }
 }

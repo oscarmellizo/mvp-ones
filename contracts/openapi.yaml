@@ -118,15 +118,31 @@ components:
           example: ok
     CreateEventRequest:
       type: object
-      required: [title]
+      required: [title, eventTypeId, location, startAt, endAt]
       properties:
         title:
           type: string
           minLength: 1
           example: My event
+        eventTypeId:
+          type: string
+          minLength: 1
+          example: birthday
+        location:
+          type: string
+          minLength: 1
+          example: San Jose, CR
+        startAt:
+          type: string
+          format: date-time
+          example: '2025-01-01T18:00:00Z'
+        endAt:
+          type: string
+          format: date-time
+          example: '2025-01-01T22:00:00Z'
     Event:
       type: object
-      required: [id, ownerId, createdAt, title]
+      required: [id, ownerId, createdAt, title, eventTypeId, location, startAt, endAt]
       properties:
         id:
           type: string
@@ -141,6 +157,20 @@ components:
         title:
           type: string
           example: Hello
+        eventTypeId:
+          type: string
+          example: birthday
+        location:
+          type: string
+          example: San Jose, CR
+        startAt:
+          type: string
+          format: date-time
+          example: '2025-01-01T18:00:00Z'
+        endAt:
+          type: string
+          format: date-time
+          example: '2025-01-01T22:00:00Z'
     ErrorResponse:
       type: object
       required: [error, message]

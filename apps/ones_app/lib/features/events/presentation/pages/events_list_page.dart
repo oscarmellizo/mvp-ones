@@ -37,9 +37,29 @@ class _EventsListPageState extends State<EventsListPage> {
     final controller = context.watch<EventsController>();
 
     final events = controller.events;
-    final upcoming = events.take(3).toList(growable: false);
-    final galleries = events.skip(3).toList(growable: false);
-    final nextEvents = (galleries.isEmpty ? events : galleries);
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final tomorrowStart = todayStart.add(const Duration(days: 1));
+
+    final todayEvents = events.where((e) {
+      final start = e.startAt.toLocal();
+      final end = e.endAt.toLocal();
+      return start.isBefore(tomorrowStart) && end.isAfter(todayStart);
+    }).toList(growable: false)
+      ..sort(
+        (a, b) => a.startAt.toLocal().compareTo(b.startAt.toLocal()),
+      );
+
+    final todayCards = todayEvents.take(3).toList(growable: false);
+
+    final nextEvents = events
+        .where((e) =>
+            e.startAt.toLocal().isAfter(tomorrowStart) ||
+            e.startAt.toLocal().isAtSameMomentAs(tomorrowStart))
+        .toList(growable: false)
+      ..sort(
+        (a, b) => a.startAt.toLocal().compareTo(b.startAt.toLocal()),
+      );
 
     return ColoredBox(
       color: _bg,
@@ -64,28 +84,34 @@ class _EventsListPageState extends State<EventsListPage> {
                     ? const Center(child: CircularProgressIndicator())
                     : ListView.separated(
                         scrollDirection: Axis.horizontal,
-                        itemCount: upcoming.isEmpty ? 1 : upcoming.length,
+                        itemCount: todayCards.isEmpty ? 1 : todayCards.length,
                         separatorBuilder: (_, __) => const SizedBox(width: 14),
                         itemBuilder: (context, index) {
-                          if (upcoming.isEmpty) {
+                          if (todayCards.isEmpty) {
                             return const _EmptyCard();
                           }
 
-                          final e = upcoming[index];
-                          final start = e.createdAt.toLocal();
-                          final end = start.add(const Duration(hours: 2));
-                          final now = DateTime.now();
-                          final isLiveNow =
-                              now.isAfter(start) || now.isAtSameMomentAs(start);
+                          final e = todayCards[index];
+                          final start = e.startAt.toLocal();
+                          final end = e.endAt.toLocal();
+
+                          final displayStart =
+                              start.isBefore(todayStart) ? todayStart : start;
+                          final displayEnd =
+                              end.isAfter(tomorrowStart) ? tomorrowStart : end;
+
+                          final isLiveNow = (now.isAfter(start) ||
+                                  now.isAtSameMomentAs(start)) &&
+                              now.isBefore(end);
                           final cover = index.isEven
                               ? 'assets/auth/concierto.png'
                               : 'assets/auth/amigos.png';
                           return _UpcomingCard(
                             title: e.title,
-                            location: 'Brooklyn, NY',
+                            location: e.location,
                             imageAsset: cover,
                             timeText:
-                                '${_formatTimeOfDay(start)} - ${_formatTimeOfDay(end)}',
+                                '${_formatTimeOfDay(displayStart)} - ${_formatTimeOfDay(displayEnd)}',
                             badgeText: isLiveNow ? 'LIVE NOW' : null,
                             onTap: () => Navigator.of(context).pushNamed(
                               EventDetailPage.routeName,
@@ -128,16 +154,15 @@ class _EventsListPageState extends State<EventsListPage> {
                     final cover = i.isEven
                         ? 'assets/auth/amigos.png'
                         : 'assets/auth/concierto.png';
-                    final when = e.createdAt.toLocal();
-                    final end = when.add(const Duration(hours: 2));
-                    final location = i.isEven ? 'Brooklyn, NY' : 'NYC';
+                    final when = e.startAt.toLocal();
+                    final end = e.endAt.toLocal();
 
                     return _NextEventCard(
                       title: e.title,
                       dateText: _formatMonthDayYear(when),
                       timeText:
                           '${_formatTimeOfDay(when)} - ${_formatTimeOfDay(end)}',
-                      location: location,
+                      location: e.location,
                       imageAsset: cover,
                       onTap: () => Navigator.of(context).pushNamed(
                         EventDetailPage.routeName,

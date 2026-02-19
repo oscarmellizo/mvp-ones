@@ -17,11 +17,11 @@ public class CreateEventUseCase {
         this.clock = clock;
     }
 
-    public Event execute(String ownerId, String title) {
+    public Event execute(String ownerId, String title, String eventTypeId, String location, Instant startAt, Instant endAt) {
         String eventId = UUID.randomUUID().toString();
         Instant createdAt = Instant.now(clock);
 
-        Event event = new Event(eventId, ownerId, createdAt, title);
+        Event event = new Event(eventId, ownerId, createdAt, title, eventTypeId, location, startAt, endAt);
         return repository.save(event);
     }
 }

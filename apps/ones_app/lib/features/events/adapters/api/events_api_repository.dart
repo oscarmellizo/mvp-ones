@@ -40,8 +40,19 @@ class EventsApiRepository implements EventsRepository {
   }
 
   @override
-  Future<Event> createEvent(String title) async {
-    final req = api.CreateEventRequest((b) => b..title = title);
+  Future<Event> createEvent(
+    String title,
+    String eventTypeId,
+    String location,
+    DateTime startAt,
+    DateTime endAt,
+  ) async {
+    final req = api.CreateEventRequest((b) => b
+      ..title = title
+      ..eventTypeId = eventTypeId
+      ..location = location
+      ..startAt = startAt
+      ..endAt = endAt);
     final response =
         await _defaultApi(_idToken).createEvent(createEventRequest: req);
     final api.Event? e = response.data;
@@ -57,6 +68,10 @@ class EventsApiRepository implements EventsRepository {
       ownerId: e.ownerId,
       createdAt: e.createdAt,
       title: e.title,
+      eventTypeId: e.eventTypeId,
+      location: e.location,
+      startAt: e.startAt,
+      endAt: e.endAt,
     );
   }
 }

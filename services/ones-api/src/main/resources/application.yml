@@ -9,6 +9,176 @@ ones:
   auth:
     google:
       client-id: ${GOOGLE_CLIENT_ID:}
+  events:
+    metadata:
+      categories:
+        - id: social_personal
+          label: Eventos Sociales / Personales
+          event-types:
+            - id: birthday
+              label: Cumpleaños
+            - id: wedding
+              label: Boda
+            - id: baby_shower
+              label: Baby shower
+            - id: baptism
+              label: Bautizo
+            - id: first_birthday
+              label: Primer año
+            - id: graduation
+              label: Graduación
+            - id: anniversary
+              label: Aniversario
+            - id: bachelor_bachelorette_party
+              label: Despedida de soltero/a
+            - id: family_reunion
+              label: Reunión familiar
+            - id: themed_party
+              label: Fiesta temática
+
+        - id: academic_educational
+          label: Eventos Académicos / Educativos
+          event-types:
+            - id: science_fair
+              label: Feria de la ciencia
+            - id: academic_conference
+              label: Congreso académico
+            - id: seminar
+              label: Seminario
+            - id: special_class
+              label: Clase especial
+            - id: institutional_event
+              label: Evento institucional
+            - id: university_graduation
+              label: Graduación universitaria
+            - id: cultural_week
+              label: Semana cultural
+            - id: project_expo
+              label: Exposición de proyectos
+
+        - id: public_events
+          label: Eventos Públicos
+          event-types:
+            - id: concert
+              label: Concierto
+            - id: festival
+              label: Festival
+            - id: sports_event
+              label: Evento deportivo
+            - id: marathon
+              label: Maratón
+            - id: community_event
+              label: Evento comunitario
+            - id: patronal_festival
+              label: Fiesta patronal
+            - id: public_launch
+              label: Lanzamiento público
+
+        - id: corporate
+          label: Eventos Corporativos
+          event-types:
+            - id: team_building
+              label: Team building
+            - id: annual_kickoff
+              label: Kickoff anual
+            - id: product_launch
+              label: Lanzamiento de producto
+            - id: networking
+              label: Networking
+            - id: business_convention
+              label: Convención empresarial
+            - id: corporate_party
+              label: Fiesta corporativa
+            - id: internal_training
+              label: Capacitaciones internas
+
+        - id: kids
+          label: Eventos Infantiles
+          event-types:
+            - id: kids_birthday
+              label: Cumpleaños infantil
+            - id: school_performance
+              label: Presentación escolares
+            - id: childrens_day
+              label: Día del niño
+            - id: extracurricular_activities
+              label: Actividades extracurriculares
+            - id: themed_party
+              label: Fiesta temática
+
+        - id: religious_traditional
+          label: Eventos Religiosos / Tradicionales
+          event-types:
+            - id: baptisms
+              label: Bautizos
+            - id: confirmations
+              label: Confirmaciones
+            - id: religious_weddings
+              label: Matrimonios religiosos
+            - id: processions
+              label: Procesiones
+            - id: traditional_celebrations
+              label: Celebraciones tradicionales
+
+        - id: tech_communities
+          label: Eventos Tech / Comunidades
+          event-types:
+            - id: hackathons
+              label: Hackathons
+            - id: meetups
+              label: Meetups
+            - id: demo_day
+              label: Demo Day
+            - id: startup_launch
+              label: Lanzamiento de startup
+            - id: hybrid_webinar
+              label: Webinar híbrido
+
+        - id: arts_culture
+          label: Eventos Artísticos / Culturales
+          event-types:
+            - id: theater_plays
+              label: Obras de teatro
+            - id: recitals
+              label: Recitales
+            - id: exhibitions
+              label: Exposiciones
+            - id: dance_performances
+              label: Presentaciones de danza
+            - id: local_cultural_events
+              label: Eventos culturales locales
+
+        - id: sports
+          label: Eventos Deportivos
+          event-types:
+            - id: school_tournament
+              label: Torneo escolar
+            - id: championship
+              label: Campeonato
+            - id: marathon
+              label: Maratón
+            - id: half_marathon
+              label: Media Maratón
+            - id: race_5k
+              label: Carrera 5K
+            - id: race_10k
+              label: Carrera 10K
+            - id: local_competition
+              label: Competencia local
+
+        - id: everyday_micro_events
+          label: Micro-eventos cotidianos
+          event-types:
+            - id: dinner_with_friends
+              label: Cena con amigos
+            - id: game_night
+              label: Noche de juegos
+            - id: family_picnic
+              label: Picnic familiar
+            - id: small_gathering
+              label: Reunión pequeña
+            - id: group_trip
+              label: Viaje grupal
   dynamodb:
     table-name: ${ONES_EVENTS_TABLE:ones-events}
     users-table-name: ${ONES_USERS_TABLE:ones-users}

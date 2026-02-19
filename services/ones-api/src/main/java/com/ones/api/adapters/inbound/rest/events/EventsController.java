@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.ones.api.application.events.CreateEventUseCase;
+import com.ones.api.application.events.EventsMetadataService;
 import com.ones.api.application.events.GetEventUseCase;
 import com.ones.api.application.events.ListEventsUseCase;
 import com.ones.api.domain.events.Event;
@@ -26,11 +27,18 @@ public class EventsController {
     private final CreateEventUseCase createEventUseCase;
     private final ListEventsUseCase listEventsUseCase;
     private final GetEventUseCase getEventUseCase;
+    private final EventsMetadataService eventsMetadataService;
 
-    public EventsController(CreateEventUseCase createEventUseCase, ListEventsUseCase listEventsUseCase, GetEventUseCase getEventUseCase) {
+    public EventsController(
+            CreateEventUseCase createEventUseCase,
+            ListEventsUseCase listEventsUseCase,
+            GetEventUseCase getEventUseCase,
+            EventsMetadataService eventsMetadataService
+    ) {
         this.createEventUseCase = createEventUseCase;
         this.listEventsUseCase = listEventsUseCase;
         this.getEventUseCase = getEventUseCase;
+        this.eventsMetadataService = eventsMetadataService;
     }
 
     @GetMapping
@@ -39,10 +47,22 @@ public class EventsController {
         return listEventsUseCase.execute(ownerId, 50).stream().map(EventsController::toResponse).toList();
     }
 
+    @GetMapping("/metadata")
+    public EventsMetadataService.EventsMetadataResponse metadata() {
+        return eventsMetadataService.getMetadata();
+    }
+
     @PostMapping
     public ResponseEntity<EventResponse> create(Authentication authentication, @Valid @RequestBody CreateEventRequest request) {
         String ownerId = authentication.getName();
-        Event created = createEventUseCase.execute(ownerId, request.title());
+        Event created = createEventUseCase.execute(
+                ownerId,
+                request.title(),
+                request.eventTypeId(),
+                request.location(),
+                request.startAt(),
+                request.endAt()
+        );
         return ResponseEntity.created(URI.create("/v1/events/" + created.getEventId())).body(toResponse(created));
     }
 
@@ -54,6 +74,15 @@ public class EventsController {
     }
 
     private static EventResponse toResponse(Event e) {
-        return new EventResponse(e.getEventId(), e.getOwnerId(), e.getCreatedAt(), e.getTitle());
+        return new EventResponse(
+                e.getEventId(),
+                e.getOwnerId(),
+                e.getCreatedAt(),
+                e.getTitle(),
+                e.getEventTypeId(),
+                e.getLocation(),
+                e.getStartAt(),
+                e.getEndAt()
+        );
     }
 }

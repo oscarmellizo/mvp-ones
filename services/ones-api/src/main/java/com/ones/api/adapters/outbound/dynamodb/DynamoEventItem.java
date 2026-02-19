@@ -14,6 +14,11 @@ public class DynamoEventItem {
     private String createdAt;
     private String title;
 
+    private String eventTypeId;
+    private String location;
+    private String startAt;
+    private String endAt;
+
     private String gsi1pk;
     private String gsi1sk;
 
@@ -52,6 +57,42 @@ public class DynamoEventItem {
 
     public void setTitle(String title) {
         this.title = title;
+    }
+
+    @DynamoDbAttribute("eventTypeId")
+    public String getEventTypeId() {
+        return eventTypeId;
+    }
+
+    public void setEventTypeId(String eventTypeId) {
+        this.eventTypeId = eventTypeId;
+    }
+
+    @DynamoDbAttribute("location")
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+
+    @DynamoDbAttribute("startAt")
+    public String getStartAt() {
+        return startAt;
+    }
+
+    public void setStartAt(String startAt) {
+        this.startAt = startAt;
+    }
+
+    @DynamoDbAttribute("endAt")
+    public String getEndAt() {
+        return endAt;
+    }
+
+    public void setEndAt(String endAt) {
+        this.endAt = endAt;
     }
 
     @DynamoDbSecondaryPartitionKey(indexNames = "gsi1")

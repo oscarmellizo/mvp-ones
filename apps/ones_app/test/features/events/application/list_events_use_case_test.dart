@@ -9,7 +9,13 @@ class _FakeEventsRepository implements EventsRepository {
   _FakeEventsRepository(this.events);
 
   @override
-  Future<Event> createEvent(String title) {
+  Future<Event> createEvent(
+    String title,
+    String eventTypeId,
+    String location,
+    DateTime startAt,
+    DateTime endAt,
+  ) {
     throw UnimplementedError();
   }
 
@@ -27,8 +33,26 @@ class _FakeEventsRepository implements EventsRepository {
 void main() {
   test('ListEventsUseCase returns events from repository', () async {
     final repo = _FakeEventsRepository([
-      Event(id: '1', ownerId: 'u', createdAt: DateTime.utc(2025, 1, 1), title: 'A'),
-      Event(id: '2', ownerId: 'u', createdAt: DateTime.utc(2025, 1, 2), title: 'B'),
+      Event(
+        id: '1',
+        ownerId: 'u',
+        createdAt: DateTime.utc(2025, 1, 1),
+        title: 'A',
+        eventTypeId: 'birthday',
+        location: 'Somewhere',
+        startAt: DateTime.utc(2025, 1, 1, 18),
+        endAt: DateTime.utc(2025, 1, 1, 22),
+      ),
+      Event(
+        id: '2',
+        ownerId: 'u',
+        createdAt: DateTime.utc(2025, 1, 2),
+        title: 'B',
+        eventTypeId: 'wedding',
+        location: 'Somewhere',
+        startAt: DateTime.utc(2025, 1, 2, 18),
+        endAt: DateTime.utc(2025, 1, 2, 22),
+      ),
     ]);
 
     final useCase = ListEventsUseCase(repo);

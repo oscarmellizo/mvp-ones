@@ -10,10 +10,12 @@ import 'features/auth/application/sign_in_with_google_use_case.dart';
 import 'features/auth/application/sign_out_use_case.dart';
 import 'features/auth/presentation/auth_controller.dart';
 import 'features/events/adapters/api/events_api_repository.dart';
+import 'features/events/adapters/api/events_metadata_api_repository.dart';
 import 'features/events/application/create_event_use_case.dart';
 import 'features/events/application/get_event_use_case.dart';
 import 'features/events/application/list_events_use_case.dart';
 import 'features/events/presentation/events_controller.dart';
+import 'features/events/presentation/events_metadata_controller.dart';
 import 'features/users/adapters/api/users_api_repository.dart';
 import 'features/users/application/ensure_user_use_case.dart';
 import 'features/events/presentation/pages/event_detail_page.dart';
@@ -49,6 +51,8 @@ class OnesApp extends StatelessWidget {
     final getEvent = GetEventUseCase(eventsRepository);
     final createEvent = CreateEventUseCase(eventsRepository);
 
+    final eventsMetadataRepository = EventsMetadataApiRepository(apiFactory);
+
     return MultiProvider(
       providers: [
         Provider.value(value: config),
@@ -77,6 +81,19 @@ class OnesApp extends StatelessWidget {
                   createEvent: createEvent,
                 );
             eventsRepository.setIdToken(auth.idToken);
+            controller.setIdToken(auth.idToken);
+            return controller;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthController, EventsMetadataController>(
+          create: (_) => EventsMetadataController(
+            repository: eventsMetadataRepository,
+          ),
+          update: (_, auth, metadata) {
+            final controller = metadata ??
+                EventsMetadataController(
+                  repository: eventsMetadataRepository,
+                );
             controller.setIdToken(auth.idToken);
             return controller;
           },

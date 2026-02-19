@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../auth/presentation/auth_controller.dart';
 
 import '../events_controller.dart';
+import '../events_metadata_controller.dart';
 import 'photo_capture_page.dart';
 
 class EventDetailPage extends StatefulWidget {
@@ -20,6 +21,7 @@ class EventDetailPage extends StatefulWidget {
 class _EventDetailPageState extends State<EventDetailPage> {
   int _tabIndex = 0;
   final _searchController = TextEditingController();
+  bool _metadataLoadTriggered = false;
 
   @override
   void initState() {
@@ -38,7 +40,19 @@ class _EventDetailPageState extends State<EventDetailPage> {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<EventsController>();
+    final metadataController = context.watch<EventsMetadataController>();
     final event = controller.selected;
+
+    if (!_metadataLoadTriggered) {
+      _metadataLoadTriggered = true;
+      Future.microtask(() async {
+        try {
+          await metadataController.ensureLoaded();
+        } catch (_) {
+          // ignore
+        }
+      });
+    }
 
     final size = MediaQuery.sizeOf(context);
     final horizontalPadding = size.width >= 520 ? 28.0 : 16.0;
@@ -72,7 +86,8 @@ class _EventDetailPageState extends State<EventDetailPage> {
                             horizontalPadding, 6, horizontalPadding, 10),
                         child: _Header(
                           title: event.title,
-                          subtitle: _fakeSubtitle(event.createdAt),
+                          subtitle:
+                              _eventSubtitle(event.startAt, event.location),
                           onBack: () => Navigator.of(context).pop(),
                           onBell: () {},
                         ),
@@ -97,7 +112,13 @@ class _EventDetailPageState extends State<EventDetailPage> {
                                 )
                               : _DetailsTab(
                                   title: event.title,
-                                  createdAt: event.createdAt,
+                                  eventType: _eventTypeLabel(
+                                    metadataController,
+                                    event.eventTypeId,
+                                  ),
+                                  startAt: event.startAt,
+                                  endAt: event.endAt,
+                                  location: event.location,
                                 ),
                         ),
                       ),
@@ -108,9 +129,23 @@ class _EventDetailPageState extends State<EventDetailPage> {
   }
 }
 
-String _fakeSubtitle(DateTime createdAt) {
-  final date = _formatMonthDayYear(createdAt);
-  return '$date • NYC';
+String _eventSubtitle(DateTime startAt, String location) {
+  final date = _formatMonthDayYear(startAt.toLocal());
+  final loc = location.trim().isEmpty ? '-' : location.trim();
+  return '$date • $loc';
+}
+
+String _eventTypeLabel(
+    EventsMetadataController controller, String eventTypeId) {
+  final metadata = controller.metadata;
+  if (metadata == null) return eventTypeId;
+
+  for (final c in metadata.categories) {
+    for (final t in c.eventTypes) {
+      if (t.id == eventTypeId) return t.label;
+    }
+  }
+  return eventTypeId;
 }
 
 String _formatMonthDayYear(DateTime dt) {
@@ -659,9 +694,18 @@ class _BottomAuthorChip extends StatelessWidget {
 
 class _DetailsTab extends StatefulWidget {
   final String title;
-  final DateTime createdAt;
+  final String eventType;
+  final DateTime startAt;
+  final DateTime endAt;
+  final String location;
 
-  const _DetailsTab({required this.title, required this.createdAt});
+  const _DetailsTab({
+    required this.title,
+    required this.eventType,
+    required this.startAt,
+    required this.endAt,
+    required this.location,
+  });
 
   @override
   State<_DetailsTab> createState() => _DetailsTabState();
@@ -752,8 +796,9 @@ class _DetailsTabState extends State<_DetailsTab> {
 
   @override
   Widget build(BuildContext context) {
-    final start = widget.createdAt.add(const Duration(days: 2));
-    final end = widget.createdAt.add(const Duration(days: 2, hours: 5));
+    final start = widget.startAt.toLocal();
+    final end = widget.endAt.toLocal();
+    final location = widget.location.trim().isEmpty ? '-' : widget.location;
 
     return ListView(
       children: [
@@ -773,7 +818,7 @@ class _DetailsTabState extends State<_DetailsTab> {
                 Expanded(
                   child: _ReadOnlyField(
                     label: 'Event Type',
-                    value: 'Birthday Party',
+                    value: widget.eventType,
                   ),
                 ),
               ],
@@ -800,7 +845,7 @@ class _DetailsTabState extends State<_DetailsTab> {
               ],
             ),
             const SizedBox(height: 12),
-            const _ReadOnlyField(label: 'Location', value: 'NYC'),
+            _ReadOnlyField(label: 'Location', value: location),
           ],
         ),
         const SizedBox(height: 14),

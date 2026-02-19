@@ -10,7 +10,14 @@ class _MockDefaultApi extends Mock implements api.DefaultApi {}
 void main() {
   setUpAll(() {
     registerFallbackValue(
-      api.CreateEventRequest((b) => b..title = 'fallback'),
+      api.CreateEventRequest(
+        (b) => b
+          ..title = 'fallback'
+          ..eventTypeId = 'type-1'
+          ..location = 'Somewhere'
+          ..startAt = DateTime.utc(2025, 1, 1, 10)
+          ..endAt = DateTime.utc(2025, 1, 1, 12),
+      ),
     );
   });
 
@@ -22,7 +29,11 @@ void main() {
         ..id = 'e1'
         ..ownerId = 'u1'
         ..createdAt = DateTime.utc(2025, 1, 1)
-        ..title = 'Hello'),
+        ..title = 'Hello'
+        ..eventTypeId = 'type-1'
+        ..location = 'Brooklyn, NY'
+        ..startAt = DateTime.utc(2025, 1, 1, 10)
+        ..endAt = DateTime.utc(2025, 1, 1, 12)),
     ]);
 
     when(() => defaultApi.listEvents()).thenAnswer(
