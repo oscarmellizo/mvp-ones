@@ -31,13 +31,13 @@ class LoginPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const SizedBox(height: 12),
-                  Row(
+                  const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Image(
+                      Image(
                         image: AssetImage('assets/splash/symbol_purple.png'),
                         width: 380,
-                      )
+                      ),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -100,7 +100,7 @@ class LoginPage extends StatelessWidget {
                   const SizedBox(height: 16),
                   TextButton(
                     onPressed: () {},
-                    child: Text(
+                    child: const Text(
                       'Create an account with Email',
                       style: TextStyle(
                         color: _purple,
@@ -195,7 +195,7 @@ class _HeroStack extends StatelessWidget {
               ),
             ),
           ),
-          Positioned(
+          const Positioned(
             right: 14,
             top: 32,
             child: Opacity(
@@ -203,7 +203,7 @@ class _HeroStack extends StatelessWidget {
               child: Icon(Icons.auto_awesome, color: _purple, size: 22),
             ),
           ),
-          Positioned(
+          const Positioned(
             right: 34,
             top: 58,
             child: Opacity(
@@ -211,7 +211,7 @@ class _HeroStack extends StatelessWidget {
               child: Icon(Icons.auto_awesome, color: _purple, size: 16),
             ),
           ),
-          Positioned(
+          const Positioned(
             left: 10,
             bottom: 14,
             child: Opacity(

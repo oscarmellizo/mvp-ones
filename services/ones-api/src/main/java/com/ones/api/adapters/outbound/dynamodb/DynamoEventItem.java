@@ -18,6 +18,7 @@ public class DynamoEventItem {
     private String location;
     private String startAt;
     private String endAt;
+    private String coverKey;
 
     private String gsi1pk;
     private String gsi1sk;
@@ -93,6 +94,15 @@ public class DynamoEventItem {
 
     public void setEndAt(String endAt) {
         this.endAt = endAt;
+    }
+
+    @DynamoDbAttribute("coverKey")
+    public String getCoverKey() {
+        return coverKey;
+    }
+
+    public void setCoverKey(String coverKey) {
+        this.coverKey = coverKey;
     }
 
     @DynamoDbSecondaryPartitionKey(indexNames = "gsi1")

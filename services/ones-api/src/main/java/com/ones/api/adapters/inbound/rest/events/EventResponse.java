@@ -10,6 +10,7 @@ public record EventResponse(
         String eventTypeId,
         String location,
         Instant startAt,
-        Instant endAt
+        Instant endAt,
+        String coverKey
 ) {
 }

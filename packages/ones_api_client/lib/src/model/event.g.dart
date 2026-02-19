@@ -23,6 +23,8 @@ class _$Event extends Event {
   final DateTime startAt;
   @override
   final DateTime endAt;
+  @override
+  final String? coverKey;
 
   factory _$Event([void Function(EventBuilder)? updates]) =>
       (new EventBuilder()..update(updates))._build();
@@ -35,7 +37,8 @@ class _$Event extends Event {
       required this.eventTypeId,
       required this.location,
       required this.startAt,
-      required this.endAt})
+      required this.endAt,
+      this.coverKey})
       : super._() {
     BuiltValueNullFieldError.checkNotNull(id, r'Event', 'id');
     BuiltValueNullFieldError.checkNotNull(ownerId, r'Event', 'ownerId');
@@ -65,7 +68,8 @@ class _$Event extends Event {
         eventTypeId == other.eventTypeId &&
         location == other.location &&
         startAt == other.startAt &&
-        endAt == other.endAt;
+        endAt == other.endAt &&
+        coverKey == other.coverKey;
   }
 
   @override
@@ -79,6 +83,7 @@ class _$Event extends Event {
     _$hash = $jc(_$hash, location.hashCode);
     _$hash = $jc(_$hash, startAt.hashCode);
     _$hash = $jc(_$hash, endAt.hashCode);
+    _$hash = $jc(_$hash, coverKey.hashCode);
     _$hash = $jf(_$hash);
     return _$hash;
   }
@@ -93,7 +98,8 @@ class _$Event extends Event {
           ..add('eventTypeId', eventTypeId)
           ..add('location', location)
           ..add('startAt', startAt)
-          ..add('endAt', endAt))
+          ..add('endAt', endAt)
+          ..add('coverKey', coverKey))
         .toString();
   }
 }
@@ -133,6 +139,10 @@ class EventBuilder implements Builder<Event, EventBuilder> {
   DateTime? get endAt => _$this._endAt;
   set endAt(DateTime? endAt) => _$this._endAt = endAt;
 
+  String? _coverKey;
+  String? get coverKey => _$this._coverKey;
+  set coverKey(String? coverKey) => _$this._coverKey = coverKey;
+
   EventBuilder() {
     Event._defaults(this);
   }
@@ -148,6 +158,7 @@ class EventBuilder implements Builder<Event, EventBuilder> {
       _location = $v.location;
       _startAt = $v.startAt;
       _endAt = $v.endAt;
+      _coverKey = $v.coverKey;
       _$v = null;
     }
     return this;
@@ -183,8 +194,9 @@ class EventBuilder implements Builder<Event, EventBuilder> {
                 location, r'Event', 'location'),
             startAt: BuiltValueNullFieldError.checkNotNull(
                 startAt, r'Event', 'startAt'),
-            endAt: BuiltValueNullFieldError.checkNotNull(
-                endAt, r'Event', 'endAt'));
+            endAt:
+                BuiltValueNullFieldError.checkNotNull(endAt, r'Event', 'endAt'),
+            coverKey: coverKey);
     replace(_$result);
     return _$result;
   }

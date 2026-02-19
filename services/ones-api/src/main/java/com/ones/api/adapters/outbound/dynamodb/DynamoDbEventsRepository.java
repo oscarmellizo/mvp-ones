@@ -71,6 +71,7 @@ public class DynamoDbEventsRepository implements EventsRepository {
         item.setLocation(e.getLocation());
         item.setStartAt(e.getStartAt().toString());
         item.setEndAt(e.getEndAt().toString());
+        item.setCoverKey(e.getCoverKey());
 
         item.setGsi1pk(e.getOwnerId());
         item.setGsi1sk(e.getCreatedAt().toString());
@@ -83,6 +84,7 @@ public class DynamoDbEventsRepository implements EventsRepository {
         Instant endAt = item.getEndAt() != null ? Instant.parse(item.getEndAt()) : startAt;
         String eventTypeId = item.getEventTypeId() != null ? item.getEventTypeId() : "";
         String location = item.getLocation() != null ? item.getLocation() : "";
+        String coverKey = item.getCoverKey();
         return new Event(
                 item.getEventId(),
                 item.getOwnerId(),
@@ -91,7 +93,8 @@ public class DynamoDbEventsRepository implements EventsRepository {
                 eventTypeId,
                 location,
                 startAt,
-                endAt
+                endAt,
+                coverKey
         );
     }
 }

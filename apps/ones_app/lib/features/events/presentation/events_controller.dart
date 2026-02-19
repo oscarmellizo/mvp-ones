@@ -62,12 +62,13 @@ class EventsController extends ChangeNotifier {
     String location,
     DateTime startAt,
     DateTime endAt,
+    String? coverReservationId,
   ) async {
     _setLoading(true);
     try {
       _error = null;
       final created = await createEvent.execute(
-          title, eventTypeId, location, startAt, endAt);
+          title, eventTypeId, location, startAt, endAt, coverReservationId);
       _events = [created, ..._events];
     } catch (e) {
       _error = e;

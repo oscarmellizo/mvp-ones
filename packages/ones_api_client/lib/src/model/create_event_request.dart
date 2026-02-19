@@ -16,6 +16,7 @@ part 'create_event_request.g.dart';
 /// * [location] 
 /// * [startAt] 
 /// * [endAt] 
+/// * [coverReservationId] - Reservation id obtained after accepting an AI-generated cover (optional)
 @BuiltValue()
 abstract class CreateEventRequest implements Built<CreateEventRequest, CreateEventRequestBuilder> {
   @BuiltValueField(wireName: r'title')
@@ -32,6 +33,10 @@ abstract class CreateEventRequest implements Built<CreateEventRequest, CreateEve
 
   @BuiltValueField(wireName: r'endAt')
   DateTime get endAt;
+
+  /// Reservation id obtained after accepting an AI-generated cover (optional)
+  @BuiltValueField(wireName: r'coverReservationId')
+  String? get coverReservationId;
 
   CreateEventRequest._();
 
@@ -81,6 +86,13 @@ class _$CreateEventRequestSerializer implements PrimitiveSerializer<CreateEventR
       object.endAt,
       specifiedType: const FullType(DateTime),
     );
+    if (object.coverReservationId != null) {
+      yield r'coverReservationId';
+      yield serializers.serialize(
+        object.coverReservationId,
+        specifiedType: const FullType.nullable(String),
+      );
+    }
   }
 
   @override
@@ -138,6 +150,14 @@ class _$CreateEventRequestSerializer implements PrimitiveSerializer<CreateEventR
             specifiedType: const FullType(DateTime),
           ) as DateTime;
           result.endAt = valueDes;
+          break;
+        case r'coverReservationId':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType.nullable(String),
+          ) as String?;
+          if (valueDes == null) continue;
+          result.coverReservationId = valueDes;
           break;
         default:
           unhandled.add(key);

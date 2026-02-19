@@ -16,6 +16,92 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
+  /v1/events/covers/generate:
+    post:
+      operationId: generateEventCover
+      summary: Generate an AI event cover preview and return a pre-signed URL
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateEventCoverRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateEventCoverResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /v1/events/covers/{coverId}/accept:
+    post:
+      operationId: acceptEventCover
+      summary: Accept a generated cover preview and obtain a reservation id for later event creation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: coverId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptEventCoverResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/events/covers/{coverId}/cancel:
+    post:
+      operationId: cancelEventCover
+      summary: Cancel a generated cover preview (best-effort delete temp object)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: coverId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: No Content
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /v1/events/{id}/cover-url:
+    get:
+      operationId: getEventCoverUrl
+      summary: Get a pre-signed URL to view the event cover image (if configured)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PresignedUrlResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /v1/events:
     get:
       operationId: listEvents
@@ -116,6 +202,62 @@ components:
         status:
           type: string
           example: ok
+    GenerateEventCoverRequest:
+      type: object
+      required: [eventName, categoryLabel, eventTypeLabel, location]
+      properties:
+        eventName:
+          type: string
+          minLength: 1
+          example: Cena en casa de Pablo
+        categoryLabel:
+          type: string
+          minLength: 1
+          example: Food & Drinks
+        eventTypeLabel:
+          type: string
+          minLength: 1
+          example: Dinner with Friends
+        location:
+          type: string
+          minLength: 1
+          example: Barrancas
+        size:
+          type: string
+          description: Image size; backend may ignore unsupported values
+          example: 512x512
+    GenerateEventCoverResponse:
+      type: object
+      required: [coverId, previewUrl, expiresAt]
+      properties:
+        coverId:
+          type: string
+          example: 1f0b0c2d-1c8d-4c3b-b7c4-61a5f3c6a0d1
+        previewUrl:
+          type: string
+          example: https://s3.amazonaws.com/... (pre-signed)
+        expiresAt:
+          type: string
+          format: date-time
+          example: '2026-02-19T03:00:00Z'
+    AcceptEventCoverResponse:
+      type: object
+      required: [reservationId]
+      properties:
+        reservationId:
+          type: string
+          example: 0db0f1ad-9c44-4a2c-9c95-9348d236b0b9
+    PresignedUrlResponse:
+      type: object
+      required: [url, expiresAt]
+      properties:
+        url:
+          type: string
+          example: https://s3.amazonaws.com/... (pre-signed)
+        expiresAt:
+          type: string
+          format: date-time
+          example: '2026-02-19T03:00:00Z'
     CreateEventRequest:
       type: object
       required: [title, eventTypeId, location, startAt, endAt]
@@ -140,6 +282,11 @@ components:
           type: string
           format: date-time
           example: '2025-01-01T22:00:00Z'
+        coverReservationId:
+          type: string
+          nullable: true
+          description: Reservation id obtained after accepting an AI-generated cover (optional)
+          example: 0db0f1ad-9c44-4a2c-9c95-9348d236b0b9
     Event:
       type: object
       required: [id, ownerId, createdAt, title, eventTypeId, location, startAt, endAt]
@@ -171,6 +318,11 @@ components:
           type: string
           format: date-time
           example: '2025-01-01T22:00:00Z'
+        coverKey:
+          type: string
+          nullable: true
+          description: S3 key (final bucket) for the event cover PNG
+          example: events/7a41e6c0-7a20-4c61-8b2d-8a1df3af7c7b/cover/cover.png
     ErrorResponse:
       type: object
       required: [error, message]

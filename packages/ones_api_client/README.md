@@ -48,13 +48,13 @@ import 'package:ones_api_client/ones_api_client.dart';
 
 
 final api = OnesApiClient().getDefaultApi();
-final CreateEventRequest createEventRequest = ; // CreateEventRequest | 
+final String coverId = coverId_example; // String | 
 
 try {
-    final response = await api.createEvent(createEventRequest);
+    final response = await api.acceptEventCover(coverId);
     print(response);
 } catch on DioException (e) {
-    print("Exception when calling DefaultApi->createEvent: $e\n");
+    print("Exception when calling DefaultApi->acceptEventCover: $e\n");
 }
 
 ```
@@ -65,18 +65,26 @@ All URIs are relative to *http://localhost:8080*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
+[*DefaultApi*](doc/DefaultApi.md) | [**acceptEventCover**](doc/DefaultApi.md#accepteventcover) | **POST** /v1/events/covers/{coverId}/accept | Accept a generated cover preview and obtain a reservation id for later event creation
+[*DefaultApi*](doc/DefaultApi.md) | [**cancelEventCover**](doc/DefaultApi.md#canceleventcover) | **POST** /v1/events/covers/{coverId}/cancel | Cancel a generated cover preview (best-effort delete temp object)
 [*DefaultApi*](doc/DefaultApi.md) | [**createEvent**](doc/DefaultApi.md#createevent) | **POST** /v1/events | Create event for authenticated user
+[*DefaultApi*](doc/DefaultApi.md) | [**generateEventCover**](doc/DefaultApi.md#generateeventcover) | **POST** /v1/events/covers/generate | Generate an AI event cover preview and return a pre-signed URL
 [*DefaultApi*](doc/DefaultApi.md) | [**getEvent**](doc/DefaultApi.md#getevent) | **GET** /v1/events/{id} | Get event by id (only if it belongs to authenticated user)
+[*DefaultApi*](doc/DefaultApi.md) | [**getEventCoverUrl**](doc/DefaultApi.md#geteventcoverurl) | **GET** /v1/events/{id}/cover-url | Get a pre-signed URL to view the event cover image (if configured)
 [*DefaultApi*](doc/DefaultApi.md) | [**health**](doc/DefaultApi.md#health) | **GET** /health | Health check
 [*DefaultApi*](doc/DefaultApi.md) | [**listEvents**](doc/DefaultApi.md#listevents) | **GET** /v1/events | List events for authenticated user
 
 
 ## Documentation For Models
 
+ - [AcceptEventCoverResponse](doc/AcceptEventCoverResponse.md)
  - [CreateEventRequest](doc/CreateEventRequest.md)
  - [ErrorResponse](doc/ErrorResponse.md)
  - [Event](doc/Event.md)
+ - [GenerateEventCoverRequest](doc/GenerateEventCoverRequest.md)
+ - [GenerateEventCoverResponse](doc/GenerateEventCoverResponse.md)
  - [HealthResponse](doc/HealthResponse.md)
+ - [PresignedUrlResponse](doc/PresignedUrlResponse.md)
 
 
 ## Documentation For Authorization

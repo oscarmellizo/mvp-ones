@@ -19,6 +19,7 @@ part 'event.g.dart';
 /// * [location] 
 /// * [startAt] 
 /// * [endAt] 
+/// * [coverKey] - S3 key (final bucket) for the event cover PNG
 @BuiltValue()
 abstract class Event implements Built<Event, EventBuilder> {
   @BuiltValueField(wireName: r'id')
@@ -44,6 +45,10 @@ abstract class Event implements Built<Event, EventBuilder> {
 
   @BuiltValueField(wireName: r'endAt')
   DateTime get endAt;
+
+  /// S3 key (final bucket) for the event cover PNG
+  @BuiltValueField(wireName: r'coverKey')
+  String? get coverKey;
 
   Event._();
 
@@ -108,6 +113,13 @@ class _$EventSerializer implements PrimitiveSerializer<Event> {
       object.endAt,
       specifiedType: const FullType(DateTime),
     );
+    if (object.coverKey != null) {
+      yield r'coverKey';
+      yield serializers.serialize(
+        object.coverKey,
+        specifiedType: const FullType.nullable(String),
+      );
+    }
   }
 
   @override
@@ -186,6 +198,14 @@ class _$EventSerializer implements PrimitiveSerializer<Event> {
             specifiedType: const FullType(DateTime),
           ) as DateTime;
           result.endAt = valueDes;
+          break;
+        case r'coverKey':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType.nullable(String),
+          ) as String?;
+          if (valueDes == null) continue;
+          result.coverKey = valueDes;
           break;
         default:
           unhandled.add(key);

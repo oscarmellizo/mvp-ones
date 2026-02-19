@@ -15,6 +15,7 @@ class _FakeEventsRepository implements EventsRepository {
     String location,
     DateTime startAt,
     DateTime endAt,
+    String? coverReservationId,
   ) {
     throw UnimplementedError();
   }
@@ -42,6 +43,7 @@ void main() {
         location: 'Somewhere',
         startAt: DateTime.utc(2025, 1, 1, 18),
         endAt: DateTime.utc(2025, 1, 1, 22),
+        coverKey: null,
       ),
       Event(
         id: '2',
@@ -52,6 +54,7 @@ void main() {
         location: 'Somewhere',
         startAt: DateTime.utc(2025, 1, 2, 18),
         endAt: DateTime.utc(2025, 1, 2, 22),
+        coverKey: null,
       ),
     ]);
 

@@ -22,16 +22,16 @@ class _Content extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return const Column(
       mainAxisSize: MainAxisSize.min,
-      children: const [
-          Row(
+      children: [
+        Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Image(
+            Image(
               image: AssetImage('assets/splash/symbol_purple.png'),
               width: 380,
-            )
+            ),
           ],
         ),
         SizedBox(height: 24),

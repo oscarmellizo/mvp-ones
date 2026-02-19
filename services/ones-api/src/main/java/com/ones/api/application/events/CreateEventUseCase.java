@@ -11,17 +11,35 @@ public class CreateEventUseCase {
 
     private final EventsRepository repository;
     private final Clock clock;
+    private final EventCoversService coversService;
 
-    public CreateEventUseCase(EventsRepository repository, Clock clock) {
+    public CreateEventUseCase(EventsRepository repository, Clock clock, EventCoversService coversService) {
         this.repository = repository;
         this.clock = clock;
+        this.coversService = coversService;
     }
 
-    public Event execute(String ownerId, String title, String eventTypeId, String location, Instant startAt, Instant endAt) {
+    public Event execute(
+            String ownerId,
+            String title,
+            String eventTypeId,
+            String location,
+            Instant startAt,
+            Instant endAt,
+            String coverReservationId
+    ) {
         String eventId = UUID.randomUUID().toString();
         Instant createdAt = Instant.now(clock);
 
-        Event event = new Event(eventId, ownerId, createdAt, title, eventTypeId, location, startAt, endAt);
+        String coverKey = null;
+        if (coverReservationId != null && !coverReservationId.isBlank()) {
+            if (coversService == null) {
+                throw new IllegalStateException("EventCoversService is not configured");
+            }
+            coverKey = coversService.consumeReservationAndCopyToEvent(ownerId, coverReservationId.trim(), eventId);
+        }
+
+        Event event = new Event(eventId, ownerId, createdAt, title, eventTypeId, location, startAt, endAt, coverKey);
         return repository.save(event);
     }
 }

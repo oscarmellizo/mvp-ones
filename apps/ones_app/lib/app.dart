@@ -10,11 +10,15 @@ import 'features/auth/application/sign_in_with_google_use_case.dart';
 import 'features/auth/application/sign_out_use_case.dart';
 import 'features/auth/presentation/auth_controller.dart';
 import 'features/events/adapters/api/events_api_repository.dart';
+import 'features/events/adapters/api/event_covers_api_repository.dart';
+import 'features/events/adapters/api/event_cover_urls_api_repository.dart';
 import 'features/events/adapters/api/events_metadata_api_repository.dart';
 import 'features/events/application/create_event_use_case.dart';
 import 'features/events/application/get_event_use_case.dart';
 import 'features/events/application/list_events_use_case.dart';
 import 'features/events/presentation/events_controller.dart';
+import 'features/events/presentation/event_covers_controller.dart';
+import 'features/events/presentation/event_cover_urls_controller.dart';
 import 'features/events/presentation/events_metadata_controller.dart';
 import 'features/users/adapters/api/users_api_repository.dart';
 import 'features/users/application/ensure_user_use_case.dart';
@@ -52,6 +56,8 @@ class OnesApp extends StatelessWidget {
     final createEvent = CreateEventUseCase(eventsRepository);
 
     final eventsMetadataRepository = EventsMetadataApiRepository(apiFactory);
+    final eventCoversRepository = EventCoversApiRepository(apiFactory);
+    final eventCoverUrlsRepository = EventCoverUrlsApiRepository(apiFactory);
 
     return MultiProvider(
       providers: [
@@ -93,6 +99,32 @@ class OnesApp extends StatelessWidget {
             final controller = metadata ??
                 EventsMetadataController(
                   repository: eventsMetadataRepository,
+                );
+            controller.setIdToken(auth.idToken);
+            return controller;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthController, EventCoversController>(
+          create: (_) => EventCoversController(
+            repository: eventCoversRepository,
+          ),
+          update: (_, auth, covers) {
+            final controller = covers ??
+                EventCoversController(
+                  repository: eventCoversRepository,
+                );
+            controller.setIdToken(auth.idToken);
+            return controller;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthController, EventCoverUrlsController>(
+          create: (_) => EventCoverUrlsController(
+            repository: eventCoverUrlsRepository,
+          ),
+          update: (_, auth, coverUrls) {
+            final controller = coverUrls ??
+                EventCoverUrlsController(
+                  repository: eventCoverUrlsRepository,
                 );
             controller.setIdToken(auth.idToken);
             return controller;

@@ -11,5 +11,6 @@ abstract interface class EventsRepository {
     String location,
     DateTime startAt,
     DateTime endAt,
+    String? coverReservationId,
   );
 }

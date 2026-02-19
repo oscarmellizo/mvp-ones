@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../auth/presentation/auth_controller.dart';
 
+import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
 import '../events_metadata_controller.dart';
 import 'photo_capture_page.dart';
@@ -111,6 +112,8 @@ class _EventDetailPageState extends State<EventDetailPage> {
                                   searchController: _searchController,
                                 )
                               : _DetailsTab(
+                                  eventId: event.id,
+                                  coverKey: event.coverKey,
                                   title: event.title,
                                   eventType: _eventTypeLabel(
                                     metadataController,
@@ -693,6 +696,8 @@ class _BottomAuthorChip extends StatelessWidget {
 }
 
 class _DetailsTab extends StatefulWidget {
+  final String eventId;
+  final String? coverKey;
   final String title;
   final String eventType;
   final DateTime startAt;
@@ -700,6 +705,8 @@ class _DetailsTab extends StatefulWidget {
   final String location;
 
   const _DetailsTab({
+    required this.eventId,
+    required this.coverKey,
     required this.title,
     required this.eventType,
     required this.startAt,
@@ -796,12 +803,38 @@ class _DetailsTabState extends State<_DetailsTab> {
 
   @override
   Widget build(BuildContext context) {
+    final coverUrls = context.watch<EventCoverUrlsController>();
+
     final start = widget.startAt.toLocal();
     final end = widget.endAt.toLocal();
     final location = widget.location.trim().isEmpty ? '-' : widget.location;
 
     return ListView(
       children: [
+        if (widget.coverKey != null && widget.coverKey!.trim().isNotEmpty) ...[
+          FutureBuilder<String?>(
+            future: coverUrls.getUrlIfAny(
+              eventId: widget.eventId,
+              coverKey: widget.coverKey,
+            ),
+            builder: (context, snapshot) {
+              final url = snapshot.data;
+              if (url == null || url.isEmpty) {
+                return const SizedBox.shrink();
+              }
+
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: SizedBox(
+                  height: 160,
+                  width: double.infinity,
+                  child: Image.network(url, fit: BoxFit.cover),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 14),
+        ],
         _DetailsCard(
           title: 'Event Details',
           children: [

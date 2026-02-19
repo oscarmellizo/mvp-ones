@@ -16,6 +16,7 @@ Name | Type | Description | Notes
 **location** | **String** |  | 
 **startAt** | [**DateTime**](DateTime.md) |  | 
 **endAt** | [**DateTime**](DateTime.md) |  | 
+**coverKey** | **String** | S3 key (final bucket) for the event cover PNG | [optional] 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

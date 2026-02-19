@@ -11,6 +11,11 @@ class OnesApiFactory {
   OnesApiClient create({String? idToken}) {
     final client = OnesApiClient(basePathOverride: config.apiBaseUrl);
 
+    client.dio.options = client.dio.options.copyWith(
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 60),
+    );
+
     if (idToken != null && idToken.isNotEmpty) {
       client.setBearerAuth('bearerAuth', idToken);
     }

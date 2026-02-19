@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import com.ones.api.application.events.CreateEventUseCase;
+import com.ones.api.application.events.EventCoversService;
 import com.ones.api.application.events.GetEventUseCase;
 import com.ones.api.application.events.ListEventsUseCase;
 import com.ones.api.application.events.ports.EventsRepository;
@@ -21,8 +22,12 @@ public class ApplicationConfig {
     }
 
     @Bean
-    CreateEventUseCase createEventUseCase(EventsRepository repository, Clock clock) {
-        return new CreateEventUseCase(repository, clock);
+    CreateEventUseCase createEventUseCase(
+            EventsRepository repository,
+            Clock clock,
+            EventCoversService coversService
+    ) {
+        return new CreateEventUseCase(repository, clock, coversService);
     }
 
     @Bean

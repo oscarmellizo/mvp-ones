@@ -12,7 +12,15 @@ class CreateEventUseCase {
     String location,
     DateTime startAt,
     DateTime endAt,
+    String? coverReservationId,
   ) {
-    return repository.createEvent(title, eventTypeId, location, startAt, endAt);
+    return repository.createEvent(
+      title,
+      eventTypeId,
+      location,
+      startAt,
+      endAt,
+      coverReservationId,
+    );
   }
 }

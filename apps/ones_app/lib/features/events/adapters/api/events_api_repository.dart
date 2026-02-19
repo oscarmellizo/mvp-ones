@@ -46,13 +46,15 @@ class EventsApiRepository implements EventsRepository {
     String location,
     DateTime startAt,
     DateTime endAt,
+    String? coverReservationId,
   ) async {
     final req = api.CreateEventRequest((b) => b
       ..title = title
       ..eventTypeId = eventTypeId
       ..location = location
       ..startAt = startAt
-      ..endAt = endAt);
+      ..endAt = endAt
+      ..coverReservationId = coverReservationId);
     final response =
         await _defaultApi(_idToken).createEvent(createEventRequest: req);
     final api.Event? e = response.data;
@@ -72,6 +74,7 @@ class EventsApiRepository implements EventsRepository {
       location: e.location,
       startAt: e.startAt,
       endAt: e.endAt,
+      coverKey: e.coverKey,
     );
   }
 }

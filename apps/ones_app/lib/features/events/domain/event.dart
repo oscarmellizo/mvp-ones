@@ -7,6 +7,7 @@ class Event {
   final String location;
   final DateTime startAt;
   final DateTime endAt;
+  final String? coverKey;
 
   const Event({
     required this.id,
@@ -17,5 +18,6 @@ class Event {
     required this.location,
     required this.startAt,
     required this.endAt,
+    required this.coverKey,
   });
 }

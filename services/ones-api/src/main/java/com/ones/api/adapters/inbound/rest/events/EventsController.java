@@ -61,7 +61,8 @@ public class EventsController {
                 request.eventTypeId(),
                 request.location(),
                 request.startAt(),
-                request.endAt()
+                request.endAt(),
+                request.coverReservationId()
         );
         return ResponseEntity.created(URI.create("/v1/events/" + created.getEventId())).body(toResponse(created));
     }
@@ -82,7 +83,8 @@ public class EventsController {
                 e.getEventTypeId(),
                 e.getLocation(),
                 e.getStartAt(),
-                e.getEndAt()
+                e.getEndAt(),
+                e.getCoverKey()
         );
     }
 }

@@ -9,6 +9,18 @@ ones:
   auth:
     google:
       client-id: ${GOOGLE_CLIENT_ID:}
+  ai:
+    openai:
+      api-key-secret-name: ${OPENAI_API_KEY_SECRET_NAME:ones/dev/openai-api-key}
+      image-size: ${OPENAI_IMAGE_SIZE:1024x1024}
+  s3:
+    events:
+      covers:
+        temp-bucket: ${ONES_EVENTS_COVERS_TEMP_BUCKET:ones-dev-events-covers-tmp}
+        final-bucket: ${ONES_EVENTS_ASSETS_BUCKET:ones-dev-events-assets}
+        preview-presign-ttl-minutes: ${ONES_EVENTS_COVER_PREVIEW_PRESIGN_TTL_MINUTES:15}
+        final-presign-ttl-minutes: ${ONES_EVENTS_COVER_FINAL_PRESIGN_TTL_MINUTES:15}
+        reservation-ttl-minutes: ${ONES_EVENTS_COVER_RESERVATION_TTL_MINUTES:30}
   events:
     metadata:
       categories:
@@ -182,6 +194,8 @@ ones:
   dynamodb:
     table-name: ${ONES_EVENTS_TABLE:ones-events}
     users-table-name: ${ONES_USERS_TABLE:ones-users}
+    cover-previews-table-name: ${ONES_COVER_PREVIEWS_TABLE:ones-cover-previews}
+    cover-reservations-table-name: ${ONES_COVER_RESERVATIONS_TABLE:ones-cover-reservations}
     endpoint: ${DYNAMODB_ENDPOINT:}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000,http://localhost:8080,http://localhost:5000,http://localhost:4000,http://localhost:1234,http://localhost:7357,http://localhost:56321,http://localhost:49234,http://localhost:40233}

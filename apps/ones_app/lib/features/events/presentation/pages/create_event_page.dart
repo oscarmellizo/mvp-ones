@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../auth/presentation/auth_controller.dart';
 import '../../domain/events_metadata.dart';
+import '../event_covers_controller.dart';
 import '../events_metadata_controller.dart';
 import '../events_controller.dart';
 
@@ -52,9 +53,19 @@ class _CreateEventPageState extends State<CreateEventPage> {
   String? _eventCategoryId;
   String? _eventTypeId;
 
+  String? _coverReservationId;
+
   @override
   void initState() {
     super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<EventCoversController>().clear();
+      setState(() {
+        _coverReservationId = null;
+      });
+    });
 
     if (widget.initialTitle != null && widget.initialTitle!.trim().isNotEmpty) {
       _nameController.text = widget.initialTitle!.trim();
@@ -148,6 +159,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
   Widget build(BuildContext context) {
     final controller = context.watch<EventsController>();
     final metadataController = context.watch<EventsMetadataController>();
+    final coversController = context.watch<EventCoversController>();
 
     if (!_metadataLoadTriggered) {
       _metadataLoadTriggered = true;
@@ -162,6 +174,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
 
     final categories =
         metadataController.metadata?.categories ?? const <EventCategory>[];
+
+    _coverReservationId = coversController.reservationId;
 
     if (!_metadataApplied && categories.isNotEmpty) {
       _metadataApplied = true;
@@ -233,10 +247,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _CoverPicker(
-                        onTap: () {},
-                      ),
-                      const SizedBox(height: 18),
                       const _FieldLabel('Event Name'),
                       const SizedBox(height: 8),
                       TextFormField(
@@ -343,6 +353,24 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         ),
                       ),
                       const SizedBox(height: 16),
+                      _CoverPicker(
+                        imageUrl: coversController.preview?.previewUrl,
+                        loading: coversController.loading,
+                        accepted: coversController.reservationId != null,
+                        errorText: coversController.error?.toString(),
+                        onGenerate: () => _generateCover(context, categories),
+                        onAccept: coversController.preview == null
+                            ? null
+                            : () async {
+                                await coversController.accept();
+                              },
+                        onCancel: coversController.preview == null
+                            ? null
+                            : () async {
+                                await coversController.cancel();
+                              },
+                      ),
+                      const SizedBox(height: 16),
                       _InviteGuestsCard(
                         emailController: _inviteEmailController,
                         inviteError: _inviteError,
@@ -429,8 +457,43 @@ class _CreateEventPageState extends State<CreateEventPage> {
       _locationController.text.trim(),
       startAt,
       endAt,
+      _coverReservationId,
     );
     if (context.mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _generateCover(
+    BuildContext context,
+    List<EventCategory> categories,
+  ) async {
+    final covers = context.read<EventCoversController>();
+
+    final eventName = _nameController.text.trim();
+    final location = _locationController.text.trim();
+    final catId = _eventCategoryId;
+    final typeId = _eventTypeId;
+    if (eventName.isEmpty) return;
+    if (location.isEmpty) return;
+    if (catId == null || typeId == null) return;
+
+    final category = categories
+        .where((c) => c.id == catId)
+        .cast<EventCategory?>()
+        .firstWhere((_) => true, orElse: () => null);
+    final type = category?.eventTypes
+        .where((t) => t.id == typeId)
+        .cast<EventType?>()
+        .firstWhere((_) => true, orElse: () => null);
+
+    if (category == null || type == null) return;
+
+    await covers.generate(
+      eventName: eventName,
+      categoryLabel: category.label,
+      eventTypeLabel: type.label,
+      location: location,
+      size: '512x512',
+    );
   }
 
   Future<void> _pickDate({
@@ -659,62 +722,177 @@ class _DropdownField extends StatelessWidget {
 }
 
 class _CoverPicker extends StatelessWidget {
-  final VoidCallback onTap;
+  final String? imageUrl;
+  final bool loading;
+  final bool accepted;
+  final String? errorText;
+  final VoidCallback onGenerate;
+  final VoidCallback? onAccept;
+  final VoidCallback? onCancel;
 
-  const _CoverPicker({required this.onTap});
+  const _CoverPicker({
+    required this.imageUrl,
+    required this.loading,
+    required this.accepted,
+    required this.errorText,
+    required this.onGenerate,
+    required this.onAccept,
+    required this.onCancel,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: CustomPaint(
-        painter: const _DashedBorderPainter(
-          color: Color(0xFFD5A3C7),
-          radius: 18,
-        ),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 24),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF6E6CF),
-            borderRadius: BorderRadius.circular(18),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 180,
+          child: Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              color: const Color(0xFFF6E6CF),
+            ),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: imageUrl == null
+                        ? const SizedBox.shrink()
+                        : Image.network(imageUrl!, fit: BoxFit.cover),
+                  ),
+                ),
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withOpacity(imageUrl == null ? 0 : 0.10),
+                          Colors.black.withOpacity(imageUrl == null ? 0 : 0.55),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                if (imageUrl == null && !loading)
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: const _DashedBorderPainter(
+                        color: Color(0xFFD5A3C7),
+                        radius: 18,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFE5D0D8),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.image,
+                              color: Color(0xFF6A0D73),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Event Cover',
+                            style: TextStyle(
+                              color: Color(0xFF6A0D73),
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (loading)
+                  const Positioned.fill(
+                    child: Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+              ],
+            ),
           ),
-          child: Column(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE5D0D8),
-                  shape: BoxShape.circle,
+        ),
+        const SizedBox(height: 10),
+        if (errorText != null && errorText!.trim().isNotEmpty) ...[
+          Text(
+            errorText!,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.red,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+        ],
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF6A0D73),
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor:
+                      const Color(0xFF6A0D73).withOpacity(0.5),
+                  disabledForegroundColor: Colors.white.withOpacity(0.85),
                 ),
-                child: const Icon(
-                  Icons.photo_camera,
-                  color: Color(0xFF6A0D73),
+                onPressed: loading ? null : onGenerate,
+                child: loading
+                    ? const SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Text(
+                        accepted ? 'Regenerate' : 'Generate with AI',
+                      ),
+              ),
+            ),
+            if (imageUrl != null && !accepted) ...[
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF6A0D73),
+                    side: const BorderSide(
+                      color: Color(0xFF6A0D73),
+                      width: 1.6,
+                    ),
+                  ),
+                  onPressed: onAccept,
+                  child: const Text('Use'),
                 ),
               ),
-              const SizedBox(height: 10),
-              const Text(
-                'Add Event Cover',
-                style: TextStyle(
-                  color: Color(0xFF6A0D73),
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Optional • Max 10MB',
-                style: TextStyle(
-                  color: Colors.black.withOpacity(0.5),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF6A0D73),
+                    side: const BorderSide(
+                      color: Color(0xFF6A0D73),
+                      width: 1.6,
+                    ),
+                  ),
+                  onPressed: onCancel,
+                  child: const Text('Cancel'),
                 ),
               ),
             ],
-          ),
+          ],
         ),
-      ),
+      ],
     );
   }
 }

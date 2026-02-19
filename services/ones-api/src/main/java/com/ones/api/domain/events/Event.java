@@ -13,6 +13,7 @@ public class Event {
     private final String location;
     private final Instant startAt;
     private final Instant endAt;
+    private final String coverKey;
 
     public Event(
             String eventId,
@@ -22,7 +23,8 @@ public class Event {
             String eventTypeId,
             String location,
             Instant startAt,
-            Instant endAt
+            Instant endAt,
+            String coverKey
     ) {
         this.eventId = Objects.requireNonNull(eventId);
         this.ownerId = Objects.requireNonNull(ownerId);
@@ -32,6 +34,7 @@ public class Event {
         this.location = Objects.requireNonNull(location);
         this.startAt = Objects.requireNonNull(startAt);
         this.endAt = Objects.requireNonNull(endAt);
+        this.coverKey = coverKey;
     }
 
     public String getEventId() {
@@ -64,5 +67,9 @@ public class Event {
 
     public Instant getEndAt() {
         return endAt;
+    }
+
+    public String getCoverKey() {
+        return coverKey;
     }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
 import 'event_detail_page.dart';
 
@@ -35,6 +36,7 @@ class _EventsListPageState extends State<EventsListPage> {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<EventsController>();
+    final coverUrls = context.watch<EventCoverUrlsController>();
 
     final events = controller.events;
     final now = DateTime.now();
@@ -106,17 +108,30 @@ class _EventsListPageState extends State<EventsListPage> {
                           final cover = index.isEven
                               ? 'assets/auth/concierto.png'
                               : 'assets/auth/amigos.png';
-                          return _UpcomingCard(
-                            title: e.title,
-                            location: e.location,
-                            imageAsset: cover,
-                            timeText:
-                                '${_formatTimeOfDay(displayStart)} - ${_formatTimeOfDay(displayEnd)}',
-                            badgeText: isLiveNow ? 'LIVE NOW' : null,
-                            onTap: () => Navigator.of(context).pushNamed(
-                              EventDetailPage.routeName,
-                              arguments: e.id,
+
+                          return FutureBuilder<String?>(
+                            future: coverUrls.getUrlIfAny(
+                              eventId: e.id,
+                              coverKey: e.coverKey,
                             ),
+                            builder: (context, snapshot) {
+                              final url = snapshot.data;
+                              return _UpcomingCard(
+                                title: e.title,
+                                location: e.location,
+                                imageUrl: (url != null && url.isNotEmpty)
+                                    ? url
+                                    : null,
+                                fallbackAsset: cover,
+                                timeText:
+                                    '${_formatTimeOfDay(displayStart)} - ${_formatTimeOfDay(displayEnd)}',
+                                badgeText: isLiveNow ? 'LIVE NOW' : null,
+                                onTap: () => Navigator.of(context).pushNamed(
+                                  EventDetailPage.routeName,
+                                  arguments: e.id,
+                                ),
+                              );
+                            },
                           );
                         },
                       ),
@@ -157,17 +172,28 @@ class _EventsListPageState extends State<EventsListPage> {
                     final when = e.startAt.toLocal();
                     final end = e.endAt.toLocal();
 
-                    return _NextEventCard(
-                      title: e.title,
-                      dateText: _formatMonthDayYear(when),
-                      timeText:
-                          '${_formatTimeOfDay(when)} - ${_formatTimeOfDay(end)}',
-                      location: e.location,
-                      imageAsset: cover,
-                      onTap: () => Navigator.of(context).pushNamed(
-                        EventDetailPage.routeName,
-                        arguments: e.id,
+                    return FutureBuilder<String?>(
+                      future: coverUrls.getUrlIfAny(
+                        eventId: e.id,
+                        coverKey: e.coverKey,
                       ),
+                      builder: (context, snapshot) {
+                        final url = snapshot.data;
+                        return _NextEventCard(
+                          title: e.title,
+                          dateText: _formatMonthDayYear(when),
+                          timeText:
+                              '${_formatTimeOfDay(when)} - ${_formatTimeOfDay(end)}',
+                          location: e.location,
+                          imageUrl:
+                              (url != null && url.isNotEmpty) ? url : null,
+                          fallbackAsset: cover,
+                          onTap: () => Navigator.of(context).pushNamed(
+                            EventDetailPage.routeName,
+                            arguments: e.id,
+                          ),
+                        );
+                      },
                     );
                   },
                 ),
@@ -256,13 +282,9 @@ class _SearchBar extends StatelessWidget {
 
 class _SectionHeader extends StatelessWidget {
   final String title;
-  final String? actionText;
-  final VoidCallback? onAction;
 
   const _SectionHeader({
     required this.title,
-    this.actionText,
-    this.onAction,
   });
 
   @override
@@ -277,17 +299,6 @@ class _SectionHeader extends StatelessWidget {
               ),
         ),
         const Spacer(),
-        if (actionText != null)
-          TextButton(
-            onPressed: onAction,
-            child: Text(
-              actionText!,
-              style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF3B1D6D),
-              ),
-            ),
-          ),
       ],
     );
   }
@@ -312,7 +323,8 @@ class _EmptyCard extends StatelessWidget {
 class _UpcomingCard extends StatelessWidget {
   final String title;
   final String location;
-  final String imageAsset;
+  final String? imageUrl;
+  final String fallbackAsset;
   final String? badgeText;
   final String timeText;
   final VoidCallback onTap;
@@ -320,7 +332,8 @@ class _UpcomingCard extends StatelessWidget {
   const _UpcomingCard({
     required this.title,
     required this.location,
-    required this.imageAsset,
+    required this.imageUrl,
+    required this.fallbackAsset,
     required this.timeText,
     required this.badgeText,
     required this.onTap,
@@ -335,83 +348,113 @@ class _UpcomingCard extends StatelessWidget {
         width: 260,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(26),
-          image: DecorationImage(
-            image: AssetImage(imageAsset),
-            fit: BoxFit.cover,
-          ),
         ),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(26),
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.black.withOpacity(0.05),
-                Colors.black.withOpacity(0.65),
-              ],
+        child: Stack(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(26),
+              child: SizedBox(
+                width: double.infinity,
+                height: double.infinity,
+                child: (imageUrl != null)
+                    ? Image.network(
+                        imageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Image.asset(
+                          fallbackAsset,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : Image.asset(
+                        fallbackAsset,
+                        fit: BoxFit.cover,
+                      ),
+              ),
             ),
-          ),
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (badgeText != null)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.25),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Text(
-                    badgeText!,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
-                    ),
-                  ),
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(26),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.05),
+                    Colors.black.withOpacity(0.65),
+                  ],
                 ),
-              const Spacer(),
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      height: 1.05,
-                    ),
               ),
-              const SizedBox(height: 6),
-              Row(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.access_time, size: 16, color: Colors.white),
-                  const SizedBox(width: 4),
-                  Text(
-                    timeText,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
+                  if (badgeText != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.25),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Text(
+                        badgeText!,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
+                  const Spacer(),
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          height: 1.05,
+                        ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.access_time,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        timeText,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        location,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  const Icon(Icons.location_on, size: 16, color: Colors.white),
-                  const SizedBox(width: 4),
-                  Text(
-                    location,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -423,7 +466,8 @@ class _NextEventCard extends StatelessWidget {
   final String dateText;
   final String timeText;
   final String location;
-  final String imageAsset;
+  final String? imageUrl;
+  final String fallbackAsset;
   final VoidCallback onTap;
 
   const _NextEventCard({
@@ -431,7 +475,8 @@ class _NextEventCard extends StatelessWidget {
     required this.dateText,
     required this.timeText,
     required this.location,
-    required this.imageAsset,
+    required this.imageUrl,
+    required this.fallbackAsset,
     required this.onTap,
   });
 
@@ -451,11 +496,22 @@ class _NextEventCard extends StatelessWidget {
                 topLeft: Radius.circular(18),
                 topRight: Radius.circular(18),
               ),
-              child: Image.asset(
-                imageAsset,
+              child: SizedBox(
                 height: 52,
                 width: double.infinity,
-                fit: BoxFit.cover,
+                child: (imageUrl != null)
+                    ? Image.network(
+                        imageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Image.asset(
+                          fallbackAsset,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : Image.asset(
+                        fallbackAsset,
+                        fit: BoxFit.cover,
+                      ),
               ),
             ),
             Expanded(

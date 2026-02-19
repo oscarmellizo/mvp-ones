@@ -14,18 +14,26 @@ import 'package:built_value/iso_8601_date_time_serializer.dart';
 import 'package:ones_api_client/src/date_serializer.dart';
 import 'package:ones_api_client/src/model/date.dart';
 
+import 'package:ones_api_client/src/model/accept_event_cover_response.dart';
 import 'package:ones_api_client/src/model/create_event_request.dart';
 import 'package:ones_api_client/src/model/error_response.dart';
 import 'package:ones_api_client/src/model/event.dart';
+import 'package:ones_api_client/src/model/generate_event_cover_request.dart';
+import 'package:ones_api_client/src/model/generate_event_cover_response.dart';
 import 'package:ones_api_client/src/model/health_response.dart';
+import 'package:ones_api_client/src/model/presigned_url_response.dart';
 
 part 'serializers.g.dart';
 
 @SerializersFor([
+  AcceptEventCoverResponse,
   CreateEventRequest,
   ErrorResponse,
   Event,
+  GenerateEventCoverRequest,
+  GenerateEventCoverResponse,
   HealthResponse,
+  PresignedUrlResponse,
 ])
 Serializers serializers = (_$serializers.toBuilder()
       ..addBuilderFactory(

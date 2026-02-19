@@ -10,6 +10,7 @@ public record CreateEventRequest(
         @NotBlank String eventTypeId,
         @NotBlank String location,
         @NotNull Instant startAt,
-        @NotNull Instant endAt
+        @NotNull Instant endAt,
+        String coverReservationId
 ) {
 }

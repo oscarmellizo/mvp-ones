@@ -17,6 +17,8 @@ class _$CreateEventRequest extends CreateEventRequest {
   final DateTime startAt;
   @override
   final DateTime endAt;
+  @override
+  final String? coverReservationId;
 
   factory _$CreateEventRequest(
           [void Function(CreateEventRequestBuilder)? updates]) =>
@@ -27,7 +29,8 @@ class _$CreateEventRequest extends CreateEventRequest {
       required this.eventTypeId,
       required this.location,
       required this.startAt,
-      required this.endAt})
+      required this.endAt,
+      this.coverReservationId})
       : super._() {
     BuiltValueNullFieldError.checkNotNull(
         title, r'CreateEventRequest', 'title');
@@ -58,7 +61,8 @@ class _$CreateEventRequest extends CreateEventRequest {
         eventTypeId == other.eventTypeId &&
         location == other.location &&
         startAt == other.startAt &&
-        endAt == other.endAt;
+        endAt == other.endAt &&
+        coverReservationId == other.coverReservationId;
   }
 
   @override
@@ -69,6 +73,7 @@ class _$CreateEventRequest extends CreateEventRequest {
     _$hash = $jc(_$hash, location.hashCode);
     _$hash = $jc(_$hash, startAt.hashCode);
     _$hash = $jc(_$hash, endAt.hashCode);
+    _$hash = $jc(_$hash, coverReservationId.hashCode);
     _$hash = $jf(_$hash);
     return _$hash;
   }
@@ -80,7 +85,8 @@ class _$CreateEventRequest extends CreateEventRequest {
           ..add('eventTypeId', eventTypeId)
           ..add('location', location)
           ..add('startAt', startAt)
-          ..add('endAt', endAt))
+          ..add('endAt', endAt)
+          ..add('coverReservationId', coverReservationId))
         .toString();
   }
 }
@@ -109,6 +115,11 @@ class CreateEventRequestBuilder
   DateTime? get endAt => _$this._endAt;
   set endAt(DateTime? endAt) => _$this._endAt = endAt;
 
+  String? _coverReservationId;
+  String? get coverReservationId => _$this._coverReservationId;
+  set coverReservationId(String? coverReservationId) =>
+      _$this._coverReservationId = coverReservationId;
+
   CreateEventRequestBuilder() {
     CreateEventRequest._defaults(this);
   }
@@ -121,6 +132,7 @@ class CreateEventRequestBuilder
       _location = $v.location;
       _startAt = $v.startAt;
       _endAt = $v.endAt;
+      _coverReservationId = $v.coverReservationId;
       _$v = null;
     }
     return this;
@@ -152,7 +164,8 @@ class CreateEventRequestBuilder
             startAt: BuiltValueNullFieldError.checkNotNull(
                 startAt, r'CreateEventRequest', 'startAt'),
             endAt: BuiltValueNullFieldError.checkNotNull(
-                endAt, r'CreateEventRequest', 'endAt'));
+                endAt, r'CreateEventRequest', 'endAt'),
+            coverReservationId: coverReservationId);
     replace(_$result);
     return _$result;
   }
