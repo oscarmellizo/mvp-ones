@@ -70,6 +70,8 @@ Resources:
                   - s3:PutBucketPolicy
                   - s3:DeleteBucketPolicy
                   - s3:PutBucketPublicAccessBlock
+                  - s3:PutLifecycleConfiguration
+                  - s3:GetLifecycleConfiguration
                   - s3:GetBucketLocation
                   - s3:ListBucket
                   - s3:GetObject
