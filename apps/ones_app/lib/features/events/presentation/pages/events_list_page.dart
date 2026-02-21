@@ -162,7 +162,7 @@ class _EventsListPageState extends State<EventsListPage> {
                     crossAxisCount: 2,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
-                    childAspectRatio: 1.55,
+                    childAspectRatio: 1.30,
                   ),
                   itemBuilder: (context, i) {
                     final e = nextEvents[i];
@@ -522,7 +522,7 @@ class _NextEventCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontWeight: FontWeight.w900,
@@ -588,7 +588,7 @@ class _NextEventCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             location,
-                            maxLines: 1,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: Colors.black.withOpacity(0.65),
