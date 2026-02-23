@@ -148,6 +148,7 @@ Resources:
                   - ecs:DeleteCluster
                   - ecs:Describe*
                   - ecs:RegisterTaskDefinition
+                  - ecs:DeregisterTaskDefinition
                   - ecs:CreateService
                   - ecs:UpdateService
                   - ecs:DeleteService
