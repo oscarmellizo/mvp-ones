@@ -55,6 +55,21 @@ Resources:
         - AttributeName: userId
           KeyType: HASH
 
+  InvitationsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: inviteeEmail
+          AttributeType: S
+        - AttributeName: eventId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: inviteeEmail
+          KeyType: HASH
+        - AttributeName: eventId
+          KeyType: RANGE
+
   CoverPreviewsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -291,6 +306,7 @@ Resources:
                   - !GetAtt EventsTable.Arn
                   - !Sub ${EventsTable.Arn}/index/*
                   - !GetAtt UsersTable.Arn
+                  - !GetAtt InvitationsTable.Arn
                   - !GetAtt CoverPreviewsTable.Arn
                   - !GetAtt CoverReservationsTable.Arn
         - PolicyName: ones-s3-covers
@@ -339,10 +355,14 @@ Resources:
           Environment:
             - Name: AWS_REGION
               Value: !Ref AWS::Region
+            - Name: ONES_ENV
+              Value: !Ref Environment
             - Name: ONES_EVENTS_TABLE
               Value: !Ref EventsTable
             - Name: ONES_USERS_TABLE
               Value: !Ref UsersTable
+            - Name: ONES_INVITATIONS_TABLE
+              Value: !Ref InvitationsTable
             - Name: ONES_COVER_PREVIEWS_TABLE
               Value: !Ref CoverPreviewsTable
             - Name: ONES_COVER_RESERVATIONS_TABLE
@@ -402,6 +422,8 @@ Outputs:
     Value: !Ref EventsTable
   UsersTableName:
     Value: !Ref UsersTable
+  InvitationsTableName:
+    Value: !Ref InvitationsTable
   CoverPreviewsTableName:
     Value: !Ref CoverPreviewsTable
   CoverReservationsTableName:
