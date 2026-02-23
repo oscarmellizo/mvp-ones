@@ -13,7 +13,7 @@ void main() {
       api.CreateEventRequest(
         (b) => b
           ..title = 'fallback'
-          ..eventTypeId = 'type-1'
+          ..objective = 'type-1'
           ..location = 'Somewhere'
           ..startAt = DateTime.utc(2025, 1, 1, 10)
           ..endAt = DateTime.utc(2025, 1, 1, 12),
@@ -30,7 +30,7 @@ void main() {
         ..ownerId = 'u1'
         ..createdAt = DateTime.utc(2025, 1, 1)
         ..title = 'Hello'
-        ..eventTypeId = 'type-1'
+        ..objective = 'type-1'
         ..location = 'Brooklyn, NY'
         ..startAt = DateTime.utc(2025, 1, 1, 10)
         ..endAt = DateTime.utc(2025, 1, 1, 12)),

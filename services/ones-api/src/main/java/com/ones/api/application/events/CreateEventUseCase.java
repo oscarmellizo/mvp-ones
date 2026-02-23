@@ -22,7 +22,7 @@ public class CreateEventUseCase {
     public Event execute(
             String ownerId,
             String title,
-            String eventTypeId,
+            String objective,
             String location,
             Instant startAt,
             Instant endAt,
@@ -39,7 +39,7 @@ public class CreateEventUseCase {
             coverKey = coversService.consumeReservationAndCopyToEvent(ownerId, coverReservationId.trim(), eventId);
         }
 
-        Event event = new Event(eventId, ownerId, createdAt, title, eventTypeId, location, startAt, endAt, coverKey);
+        Event event = new Event(eventId, ownerId, createdAt, title, objective, location, startAt, endAt, coverKey);
         return repository.save(event);
     }
 }

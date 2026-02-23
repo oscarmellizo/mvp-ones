@@ -10,9 +10,7 @@ class _$GenerateEventCoverRequest extends GenerateEventCoverRequest {
   @override
   final String eventName;
   @override
-  final String categoryLabel;
-  @override
-  final String eventTypeLabel;
+  final String objective;
   @override
   final String location;
   @override
@@ -24,17 +22,14 @@ class _$GenerateEventCoverRequest extends GenerateEventCoverRequest {
 
   _$GenerateEventCoverRequest._(
       {required this.eventName,
-      required this.categoryLabel,
-      required this.eventTypeLabel,
+      required this.objective,
       required this.location,
       this.size})
       : super._() {
     BuiltValueNullFieldError.checkNotNull(
         eventName, r'GenerateEventCoverRequest', 'eventName');
     BuiltValueNullFieldError.checkNotNull(
-        categoryLabel, r'GenerateEventCoverRequest', 'categoryLabel');
-    BuiltValueNullFieldError.checkNotNull(
-        eventTypeLabel, r'GenerateEventCoverRequest', 'eventTypeLabel');
+        objective, r'GenerateEventCoverRequest', 'objective');
     BuiltValueNullFieldError.checkNotNull(
         location, r'GenerateEventCoverRequest', 'location');
   }
@@ -53,8 +48,7 @@ class _$GenerateEventCoverRequest extends GenerateEventCoverRequest {
     if (identical(other, this)) return true;
     return other is GenerateEventCoverRequest &&
         eventName == other.eventName &&
-        categoryLabel == other.categoryLabel &&
-        eventTypeLabel == other.eventTypeLabel &&
+        objective == other.objective &&
         location == other.location &&
         size == other.size;
   }
@@ -63,8 +57,7 @@ class _$GenerateEventCoverRequest extends GenerateEventCoverRequest {
   int get hashCode {
     var _$hash = 0;
     _$hash = $jc(_$hash, eventName.hashCode);
-    _$hash = $jc(_$hash, categoryLabel.hashCode);
-    _$hash = $jc(_$hash, eventTypeLabel.hashCode);
+    _$hash = $jc(_$hash, objective.hashCode);
     _$hash = $jc(_$hash, location.hashCode);
     _$hash = $jc(_$hash, size.hashCode);
     _$hash = $jf(_$hash);
@@ -75,8 +68,7 @@ class _$GenerateEventCoverRequest extends GenerateEventCoverRequest {
   String toString() {
     return (newBuiltValueToStringHelper(r'GenerateEventCoverRequest')
           ..add('eventName', eventName)
-          ..add('categoryLabel', categoryLabel)
-          ..add('eventTypeLabel', eventTypeLabel)
+          ..add('objective', objective)
           ..add('location', location)
           ..add('size', size))
         .toString();
@@ -92,15 +84,9 @@ class GenerateEventCoverRequestBuilder
   String? get eventName => _$this._eventName;
   set eventName(String? eventName) => _$this._eventName = eventName;
 
-  String? _categoryLabel;
-  String? get categoryLabel => _$this._categoryLabel;
-  set categoryLabel(String? categoryLabel) =>
-      _$this._categoryLabel = categoryLabel;
-
-  String? _eventTypeLabel;
-  String? get eventTypeLabel => _$this._eventTypeLabel;
-  set eventTypeLabel(String? eventTypeLabel) =>
-      _$this._eventTypeLabel = eventTypeLabel;
+  String? _objective;
+  String? get objective => _$this._objective;
+  set objective(String? objective) => _$this._objective = objective;
 
   String? _location;
   String? get location => _$this._location;
@@ -118,8 +104,7 @@ class GenerateEventCoverRequestBuilder
     final $v = _$v;
     if ($v != null) {
       _eventName = $v.eventName;
-      _categoryLabel = $v.categoryLabel;
-      _eventTypeLabel = $v.eventTypeLabel;
+      _objective = $v.objective;
       _location = $v.location;
       _size = $v.size;
       _$v = null;
@@ -146,10 +131,8 @@ class GenerateEventCoverRequestBuilder
         new _$GenerateEventCoverRequest._(
             eventName: BuiltValueNullFieldError.checkNotNull(
                 eventName, r'GenerateEventCoverRequest', 'eventName'),
-            categoryLabel: BuiltValueNullFieldError.checkNotNull(
-                categoryLabel, r'GenerateEventCoverRequest', 'categoryLabel'),
-            eventTypeLabel: BuiltValueNullFieldError.checkNotNull(
-                eventTypeLabel, r'GenerateEventCoverRequest', 'eventTypeLabel'),
+            objective: BuiltValueNullFieldError.checkNotNull(
+                objective, r'GenerateEventCoverRequest', 'objective'),
             location: BuiltValueNullFieldError.checkNotNull(
                 location, r'GenerateEventCoverRequest', 'location'),
             size: size);

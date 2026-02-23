@@ -204,27 +204,23 @@ components:
           example: ok
     GenerateEventCoverRequest:
       type: object
-      required: [eventName, categoryLabel, eventTypeLabel, location]
+      required: [eventName, objective, location]
       properties:
         eventName:
           type: string
           minLength: 1
           example: Cena en casa de Pablo
-        categoryLabel:
+        objective:
           type: string
           minLength: 1
-          example: Food & Drinks
-        eventTypeLabel:
-          type: string
-          minLength: 1
-          example: Dinner with Friends
+          example: Celebrar un cumpleaños con amigos cercanos en casa
         location:
           type: string
           minLength: 1
-          example: Barrancas
+          example: Medellín, Colombia
         size:
           type: string
-          description: Image size; backend may ignore unsupported values
+          nullable: true
           example: 512x512
     GenerateEventCoverResponse:
       type: object
@@ -260,16 +256,16 @@ components:
           example: '2026-02-19T03:00:00Z'
     CreateEventRequest:
       type: object
-      required: [title, eventTypeId, location, startAt, endAt]
+      required: [title, objective, location, startAt, endAt]
       properties:
         title:
           type: string
           minLength: 1
-          example: My event
-        eventTypeId:
+          example: Birthday Party
+        objective:
           type: string
           minLength: 1
-          example: birthday
+          example: Celebrar el cumpleaños con familia y amigos, con pastel y música
         location:
           type: string
           minLength: 1
@@ -277,11 +273,11 @@ components:
         startAt:
           type: string
           format: date-time
-          example: '2025-01-01T18:00:00Z'
+          example: '2026-02-19T01:00:00Z'
         endAt:
           type: string
           format: date-time
-          example: '2025-01-01T22:00:00Z'
+          example: '2026-02-19T03:00:00Z'
         coverReservationId:
           type: string
           nullable: true
@@ -289,40 +285,39 @@ components:
           example: 0db0f1ad-9c44-4a2c-9c95-9348d236b0b9
     Event:
       type: object
-      required: [id, ownerId, createdAt, title, eventTypeId, location, startAt, endAt]
+      required: [id, ownerId, createdAt, title, objective, location, startAt, endAt]
       properties:
         id:
           type: string
-          example: 7a41e6c0-7a20-4c61-8b2d-8a1df3af7c7b
+          example: 0db0f1ad-9c44-4a2c-9c95-9348d236b0b9
         ownerId:
           type: string
-          example: '109876543210987654321'
+          example: google-oauth2|123
         createdAt:
           type: string
           format: date-time
-          example: '2025-01-01T00:00:00Z'
+          example: '2026-02-19T00:00:00Z'
         title:
           type: string
-          example: Hello
-        eventTypeId:
+          example: Birthday Party
+        objective:
           type: string
-          example: birthday
+          example: Celebrar el cumpleaños con familia y amigos
         location:
           type: string
           example: San Jose, CR
         startAt:
           type: string
           format: date-time
-          example: '2025-01-01T18:00:00Z'
+          example: '2026-02-19T01:00:00Z'
         endAt:
           type: string
           format: date-time
-          example: '2025-01-01T22:00:00Z'
+          example: '2026-02-19T03:00:00Z'
         coverKey:
           type: string
           nullable: true
-          description: S3 key (final bucket) for the event cover PNG
-          example: events/7a41e6c0-7a20-4c61-8b2d-8a1df3af7c7b/cover/cover.png
+          example: events/covers/0db0f1ad-9c44-4a2c-9c95-9348d236b0b9.png
     ErrorResponse:
       type: object
       required: [error, message]

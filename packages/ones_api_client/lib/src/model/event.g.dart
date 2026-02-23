@@ -16,7 +16,7 @@ class _$Event extends Event {
   @override
   final String title;
   @override
-  final String eventTypeId;
+  final String objective;
   @override
   final String location;
   @override
@@ -34,7 +34,7 @@ class _$Event extends Event {
       required this.ownerId,
       required this.createdAt,
       required this.title,
-      required this.eventTypeId,
+      required this.objective,
       required this.location,
       required this.startAt,
       required this.endAt,
@@ -44,7 +44,7 @@ class _$Event extends Event {
     BuiltValueNullFieldError.checkNotNull(ownerId, r'Event', 'ownerId');
     BuiltValueNullFieldError.checkNotNull(createdAt, r'Event', 'createdAt');
     BuiltValueNullFieldError.checkNotNull(title, r'Event', 'title');
-    BuiltValueNullFieldError.checkNotNull(eventTypeId, r'Event', 'eventTypeId');
+    BuiltValueNullFieldError.checkNotNull(objective, r'Event', 'objective');
     BuiltValueNullFieldError.checkNotNull(location, r'Event', 'location');
     BuiltValueNullFieldError.checkNotNull(startAt, r'Event', 'startAt');
     BuiltValueNullFieldError.checkNotNull(endAt, r'Event', 'endAt');
@@ -65,7 +65,7 @@ class _$Event extends Event {
         ownerId == other.ownerId &&
         createdAt == other.createdAt &&
         title == other.title &&
-        eventTypeId == other.eventTypeId &&
+        objective == other.objective &&
         location == other.location &&
         startAt == other.startAt &&
         endAt == other.endAt &&
@@ -79,7 +79,7 @@ class _$Event extends Event {
     _$hash = $jc(_$hash, ownerId.hashCode);
     _$hash = $jc(_$hash, createdAt.hashCode);
     _$hash = $jc(_$hash, title.hashCode);
-    _$hash = $jc(_$hash, eventTypeId.hashCode);
+    _$hash = $jc(_$hash, objective.hashCode);
     _$hash = $jc(_$hash, location.hashCode);
     _$hash = $jc(_$hash, startAt.hashCode);
     _$hash = $jc(_$hash, endAt.hashCode);
@@ -95,7 +95,7 @@ class _$Event extends Event {
           ..add('ownerId', ownerId)
           ..add('createdAt', createdAt)
           ..add('title', title)
-          ..add('eventTypeId', eventTypeId)
+          ..add('objective', objective)
           ..add('location', location)
           ..add('startAt', startAt)
           ..add('endAt', endAt)
@@ -123,9 +123,9 @@ class EventBuilder implements Builder<Event, EventBuilder> {
   String? get title => _$this._title;
   set title(String? title) => _$this._title = title;
 
-  String? _eventTypeId;
-  String? get eventTypeId => _$this._eventTypeId;
-  set eventTypeId(String? eventTypeId) => _$this._eventTypeId = eventTypeId;
+  String? _objective;
+  String? get objective => _$this._objective;
+  set objective(String? objective) => _$this._objective = objective;
 
   String? _location;
   String? get location => _$this._location;
@@ -154,7 +154,7 @@ class EventBuilder implements Builder<Event, EventBuilder> {
       _ownerId = $v.ownerId;
       _createdAt = $v.createdAt;
       _title = $v.title;
-      _eventTypeId = $v.eventTypeId;
+      _objective = $v.objective;
       _location = $v.location;
       _startAt = $v.startAt;
       _endAt = $v.endAt;
@@ -188,8 +188,8 @@ class EventBuilder implements Builder<Event, EventBuilder> {
                 createdAt, r'Event', 'createdAt'),
             title:
                 BuiltValueNullFieldError.checkNotNull(title, r'Event', 'title'),
-            eventTypeId: BuiltValueNullFieldError.checkNotNull(
-                eventTypeId, r'Event', 'eventTypeId'),
+            objective: BuiltValueNullFieldError.checkNotNull(
+                objective, r'Event', 'objective'),
             location: BuiltValueNullFieldError.checkNotNull(
                 location, r'Event', 'location'),
             startAt: BuiltValueNullFieldError.checkNotNull(

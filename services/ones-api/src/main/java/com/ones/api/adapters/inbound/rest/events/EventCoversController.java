@@ -32,8 +32,7 @@ public class EventCoversController {
         return coversService.generatePreview(
                 ownerId,
                 request.eventName(),
-                request.categoryLabel(),
-                request.eventTypeLabel(),
+                request.objective(),
                 request.location(),
                 request.size()
         );

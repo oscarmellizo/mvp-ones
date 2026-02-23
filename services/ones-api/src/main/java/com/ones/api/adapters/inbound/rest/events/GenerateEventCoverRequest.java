@@ -4,8 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 
 public record GenerateEventCoverRequest(
         @NotBlank String eventName,
-        @NotBlank String categoryLabel,
-        @NotBlank String eventTypeLabel,
+        @NotBlank String objective,
         @NotBlank String location,
         String size
 ) {

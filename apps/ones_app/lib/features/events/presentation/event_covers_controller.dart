@@ -27,8 +27,7 @@ class EventCoversController extends ChangeNotifier {
 
   Future<void> generate({
     required String eventName,
-    required String categoryLabel,
-    required String eventTypeLabel,
+    required String objective,
     required String location,
     String? size,
   }) async {
@@ -38,8 +37,7 @@ class EventCoversController extends ChangeNotifier {
       _reservationId = null;
       _preview = await repository.generate(
         eventName: eventName,
-        categoryLabel: categoryLabel,
-        eventTypeLabel: eventTypeLabel,
+        objective: objective,
         location: location,
         size: size,
       );

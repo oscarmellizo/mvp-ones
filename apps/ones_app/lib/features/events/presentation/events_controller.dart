@@ -58,7 +58,7 @@ class EventsController extends ChangeNotifier {
 
   Future<void> createNew(
     String title,
-    String eventTypeId,
+    String objective,
     String location,
     DateTime startAt,
     DateTime endAt,
@@ -68,7 +68,7 @@ class EventsController extends ChangeNotifier {
     try {
       _error = null;
       final created = await createEvent.execute(
-          title, eventTypeId, location, startAt, endAt, coverReservationId);
+          title, objective, location, startAt, endAt, coverReservationId);
       _events = [created, ..._events];
     } catch (e) {
       _error = e;

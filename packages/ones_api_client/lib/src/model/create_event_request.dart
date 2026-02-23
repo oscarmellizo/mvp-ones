@@ -11,19 +11,20 @@ part 'create_event_request.g.dart';
 /// CreateEventRequest
 ///
 /// Properties:
-/// * [title] 
-/// * [eventTypeId] 
-/// * [location] 
-/// * [startAt] 
-/// * [endAt] 
+/// * [title]
+/// * [objective]
+/// * [location]
+/// * [startAt]
+/// * [endAt]
 /// * [coverReservationId] - Reservation id obtained after accepting an AI-generated cover (optional)
 @BuiltValue()
-abstract class CreateEventRequest implements Built<CreateEventRequest, CreateEventRequestBuilder> {
+abstract class CreateEventRequest
+    implements Built<CreateEventRequest, CreateEventRequestBuilder> {
   @BuiltValueField(wireName: r'title')
   String get title;
 
-  @BuiltValueField(wireName: r'eventTypeId')
-  String get eventTypeId;
+  @BuiltValueField(wireName: r'objective')
+  String get objective;
 
   @BuiltValueField(wireName: r'location')
   String get location;
@@ -40,16 +41,19 @@ abstract class CreateEventRequest implements Built<CreateEventRequest, CreateEve
 
   CreateEventRequest._();
 
-  factory CreateEventRequest([void updates(CreateEventRequestBuilder b)]) = _$CreateEventRequest;
+  factory CreateEventRequest([void updates(CreateEventRequestBuilder b)]) =
+      _$CreateEventRequest;
 
   @BuiltValueHook(initializeBuilder: true)
   static void _defaults(CreateEventRequestBuilder b) => b;
 
   @BuiltValueSerializer(custom: true)
-  static Serializer<CreateEventRequest> get serializer => _$CreateEventRequestSerializer();
+  static Serializer<CreateEventRequest> get serializer =>
+      _$CreateEventRequestSerializer();
 }
 
-class _$CreateEventRequestSerializer implements PrimitiveSerializer<CreateEventRequest> {
+class _$CreateEventRequestSerializer
+    implements PrimitiveSerializer<CreateEventRequest> {
   @override
   final Iterable<Type> types = const [CreateEventRequest, _$CreateEventRequest];
 
@@ -66,9 +70,9 @@ class _$CreateEventRequestSerializer implements PrimitiveSerializer<CreateEventR
       object.title,
       specifiedType: const FullType(String),
     );
-    yield r'eventTypeId';
+    yield r'objective';
     yield serializers.serialize(
-      object.eventTypeId,
+      object.objective,
       specifiedType: const FullType(String),
     );
     yield r'location';
@@ -101,7 +105,9 @@ class _$CreateEventRequestSerializer implements PrimitiveSerializer<CreateEventR
     CreateEventRequest object, {
     FullType specifiedType = FullType.unspecified,
   }) {
-    return _serializeProperties(serializers, object, specifiedType: specifiedType).toList();
+    return _serializeProperties(serializers, object,
+            specifiedType: specifiedType)
+        .toList();
   }
 
   void _deserializeProperties(
@@ -123,12 +129,12 @@ class _$CreateEventRequestSerializer implements PrimitiveSerializer<CreateEventR
           ) as String;
           result.title = valueDes;
           break;
-        case r'eventTypeId':
+        case r'objective':
           final valueDes = serializers.deserialize(
             value,
             specifiedType: const FullType(String),
           ) as String;
-          result.eventTypeId = valueDes;
+          result.objective = valueDes;
           break;
         case r'location':
           final valueDes = serializers.deserialize(
@@ -187,4 +193,3 @@ class _$CreateEventRequestSerializer implements PrimitiveSerializer<CreateEventR
     return result.build();
   }
 }
-

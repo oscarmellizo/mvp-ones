@@ -7,7 +7,7 @@ abstract interface class EventsRepository {
 
   Future<Event> createEvent(
     String title,
-    String eventTypeId,
+    String objective,
     String location,
     DateTime startAt,
     DateTime endAt,

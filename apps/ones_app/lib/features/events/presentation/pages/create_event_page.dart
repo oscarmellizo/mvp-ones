@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../auth/presentation/auth_controller.dart';
-import '../../domain/events_metadata.dart';
 import '../event_covers_controller.dart';
-import '../events_metadata_controller.dart';
 import '../events_controller.dart';
 
 class CreateEventPage extends StatefulWidget {
@@ -34,11 +32,9 @@ class CreateEventPage extends StatefulWidget {
 }
 
 class _CreateEventPageState extends State<CreateEventPage> {
-  bool _metadataLoadTriggered = false;
-  bool _metadataApplied = false;
-
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  final _objectiveController = TextEditingController();
   final _locationController = TextEditingController();
   final _inviteEmailController = TextEditingController();
 
@@ -49,9 +45,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
   TimeOfDay? _startTime;
   DateTime? _endDate;
   TimeOfDay? _endTime;
-
-  String? _eventCategoryId;
-  String? _eventTypeId;
 
   String? _coverReservationId;
 
@@ -85,6 +78,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
   @override
   void dispose() {
     _nameController.dispose();
+    _objectiveController.dispose();
     _locationController.dispose();
     _inviteEmailController.dispose();
     super.dispose();
@@ -158,60 +152,9 @@ class _CreateEventPageState extends State<CreateEventPage> {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<EventsController>();
-    final metadataController = context.watch<EventsMetadataController>();
     final coversController = context.watch<EventCoversController>();
 
-    if (!_metadataLoadTriggered) {
-      _metadataLoadTriggered = true;
-      Future.microtask(() async {
-        try {
-          await metadataController.ensureLoaded();
-        } catch (_) {
-          // ignore
-        }
-      });
-    }
-
-    final categories =
-        metadataController.metadata?.categories ?? const <EventCategory>[];
-
     _coverReservationId = coversController.reservationId;
-
-    if (!_metadataApplied && categories.isNotEmpty) {
-      _metadataApplied = true;
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-
-        final initial = widget.initialEventType?.trim();
-
-        String? categoryId;
-        String? eventTypeId;
-
-        if (initial != null && initial.isNotEmpty) {
-          for (final c in categories) {
-            for (final t in c.eventTypes) {
-              if (t.id == initial || t.label == initial) {
-                categoryId = c.id;
-                eventTypeId = t.id;
-                break;
-              }
-            }
-            if (categoryId != null) break;
-          }
-        }
-
-        final firstCategory = categories.first;
-        final firstType = firstCategory.eventTypes.isNotEmpty
-            ? firstCategory.eventTypes.first
-            : null;
-
-        setState(() {
-          _eventCategoryId = categoryId ?? firstCategory.id;
-          _eventTypeId = eventTypeId ?? firstType?.id;
-        });
-      });
-    }
 
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
@@ -266,49 +209,37 @@ class _CreateEventPageState extends State<CreateEventPage> {
                             (v == null || v.trim().isEmpty) ? 'Required' : null,
                       ),
                       const SizedBox(height: 16),
-                      const _FieldLabel('Category'),
+                      const _FieldLabel('Objective'),
                       const SizedBox(height: 8),
-                      _DropdownField(
-                        value: _eventCategoryId,
-                        items: categories
-                            .map((c) => _DropdownOption(
-                                  value: c.id,
-                                  label: c.label,
-                                ))
-                            .toList(growable: false),
-                        onChanged: (v) {
-                          final selected = categories
-                              .where((c) => c.id == v)
-                              .cast<EventCategory?>()
-                              .firstWhere((_) => true, orElse: () => null);
-                          setState(() {
-                            _eventCategoryId = v;
-                            _eventTypeId =
-                                selected?.eventTypes.isNotEmpty == true
-                                    ? selected!.eventTypes.first.id
-                                    : null;
-                          });
+                      TextFormField(
+                        controller: _objectiveController,
+                        keyboardType: TextInputType.multiline,
+                        minLines: 3,
+                        maxLines: 6,
+                        textInputAction: TextInputAction.newline,
+                        decoration: InputDecoration(
+                          hintText:
+                              'What is the objective of this event? (required)',
+                          prefixIcon: const Icon(
+                            Icons.flag,
+                            color: Color(0xFF3B1D6D),
+                          ),
+                          filled: true,
+                          fillColor: const Color(0xFFF7F3EA),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                        ),
+                        validator: (value) {
+                          final v = value?.trim() ?? '';
+                          if (v.isEmpty) return 'Objective is required';
+                          return null;
                         },
-                      ),
-                      const SizedBox(height: 16),
-                      const _FieldLabel('Event Type'),
-                      const SizedBox(height: 8),
-                      _DropdownField(
-                        value: _eventTypeId,
-                        items: (() {
-                          final catId = _eventCategoryId;
-                          final selected = categories
-                              .where((c) => c.id == catId)
-                              .cast<EventCategory?>()
-                              .firstWhere((_) => true, orElse: () => null);
-                          return (selected?.eventTypes ?? const <EventType>[])
-                              .map((t) => _DropdownOption(
-                                    value: t.id,
-                                    label: t.label,
-                                  ))
-                              .toList(growable: false);
-                        })(),
-                        onChanged: (v) => setState(() => _eventTypeId = v),
                       ),
                       const SizedBox(height: 16),
                       _DateTimeCard(
@@ -358,7 +289,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         loading: coversController.loading,
                         accepted: coversController.reservationId != null,
                         errorText: coversController.error?.toString(),
-                        onGenerate: () => _generateCover(context, categories),
+                        onGenerate: () => _generateCover(context),
                         onAccept: coversController.preview == null
                             ? null
                             : () async {
@@ -425,9 +356,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
   Future<void> _submit(BuildContext context) async {
     final controller = context.read<EventsController>();
     if (!_formKey.currentState!.validate()) return;
-
-    final eventTypeId = _eventTypeId;
-    if (eventTypeId == null || eventTypeId.trim().isEmpty) return;
+    final objective = _objectiveController.text.trim();
+    if (objective.isEmpty) return;
 
     final startDate = _startDate;
     final startTime = _startTime;
@@ -453,7 +383,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
 
     await controller.createNew(
       _nameController.text.trim(),
-      eventTypeId,
+      objective,
       _locationController.text.trim(),
       startAt,
       endAt,
@@ -464,35 +394,21 @@ class _CreateEventPageState extends State<CreateEventPage> {
 
   Future<void> _generateCover(
     BuildContext context,
-    List<EventCategory> categories,
   ) async {
     final covers = context.read<EventCoversController>();
 
     final eventName = _nameController.text.trim();
     final location = _locationController.text.trim();
-    final catId = _eventCategoryId;
-    final typeId = _eventTypeId;
+    final objective = _objectiveController.text.trim();
     if (eventName.isEmpty) return;
+    if (objective.isEmpty) return;
     if (location.isEmpty) return;
-    if (catId == null || typeId == null) return;
-
-    final category = categories
-        .where((c) => c.id == catId)
-        .cast<EventCategory?>()
-        .firstWhere((_) => true, orElse: () => null);
-    final type = category?.eventTypes
-        .where((t) => t.id == typeId)
-        .cast<EventType?>()
-        .firstWhere((_) => true, orElse: () => null);
-
-    if (category == null || type == null) return;
 
     await covers.generate(
       eventName: eventName,
-      categoryLabel: category.label,
-      eventTypeLabel: type.label,
+      objective: objective,
       location: location,
-      size: '512x512',
+      size: '1792x1024',
     );
   }
 
@@ -669,53 +585,6 @@ class _FieldLabel extends StatelessWidget {
       style: const TextStyle(
         fontWeight: FontWeight.w800,
         color: Colors.black,
-      ),
-    );
-  }
-}
-
-class _DropdownOption {
-  final String value;
-  final String label;
-
-  const _DropdownOption({required this.value, required this.label});
-}
-
-class _DropdownField extends StatelessWidget {
-  final String? value;
-  final List<_DropdownOption> items;
-  final ValueChanged<String> onChanged;
-
-  const _DropdownField({
-    required this.value,
-    required this.items,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down),
-          items: items
-              .map((e) => DropdownMenuItem<String>(
-                    value: e.value,
-                    child: Text(e.label),
-                  ))
-              .toList(growable: false),
-          onChanged: (v) {
-            if (v == null) return;
-            onChanged(v);
-          },
-        ),
       ),
     );
   }

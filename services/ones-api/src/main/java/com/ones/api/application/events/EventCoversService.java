@@ -82,15 +82,14 @@ public class EventCoversService {
     public GenerateCoverResult generatePreview(
             String ownerId,
             String eventName,
-            String categoryLabel,
-            String eventTypeLabel,
+            String objective,
             String location,
             String size
     ) {
         String coverId = UUID.randomUUID().toString();
         Instant now = Instant.now(clock);
 
-        String prompt = buildPrompt(eventName, categoryLabel, eventTypeLabel, location);
+        String prompt = buildPrompt(eventName, objective, location);
         String resolvedSize = (size == null || size.isBlank()) ? openAiImageSize : size.trim();
 
         String apiKey = loadOpenAiApiKey();
@@ -221,13 +220,123 @@ public class EventCoversService {
                 .secretString();
     }
 
-    private static String buildPrompt(String eventName, String categoryLabel, String eventTypeLabel, String location) {
-        return "Create a minimal, modern, high-quality event cover image. " +
-                "The event is named '" + safe(eventName) + "'. " +
-                "Category: '" + safe(categoryLabel) + "'. " +
-                "Event type: '" + safe(eventTypeLabel) + "'. " +
-                "Location: '" + safe(location) + "'. " +
-                "No text. Clean composition. Use vibrant but tasteful colors. Suitable as a square thumbnail.";
+    private static String buildPrompt(String eventName, String objective, String location) {
+        String name = safe(eventName);
+        String obj = safe(objective);
+        String loc = safe(location);
+
+        String theme = inferTheme(obj, name);
+        String iconConcept = inferIconConcept(obj, name);
+        String palette = inferPalette(obj);
+        String composition = "horizontal cover banner layout with one clear focal element, plenty of negative space, simple shapes, and clean margins";
+
+        String locationHint = loc.isBlank()
+                ? ""
+                : "Subtle location context inspired by '" + loc + "' as environment/venue style only (do not render text). ";
+
+        return "Create a promotional event cover image (horizontal landscape banner 16:9). " +
+                "The event is: '" + name + "'. " +
+                "Description: '" + obj + "'. " +
+                locationHint +
+                "Theme: " + theme + ". " +
+                "Key visual elements: " + iconConcept + ". " +
+                "Color palette: " + palette + ". " +
+                "Composition: " + composition + ". " +
+                "Style: modern graphic design poster, premium promotional look, crisp details, subtle depth, clean layout. " +
+                "Keep it simple and to the point: limit the design to 1 main subject plus at most 2 supporting decorative elements. Avoid busy patterns or many objects. " +
+                "Background may be a subtle themed backdrop (can be scene-like), but it must remain soft and uncluttered so the event reads clearly at a glance. " +
+                "Do NOT make it look like a logo or icon; it should feel like a clean promotional cover image. " +
+                "Compose with safe margins (leave room for potential UI overlays). " +
+                "Constraints: no watermarks, no brand logos, no UI. Avoid readable text (no words, no letters, no numbers).";
+    }
+
+    private static String inferTheme(String objective, String eventName) {
+        String o = (objective == null ? "" : objective).toLowerCase();
+        String n = (eventName == null ? "" : eventName).toLowerCase();
+
+        String all = (o + " " + n).trim();
+
+        if (containsAny(all, "cumple", "birthday", "aniversario")) {
+            return "birthday celebration";
+        }
+        if (containsAny(all, "boda", "wedding", "matrimonio")) {
+            return "wedding celebration";
+        }
+        if (containsAny(all, "concierto", "concert", "festival", "dj", "musica", "music")) {
+            return "music event";
+        }
+        if (containsAny(all, "corpor", "empresa", "business", "convenci", "network")) {
+            return "professional corporate event";
+        }
+        if (containsAny(all, "infantil", "kids", "niñ", "child", "school")) {
+            return "kids-friendly celebration";
+        }
+        if (containsAny(all, "deport", "match", "futbol", "football", "soccer", "basket")) {
+            return "sports event";
+        }
+        if (containsAny(all, "baby", "gender reveal", "revelacion", "baby shower")) {
+            return "baby shower / family celebration";
+        }
+        return "a social event";
+    }
+
+    private static String inferIconConcept(String objective, String eventName) {
+        String o = (objective == null ? "" : objective).toLowerCase();
+        String n = (eventName == null ? "" : eventName).toLowerCase();
+        String all = (o + " " + n).trim();
+
+        if (containsAny(all, "cumple", "birthday", "aniversario")) {
+            return "a single birthday emblem: a stylized birthday cake with one candle and a balloon, isolated on clean background";
+        }
+        if (containsAny(all, "wedding", "boda", "matrimonio")) {
+            return "a single wedding emblem: elegant intertwined rings with subtle floral accent, isolated on clean background";
+        }
+        if (containsAny(all, "concierto", "concert", "festival", "dj", "musica", "music")) {
+            return "a single music emblem: a microphone or guitar pick icon rendered as a realistic emblem, isolated on clean background";
+        }
+        if (containsAny(all, "corpor", "empresa", "business", "convenci", "network")) {
+            return "a single corporate emblem: a minimal geometric mark suggesting networking/connection nodes, realistic emblem, isolated";
+        }
+        if (containsAny(all, "infantil", "kids", "niñ", "child", "school")) {
+            return "a single kids emblem: a playful party hat with confetti, realistic emblem, isolated";
+        }
+        if (containsAny(all, "deport", "match", "futbol", "football", "soccer", "basket")) {
+            return "a single sports emblem: a ball icon (soccer/basket) rendered as a realistic emblem, isolated";
+        }
+        if (containsAny(all, "baby", "gender reveal", "revelacion", "baby shower")) {
+            return "a single baby celebration emblem: a baby bottle or pacifier icon rendered as a realistic emblem, isolated";
+        }
+        return "a single modern emblem/icon that represents the objective, isolated on a clean background";
+    }
+
+    private static String inferPalette(String objective) {
+        String o = (objective == null ? "" : objective).toLowerCase();
+
+        if (containsAny(o, "wedding", "boda")) {
+            return "soft whites, creams, gold accents";
+        }
+        if (containsAny(o, "concierto", "concert", "festival", "dj", "musica", "music")) {
+            return "deep blacks with neon accents (purple/blue)";
+        }
+        if (containsAny(o, "corpor", "empresa", "business", "convenci", "network")) {
+            return "neutral tones (charcoal, white) with subtle accent";
+        }
+        if (containsAny(o, "infantil", "kids", "niñ", "child", "cumple", "birthday")) {
+            return "bright but balanced colors (pastels with a few vibrant accents)";
+        }
+        return "vibrant but tasteful colors";
+    }
+
+    private static boolean containsAny(String haystack, String... needles) {
+        if (haystack == null || haystack.isBlank()) {
+            return false;
+        }
+        String h = haystack.toLowerCase();
+        for (String n : needles) {
+            if (n == null || n.isBlank()) continue;
+            if (h.contains(n.toLowerCase())) return true;
+        }
+        return false;
     }
 
     private static String safe(String value) {

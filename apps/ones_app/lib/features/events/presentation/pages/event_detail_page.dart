@@ -5,7 +5,6 @@ import '../../../auth/presentation/auth_controller.dart';
 
 import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
-import '../events_metadata_controller.dart';
 import 'photo_capture_page.dart';
 
 class EventDetailPage extends StatefulWidget {
@@ -22,7 +21,6 @@ class EventDetailPage extends StatefulWidget {
 class _EventDetailPageState extends State<EventDetailPage> {
   int _tabIndex = 0;
   final _searchController = TextEditingController();
-  bool _metadataLoadTriggered = false;
 
   @override
   void initState() {
@@ -41,19 +39,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<EventsController>();
-    final metadataController = context.watch<EventsMetadataController>();
     final event = controller.selected;
-
-    if (!_metadataLoadTriggered) {
-      _metadataLoadTriggered = true;
-      Future.microtask(() async {
-        try {
-          await metadataController.ensureLoaded();
-        } catch (_) {
-          // ignore
-        }
-      });
-    }
 
     final size = MediaQuery.sizeOf(context);
     final horizontalPadding = size.width >= 520 ? 28.0 : 16.0;
@@ -115,10 +101,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                                   eventId: event.id,
                                   coverKey: event.coverKey,
                                   title: event.title,
-                                  eventType: _eventTypeLabel(
-                                    metadataController,
-                                    event.eventTypeId,
-                                  ),
+                                  eventType: event.objective,
                                   startAt: event.startAt,
                                   endAt: event.endAt,
                                   location: event.location,
@@ -136,19 +119,6 @@ String _eventSubtitle(DateTime startAt, String location) {
   final date = _formatMonthDayYear(startAt.toLocal());
   final loc = location.trim().isEmpty ? '-' : location.trim();
   return '$date • $loc';
-}
-
-String _eventTypeLabel(
-    EventsMetadataController controller, String eventTypeId) {
-  final metadata = controller.metadata;
-  if (metadata == null) return eventTypeId;
-
-  for (final c in metadata.categories) {
-    for (final t in c.eventTypes) {
-      if (t.id == eventTypeId) return t.label;
-    }
-  }
-  return eventTypeId;
 }
 
 String _formatMonthDayYear(DateTime dt) {
@@ -808,6 +778,8 @@ class _DetailsTabState extends State<_DetailsTab> {
     final start = widget.startAt.toLocal();
     final end = widget.endAt.toLocal();
     final location = widget.location.trim().isEmpty ? '-' : widget.location;
+    final description =
+        widget.eventType.trim().isEmpty ? '-' : widget.eventType;
 
     return ListView(
       children: [
@@ -850,8 +822,8 @@ class _DetailsTabState extends State<_DetailsTab> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _ReadOnlyField(
-                    label: 'Event Type',
-                    value: widget.eventType,
+                    label: 'Location',
+                    value: location,
                   ),
                 ),
               ],
@@ -878,7 +850,12 @@ class _DetailsTabState extends State<_DetailsTab> {
               ],
             ),
             const SizedBox(height: 12),
-            _ReadOnlyField(label: 'Location', value: location),
+            _ReadOnlyField(
+              label: 'Description',
+              value: description,
+              maxLines: null,
+              overflow: null,
+            ),
           ],
         ),
         const SizedBox(height: 14),
@@ -1050,8 +1027,15 @@ class _DetailsCard extends StatelessWidget {
 class _ReadOnlyField extends StatelessWidget {
   final String label;
   final String value;
+  final int? maxLines;
+  final TextOverflow? overflow;
 
-  const _ReadOnlyField({required this.label, required this.value});
+  const _ReadOnlyField({
+    required this.label,
+    required this.value,
+    this.maxLines = 1,
+    this.overflow = TextOverflow.ellipsis,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1070,8 +1054,8 @@ class _ReadOnlyField extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           v,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+          maxLines: maxLines,
+          overflow: overflow,
           style: const TextStyle(
             fontWeight: FontWeight.w900,
             fontSize: 14,

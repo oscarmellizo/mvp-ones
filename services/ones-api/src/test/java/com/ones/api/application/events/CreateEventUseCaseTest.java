@@ -29,7 +29,7 @@ class CreateEventUseCaseTest {
         assertEquals("user-123", created.getOwnerId());
         assertEquals("Hello", created.getTitle());
         assertEquals(Instant.parse("2025-01-01T00:00:00Z"), created.getCreatedAt());
-        assertEquals("birthday", created.getEventTypeId());
+        assertEquals("birthday", created.getObjective());
         assertEquals("San Jose, CR", created.getLocation());
         assertEquals(startAt, created.getStartAt());
         assertEquals(endAt, created.getEndAt());

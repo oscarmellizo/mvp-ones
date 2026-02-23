@@ -7,6 +7,12 @@ class EventCoversApiRepository {
 
   String? _idToken;
 
+  Map<String, String>? _authHeaders() {
+    final token = _idToken;
+    if (token == null || token.isEmpty) return null;
+    return <String, String>{'Authorization': 'Bearer $token'};
+  }
+
   EventCoversApiRepository(OnesApiFactory apiFactory)
       : _defaultApi =
             ((idToken) => apiFactory.create(idToken: idToken).getDefaultApi());
@@ -21,20 +27,20 @@ class EventCoversApiRepository {
 
   Future<api.GenerateEventCoverResponse> generate({
     required String eventName,
-    required String categoryLabel,
-    required String eventTypeLabel,
+    required String objective,
     required String location,
     String? size,
   }) async {
     final req = api.GenerateEventCoverRequest((b) => b
       ..eventName = eventName
-      ..categoryLabel = categoryLabel
-      ..eventTypeLabel = eventTypeLabel
+      ..objective = objective
       ..location = location
       ..size = size);
 
-    final res = await _defaultApi(_idToken)
-        .generateEventCover(generateEventCoverRequest: req);
+    final res = await _defaultApi(_idToken).generateEventCover(
+      generateEventCoverRequest: req,
+      headers: _authHeaders(),
+    );
 
     final data = res.data;
     if (data == null) {
@@ -44,7 +50,10 @@ class EventCoversApiRepository {
   }
 
   Future<String> accept(String coverId) async {
-    final res = await _defaultApi(_idToken).acceptEventCover(coverId: coverId);
+    final res = await _defaultApi(_idToken).acceptEventCover(
+      coverId: coverId,
+      headers: _authHeaders(),
+    );
     final data = res.data;
     if (data == null) {
       throw StateError('Missing acceptEventCover response');
@@ -53,6 +62,9 @@ class EventCoversApiRepository {
   }
 
   Future<void> cancel(String coverId) async {
-    await _defaultApi(_idToken).cancelEventCover(coverId: coverId);
+    await _defaultApi(_idToken).cancelEventCover(
+      coverId: coverId,
+      headers: _authHeaders(),
+    );
   }
 }

@@ -7,7 +7,7 @@ public record EventResponse(
         String ownerId,
         Instant createdAt,
         String title,
-        String eventTypeId,
+        String objective,
         String location,
         Instant startAt,
         Instant endAt,

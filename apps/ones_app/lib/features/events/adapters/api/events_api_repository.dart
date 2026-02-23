@@ -42,7 +42,7 @@ class EventsApiRepository implements EventsRepository {
   @override
   Future<Event> createEvent(
     String title,
-    String eventTypeId,
+    String objective,
     String location,
     DateTime startAt,
     DateTime endAt,
@@ -50,7 +50,7 @@ class EventsApiRepository implements EventsRepository {
   ) async {
     final req = api.CreateEventRequest((b) => b
       ..title = title
-      ..eventTypeId = eventTypeId
+      ..objective = objective
       ..location = location
       ..startAt = startAt
       ..endAt = endAt
@@ -70,7 +70,7 @@ class EventsApiRepository implements EventsRepository {
       ownerId: e.ownerId,
       createdAt: e.createdAt,
       title: e.title,
-      eventTypeId: e.eventTypeId,
+      objective: e.objective,
       location: e.location,
       startAt: e.startAt,
       endAt: e.endAt,

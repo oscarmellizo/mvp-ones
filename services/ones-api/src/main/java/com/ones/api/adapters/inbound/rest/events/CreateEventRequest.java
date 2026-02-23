@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotNull;
 
 public record CreateEventRequest(
         @NotBlank String title,
-        @NotBlank String eventTypeId,
+        @NotBlank String objective,
         @NotBlank String location,
         @NotNull Instant startAt,
         @NotNull Instant endAt,

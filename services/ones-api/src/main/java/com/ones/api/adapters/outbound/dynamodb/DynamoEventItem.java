@@ -14,7 +14,7 @@ public class DynamoEventItem {
     private String createdAt;
     private String title;
 
-    private String eventTypeId;
+    private String objective;
     private String location;
     private String startAt;
     private String endAt;
@@ -60,13 +60,13 @@ public class DynamoEventItem {
         this.title = title;
     }
 
-    @DynamoDbAttribute("eventTypeId")
-    public String getEventTypeId() {
-        return eventTypeId;
+    @DynamoDbAttribute("objective")
+    public String getObjective() {
+        return objective;
     }
 
-    public void setEventTypeId(String eventTypeId) {
-        this.eventTypeId = eventTypeId;
+    public void setObjective(String objective) {
+        this.objective = objective;
     }
 
     @DynamoDbAttribute("location")

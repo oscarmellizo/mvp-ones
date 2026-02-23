@@ -8,7 +8,7 @@ class CreateEventUseCase {
 
   Future<Event> execute(
     String title,
-    String eventTypeId,
+    String objective,
     String location,
     DateTime startAt,
     DateTime endAt,
@@ -16,7 +16,7 @@ class CreateEventUseCase {
   ) {
     return repository.createEvent(
       title,
-      eventTypeId,
+      objective,
       location,
       startAt,
       endAt,

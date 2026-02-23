@@ -11,21 +11,19 @@ part 'generate_event_cover_request.g.dart';
 /// GenerateEventCoverRequest
 ///
 /// Properties:
-/// * [eventName] 
-/// * [categoryLabel] 
-/// * [eventTypeLabel] 
-/// * [location] 
+/// * [eventName]
+/// * [objective]
+/// * [location]
 /// * [size] - Image size; backend may ignore unsupported values
 @BuiltValue()
-abstract class GenerateEventCoverRequest implements Built<GenerateEventCoverRequest, GenerateEventCoverRequestBuilder> {
+abstract class GenerateEventCoverRequest
+    implements
+        Built<GenerateEventCoverRequest, GenerateEventCoverRequestBuilder> {
   @BuiltValueField(wireName: r'eventName')
   String get eventName;
 
-  @BuiltValueField(wireName: r'categoryLabel')
-  String get categoryLabel;
-
-  @BuiltValueField(wireName: r'eventTypeLabel')
-  String get eventTypeLabel;
+  @BuiltValueField(wireName: r'objective')
+  String get objective;
 
   @BuiltValueField(wireName: r'location')
   String get location;
@@ -36,18 +34,25 @@ abstract class GenerateEventCoverRequest implements Built<GenerateEventCoverRequ
 
   GenerateEventCoverRequest._();
 
-  factory GenerateEventCoverRequest([void updates(GenerateEventCoverRequestBuilder b)]) = _$GenerateEventCoverRequest;
+  factory GenerateEventCoverRequest(
+          [void updates(GenerateEventCoverRequestBuilder b)]) =
+      _$GenerateEventCoverRequest;
 
   @BuiltValueHook(initializeBuilder: true)
   static void _defaults(GenerateEventCoverRequestBuilder b) => b;
 
   @BuiltValueSerializer(custom: true)
-  static Serializer<GenerateEventCoverRequest> get serializer => _$GenerateEventCoverRequestSerializer();
+  static Serializer<GenerateEventCoverRequest> get serializer =>
+      _$GenerateEventCoverRequestSerializer();
 }
 
-class _$GenerateEventCoverRequestSerializer implements PrimitiveSerializer<GenerateEventCoverRequest> {
+class _$GenerateEventCoverRequestSerializer
+    implements PrimitiveSerializer<GenerateEventCoverRequest> {
   @override
-  final Iterable<Type> types = const [GenerateEventCoverRequest, _$GenerateEventCoverRequest];
+  final Iterable<Type> types = const [
+    GenerateEventCoverRequest,
+    _$GenerateEventCoverRequest
+  ];
 
   @override
   final String wireName = r'GenerateEventCoverRequest';
@@ -62,14 +67,9 @@ class _$GenerateEventCoverRequestSerializer implements PrimitiveSerializer<Gener
       object.eventName,
       specifiedType: const FullType(String),
     );
-    yield r'categoryLabel';
+    yield r'objective';
     yield serializers.serialize(
-      object.categoryLabel,
-      specifiedType: const FullType(String),
-    );
-    yield r'eventTypeLabel';
-    yield serializers.serialize(
-      object.eventTypeLabel,
+      object.objective,
       specifiedType: const FullType(String),
     );
     yield r'location';
@@ -92,7 +92,9 @@ class _$GenerateEventCoverRequestSerializer implements PrimitiveSerializer<Gener
     GenerateEventCoverRequest object, {
     FullType specifiedType = FullType.unspecified,
   }) {
-    return _serializeProperties(serializers, object, specifiedType: specifiedType).toList();
+    return _serializeProperties(serializers, object,
+            specifiedType: specifiedType)
+        .toList();
   }
 
   void _deserializeProperties(
@@ -114,19 +116,12 @@ class _$GenerateEventCoverRequestSerializer implements PrimitiveSerializer<Gener
           ) as String;
           result.eventName = valueDes;
           break;
-        case r'categoryLabel':
+        case r'objective':
           final valueDes = serializers.deserialize(
             value,
             specifiedType: const FullType(String),
           ) as String;
-          result.categoryLabel = valueDes;
-          break;
-        case r'eventTypeLabel':
-          final valueDes = serializers.deserialize(
-            value,
-            specifiedType: const FullType(String),
-          ) as String;
-          result.eventTypeLabel = valueDes;
+          result.objective = valueDes;
           break;
         case r'location':
           final valueDes = serializers.deserialize(
@@ -170,4 +165,3 @@ class _$GenerateEventCoverRequestSerializer implements PrimitiveSerializer<Gener
     return result.build();
   }
 }
-

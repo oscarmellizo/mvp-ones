@@ -58,7 +58,7 @@ public class EventsController {
         Event created = createEventUseCase.execute(
                 ownerId,
                 request.title(),
-                request.eventTypeId(),
+                request.objective(),
                 request.location(),
                 request.startAt(),
                 request.endAt(),
@@ -80,7 +80,7 @@ public class EventsController {
                 e.getOwnerId(),
                 e.getCreatedAt(),
                 e.getTitle(),
-                e.getEventTypeId(),
+                e.getObjective(),
                 e.getLocation(),
                 e.getStartAt(),
                 e.getEndAt(),

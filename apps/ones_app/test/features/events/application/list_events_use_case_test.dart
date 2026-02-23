@@ -11,7 +11,7 @@ class _FakeEventsRepository implements EventsRepository {
   @override
   Future<Event> createEvent(
     String title,
-    String eventTypeId,
+    String objective,
     String location,
     DateTime startAt,
     DateTime endAt,
@@ -39,7 +39,7 @@ void main() {
         ownerId: 'u',
         createdAt: DateTime.utc(2025, 1, 1),
         title: 'A',
-        eventTypeId: 'birthday',
+        objective: 'birthday',
         location: 'Somewhere',
         startAt: DateTime.utc(2025, 1, 1, 18),
         endAt: DateTime.utc(2025, 1, 1, 22),
@@ -50,7 +50,7 @@ void main() {
         ownerId: 'u',
         createdAt: DateTime.utc(2025, 1, 2),
         title: 'B',
-        eventTypeId: 'wedding',
+        objective: 'wedding',
         location: 'Somewhere',
         startAt: DateTime.utc(2025, 1, 2, 18),
         endAt: DateTime.utc(2025, 1, 2, 22),

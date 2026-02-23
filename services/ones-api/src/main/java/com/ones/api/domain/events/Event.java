@@ -9,7 +9,7 @@ public class Event {
     private final String ownerId;
     private final Instant createdAt;
     private final String title;
-    private final String eventTypeId;
+    private final String objective;
     private final String location;
     private final Instant startAt;
     private final Instant endAt;
@@ -20,7 +20,7 @@ public class Event {
             String ownerId,
             Instant createdAt,
             String title,
-            String eventTypeId,
+            String objective,
             String location,
             Instant startAt,
             Instant endAt,
@@ -30,7 +30,7 @@ public class Event {
         this.ownerId = Objects.requireNonNull(ownerId);
         this.createdAt = Objects.requireNonNull(createdAt);
         this.title = Objects.requireNonNull(title);
-        this.eventTypeId = Objects.requireNonNull(eventTypeId);
+        this.objective = Objects.requireNonNull(objective);
         this.location = Objects.requireNonNull(location);
         this.startAt = Objects.requireNonNull(startAt);
         this.endAt = Objects.requireNonNull(endAt);
@@ -53,8 +53,8 @@ public class Event {
         return title;
     }
 
-    public String getEventTypeId() {
-        return eventTypeId;
+    public String getObjective() {
+        return objective;
     }
 
     public String getLocation() {

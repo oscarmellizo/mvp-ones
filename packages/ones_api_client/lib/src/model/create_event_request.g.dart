@@ -10,7 +10,7 @@ class _$CreateEventRequest extends CreateEventRequest {
   @override
   final String title;
   @override
-  final String eventTypeId;
+  final String objective;
   @override
   final String location;
   @override
@@ -26,7 +26,7 @@ class _$CreateEventRequest extends CreateEventRequest {
 
   _$CreateEventRequest._(
       {required this.title,
-      required this.eventTypeId,
+      required this.objective,
       required this.location,
       required this.startAt,
       required this.endAt,
@@ -35,7 +35,7 @@ class _$CreateEventRequest extends CreateEventRequest {
     BuiltValueNullFieldError.checkNotNull(
         title, r'CreateEventRequest', 'title');
     BuiltValueNullFieldError.checkNotNull(
-        eventTypeId, r'CreateEventRequest', 'eventTypeId');
+        objective, r'CreateEventRequest', 'objective');
     BuiltValueNullFieldError.checkNotNull(
         location, r'CreateEventRequest', 'location');
     BuiltValueNullFieldError.checkNotNull(
@@ -58,7 +58,7 @@ class _$CreateEventRequest extends CreateEventRequest {
     if (identical(other, this)) return true;
     return other is CreateEventRequest &&
         title == other.title &&
-        eventTypeId == other.eventTypeId &&
+        objective == other.objective &&
         location == other.location &&
         startAt == other.startAt &&
         endAt == other.endAt &&
@@ -69,7 +69,7 @@ class _$CreateEventRequest extends CreateEventRequest {
   int get hashCode {
     var _$hash = 0;
     _$hash = $jc(_$hash, title.hashCode);
-    _$hash = $jc(_$hash, eventTypeId.hashCode);
+    _$hash = $jc(_$hash, objective.hashCode);
     _$hash = $jc(_$hash, location.hashCode);
     _$hash = $jc(_$hash, startAt.hashCode);
     _$hash = $jc(_$hash, endAt.hashCode);
@@ -82,7 +82,7 @@ class _$CreateEventRequest extends CreateEventRequest {
   String toString() {
     return (newBuiltValueToStringHelper(r'CreateEventRequest')
           ..add('title', title)
-          ..add('eventTypeId', eventTypeId)
+          ..add('objective', objective)
           ..add('location', location)
           ..add('startAt', startAt)
           ..add('endAt', endAt)
@@ -99,9 +99,9 @@ class CreateEventRequestBuilder
   String? get title => _$this._title;
   set title(String? title) => _$this._title = title;
 
-  String? _eventTypeId;
-  String? get eventTypeId => _$this._eventTypeId;
-  set eventTypeId(String? eventTypeId) => _$this._eventTypeId = eventTypeId;
+  String? _objective;
+  String? get objective => _$this._objective;
+  set objective(String? objective) => _$this._objective = objective;
 
   String? _location;
   String? get location => _$this._location;
@@ -128,7 +128,7 @@ class CreateEventRequestBuilder
     final $v = _$v;
     if ($v != null) {
       _title = $v.title;
-      _eventTypeId = $v.eventTypeId;
+      _objective = $v.objective;
       _location = $v.location;
       _startAt = $v.startAt;
       _endAt = $v.endAt;
@@ -157,8 +157,8 @@ class CreateEventRequestBuilder
         new _$CreateEventRequest._(
             title: BuiltValueNullFieldError.checkNotNull(
                 title, r'CreateEventRequest', 'title'),
-            eventTypeId: BuiltValueNullFieldError.checkNotNull(
-                eventTypeId, r'CreateEventRequest', 'eventTypeId'),
+            objective: BuiltValueNullFieldError.checkNotNull(
+                objective, r'CreateEventRequest', 'objective'),
             location: BuiltValueNullFieldError.checkNotNull(
                 location, r'CreateEventRequest', 'location'),
             startAt: BuiltValueNullFieldError.checkNotNull(

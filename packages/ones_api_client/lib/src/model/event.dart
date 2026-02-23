@@ -11,14 +11,14 @@ part 'event.g.dart';
 /// Event
 ///
 /// Properties:
-/// * [id] 
-/// * [ownerId] 
-/// * [createdAt] 
-/// * [title] 
-/// * [eventTypeId] 
-/// * [location] 
-/// * [startAt] 
-/// * [endAt] 
+/// * [id]
+/// * [ownerId]
+/// * [createdAt]
+/// * [title]
+/// * [objective]
+/// * [location]
+/// * [startAt]
+/// * [endAt]
 /// * [coverKey] - S3 key (final bucket) for the event cover PNG
 @BuiltValue()
 abstract class Event implements Built<Event, EventBuilder> {
@@ -34,8 +34,8 @@ abstract class Event implements Built<Event, EventBuilder> {
   @BuiltValueField(wireName: r'title')
   String get title;
 
-  @BuiltValueField(wireName: r'eventTypeId')
-  String get eventTypeId;
+  @BuiltValueField(wireName: r'objective')
+  String get objective;
 
   @BuiltValueField(wireName: r'location')
   String get location;
@@ -93,9 +93,9 @@ class _$EventSerializer implements PrimitiveSerializer<Event> {
       object.title,
       specifiedType: const FullType(String),
     );
-    yield r'eventTypeId';
+    yield r'objective';
     yield serializers.serialize(
-      object.eventTypeId,
+      object.objective,
       specifiedType: const FullType(String),
     );
     yield r'location';
@@ -128,7 +128,9 @@ class _$EventSerializer implements PrimitiveSerializer<Event> {
     Event object, {
     FullType specifiedType = FullType.unspecified,
   }) {
-    return _serializeProperties(serializers, object, specifiedType: specifiedType).toList();
+    return _serializeProperties(serializers, object,
+            specifiedType: specifiedType)
+        .toList();
   }
 
   void _deserializeProperties(
@@ -171,12 +173,12 @@ class _$EventSerializer implements PrimitiveSerializer<Event> {
           ) as String;
           result.title = valueDes;
           break;
-        case r'eventTypeId':
+        case r'objective':
           final valueDes = serializers.deserialize(
             value,
             specifiedType: const FullType(String),
           ) as String;
-          result.eventTypeId = valueDes;
+          result.objective = valueDes;
           break;
         case r'location':
           final valueDes = serializers.deserialize(
@@ -235,4 +237,3 @@ class _$EventSerializer implements PrimitiveSerializer<Event> {
     return result.build();
   }
 }
-
