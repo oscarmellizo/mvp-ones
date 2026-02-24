@@ -126,9 +126,11 @@ class _EventsListPageState extends State<EventsListPage> {
                                     ? url
                                     : null,
                                 fallbackAsset: cover,
+                                dateText: null,
                                 timeText:
                                     '${_formatTimeOfDay(displayStart)} - ${_formatTimeOfDay(displayEnd)}',
                                 badgeText: isLiveNow ? 'LIVE NOW' : null,
+                                width: 260,
                                 onTap: () => Navigator.of(context).pushNamed(
                                   EventDetailPage.routeName,
                                   arguments: e.id,
@@ -157,44 +159,69 @@ class _EventsListPageState extends State<EventsListPage> {
                 const SizedBox(height: 12),
               ],
               if (!controller.loading)
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: nextEvents.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.30,
-                  ),
-                  itemBuilder: (context, i) {
-                    final e = nextEvents[i];
-                    final cover = i.isEven
-                        ? 'assets/auth/amigos.png'
-                        : 'assets/auth/concierto.png';
-                    final when = e.startAt.toLocal();
-                    final end = e.endAt.toLocal();
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    const spacing = 12.0;
+                    const minCardWidth = 170.0;
 
-                    return FutureBuilder<String?>(
-                      future: coverUrls.getUrlIfAny(
-                        eventId: e.id,
-                        coverKey: e.coverKey,
+                    final availableWidth = constraints.maxWidth;
+                    final crossAxisCount =
+                        ((availableWidth + spacing) / (minCardWidth + spacing))
+                            .floor()
+                            .clamp(1, 10);
+
+                    final computedCardWidth =
+                        (availableWidth - (spacing * (crossAxisCount - 1))) /
+                            crossAxisCount;
+
+                    final childAspectRatio = computedCardWidth <= 220
+                        ? 1.05
+                        : computedCardWidth <= 320
+                            ? 1.15
+                            : 1.25;
+
+                    return GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: nextEvents.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        crossAxisSpacing: spacing,
+                        mainAxisSpacing: spacing,
+                        childAspectRatio: childAspectRatio,
                       ),
-                      builder: (context, snapshot) {
-                        final url = snapshot.data;
-                        return _NextEventCard(
-                          title: e.title,
-                          dateText: _formatMonthDayYear(when),
-                          timeText:
-                              '${_formatTimeOfDay(when)} - ${_formatTimeOfDay(end)}',
-                          location: e.location,
-                          imageUrl:
-                              (url != null && url.isNotEmpty) ? url : null,
-                          fallbackAsset: cover,
-                          onTap: () => Navigator.of(context).pushNamed(
-                            EventDetailPage.routeName,
-                            arguments: e.id,
+                      itemBuilder: (context, i) {
+                        final e = nextEvents[i];
+                        final cover = i.isEven
+                            ? 'assets/auth/amigos.png'
+                            : 'assets/auth/concierto.png';
+                        final when = e.startAt.toLocal();
+                        final end = e.endAt.toLocal();
+
+                        return FutureBuilder<String?>(
+                          future: coverUrls.getUrlIfAny(
+                            eventId: e.id,
+                            coverKey: e.coverKey,
                           ),
+                          builder: (context, snapshot) {
+                            final url = snapshot.data;
+                            return _UpcomingCard(
+                              title: e.title,
+                              location: e.location,
+                              imageUrl:
+                                  (url != null && url.isNotEmpty) ? url : null,
+                              fallbackAsset: cover,
+                              dateText: _formatMonthDayYear(when),
+                              timeText:
+                                  '${_formatTimeOfDay(when)} - ${_formatTimeOfDay(end)}',
+                              badgeText: null,
+                              width: null,
+                              onTap: () => Navigator.of(context).pushNamed(
+                                EventDetailPage.routeName,
+                                arguments: e.id,
+                              ),
+                            );
+                          },
                         );
                       },
                     );
@@ -358,7 +385,9 @@ class _UpcomingCard extends StatelessWidget {
   final String? imageUrl;
   final String fallbackAsset;
   final String? badgeText;
+  final String? dateText;
   final String timeText;
+  final double? width;
   final VoidCallback onTap;
 
   const _UpcomingCard({
@@ -368,6 +397,8 @@ class _UpcomingCard extends StatelessWidget {
     required this.fallbackAsset,
     required this.timeText,
     required this.badgeText,
+    required this.dateText,
+    required this.width,
     required this.onTap,
   });
 
@@ -377,7 +408,7 @@ class _UpcomingCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(26),
       child: Ink(
-        width: 260,
+        width: width ?? 260,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(26),
         ),
@@ -448,6 +479,26 @@ class _UpcomingCard extends StatelessWidget {
                         ),
                   ),
                   const SizedBox(height: 6),
+                  if (dateText != null) ...[
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.calendar_today,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          dateText!,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                  ],
                   Row(
                     children: [
                       const Icon(
@@ -484,155 +535,6 @@ class _UpcomingCard extends StatelessWidget {
                     ],
                   ),
                 ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NextEventCard extends StatelessWidget {
-  final String title;
-  final String dateText;
-  final String timeText;
-  final String location;
-  final String? imageUrl;
-  final String fallbackAsset;
-  final VoidCallback onTap;
-
-  const _NextEventCard({
-    required this.title,
-    required this.dateText,
-    required this.timeText,
-    required this.location,
-    required this.imageUrl,
-    required this.fallbackAsset,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(18),
-                topRight: Radius.circular(18),
-              ),
-              child: SizedBox(
-                height: 52,
-                width: double.infinity,
-                child: (imageUrl != null)
-                    ? Image.network(
-                        imageUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Image.asset(
-                          fallbackAsset,
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : Image.asset(
-                        fallbackAsset,
-                        fit: BoxFit.cover,
-                      ),
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        height: 1.05,
-                        fontSize: 13,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.calendar_today,
-                          size: 13,
-                          color: Colors.black.withOpacity(0.55),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            dateText,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.black.withOpacity(0.65),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.access_time,
-                          size: 13,
-                          color: Colors.black.withOpacity(0.55),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            timeText,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.black.withOpacity(0.65),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.location_on,
-                          size: 13,
-                          color: Colors.black.withOpacity(0.55),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            location,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.black.withOpacity(0.65),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
               ),
             ),
           ],
