@@ -32,12 +32,12 @@ import 'features/events/presentation/pages/create_event_page.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 
 class OnesApp extends StatelessWidget {
-  const OnesApp({super.key});
+  final AppConfig config;
+
+  const OnesApp({super.key, required this.config});
 
   @override
   Widget build(BuildContext context) {
-    final config = AppConfig.fromDartDefines();
-
     final apiFactory = OnesApiFactory(config);
 
     final authRepository =

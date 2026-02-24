@@ -1,0 +1,5 @@
+{
+  "env": "dev",
+  "apiBaseUrl": "http://192.168.1.11:8080",
+  "googleWebClientId": "403122779240-ahjm73ogughiivnn3o23jfsk25usmfng.apps.googleusercontent.com"
+}

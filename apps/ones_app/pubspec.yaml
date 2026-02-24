@@ -37,6 +37,8 @@ dependencies:
   built_collection: ^5.1.1
   shared_preferences: ^2.2.3
 
+  camera: ^0.11.0+2
+
   ones_api_client:
     path: ../../packages/ones_api_client
 
@@ -73,6 +75,7 @@ flutter:
   assets:
     - assets/splash/
     - assets/auth/
+    - assets/config/
 
 flutter_native_splash:
   color: "#F4B64E"

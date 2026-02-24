@@ -13,7 +13,8 @@ class GoogleAuthRepository implements AuthRepository {
 
   GoogleSignIn get _signIn {
     return _googleSignIn ??= GoogleSignIn(
-      clientId: kIsWeb ? null : webClientId,
+      clientId: kIsWeb ? webClientId : null,
+      serverClientId: kIsWeb ? null : webClientId,
       scopes: const ['email', 'profile', 'openid'],
     );
   }
@@ -45,8 +46,9 @@ class GoogleAuthRepository implements AuthRepository {
 
     if (idToken == null || idToken.isEmpty) {
       throw StateError(
-        'Missing Google idToken (webClientId=${webClientId ?? 'null'}). '
-        'Verify Google OAuth Authorized JavaScript origins and that the web client id matches GOOGLE_WEB_CLIENT_ID.',
+        'Missing Google idToken (GOOGLE_WEB_CLIENT_ID=${webClientId ?? 'null'}). '
+        'Ensure you are using the OAuth Web client ID and that it is provided via --dart-define=GOOGLE_WEB_CLIENT_ID=... '
+        '(Android uses serverClientId; Web uses clientId).',
       );
     }
 
