@@ -18,6 +18,7 @@ class EventsListPage extends StatefulWidget {
 
 class _EventsListPageState extends State<EventsListPage> {
   static const _bg = Color(0xFFF4B64E);
+  static const _divider = Color(0xFFE9A52E);
 
   final _searchController = TextEditingController();
 
@@ -72,16 +73,25 @@ class _EventsListPageState extends State<EventsListPage> {
         child: RefreshIndicator(
           onRefresh: () => controller.refresh(),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+            padding: const EdgeInsets.fromLTRB(0, 10, 0, 16),
             children: [
-              _Header(
-                onBell: () => showInvitationsSheet(context),
-                onDevice: () {},
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _Header(
+                  onBell: () => showInvitationsSheet(context),
+                  onDevice: () {},
+                ),
               ),
               const SizedBox(height: 14),
-              _SearchBar(controller: _searchController),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _SearchBar(controller: _searchController),
+              ),
               const SizedBox(height: 18),
-              const _SectionHeader(title: 'Today'),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: _SectionHeader(title: 'Today'),
+              ),
               const SizedBox(height: 12),
               SizedBox(
                 height: 260,
@@ -90,7 +100,10 @@ class _EventsListPageState extends State<EventsListPage> {
                     : ListView.separated(
                         scrollDirection: Axis.horizontal,
                         itemCount: todayCards.isEmpty ? 1 : todayCards.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 14),
+                        separatorBuilder: (_, __) => const SizedBox(
+                          width: 1,
+                          child: ColoredBox(color: _divider),
+                        ),
                         itemBuilder: (context, index) {
                           if (todayCards.isEmpty) {
                             return const _EmptyCard();
@@ -142,14 +155,18 @@ class _EventsListPageState extends State<EventsListPage> {
                       ),
               ),
               const SizedBox(height: 22),
-              const _SectionHeader(title: 'Next Events'),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: _SectionHeader(title: 'Next Events'),
+              ),
               const SizedBox(height: 12),
               if (controller.error != null) ...[
                 Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.zero,
                   ),
                   child: Text(
                     'Error: ${controller.error}',
@@ -161,7 +178,7 @@ class _EventsListPageState extends State<EventsListPage> {
               if (!controller.loading)
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    const spacing = 12.0;
+                    const spacing = 1.0;
                     const minCardWidth = 170.0;
 
                     final availableWidth = constraints.maxWidth;
@@ -180,50 +197,54 @@ class _EventsListPageState extends State<EventsListPage> {
                             ? 1.15
                             : 1.25;
 
-                    return GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: nextEvents.length,
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: crossAxisCount,
-                        crossAxisSpacing: spacing,
-                        mainAxisSpacing: spacing,
-                        childAspectRatio: childAspectRatio,
-                      ),
-                      itemBuilder: (context, i) {
-                        final e = nextEvents[i];
-                        final cover = i.isEven
-                            ? 'assets/auth/amigos.png'
-                            : 'assets/auth/concierto.png';
-                        final when = e.startAt.toLocal();
-                        final end = e.endAt.toLocal();
+                    return ColoredBox(
+                      color: _divider,
+                      child: GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: nextEvents.length,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
+                          crossAxisSpacing: spacing,
+                          mainAxisSpacing: spacing,
+                          childAspectRatio: childAspectRatio,
+                        ),
+                        itemBuilder: (context, i) {
+                          final e = nextEvents[i];
+                          final cover = i.isEven
+                              ? 'assets/auth/amigos.png'
+                              : 'assets/auth/concierto.png';
+                          final when = e.startAt.toLocal();
+                          final end = e.endAt.toLocal();
 
-                        return FutureBuilder<String?>(
-                          future: coverUrls.getUrlIfAny(
-                            eventId: e.id,
-                            coverKey: e.coverKey,
-                          ),
-                          builder: (context, snapshot) {
-                            final url = snapshot.data;
-                            return _UpcomingCard(
-                              title: e.title,
-                              location: e.location,
-                              imageUrl:
-                                  (url != null && url.isNotEmpty) ? url : null,
-                              fallbackAsset: cover,
-                              dateText: _formatMonthDayYear(when),
-                              timeText:
-                                  '${_formatTimeOfDay(when)} - ${_formatTimeOfDay(end)}',
-                              badgeText: null,
-                              width: null,
-                              onTap: () => Navigator.of(context).pushNamed(
-                                EventDetailPage.routeName,
-                                arguments: e.id,
-                              ),
-                            );
-                          },
-                        );
-                      },
+                          return FutureBuilder<String?>(
+                            future: coverUrls.getUrlIfAny(
+                              eventId: e.id,
+                              coverKey: e.coverKey,
+                            ),
+                            builder: (context, snapshot) {
+                              final url = snapshot.data;
+                              return _UpcomingCard(
+                                title: e.title,
+                                location: e.location,
+                                imageUrl: (url != null && url.isNotEmpty)
+                                    ? url
+                                    : null,
+                                fallbackAsset: cover,
+                                dateText: _formatMonthDayYear(when),
+                                timeText:
+                                    '${_formatTimeOfDay(when)} - ${_formatTimeOfDay(end)}',
+                                badgeText: null,
+                                width: null,
+                                onTap: () => Navigator.of(context).pushNamed(
+                                  EventDetailPage.routeName,
+                                  arguments: e.id,
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
                     );
                   },
                 ),
@@ -323,17 +344,16 @@ class _SearchBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
-      decoration: InputDecoration(
-        prefixIcon: const Icon(Icons.search),
+      decoration: const InputDecoration(
+        prefixIcon: Icon(Icons.search),
         hintText: 'Search events...',
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.zero,
           borderSide: BorderSide.none,
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       ),
     );
   }
@@ -370,9 +390,9 @@ class _EmptyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 260,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.6),
-        borderRadius: BorderRadius.circular(26),
+      decoration: const BoxDecoration(
+        color: Color(0x99FFFFFF),
+        borderRadius: BorderRadius.zero,
       ),
       child: const Center(child: Text('No upcoming events')),
     );
@@ -406,16 +426,14 @@ class _UpcomingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(26),
+      borderRadius: BorderRadius.zero,
       child: Ink(
         width: width ?? 260,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(26),
-        ),
+        decoration: const BoxDecoration(borderRadius: BorderRadius.zero),
         child: Stack(
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(26),
+              borderRadius: BorderRadius.zero,
               child: SizedBox(
                 width: double.infinity,
                 height: double.infinity,
@@ -436,7 +454,7 @@ class _UpcomingCard extends StatelessWidget {
             ),
             Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(26),
+                borderRadius: BorderRadius.zero,
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
@@ -458,7 +476,7 @@ class _UpcomingCard extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.25),
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.zero,
                       ),
                       child: Text(
                         badgeText!,
