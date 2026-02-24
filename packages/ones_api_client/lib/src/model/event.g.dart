@@ -25,6 +25,8 @@ class _$Event extends Event {
   final DateTime endAt;
   @override
   final String? coverKey;
+  @override
+  final bool? allowGuestInvites;
 
   factory _$Event([void Function(EventBuilder)? updates]) =>
       (new EventBuilder()..update(updates))._build();
@@ -38,7 +40,8 @@ class _$Event extends Event {
       required this.location,
       required this.startAt,
       required this.endAt,
-      this.coverKey})
+      this.coverKey,
+      this.allowGuestInvites})
       : super._() {
     BuiltValueNullFieldError.checkNotNull(id, r'Event', 'id');
     BuiltValueNullFieldError.checkNotNull(ownerId, r'Event', 'ownerId');
@@ -69,7 +72,8 @@ class _$Event extends Event {
         location == other.location &&
         startAt == other.startAt &&
         endAt == other.endAt &&
-        coverKey == other.coverKey;
+        coverKey == other.coverKey &&
+        allowGuestInvites == other.allowGuestInvites;
   }
 
   @override
@@ -84,6 +88,7 @@ class _$Event extends Event {
     _$hash = $jc(_$hash, startAt.hashCode);
     _$hash = $jc(_$hash, endAt.hashCode);
     _$hash = $jc(_$hash, coverKey.hashCode);
+    _$hash = $jc(_$hash, allowGuestInvites.hashCode);
     _$hash = $jf(_$hash);
     return _$hash;
   }
@@ -99,7 +104,8 @@ class _$Event extends Event {
           ..add('location', location)
           ..add('startAt', startAt)
           ..add('endAt', endAt)
-          ..add('coverKey', coverKey))
+          ..add('coverKey', coverKey)
+          ..add('allowGuestInvites', allowGuestInvites))
         .toString();
   }
 }
@@ -143,6 +149,11 @@ class EventBuilder implements Builder<Event, EventBuilder> {
   String? get coverKey => _$this._coverKey;
   set coverKey(String? coverKey) => _$this._coverKey = coverKey;
 
+  bool? _allowGuestInvites;
+  bool? get allowGuestInvites => _$this._allowGuestInvites;
+  set allowGuestInvites(bool? allowGuestInvites) =>
+      _$this._allowGuestInvites = allowGuestInvites;
+
   EventBuilder() {
     Event._defaults(this);
   }
@@ -159,6 +170,7 @@ class EventBuilder implements Builder<Event, EventBuilder> {
       _startAt = $v.startAt;
       _endAt = $v.endAt;
       _coverKey = $v.coverKey;
+      _allowGuestInvites = $v.allowGuestInvites;
       _$v = null;
     }
     return this;
@@ -196,7 +208,8 @@ class EventBuilder implements Builder<Event, EventBuilder> {
                 startAt, r'Event', 'startAt'),
             endAt:
                 BuiltValueNullFieldError.checkNotNull(endAt, r'Event', 'endAt'),
-            coverKey: coverKey);
+            coverKey: coverKey,
+            allowGuestInvites: allowGuestInvites);
     replace(_$result);
     return _$result;
   }

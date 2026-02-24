@@ -11,6 +11,7 @@ public record EventResponse(
         String location,
         Instant startAt,
         Instant endAt,
-        String coverKey
+        String coverKey,
+        boolean allowGuestInvites
 ) {
 }

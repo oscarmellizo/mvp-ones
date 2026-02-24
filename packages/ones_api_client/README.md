@@ -66,13 +66,18 @@ All URIs are relative to *http://localhost:8080*
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
 [*DefaultApi*](doc/DefaultApi.md) | [**acceptEventCover**](doc/DefaultApi.md#accepteventcover) | **POST** /v1/events/covers/{coverId}/accept | Accept a generated cover preview and obtain a reservation id for later event creation
+[*DefaultApi*](doc/DefaultApi.md) | [**acceptInvitation**](doc/DefaultApi.md#acceptinvitation) | **POST** /v1/invitations/{eventId}/accept | Accept an invitation for an event
 [*DefaultApi*](doc/DefaultApi.md) | [**cancelEventCover**](doc/DefaultApi.md#canceleventcover) | **POST** /v1/events/covers/{coverId}/cancel | Cancel a generated cover preview (best-effort delete temp object)
 [*DefaultApi*](doc/DefaultApi.md) | [**createEvent**](doc/DefaultApi.md#createevent) | **POST** /v1/events | Create event for authenticated user
 [*DefaultApi*](doc/DefaultApi.md) | [**generateEventCover**](doc/DefaultApi.md#generateeventcover) | **POST** /v1/events/covers/generate | Generate an AI event cover preview and return a pre-signed URL
 [*DefaultApi*](doc/DefaultApi.md) | [**getEvent**](doc/DefaultApi.md#getevent) | **GET** /v1/events/{id} | Get event by id (only if it belongs to authenticated user)
 [*DefaultApi*](doc/DefaultApi.md) | [**getEventCoverUrl**](doc/DefaultApi.md#geteventcoverurl) | **GET** /v1/events/{id}/cover-url | Get a pre-signed URL to view the event cover image (if configured)
 [*DefaultApi*](doc/DefaultApi.md) | [**health**](doc/DefaultApi.md#health) | **GET** /health | Health check
+[*DefaultApi*](doc/DefaultApi.md) | [**inviteEventGuests**](doc/DefaultApi.md#inviteeventguests) | **POST** /v1/events/{id}/invitees | Invite new guests to an existing event (owner only)
+[*DefaultApi*](doc/DefaultApi.md) | [**listEventGuests**](doc/DefaultApi.md#listeventguests) | **GET** /v1/events/{id}/guests | List guests for an event (owner + invitees with invitation status)
 [*DefaultApi*](doc/DefaultApi.md) | [**listEvents**](doc/DefaultApi.md#listevents) | **GET** /v1/events | List events for authenticated user
+[*DefaultApi*](doc/DefaultApi.md) | [**listInvitations**](doc/DefaultApi.md#listinvitations) | **GET** /v1/invitations | List invitations for authenticated user (by email claim)
+[*DefaultApi*](doc/DefaultApi.md) | [**rejectInvitation**](doc/DefaultApi.md#rejectinvitation) | **POST** /v1/invitations/{eventId}/reject | Reject an invitation for an event
 
 
 ## Documentation For Models
@@ -83,7 +88,10 @@ Class | Method | HTTP request | Description
  - [Event](doc/Event.md)
  - [GenerateEventCoverRequest](doc/GenerateEventCoverRequest.md)
  - [GenerateEventCoverResponse](doc/GenerateEventCoverResponse.md)
+ - [Guest](doc/Guest.md)
  - [HealthResponse](doc/HealthResponse.md)
+ - [Invitation](doc/Invitation.md)
+ - [InviteEventGuestsRequest](doc/InviteEventGuestsRequest.md)
  - [PresignedUrlResponse](doc/PresignedUrlResponse.md)
 
 

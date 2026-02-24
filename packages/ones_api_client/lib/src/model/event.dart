@@ -19,7 +19,8 @@ part 'event.g.dart';
 /// * [location]
 /// * [startAt]
 /// * [endAt]
-/// * [coverKey] - S3 key (final bucket) for the event cover PNG
+/// * [coverKey]
+/// * [allowGuestInvites]
 @BuiltValue()
 abstract class Event implements Built<Event, EventBuilder> {
   @BuiltValueField(wireName: r'id')
@@ -46,9 +47,11 @@ abstract class Event implements Built<Event, EventBuilder> {
   @BuiltValueField(wireName: r'endAt')
   DateTime get endAt;
 
-  /// S3 key (final bucket) for the event cover PNG
   @BuiltValueField(wireName: r'coverKey')
   String? get coverKey;
+
+  @BuiltValueField(wireName: r'allowGuestInvites')
+  bool? get allowGuestInvites;
 
   Event._();
 
@@ -118,6 +121,13 @@ class _$EventSerializer implements PrimitiveSerializer<Event> {
       yield serializers.serialize(
         object.coverKey,
         specifiedType: const FullType.nullable(String),
+      );
+    }
+    if (object.allowGuestInvites != null) {
+      yield r'allowGuestInvites';
+      yield serializers.serialize(
+        object.allowGuestInvites,
+        specifiedType: const FullType.nullable(bool),
       );
     }
   }
@@ -208,6 +218,14 @@ class _$EventSerializer implements PrimitiveSerializer<Event> {
           ) as String?;
           if (valueDes == null) continue;
           result.coverKey = valueDes;
+          break;
+        case r'allowGuestInvites':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType.nullable(bool),
+          ) as bool?;
+          if (valueDes == null) continue;
+          result.allowGuestInvites = valueDes;
           break;
         default:
           unhandled.add(key);

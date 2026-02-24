@@ -5,6 +5,11 @@ abstract interface class EventsRepository {
 
   Future<Event> getEvent(String id);
 
+  Future<List<EventGuest>> listEventGuests(String eventId);
+
+  Future<List<EventGuest>> inviteEventGuests(
+      String eventId, List<String> inviteeEmails);
+
   Future<Event> createEvent(
     String title,
     String objective,
@@ -12,5 +17,21 @@ abstract interface class EventsRepository {
     DateTime startAt,
     DateTime endAt,
     String? coverReservationId,
+    List<String> inviteeEmails,
+    bool allowGuestInvites,
   );
+}
+
+class EventGuest {
+  final String? email;
+  final String? displayName;
+  final String role;
+  final String status;
+
+  const EventGuest({
+    required this.email,
+    required this.displayName,
+    required this.role,
+    required this.status,
+  });
 }

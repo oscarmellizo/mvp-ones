@@ -40,6 +40,43 @@ class EventsApiRepository implements EventsRepository {
   }
 
   @override
+  Future<List<EventGuest>> listEventGuests(String eventId) async {
+    final response = await _defaultApi(_idToken).listEventGuests(id: eventId);
+    final BuiltList<api.Guest>? items = response.data;
+    return (items?.toList() ?? const <api.Guest>[])
+        .map(
+          (g) => EventGuest(
+            email: g.email,
+            displayName: g.displayName,
+            role: g.role.name,
+            status: g.status.name,
+          ),
+        )
+        .toList();
+  }
+
+  @override
+  Future<List<EventGuest>> inviteEventGuests(
+      String eventId, List<String> inviteeEmails) async {
+    final req = api.InviteEventGuestsRequest(
+      (b) => b..inviteeEmails.replace(inviteeEmails),
+    );
+    final response = await _defaultApi(_idToken)
+        .inviteEventGuests(id: eventId, inviteEventGuestsRequest: req);
+    final BuiltList<api.Guest>? items = response.data;
+    return (items?.toList() ?? const <api.Guest>[])
+        .map(
+          (g) => EventGuest(
+            email: g.email,
+            displayName: g.displayName,
+            role: g.role.name,
+            status: g.status.name,
+          ),
+        )
+        .toList();
+  }
+
+  @override
   Future<Event> createEvent(
     String title,
     String objective,
@@ -47,6 +84,8 @@ class EventsApiRepository implements EventsRepository {
     DateTime startAt,
     DateTime endAt,
     String? coverReservationId,
+    List<String> inviteeEmails,
+    bool allowGuestInvites,
   ) async {
     final req = api.CreateEventRequest((b) => b
       ..title = title
@@ -54,7 +93,9 @@ class EventsApiRepository implements EventsRepository {
       ..location = location
       ..startAt = startAt
       ..endAt = endAt
-      ..coverReservationId = coverReservationId);
+      ..coverReservationId = coverReservationId
+      ..inviteeEmails.replace(inviteeEmails)
+      ..allowGuestInvites = allowGuestInvites);
     final response =
         await _defaultApi(_idToken).createEvent(createEventRequest: req);
     final api.Event? e = response.data;
@@ -75,6 +116,7 @@ class EventsApiRepository implements EventsRepository {
       startAt: e.startAt,
       endAt: e.endAt,
       coverKey: e.coverKey,
+      allowGuestInvites: e.allowGuestInvites ?? true,
     );
   }
 }

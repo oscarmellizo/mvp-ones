@@ -14,6 +14,7 @@ public class Event {
     private final Instant startAt;
     private final Instant endAt;
     private final String coverKey;
+    private final boolean allowGuestInvites;
 
     public Event(
             String eventId,
@@ -24,7 +25,8 @@ public class Event {
             String location,
             Instant startAt,
             Instant endAt,
-            String coverKey
+            String coverKey,
+            boolean allowGuestInvites
     ) {
         this.eventId = Objects.requireNonNull(eventId);
         this.ownerId = Objects.requireNonNull(ownerId);
@@ -35,6 +37,7 @@ public class Event {
         this.startAt = Objects.requireNonNull(startAt);
         this.endAt = Objects.requireNonNull(endAt);
         this.coverKey = coverKey;
+        this.allowGuestInvites = allowGuestInvites;
     }
 
     public String getEventId() {
@@ -71,5 +74,9 @@ public class Event {
 
     public String getCoverKey() {
         return coverKey;
+    }
+
+    public boolean isAllowGuestInvites() {
+        return allowGuestInvites;
     }
 }

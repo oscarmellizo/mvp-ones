@@ -66,6 +66,14 @@ public class DynamoDbUsersRepository implements UsersRepository {
         return user;
     }
 
+    @Override
+    public void deleteById(String userId) {
+        if (userId == null || userId.isBlank()) {
+            return;
+        }
+        table.deleteItem(Key.builder().partitionValue(userId.trim()).build());
+    }
+
     private static DynamoUserItem toItem(User u) {
         DynamoUserItem item = new DynamoUserItem();
         item.setUserId(u.getUserId());

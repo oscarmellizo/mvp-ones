@@ -19,6 +19,10 @@ class _$CreateEventRequest extends CreateEventRequest {
   final DateTime endAt;
   @override
   final String? coverReservationId;
+  @override
+  final BuiltList<String>? inviteeEmails;
+  @override
+  final bool? allowGuestInvites;
 
   factory _$CreateEventRequest(
           [void Function(CreateEventRequestBuilder)? updates]) =>
@@ -30,7 +34,9 @@ class _$CreateEventRequest extends CreateEventRequest {
       required this.location,
       required this.startAt,
       required this.endAt,
-      this.coverReservationId})
+      this.coverReservationId,
+      this.inviteeEmails,
+      this.allowGuestInvites})
       : super._() {
     BuiltValueNullFieldError.checkNotNull(
         title, r'CreateEventRequest', 'title');
@@ -62,7 +68,9 @@ class _$CreateEventRequest extends CreateEventRequest {
         location == other.location &&
         startAt == other.startAt &&
         endAt == other.endAt &&
-        coverReservationId == other.coverReservationId;
+        coverReservationId == other.coverReservationId &&
+        inviteeEmails == other.inviteeEmails &&
+        allowGuestInvites == other.allowGuestInvites;
   }
 
   @override
@@ -74,6 +82,8 @@ class _$CreateEventRequest extends CreateEventRequest {
     _$hash = $jc(_$hash, startAt.hashCode);
     _$hash = $jc(_$hash, endAt.hashCode);
     _$hash = $jc(_$hash, coverReservationId.hashCode);
+    _$hash = $jc(_$hash, inviteeEmails.hashCode);
+    _$hash = $jc(_$hash, allowGuestInvites.hashCode);
     _$hash = $jf(_$hash);
     return _$hash;
   }
@@ -86,7 +96,9 @@ class _$CreateEventRequest extends CreateEventRequest {
           ..add('location', location)
           ..add('startAt', startAt)
           ..add('endAt', endAt)
-          ..add('coverReservationId', coverReservationId))
+          ..add('coverReservationId', coverReservationId)
+          ..add('inviteeEmails', inviteeEmails)
+          ..add('allowGuestInvites', allowGuestInvites))
         .toString();
   }
 }
@@ -120,6 +132,17 @@ class CreateEventRequestBuilder
   set coverReservationId(String? coverReservationId) =>
       _$this._coverReservationId = coverReservationId;
 
+  ListBuilder<String>? _inviteeEmails;
+  ListBuilder<String> get inviteeEmails =>
+      _$this._inviteeEmails ??= new ListBuilder<String>();
+  set inviteeEmails(ListBuilder<String>? inviteeEmails) =>
+      _$this._inviteeEmails = inviteeEmails;
+
+  bool? _allowGuestInvites;
+  bool? get allowGuestInvites => _$this._allowGuestInvites;
+  set allowGuestInvites(bool? allowGuestInvites) =>
+      _$this._allowGuestInvites = allowGuestInvites;
+
   CreateEventRequestBuilder() {
     CreateEventRequest._defaults(this);
   }
@@ -133,6 +156,8 @@ class CreateEventRequestBuilder
       _startAt = $v.startAt;
       _endAt = $v.endAt;
       _coverReservationId = $v.coverReservationId;
+      _inviteeEmails = $v.inviteeEmails?.toBuilder();
+      _allowGuestInvites = $v.allowGuestInvites;
       _$v = null;
     }
     return this;
@@ -153,19 +178,34 @@ class CreateEventRequestBuilder
   CreateEventRequest build() => _build();
 
   _$CreateEventRequest _build() {
-    final _$result = _$v ??
-        new _$CreateEventRequest._(
-            title: BuiltValueNullFieldError.checkNotNull(
-                title, r'CreateEventRequest', 'title'),
-            objective: BuiltValueNullFieldError.checkNotNull(
-                objective, r'CreateEventRequest', 'objective'),
-            location: BuiltValueNullFieldError.checkNotNull(
-                location, r'CreateEventRequest', 'location'),
-            startAt: BuiltValueNullFieldError.checkNotNull(
-                startAt, r'CreateEventRequest', 'startAt'),
-            endAt: BuiltValueNullFieldError.checkNotNull(
-                endAt, r'CreateEventRequest', 'endAt'),
-            coverReservationId: coverReservationId);
+    _$CreateEventRequest _$result;
+    try {
+      _$result = _$v ??
+          new _$CreateEventRequest._(
+              title: BuiltValueNullFieldError.checkNotNull(
+                  title, r'CreateEventRequest', 'title'),
+              objective: BuiltValueNullFieldError.checkNotNull(
+                  objective, r'CreateEventRequest', 'objective'),
+              location: BuiltValueNullFieldError.checkNotNull(
+                  location, r'CreateEventRequest', 'location'),
+              startAt: BuiltValueNullFieldError.checkNotNull(
+                  startAt, r'CreateEventRequest', 'startAt'),
+              endAt: BuiltValueNullFieldError.checkNotNull(
+                  endAt, r'CreateEventRequest', 'endAt'),
+              coverReservationId: coverReservationId,
+              inviteeEmails: _inviteeEmails?.build(),
+              allowGuestInvites: allowGuestInvites);
+    } catch (_) {
+      late String _$failedField;
+      try {
+        _$failedField = 'inviteeEmails';
+        _inviteeEmails?.build();
+      } catch (e) {
+        throw new BuiltValueNestedFieldError(
+            r'CreateEventRequest', _$failedField, e.toString());
+      }
+      rethrow;
+    }
     replace(_$result);
     return _$result;
   }

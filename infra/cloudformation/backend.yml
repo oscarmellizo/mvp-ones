@@ -69,6 +69,15 @@ Resources:
           KeyType: HASH
         - AttributeName: eventId
           KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: byEventId
+          KeySchema:
+            - AttributeName: eventId
+              KeyType: HASH
+            - AttributeName: inviteeEmail
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
 
   CoverPreviewsTable:
     Type: AWS::DynamoDB::Table
@@ -307,6 +316,7 @@ Resources:
                   - !Sub ${EventsTable.Arn}/index/*
                   - !GetAtt UsersTable.Arn
                   - !GetAtt InvitationsTable.Arn
+                  - !Sub ${InvitationsTable.Arn}/index/*
                   - !GetAtt CoverPreviewsTable.Arn
                   - !GetAtt CoverReservationsTable.Arn
         - PolicyName: ones-s3-covers

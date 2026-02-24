@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
 import 'event_detail_page.dart';
+import '../../../invitations/presentation/widgets/invitations_sheet.dart';
+import '../../../invitations/presentation/invitations_controller.dart';
 
 class EventsListPage extends StatefulWidget {
   static const routeName = '/events';
@@ -24,6 +26,7 @@ class _EventsListPageState extends State<EventsListPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<EventsController>().refresh();
+      context.read<InvitationsController>().refresh();
     });
   }
 
@@ -72,7 +75,7 @@ class _EventsListPageState extends State<EventsListPage> {
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
             children: [
               _Header(
-                onBell: () {},
+                onBell: () => showInvitationsSheet(context),
                 onDevice: () {},
               ),
               const SizedBox(height: 14),
@@ -221,6 +224,9 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final invitations = context.watch<InvitationsController>();
+    final unread = invitations.unreadCount;
+
     return SizedBox(
       height: 56,
       child: Stack(
@@ -239,7 +245,33 @@ class _Header extends StatelessWidget {
               children: [
                 IconButton(
                   onPressed: onBell,
-                  icon: const Icon(Icons.notifications_none),
+                  icon: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(Icons.notifications_none),
+                      if (unread > 0)
+                        Positioned(
+                          right: -2,
+                          top: -2,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFE25555),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              unread > 99 ? '99+' : unread.toString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
                 const SizedBox(width: 4),
                 IconButton(

@@ -5,9 +5,12 @@ import java.time.Clock;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import com.ones.api.application.invitations.InvitationsService;
+import com.ones.api.application.invitations.ports.InvitationsRepository;
 import com.ones.api.application.events.CreateEventUseCase;
 import com.ones.api.application.events.EventCoversService;
 import com.ones.api.application.events.GetEventUseCase;
+import com.ones.api.application.events.InviteEventGuestsUseCase;
 import com.ones.api.application.events.ListEventsUseCase;
 import com.ones.api.application.events.ports.EventsRepository;
 import com.ones.api.application.users.EnsureUserUseCase;
@@ -24,24 +27,41 @@ public class ApplicationConfig {
     @Bean
     CreateEventUseCase createEventUseCase(
             EventsRepository repository,
+            InvitationsRepository invitationsRepository,
+            UsersRepository usersRepository,
             Clock clock,
             EventCoversService coversService
     ) {
-        return new CreateEventUseCase(repository, clock, coversService);
+        return new CreateEventUseCase(repository, invitationsRepository, usersRepository, clock, coversService);
     }
 
     @Bean
-    ListEventsUseCase listEventsUseCase(EventsRepository repository) {
-        return new ListEventsUseCase(repository);
+    ListEventsUseCase listEventsUseCase(EventsRepository repository, InvitationsRepository invitationsRepository, Clock clock) {
+        return new ListEventsUseCase(repository, invitationsRepository, clock);
     }
 
     @Bean
-    GetEventUseCase getEventUseCase(EventsRepository repository) {
-        return new GetEventUseCase(repository);
+    GetEventUseCase getEventUseCase(EventsRepository repository, InvitationsRepository invitationsRepository) {
+        return new GetEventUseCase(repository, invitationsRepository);
+    }
+
+    @Bean
+    InviteEventGuestsUseCase inviteEventGuestsUseCase(
+            EventsRepository eventsRepository,
+            InvitationsRepository invitationsRepository,
+            UsersRepository usersRepository,
+            Clock clock
+    ) {
+        return new InviteEventGuestsUseCase(eventsRepository, invitationsRepository, usersRepository, clock);
     }
 
     @Bean
     EnsureUserUseCase ensureUserUseCase(UsersRepository repository, Clock clock) {
         return new EnsureUserUseCase(repository, clock);
+    }
+
+    @Bean
+    InvitationsService invitationsService(InvitationsRepository invitationsRepository, Clock clock) {
+        return new InvitationsService(invitationsRepository, clock);
     }
 }

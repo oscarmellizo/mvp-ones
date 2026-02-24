@@ -8,7 +8,10 @@ doc/ErrorResponse.md
 doc/Event.md
 doc/GenerateEventCoverRequest.md
 doc/GenerateEventCoverResponse.md
+doc/Guest.md
 doc/HealthResponse.md
+doc/Invitation.md
+doc/InviteEventGuestsRequest.md
 doc/PresignedUrlResponse.md
 lib/ones_api_client.dart
 lib/src/api.dart
@@ -27,11 +30,11 @@ lib/src/model/error_response.dart
 lib/src/model/event.dart
 lib/src/model/generate_event_cover_request.dart
 lib/src/model/generate_event_cover_response.dart
+lib/src/model/guest.dart
 lib/src/model/health_response.dart
+lib/src/model/invitation.dart
+lib/src/model/invite_event_guests_request.dart
 lib/src/model/presigned_url_response.dart
 lib/src/serializers.dart
 pubspec.yaml
-test/accept_event_cover_response_test.dart
-test/generate_event_cover_request_test.dart
-test/generate_event_cover_response_test.dart
-test/presigned_url_response_test.dart
+test/invite_event_guests_request_test.dart

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../auth/presentation/auth_controller.dart';
-
 import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
 import 'photo_capture_page.dart';
+import '../../../invitations/presentation/widgets/invitations_sheet.dart';
+import '../../../invitations/presentation/invitations_controller.dart';
+import '../../domain/events_repository.dart';
 
 class EventDetailPage extends StatefulWidget {
   static const routeName = '/events/detail';
@@ -39,6 +41,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<EventsController>();
+    final auth = context.watch<AuthController>();
     final event = controller.selected;
 
     final size = MediaQuery.sizeOf(context);
@@ -76,7 +79,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                           subtitle:
                               _eventSubtitle(event.startAt, event.location),
                           onBack: () => Navigator.of(context).pop(),
-                          onBell: () {},
+                          onBell: () => showInvitationsSheet(context),
                         ),
                       ),
                       Padding(
@@ -105,6 +108,8 @@ class _EventDetailPageState extends State<EventDetailPage> {
                                   startAt: event.startAt,
                                   endAt: event.endAt,
                                   location: event.location,
+                                  isOwner: auth.user?.userId == event.ownerId,
+                                  allowGuestInvites: event.allowGuestInvites,
                                 ),
                         ),
                       ),
@@ -164,6 +169,9 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final invitations = context.watch<InvitationsController>();
+    final unread = invitations.unreadCount;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -204,18 +212,27 @@ class _Header extends StatelessWidget {
               onPressed: onBell,
               icon: const Icon(Icons.notifications_none, color: Colors.black),
             ),
-            Positioned(
-              right: 12,
-              top: 12,
-              child: Container(
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE25555),
-                  shape: BoxShape.circle,
+            if (unread > 0)
+              Positioned(
+                right: 10,
+                top: 10,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFE25555),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    unread > 99 ? '99+' : unread.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ],
@@ -673,6 +690,8 @@ class _DetailsTab extends StatefulWidget {
   final DateTime startAt;
   final DateTime endAt;
   final String location;
+  final bool isOwner;
+  final bool allowGuestInvites;
 
   const _DetailsTab({
     required this.eventId,
@@ -682,6 +701,8 @@ class _DetailsTab extends StatefulWidget {
     required this.startAt,
     required this.endAt,
     required this.location,
+    required this.isOwner,
+    required this.allowGuestInvites,
   });
 
   @override
@@ -691,9 +712,22 @@ class _DetailsTab extends StatefulWidget {
 class _DetailsTabState extends State<_DetailsTab> {
   final _emailController = TextEditingController();
 
-  final List<_Invitee> _invitees = [];
+  Future<List<EventGuest>>? _guestsFuture;
 
   String? _inviteError;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshGuests();
+  }
+
+  void _refreshGuests() {
+    setState(() {
+      _guestsFuture =
+          context.read<EventsRepository>().listEventGuests(widget.eventId);
+    });
+  }
 
   @override
   void dispose() {
@@ -720,46 +754,28 @@ class _DetailsTabState extends State<_DetailsTab> {
       return;
     }
 
-    final alreadyExists =
-        _invitees.any((i) => i.email.toLowerCase() == normalizedEmail);
-    if (alreadyExists) {
-      setState(() {
-        _inviteError = 'This email is already invited.';
-      });
-      return;
-    }
-
-    final auth = context.read<AuthController>();
-    String displayName = normalizedEmail;
+    final repo = context.read<EventsRepository>();
     try {
-      final lookup = await auth.lookupUserByEmail(normalizedEmail);
-      final pn = lookup?.preferredName?.trim();
-      if (pn != null && pn.isNotEmpty) {
-        displayName = pn;
-      }
+      setState(() {
+        _inviteError = null;
+      });
+      await repo.inviteEventGuests(widget.eventId, [normalizedEmail]);
+      if (!mounted) return;
+      _emailController.clear();
+      FocusScope.of(context).unfocus();
+      _refreshGuests();
     } catch (_) {
-      // ignore lookup errors and fall back to email
+      if (!mounted) return;
+      setState(() {
+        _inviteError = 'Failed to invite guest.';
+      });
     }
 
     if (!mounted) return;
     setState(() {
-      _invitees.insert(
-        0,
-        _Invitee(
-          name: displayName,
-          email: normalizedEmail,
-          accepted: false,
-        ),
-      );
       _inviteError = null;
       _emailController.clear();
       FocusScope.of(context).unfocus();
-    });
-  }
-
-  void _removeInvitee(_Invitee invitee) {
-    setState(() {
-      _invitees.removeWhere((i) => i.email == invitee.email);
     });
   }
 
@@ -862,137 +878,166 @@ class _DetailsTabState extends State<_DetailsTab> {
         _DetailsCard(
           title: 'Invite Guests',
           children: [
-            TextField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) {
-                _addInvitee();
-              },
-              decoration: InputDecoration(
-                hintText: 'Email (required)',
-                filled: true,
-                fillColor: const Color(0xFFF7F3EA),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
+            if (widget.isOwner || widget.allowGuestInvites) ...[
+              TextField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) {
+                  _addInvitee();
+                },
+                decoration: InputDecoration(
+                  hintText: 'Email (required)',
+                  filled: true,
+                  fillColor: const Color(0xFFF7F3EA),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               ),
-            ),
-            if (_inviteError != null) ...[
+              if (_inviteError != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  _inviteError!,
+                  style: const TextStyle(
+                    color: Color(0xFFE25555),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
               const SizedBox(height: 10),
-              Text(
-                _inviteError!,
-                style: const TextStyle(
-                  color: Color(0xFFE25555),
-                  fontWeight: FontWeight.w700,
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF6A0D73),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  onPressed: () {
+                    _addInvitee();
+                  },
+                  child: const Text(
+                    'Invite',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
                 ),
               ),
             ],
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF6A0D73),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                onPressed: () {
-                  _addInvitee();
-                },
-                child: const Text(
-                  'Invite',
-                  style: TextStyle(fontWeight: FontWeight.w900),
-                ),
-              ),
-            ),
             const SizedBox(height: 14),
             const Text(
-              'Invited',
+              'Guests',
               style: TextStyle(fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 8),
-            if (_invitees.isEmpty)
-              Text(
-                'No invited guests yet.',
-                style: TextStyle(color: Colors.black.withOpacity(0.55)),
-              )
-            else
-              ListView.separated(
-                itemCount: _invitees.length,
-                physics: const NeverScrollableScrollPhysics(),
-                shrinkWrap: true,
-                separatorBuilder: (_, __) => Divider(
-                  height: 14,
-                  color: Colors.black.withOpacity(0.06),
-                ),
-                itemBuilder: (context, index) {
-                  final invitee = _invitees[index];
-                  final statusText = invitee.accepted ? 'Accepted' : 'Pending';
-                  final statusBg = invitee.accepted
-                      ? const Color(0xFF58C7C7)
-                      : const Color(0xFFFFC857);
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      invitee.name,
-                      style: const TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                    subtitle: Text(
-                      invitee.email,
-                      style: TextStyle(
-                        color: Colors.black.withOpacity(0.6),
-                      ),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: statusBg,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(
-                            statusText,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        IconButton(
-                          onPressed: () => _removeInvitee(invitee),
-                          icon: const Icon(Icons.close),
-                        ),
-                      ],
-                    ),
+            FutureBuilder<List<EventGuest>>(
+              future: _guestsFuture,
+              builder: (context, snapshot) {
+                final guests = snapshot.data;
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: LinearProgressIndicator(),
                   );
-                },
-              ),
+                }
+
+                if (snapshot.hasError) {
+                  return Text(
+                    'Failed to load guests.',
+                    style: TextStyle(color: Colors.black.withOpacity(0.55)),
+                  );
+                }
+
+                if (guests == null || guests.isEmpty) {
+                  return Text(
+                    'No guests yet.',
+                    style: TextStyle(color: Colors.black.withOpacity(0.55)),
+                  );
+                }
+
+                return ListView.separated(
+                  itemCount: guests.length,
+                  physics: const NeverScrollableScrollPhysics(),
+                  shrinkWrap: true,
+                  separatorBuilder: (_, __) => Divider(
+                    height: 14,
+                    color: Colors.black.withOpacity(0.06),
+                  ),
+                  itemBuilder: (context, index) {
+                    final g = guests[index];
+                    final title = (g.displayName != null &&
+                            g.displayName!.trim().isNotEmpty)
+                        ? g.displayName!.trim()
+                        : (g.email ?? '-');
+                    final subtitle = g.email ?? '';
+
+                    final isOwner = g.role == 'owner';
+                    final statusText = isOwner
+                        ? 'Owner'
+                        : switch (g.status) {
+                            'accepted' => 'Accepted',
+                            'rejected' => 'Rejected',
+                            'invited' => 'Invited',
+                            _ => g.status,
+                          };
+
+                    final statusBg = isOwner
+                        ? const Color(0xFF6A0D73)
+                        : switch (g.status) {
+                            'accepted' => const Color(0xFF58C7C7),
+                            'rejected' => const Color(0xFFE25555),
+                            _ => const Color(0xFFFFC857),
+                          };
+
+                    final statusFg = isOwner ? Colors.white : Colors.black;
+
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        title,
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                      subtitle: subtitle.isEmpty
+                          ? null
+                          : Text(
+                              subtitle,
+                              style: TextStyle(
+                                color: Colors.black.withOpacity(0.6),
+                              ),
+                            ),
+                      trailing: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: statusBg,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          statusText,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 12,
+                            color: statusFg,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ],
         ),
         const SizedBox(height: 100),
       ],
     );
   }
-}
-
-class _Invitee {
-  final String name;
-  final String email;
-  final bool accepted;
-
-  const _Invitee(
-      {required this.name, required this.email, required this.accepted});
 }
 
 class _DetailsCard extends StatelessWidget {

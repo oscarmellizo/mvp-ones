@@ -20,6 +20,8 @@ public class DynamoEventItem {
     private String endAt;
     private String coverKey;
 
+    private Boolean allowGuestInvites;
+
     private String gsi1pk;
     private String gsi1sk;
 
@@ -103,6 +105,15 @@ public class DynamoEventItem {
 
     public void setCoverKey(String coverKey) {
         this.coverKey = coverKey;
+    }
+
+    @DynamoDbAttribute("allowGuestInvites")
+    public Boolean getAllowGuestInvites() {
+        return allowGuestInvites;
+    }
+
+    public void setAllowGuestInvites(Boolean allowGuestInvites) {
+        this.allowGuestInvites = allowGuestInvites;
     }
 
     @DynamoDbSecondaryPartitionKey(indexNames = "gsi1")

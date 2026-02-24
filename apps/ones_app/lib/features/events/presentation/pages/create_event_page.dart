@@ -48,6 +48,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
 
   String? _coverReservationId;
 
+  bool _allowGuestInvites = true;
+
   @override
   void initState() {
     super.initState();
@@ -302,6 +304,27 @@ class _CreateEventPageState extends State<CreateEventPage> {
                               },
                       ),
                       const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          const Text(
+                            'Allow Guest Invites',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: Colors.black,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Switch(
+                            value: _allowGuestInvites,
+                            onChanged: (value) {
+                              setState(() {
+                                _allowGuestInvites = value;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
                       _InviteGuestsCard(
                         emailController: _inviteEmailController,
                         inviteError: _inviteError,
@@ -388,6 +411,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
       startAt,
       endAt,
       _coverReservationId,
+      _invitees.map((i) => i.email).toList(growable: false),
+      _allowGuestInvites,
     );
     if (context.mounted) Navigator.of(context).pop();
   }

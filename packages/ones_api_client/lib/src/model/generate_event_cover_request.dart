@@ -11,14 +11,12 @@ part 'generate_event_cover_request.g.dart';
 /// GenerateEventCoverRequest
 ///
 /// Properties:
-/// * [eventName]
-/// * [objective]
-/// * [location]
-/// * [size] - Image size; backend may ignore unsupported values
+/// * [eventName] 
+/// * [objective] 
+/// * [location] 
+/// * [size] 
 @BuiltValue()
-abstract class GenerateEventCoverRequest
-    implements
-        Built<GenerateEventCoverRequest, GenerateEventCoverRequestBuilder> {
+abstract class GenerateEventCoverRequest implements Built<GenerateEventCoverRequest, GenerateEventCoverRequestBuilder> {
   @BuiltValueField(wireName: r'eventName')
   String get eventName;
 
@@ -28,31 +26,23 @@ abstract class GenerateEventCoverRequest
   @BuiltValueField(wireName: r'location')
   String get location;
 
-  /// Image size; backend may ignore unsupported values
   @BuiltValueField(wireName: r'size')
   String? get size;
 
   GenerateEventCoverRequest._();
 
-  factory GenerateEventCoverRequest(
-          [void updates(GenerateEventCoverRequestBuilder b)]) =
-      _$GenerateEventCoverRequest;
+  factory GenerateEventCoverRequest([void updates(GenerateEventCoverRequestBuilder b)]) = _$GenerateEventCoverRequest;
 
   @BuiltValueHook(initializeBuilder: true)
   static void _defaults(GenerateEventCoverRequestBuilder b) => b;
 
   @BuiltValueSerializer(custom: true)
-  static Serializer<GenerateEventCoverRequest> get serializer =>
-      _$GenerateEventCoverRequestSerializer();
+  static Serializer<GenerateEventCoverRequest> get serializer => _$GenerateEventCoverRequestSerializer();
 }
 
-class _$GenerateEventCoverRequestSerializer
-    implements PrimitiveSerializer<GenerateEventCoverRequest> {
+class _$GenerateEventCoverRequestSerializer implements PrimitiveSerializer<GenerateEventCoverRequest> {
   @override
-  final Iterable<Type> types = const [
-    GenerateEventCoverRequest,
-    _$GenerateEventCoverRequest
-  ];
+  final Iterable<Type> types = const [GenerateEventCoverRequest, _$GenerateEventCoverRequest];
 
   @override
   final String wireName = r'GenerateEventCoverRequest';
@@ -81,7 +71,7 @@ class _$GenerateEventCoverRequestSerializer
       yield r'size';
       yield serializers.serialize(
         object.size,
-        specifiedType: const FullType(String),
+        specifiedType: const FullType.nullable(String),
       );
     }
   }
@@ -92,9 +82,7 @@ class _$GenerateEventCoverRequestSerializer
     GenerateEventCoverRequest object, {
     FullType specifiedType = FullType.unspecified,
   }) {
-    return _serializeProperties(serializers, object,
-            specifiedType: specifiedType)
-        .toList();
+    return _serializeProperties(serializers, object, specifiedType: specifiedType).toList();
   }
 
   void _deserializeProperties(
@@ -133,8 +121,9 @@ class _$GenerateEventCoverRequestSerializer
         case r'size':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType(String),
-          ) as String;
+            specifiedType: const FullType.nullable(String),
+          ) as String?;
+          if (valueDes == null) continue;
           result.size = valueDes;
           break;
         default:
@@ -165,3 +154,4 @@ class _$GenerateEventCoverRequestSerializer
     return result.build();
   }
 }
+

@@ -16,10 +16,13 @@ import 'features/events/adapters/api/events_metadata_api_repository.dart';
 import 'features/events/application/create_event_use_case.dart';
 import 'features/events/application/get_event_use_case.dart';
 import 'features/events/application/list_events_use_case.dart';
+import 'features/events/domain/events_repository.dart';
 import 'features/events/presentation/events_controller.dart';
 import 'features/events/presentation/event_covers_controller.dart';
 import 'features/events/presentation/event_cover_urls_controller.dart';
 import 'features/events/presentation/events_metadata_controller.dart';
+import 'features/invitations/adapters/api/invitations_api_repository.dart';
+import 'features/invitations/presentation/invitations_controller.dart';
 import 'features/users/adapters/api/users_api_repository.dart';
 import 'features/users/application/ensure_user_use_case.dart';
 import 'features/events/presentation/pages/event_detail_page.dart';
@@ -58,10 +61,12 @@ class OnesApp extends StatelessWidget {
     final eventsMetadataRepository = EventsMetadataApiRepository(apiFactory);
     final eventCoversRepository = EventCoversApiRepository(apiFactory);
     final eventCoverUrlsRepository = EventCoverUrlsApiRepository(apiFactory);
+    final invitationsRepository = InvitationsApiRepository(apiFactory);
 
     return MultiProvider(
       providers: [
         Provider.value(value: config),
+        Provider<EventsRepository>.value(value: eventsRepository),
         ChangeNotifierProvider(
           create: (_) => AuthController(
             signInWithGoogle: signInWithGoogle,
@@ -125,6 +130,19 @@ class OnesApp extends StatelessWidget {
             final controller = coverUrls ??
                 EventCoverUrlsController(
                   repository: eventCoverUrlsRepository,
+                );
+            controller.setIdToken(auth.idToken);
+            return controller;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthController, InvitationsController>(
+          create: (_) => InvitationsController(
+            repository: invitationsRepository,
+          ),
+          update: (_, auth, inv) {
+            final controller = inv ??
+                InvitationsController(
+                  repository: invitationsRepository,
                 );
             controller.setIdToken(auth.idToken);
             return controller;

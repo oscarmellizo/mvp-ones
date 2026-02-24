@@ -63,12 +63,22 @@ class EventsController extends ChangeNotifier {
     DateTime startAt,
     DateTime endAt,
     String? coverReservationId,
+    List<String> inviteeEmails,
+    bool allowGuestInvites,
   ) async {
     _setLoading(true);
     try {
       _error = null;
       final created = await createEvent.execute(
-          title, objective, location, startAt, endAt, coverReservationId);
+        title,
+        objective,
+        location,
+        startAt,
+        endAt,
+        coverReservationId,
+        inviteeEmails,
+        allowGuestInvites,
+      );
       _events = [created, ..._events];
     } catch (e) {
       _error = e;

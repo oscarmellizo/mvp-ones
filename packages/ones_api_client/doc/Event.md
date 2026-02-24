@@ -12,11 +12,11 @@ Name | Type | Description | Notes
 **ownerId** | **String** |  | 
 **createdAt** | [**DateTime**](DateTime.md) |  | 
 **title** | **String** |  | 
-**eventTypeId** | **String** |  | 
+**objective** | **String** |  | 
 **location** | **String** |  | 
 **startAt** | [**DateTime**](DateTime.md) |  | 
 **endAt** | [**DateTime**](DateTime.md) |  | 
-**coverKey** | **String** | S3 key (final bucket) for the event cover PNG | [optional] 
+**coverKey** | **String** |  | [optional] 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

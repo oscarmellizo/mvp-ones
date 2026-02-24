@@ -11,15 +11,16 @@ import 'package:built_collection/built_collection.dart';
 import 'package:ones_api_client/src/api_util.dart';
 import 'package:ones_api_client/src/model/accept_event_cover_response.dart';
 import 'package:ones_api_client/src/model/create_event_request.dart';
-import 'package:ones_api_client/src/model/error_response.dart';
 import 'package:ones_api_client/src/model/event.dart';
 import 'package:ones_api_client/src/model/generate_event_cover_request.dart';
 import 'package:ones_api_client/src/model/generate_event_cover_response.dart';
+import 'package:ones_api_client/src/model/guest.dart';
 import 'package:ones_api_client/src/model/health_response.dart';
+import 'package:ones_api_client/src/model/invitation.dart';
+import 'package:ones_api_client/src/model/invite_event_guests_request.dart';
 import 'package:ones_api_client/src/model/presigned_url_response.dart';
 
 class DefaultApi {
-
   final Dio _dio;
 
   final Serializers _serializers;
@@ -27,10 +28,10 @@ class DefaultApi {
   const DefaultApi(this._dio, this._serializers);
 
   /// Accept a generated cover preview and obtain a reservation id for later event creation
-  /// 
+  ///
   ///
   /// Parameters:
-  /// * [coverId] 
+  /// * [coverId]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -40,7 +41,7 @@ class DefaultApi {
   ///
   /// Returns a [Future] containing a [Response] with a [AcceptEventCoverResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<AcceptEventCoverResponse>> acceptEventCover({ 
+  Future<Response<AcceptEventCoverResponse>> acceptEventCover({
     required String coverId,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -49,7 +50,10 @@ class DefaultApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/v1/events/covers/{coverId}/accept'.replaceAll('{' r'coverId' '}', encodeQueryParameter(_serializers, coverId, const FullType(String)).toString());
+    final _path = r'/v1/events/covers/{coverId}/accept'.replaceAll(
+        '{' r'coverId' '}',
+        encodeQueryParameter(_serializers, coverId, const FullType(String))
+            .toString());
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -80,11 +84,12 @@ class DefaultApi {
 
     try {
       final rawResponse = _response.data;
-      _responseData = rawResponse == null ? null : _serializers.deserialize(
-        rawResponse,
-        specifiedType: const FullType(AcceptEventCoverResponse),
-      ) as AcceptEventCoverResponse;
-
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(AcceptEventCoverResponse),
+            ) as AcceptEventCoverResponse;
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -107,11 +112,96 @@ class DefaultApi {
     );
   }
 
-  /// Cancel a generated cover preview (best-effort delete temp object)
-  /// 
+  /// Accept an invitation for an event
+  ///
   ///
   /// Parameters:
-  /// * [coverId] 
+  /// * [eventId]
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [Invitation] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<Invitation>> acceptInvitation({
+    required String eventId,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/v1/invitations/{eventId}/accept'.replaceAll(
+        '{' r'eventId' '}',
+        encodeQueryParameter(_serializers, eventId, const FullType(String))
+            .toString());
+    final _options = Options(
+      method: r'POST',
+      headers: <String, dynamic>{
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[
+          {
+            'type': 'http',
+            'scheme': 'bearer',
+            'name': 'bearerAuth',
+          },
+        ],
+        ...?extra,
+      },
+      validateStatus: validateStatus,
+    );
+
+    final _response = await _dio.request<Object>(
+      _path,
+      options: _options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    Invitation? _responseData;
+
+    try {
+      final rawResponse = _response.data;
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(Invitation),
+            ) as Invitation;
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<Invitation>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
+
+  /// Cancel a generated cover preview (best-effort delete temp object)
+  ///
+  ///
+  /// Parameters:
+  /// * [coverId]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -121,7 +211,7 @@ class DefaultApi {
   ///
   /// Returns a [Future]
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<void>> cancelEventCover({ 
+  Future<Response<void>> cancelEventCover({
     required String coverId,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -130,7 +220,10 @@ class DefaultApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/v1/events/covers/{coverId}/cancel'.replaceAll('{' r'coverId' '}', encodeQueryParameter(_serializers, coverId, const FullType(String)).toString());
+    final _path = r'/v1/events/covers/{coverId}/cancel'.replaceAll(
+        '{' r'coverId' '}',
+        encodeQueryParameter(_serializers, coverId, const FullType(String))
+            .toString());
     final _options = Options(
       method: r'POST',
       headers: <String, dynamic>{
@@ -161,10 +254,10 @@ class DefaultApi {
   }
 
   /// Create event for authenticated user
-  /// 
+  ///
   ///
   /// Parameters:
-  /// * [createEventRequest] 
+  /// * [createEventRequest]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -174,7 +267,7 @@ class DefaultApi {
   ///
   /// Returns a [Future] containing a [Response] with a [Event] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<Event>> createEvent({ 
+  Future<Response<Event>> createEvent({
     required CreateEventRequest createEventRequest,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -207,11 +300,11 @@ class DefaultApi {
 
     try {
       const _type = FullType(CreateEventRequest);
-      _bodyData = _serializers.serialize(createEventRequest, specifiedType: _type);
-
-    } catch(error, stackTrace) {
+      _bodyData =
+          _serializers.serialize(createEventRequest, specifiedType: _type);
+    } catch (error, stackTrace) {
       throw DioException(
-         requestOptions: _options.compose(
+        requestOptions: _options.compose(
           _dio.options,
           _path,
         ),
@@ -234,11 +327,12 @@ class DefaultApi {
 
     try {
       final rawResponse = _response.data;
-      _responseData = rawResponse == null ? null : _serializers.deserialize(
-        rawResponse,
-        specifiedType: const FullType(Event),
-      ) as Event;
-
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(Event),
+            ) as Event;
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -262,10 +356,10 @@ class DefaultApi {
   }
 
   /// Generate an AI event cover preview and return a pre-signed URL
-  /// 
+  ///
   ///
   /// Parameters:
-  /// * [generateEventCoverRequest] 
+  /// * [generateEventCoverRequest]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -275,7 +369,7 @@ class DefaultApi {
   ///
   /// Returns a [Future] containing a [Response] with a [GenerateEventCoverResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GenerateEventCoverResponse>> generateEventCover({ 
+  Future<Response<GenerateEventCoverResponse>> generateEventCover({
     required GenerateEventCoverRequest generateEventCoverRequest,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -308,11 +402,11 @@ class DefaultApi {
 
     try {
       const _type = FullType(GenerateEventCoverRequest);
-      _bodyData = _serializers.serialize(generateEventCoverRequest, specifiedType: _type);
-
-    } catch(error, stackTrace) {
+      _bodyData = _serializers.serialize(generateEventCoverRequest,
+          specifiedType: _type);
+    } catch (error, stackTrace) {
       throw DioException(
-         requestOptions: _options.compose(
+        requestOptions: _options.compose(
           _dio.options,
           _path,
         ),
@@ -335,11 +429,12 @@ class DefaultApi {
 
     try {
       final rawResponse = _response.data;
-      _responseData = rawResponse == null ? null : _serializers.deserialize(
-        rawResponse,
-        specifiedType: const FullType(GenerateEventCoverResponse),
-      ) as GenerateEventCoverResponse;
-
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(GenerateEventCoverResponse),
+            ) as GenerateEventCoverResponse;
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -363,10 +458,10 @@ class DefaultApi {
   }
 
   /// Get event by id (only if it belongs to authenticated user)
-  /// 
+  ///
   ///
   /// Parameters:
-  /// * [id] 
+  /// * [id]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -376,7 +471,7 @@ class DefaultApi {
   ///
   /// Returns a [Future] containing a [Response] with a [Event] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<Event>> getEvent({ 
+  Future<Response<Event>> getEvent({
     required String id,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -385,7 +480,10 @@ class DefaultApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/v1/events/{id}'.replaceAll('{' r'id' '}', encodeQueryParameter(_serializers, id, const FullType(String)).toString());
+    final _path = r'/v1/events/{id}'.replaceAll(
+        '{' r'id' '}',
+        encodeQueryParameter(_serializers, id, const FullType(String))
+            .toString());
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -416,11 +514,12 @@ class DefaultApi {
 
     try {
       final rawResponse = _response.data;
-      _responseData = rawResponse == null ? null : _serializers.deserialize(
-        rawResponse,
-        specifiedType: const FullType(Event),
-      ) as Event;
-
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(Event),
+            ) as Event;
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -444,10 +543,10 @@ class DefaultApi {
   }
 
   /// Get a pre-signed URL to view the event cover image (if configured)
-  /// 
+  ///
   ///
   /// Parameters:
-  /// * [id] 
+  /// * [id]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -457,7 +556,7 @@ class DefaultApi {
   ///
   /// Returns a [Future] containing a [Response] with a [PresignedUrlResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<PresignedUrlResponse>> getEventCoverUrl({ 
+  Future<Response<PresignedUrlResponse>> getEventCoverUrl({
     required String id,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -466,7 +565,10 @@ class DefaultApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/v1/events/{id}/cover-url'.replaceAll('{' r'id' '}', encodeQueryParameter(_serializers, id, const FullType(String)).toString());
+    final _path = r'/v1/events/{id}/cover-url'.replaceAll(
+        '{' r'id' '}',
+        encodeQueryParameter(_serializers, id, const FullType(String))
+            .toString());
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{
@@ -497,11 +599,12 @@ class DefaultApi {
 
     try {
       final rawResponse = _response.data;
-      _responseData = rawResponse == null ? null : _serializers.deserialize(
-        rawResponse,
-        specifiedType: const FullType(PresignedUrlResponse),
-      ) as PresignedUrlResponse;
-
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(PresignedUrlResponse),
+            ) as PresignedUrlResponse;
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -525,7 +628,7 @@ class DefaultApi {
   }
 
   /// Health check
-  /// 
+  ///
   ///
   /// Parameters:
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
@@ -537,7 +640,7 @@ class DefaultApi {
   ///
   /// Returns a [Future] containing a [Response] with a [HealthResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<HealthResponse>> health({ 
+  Future<Response<HealthResponse>> health({
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -570,11 +673,12 @@ class DefaultApi {
 
     try {
       final rawResponse = _response.data;
-      _responseData = rawResponse == null ? null : _serializers.deserialize(
-        rawResponse,
-        specifiedType: const FullType(HealthResponse),
-      ) as HealthResponse;
-
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(HealthResponse),
+            ) as HealthResponse;
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -597,8 +701,200 @@ class DefaultApi {
     );
   }
 
+  /// Invite new guests to an existing event (owner only)
+  ///
+  ///
+  /// Parameters:
+  /// * [id]
+  /// * [inviteEventGuestsRequest]
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [BuiltList<Guest>] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<BuiltList<Guest>>> inviteEventGuests({
+    required String id,
+    required InviteEventGuestsRequest inviteEventGuestsRequest,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/v1/events/{id}/invitees'.replaceAll(
+        '{' r'id' '}',
+        encodeQueryParameter(_serializers, id, const FullType(String))
+            .toString());
+    final _options = Options(
+      method: r'POST',
+      headers: <String, dynamic>{
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[
+          {
+            'type': 'http',
+            'scheme': 'bearer',
+            'name': 'bearerAuth',
+          },
+        ],
+        ...?extra,
+      },
+      contentType: 'application/json',
+      validateStatus: validateStatus,
+    );
+
+    dynamic _bodyData;
+
+    try {
+      const _type = FullType(InviteEventGuestsRequest);
+      _bodyData = _serializers.serialize(inviteEventGuestsRequest,
+          specifiedType: _type);
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _options.compose(
+          _dio.options,
+          _path,
+        ),
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    final _response = await _dio.request<Object>(
+      _path,
+      data: _bodyData,
+      options: _options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    BuiltList<Guest>? _responseData;
+
+    try {
+      final rawResponse = _response.data;
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(BuiltList, [FullType(Guest)]),
+            ) as BuiltList<Guest>;
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<BuiltList<Guest>>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
+
+  /// List guests for an event (owner + invitees with invitation status)
+  ///
+  ///
+  /// Parameters:
+  /// * [id]
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [BuiltList<Guest>] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<BuiltList<Guest>>> listEventGuests({
+    required String id,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/v1/events/{id}/guests'.replaceAll(
+        '{' r'id' '}',
+        encodeQueryParameter(_serializers, id, const FullType(String))
+            .toString());
+    final _options = Options(
+      method: r'GET',
+      headers: <String, dynamic>{
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[
+          {
+            'type': 'http',
+            'scheme': 'bearer',
+            'name': 'bearerAuth',
+          },
+        ],
+        ...?extra,
+      },
+      validateStatus: validateStatus,
+    );
+
+    final _response = await _dio.request<Object>(
+      _path,
+      options: _options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    BuiltList<Guest>? _responseData;
+
+    try {
+      final rawResponse = _response.data;
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(BuiltList, [FullType(Guest)]),
+            ) as BuiltList<Guest>;
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<BuiltList<Guest>>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
+
   /// List events for authenticated user
-  /// 
+  ///
   ///
   /// Parameters:
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
@@ -610,7 +906,7 @@ class DefaultApi {
   ///
   /// Returns a [Future] containing a [Response] with a [BuiltList<Event>] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<BuiltList<Event>>> listEvents({ 
+  Future<Response<BuiltList<Event>>> listEvents({
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -649,11 +945,12 @@ class DefaultApi {
 
     try {
       final rawResponse = _response.data;
-      _responseData = rawResponse == null ? null : _serializers.deserialize(
-        rawResponse,
-        specifiedType: const FullType(BuiltList, [FullType(Event)]),
-      ) as BuiltList<Event>;
-
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(BuiltList, [FullType(Event)]),
+            ) as BuiltList<Event>;
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -676,4 +973,168 @@ class DefaultApi {
     );
   }
 
+  /// List invitations for authenticated user (by email claim)
+  ///
+  ///
+  /// Parameters:
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [BuiltList<Invitation>] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<BuiltList<Invitation>>> listInvitations({
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/v1/invitations';
+    final _options = Options(
+      method: r'GET',
+      headers: <String, dynamic>{
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[
+          {
+            'type': 'http',
+            'scheme': 'bearer',
+            'name': 'bearerAuth',
+          },
+        ],
+        ...?extra,
+      },
+      validateStatus: validateStatus,
+    );
+
+    final _response = await _dio.request<Object>(
+      _path,
+      options: _options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    BuiltList<Invitation>? _responseData;
+
+    try {
+      final rawResponse = _response.data;
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(BuiltList, [FullType(Invitation)]),
+            ) as BuiltList<Invitation>;
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<BuiltList<Invitation>>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
+
+  /// Reject an invitation for an event
+  ///
+  ///
+  /// Parameters:
+  /// * [eventId]
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [Invitation] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<Invitation>> rejectInvitation({
+    required String eventId,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/v1/invitations/{eventId}/reject'.replaceAll(
+        '{' r'eventId' '}',
+        encodeQueryParameter(_serializers, eventId, const FullType(String))
+            .toString());
+    final _options = Options(
+      method: r'POST',
+      headers: <String, dynamic>{
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[
+          {
+            'type': 'http',
+            'scheme': 'bearer',
+            'name': 'bearerAuth',
+          },
+        ],
+        ...?extra,
+      },
+      validateStatus: validateStatus,
+    );
+
+    final _response = await _dio.request<Object>(
+      _path,
+      options: _options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    Invitation? _responseData;
+
+    try {
+      final rawResponse = _response.data;
+      _responseData = rawResponse == null
+          ? null
+          : _serializers.deserialize(
+              rawResponse,
+              specifiedType: const FullType(Invitation),
+            ) as Invitation;
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<Invitation>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
 }

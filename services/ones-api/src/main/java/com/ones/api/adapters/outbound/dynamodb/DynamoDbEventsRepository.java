@@ -72,6 +72,7 @@ public class DynamoDbEventsRepository implements EventsRepository {
         item.setStartAt(e.getStartAt().toString());
         item.setEndAt(e.getEndAt().toString());
         item.setCoverKey(e.getCoverKey());
+        item.setAllowGuestInvites(e.isAllowGuestInvites());
 
         item.setGsi1pk(e.getOwnerId());
         item.setGsi1sk(e.getCreatedAt().toString());
@@ -85,6 +86,7 @@ public class DynamoDbEventsRepository implements EventsRepository {
         String objective = item.getObjective() != null ? item.getObjective() : "";
         String location = item.getLocation() != null ? item.getLocation() : "";
         String coverKey = item.getCoverKey();
+        boolean allowGuestInvites = item.getAllowGuestInvites() == null ? true : item.getAllowGuestInvites();
         return new Event(
                 item.getEventId(),
                 item.getOwnerId(),
@@ -94,7 +96,8 @@ public class DynamoDbEventsRepository implements EventsRepository {
                 location,
                 startAt,
                 endAt,
-                coverKey
+                coverKey,
+                allowGuestInvites
         );
     }
 }

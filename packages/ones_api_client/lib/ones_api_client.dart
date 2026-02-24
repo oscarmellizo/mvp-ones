@@ -17,5 +17,8 @@ export 'package:ones_api_client/src/model/error_response.dart';
 export 'package:ones_api_client/src/model/event.dart';
 export 'package:ones_api_client/src/model/generate_event_cover_request.dart';
 export 'package:ones_api_client/src/model/generate_event_cover_response.dart';
+export 'package:ones_api_client/src/model/guest.dart';
 export 'package:ones_api_client/src/model/health_response.dart';
+export 'package:ones_api_client/src/model/invitation.dart';
+export 'package:ones_api_client/src/model/invite_event_guests_request.dart';
 export 'package:ones_api_client/src/model/presigned_url_response.dart';

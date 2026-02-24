@@ -11,4 +11,6 @@ public interface UsersRepository {
     Optional<User> findByEmail(String email);
 
     User upsert(User user);
+
+    void deleteById(String userId);
 }

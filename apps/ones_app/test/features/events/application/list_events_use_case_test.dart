@@ -16,12 +16,25 @@ class _FakeEventsRepository implements EventsRepository {
     DateTime startAt,
     DateTime endAt,
     String? coverReservationId,
+    List<String> inviteeEmails,
+    bool allowGuestInvites,
   ) {
     throw UnimplementedError();
   }
 
   @override
   Future<Event> getEvent(String id) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<EventGuest>> listEventGuests(String eventId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<EventGuest>> inviteEventGuests(
+      String eventId, List<String> inviteeEmails) {
     throw UnimplementedError();
   }
 
@@ -44,6 +57,7 @@ void main() {
         startAt: DateTime.utc(2025, 1, 1, 18),
         endAt: DateTime.utc(2025, 1, 1, 22),
         coverKey: null,
+        allowGuestInvites: true,
       ),
       Event(
         id: '2',
@@ -55,6 +69,7 @@ void main() {
         startAt: DateTime.utc(2025, 1, 2, 18),
         endAt: DateTime.utc(2025, 1, 2, 22),
         coverKey: null,
+        allowGuestInvites: true,
       ),
     ]);
 

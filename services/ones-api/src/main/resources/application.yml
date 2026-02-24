@@ -6,6 +6,7 @@ spring:
     name: ones-api
 
 ones:
+  env: ${ONES_ENV:dev}
   auth:
     google:
       client-id: ${GOOGLE_CLIENT_ID:}
@@ -194,6 +195,7 @@ ones:
   dynamodb:
     table-name: ${ONES_EVENTS_TABLE:ones-events}
     users-table-name: ${ONES_USERS_TABLE:ones-users}
+    invitations-table-name: ${ONES_INVITATIONS_TABLE:ones-${ONES_ENV:dev}-event-invitations}
     cover-previews-table-name: ${ONES_COVER_PREVIEWS_TABLE:ones-cover-previews}
     cover-reservations-table-name: ${ONES_COVER_RESERVATIONS_TABLE:ones-cover-reservations}
     endpoint: ${DYNAMODB_ENDPOINT:}

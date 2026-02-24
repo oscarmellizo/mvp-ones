@@ -20,7 +20,10 @@ import 'package:ones_api_client/src/model/error_response.dart';
 import 'package:ones_api_client/src/model/event.dart';
 import 'package:ones_api_client/src/model/generate_event_cover_request.dart';
 import 'package:ones_api_client/src/model/generate_event_cover_response.dart';
+import 'package:ones_api_client/src/model/guest.dart';
 import 'package:ones_api_client/src/model/health_response.dart';
+import 'package:ones_api_client/src/model/invitation.dart';
+import 'package:ones_api_client/src/model/invite_event_guests_request.dart';
 import 'package:ones_api_client/src/model/presigned_url_response.dart';
 
 part 'serializers.g.dart';
@@ -32,13 +35,24 @@ part 'serializers.g.dart';
   Event,
   GenerateEventCoverRequest,
   GenerateEventCoverResponse,
+  Guest,
   HealthResponse,
+  Invitation,
+  InviteEventGuestsRequest,
   PresignedUrlResponse,
 ])
 Serializers serializers = (_$serializers.toBuilder()
       ..addBuilderFactory(
         const FullType(BuiltList, [FullType(Event)]),
         () => ListBuilder<Event>(),
+      )
+      ..addBuilderFactory(
+        const FullType(BuiltList, [FullType(Invitation)]),
+        () => ListBuilder<Invitation>(),
+      )
+      ..addBuilderFactory(
+        const FullType(BuiltList, [FullType(Guest)]),
+        () => ListBuilder<Guest>(),
       )
       ..add(const OneOfSerializer())
       ..add(const AnyOfSerializer())

@@ -13,6 +13,8 @@ class CreateEventUseCase {
     DateTime startAt,
     DateTime endAt,
     String? coverReservationId,
+    List<String> inviteeEmails,
+    bool allowGuestInvites,
   ) {
     return repository.createEvent(
       title,
@@ -21,6 +23,8 @@ class CreateEventUseCase {
       startAt,
       endAt,
       coverReservationId,
+      inviteeEmails,
+      allowGuestInvites,
     );
   }
 }

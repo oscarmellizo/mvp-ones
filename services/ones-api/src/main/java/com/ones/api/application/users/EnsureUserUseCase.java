@@ -20,34 +20,50 @@ public class EnsureUserUseCase {
         Instant now = Instant.now(clock);
 
         return repository.findById(command.userId())
-                .map(existing -> new User(
-                        existing.getUserId(),
-                        coalesce(command.email(), existing.getEmail()),
-                        coalesce(command.name(), existing.getName()),
-                        coalesce(command.givenName(), existing.getGivenName()),
-                        coalesce(command.familyName(), existing.getFamilyName()),
-                        coalesce(command.picture(), existing.getPicture()),
-                        existing.getPreferredName(),
-                        existing.getProvider(),
-                        existing.getCreatedAt(),
-                        now
-                ))
-                .map(repository::upsert)
-                .orElseGet(() -> {
-                    String preferredName = defaultPreferredName(command.givenName(), command.name());
-                    User created = new User(
-                            command.userId(),
-                            command.email(),
-                            command.name(),
-                            command.givenName(),
-                            command.familyName(),
-                            command.picture(),
-                            preferredName,
-                            command.provider(),
-                            now,
+                .map(existing -> {
+                    User merged = new User(
+                            existing.getUserId(),
+                            coalesce(command.email(), existing.getEmail()),
+                            coalesce(command.name(), existing.getName()),
+                            coalesce(command.givenName(), existing.getGivenName()),
+                            coalesce(command.familyName(), existing.getFamilyName()),
+                            coalesce(command.picture(), existing.getPicture()),
+                            existing.getPreferredName(),
+                            existing.getProvider(),
+                            existing.getCreatedAt(),
                             now
                     );
-                    return repository.upsert(created);
+                    return repository.upsert(merged);
+                })
+                .orElseGet(() -> {
+                    String normalizedEmail = command.email() != null ? command.email().trim().toLowerCase() : null;
+                    User existingByEmail = normalizedEmail == null || normalizedEmail.isBlank()
+                            ? null
+                            : repository.findByEmail(normalizedEmail).orElse(null);
+
+                    Instant createdAt = existingByEmail != null ? existingByEmail.getCreatedAt() : now;
+                    String preferredName = existingByEmail != null && existingByEmail.getPreferredName() != null
+                            ? existingByEmail.getPreferredName()
+                            : defaultPreferredName(command.givenName(), command.name());
+                    User created = new User(
+                            command.userId(),
+                            normalizedEmail,
+                            coalesce(command.name(), existingByEmail != null ? existingByEmail.getName() : null),
+                            coalesce(command.givenName(), existingByEmail != null ? existingByEmail.getGivenName() : null),
+                            coalesce(command.familyName(), existingByEmail != null ? existingByEmail.getFamilyName() : null),
+                            coalesce(command.picture(), existingByEmail != null ? existingByEmail.getPicture() : null),
+                            preferredName,
+                            command.provider(),
+                            createdAt,
+                            now
+                    );
+                    User upserted = repository.upsert(created);
+
+                    if (existingByEmail != null && !existingByEmail.getUserId().equals(command.userId())) {
+                        repository.deleteById(existingByEmail.getUserId());
+                    }
+
+                    return upserted;
                 });
     }
 

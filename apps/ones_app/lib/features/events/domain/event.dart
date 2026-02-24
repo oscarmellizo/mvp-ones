@@ -8,6 +8,7 @@ class Event {
   final DateTime startAt;
   final DateTime endAt;
   final String? coverKey;
+  final bool allowGuestInvites;
 
   const Event({
     required this.id,
@@ -19,5 +20,6 @@ class Event {
     required this.startAt,
     required this.endAt,
     required this.coverKey,
+    required this.allowGuestInvites,
   });
 }

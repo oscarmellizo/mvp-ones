@@ -1,0 +1,266 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:ones_api_client/ones_api_client.dart' as api;
+
+import '../../../events/presentation/events_controller.dart';
+import '../invitations_controller.dart';
+
+Future<void> showInvitationsSheet(BuildContext context) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => const _InvitationsSheet(),
+  ).whenComplete(() async {
+    if (!context.mounted) return;
+    await context.read<EventsController>().refresh();
+  });
+}
+
+class _InvitationsSheet extends StatefulWidget {
+  const _InvitationsSheet();
+
+  @override
+  State<_InvitationsSheet> createState() => _InvitationsSheetState();
+}
+
+class _InvitationsSheetState extends State<_InvitationsSheet> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final controller = context.read<InvitationsController>();
+      controller.refresh().then((_) => controller.markAllSeen());
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final invites = context.watch<InvitationsController>();
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.80,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Invitations',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close),
+                      )
+                    ],
+                  ),
+                ),
+                if (invites.loading)
+                  const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (invites.items.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'No invitations.',
+                      style: TextStyle(color: Colors.black.withOpacity(0.6)),
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      itemCount: invites.items.length,
+                      separatorBuilder: (_, __) => Divider(
+                        height: 16,
+                        color: Colors.black.withOpacity(0.08),
+                      ),
+                      itemBuilder: (context, index) {
+                        final inv = invites.items[index];
+                        return _InvitationRow(
+                          eventId: inv.eventId,
+                          title: inv.eventTitle,
+                          status: inv.status,
+                          startAt: inv.eventStartAt,
+                          endAt: inv.eventEndAt,
+                          location: inv.eventLocation,
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InvitationRow extends StatelessWidget {
+  final String eventId;
+  final String title;
+  final api.InvitationStatusEnum status;
+  final DateTime startAt;
+  final DateTime endAt;
+  final String? location;
+
+  const _InvitationRow({
+    required this.eventId,
+    required this.title,
+    required this.status,
+    required this.startAt,
+    required this.endAt,
+    required this.location,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = context.read<InvitationsController>();
+
+    final when =
+        '${_formatMonthDayYear(startAt.toLocal())} • ${_formatTimeOfDay(startAt.toLocal())}';
+    final loc =
+        (location == null || location!.trim().isEmpty) ? '-' : location!.trim();
+
+    final (chipText, chipColor) = switch (status) {
+      api.InvitationStatusEnum.accepted => (
+          'Accepted',
+          const Color(0xFF58C7C7)
+        ),
+      api.InvitationStatusEnum.rejected => (
+          'Rejected',
+          const Color(0xFFE25555)
+        ),
+      api.InvitationStatusEnum.invited => ('Invited', const Color(0xFFFFC857)),
+      _ => ('Invited', const Color(0xFFFFC857)),
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$when • $loc',
+                    style: TextStyle(color: Colors.black.withOpacity(0.6)),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: chipColor,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                chipText,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: controller.loading
+                    ? null
+                    : () async {
+                        await controller.reject(eventId);
+                        if (context.mounted) {
+                          await context.read<EventsController>().refresh();
+                        }
+                      },
+                child: const Text('Reject'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF6A0D73),
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: controller.loading
+                    ? null
+                    : () async {
+                        await controller.accept(eventId);
+                        if (context.mounted) {
+                          await context.read<EventsController>().refresh();
+                        }
+                      },
+                child: const Text('Accept'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+String _formatMonthDayYear(DateTime dt) {
+  const months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December'
+  ];
+  return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
+}
+
+String _formatTimeOfDay(DateTime dt) {
+  final hour = dt.hour;
+  final minute = dt.minute;
+  final isPm = hour >= 12;
+  final h12 = hour % 12 == 0 ? 12 : hour % 12;
+  final mm = minute.toString().padLeft(2, '0');
+  final suffix = isPm ? 'PM' : 'AM';
+  return '$h12:$mm $suffix';
+}

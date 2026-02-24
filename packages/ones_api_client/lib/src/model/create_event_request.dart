@@ -3,6 +3,7 @@
 //
 
 // ignore_for_file: unused_element
+import 'package:built_collection/built_collection.dart';
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
 
@@ -17,6 +18,8 @@ part 'create_event_request.g.dart';
 /// * [startAt]
 /// * [endAt]
 /// * [coverReservationId] - Reservation id obtained after accepting an AI-generated cover (optional)
+/// * [inviteeEmails] - Invitee emails (lowercased). For each email, an invitation is created with status 'invited'.
+/// * [allowGuestInvites] - Whether accepted guests (non-owner) are allowed to invite other guests.
 @BuiltValue()
 abstract class CreateEventRequest
     implements Built<CreateEventRequest, CreateEventRequestBuilder> {
@@ -38,6 +41,14 @@ abstract class CreateEventRequest
   /// Reservation id obtained after accepting an AI-generated cover (optional)
   @BuiltValueField(wireName: r'coverReservationId')
   String? get coverReservationId;
+
+  /// Invitee emails (lowercased). For each email, an invitation is created with status 'invited'.
+  @BuiltValueField(wireName: r'inviteeEmails')
+  BuiltList<String>? get inviteeEmails;
+
+  /// Whether accepted guests (non-owner) are allowed to invite other guests.
+  @BuiltValueField(wireName: r'allowGuestInvites')
+  bool? get allowGuestInvites;
 
   CreateEventRequest._();
 
@@ -95,6 +106,20 @@ class _$CreateEventRequestSerializer
       yield serializers.serialize(
         object.coverReservationId,
         specifiedType: const FullType.nullable(String),
+      );
+    }
+    if (object.inviteeEmails != null) {
+      yield r'inviteeEmails';
+      yield serializers.serialize(
+        object.inviteeEmails,
+        specifiedType: const FullType(BuiltList, [FullType(String)]),
+      );
+    }
+    if (object.allowGuestInvites != null) {
+      yield r'allowGuestInvites';
+      yield serializers.serialize(
+        object.allowGuestInvites,
+        specifiedType: const FullType.nullable(bool),
       );
     }
   }
@@ -164,6 +189,21 @@ class _$CreateEventRequestSerializer
           ) as String?;
           if (valueDes == null) continue;
           result.coverReservationId = valueDes;
+          break;
+        case r'inviteeEmails':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(BuiltList, [FullType(String)]),
+          ) as BuiltList<String>;
+          result.inviteeEmails.replace(valueDes);
+          break;
+        case r'allowGuestInvites':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType.nullable(bool),
+          ) as bool?;
+          if (valueDes == null) continue;
+          result.allowGuestInvites = valueDes;
           break;
         default:
           unhandled.add(key);
