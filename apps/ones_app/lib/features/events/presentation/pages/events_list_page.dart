@@ -375,7 +375,6 @@ class _SectionHeader extends StatelessWidget {
         Text(
           title,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
                 color: OnesColors.purpleDeep,
               ),
         ),
@@ -494,7 +493,7 @@ class _UpcomingCard extends StatelessWidget {
                     title,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           color: OnesColors.white,
-                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.6,
                           height: 1.05,
                         ),
                   ),

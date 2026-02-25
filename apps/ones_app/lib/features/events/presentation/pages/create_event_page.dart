@@ -642,19 +642,44 @@ class _CreateEventPageState extends State<CreateEventPage> {
     BuildContext context,
   ) async {
     final covers = context.read<EventCoversController>();
+    final auth = context.read<AuthController>();
 
     final eventName = _nameController.text.trim();
     final objective = _objectiveController.text.trim();
     if (eventName.isEmpty) return;
     if (objective.isEmpty) return;
     final location = _locationController.text.trim();
+    final coverLocation = location.isEmpty ? 'TBD' : location;
 
-    await covers.generate(
-      eventName: eventName,
-      objective: objective,
-      location: location,
-      size: '1792x1024',
-    );
+    try {
+      await covers.generate(
+        eventName: eventName,
+        objective: objective,
+        location: coverLocation,
+        size: '1792x1024',
+      );
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      if (status == 401) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(
+            const SnackBar(
+              content: Text('Your session expired. Please sign in again.'),
+            ),
+          );
+        await auth.logout();
+        return;
+      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(
+          const SnackBar(content: Text('Failed to generate cover.')),
+        );
+      rethrow;
+    }
   }
 
   Future<void> _pickDate({

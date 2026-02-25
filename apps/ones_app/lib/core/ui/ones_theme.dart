@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'ones_colors.dart';
+import 'ones_typography.dart';
 
 class OnesTheme {
   const OnesTheme._();
@@ -22,24 +23,72 @@ class OnesTheme {
       useMaterial3: true,
       colorScheme: scheme,
       scaffoldBackgroundColor: OnesColors.background,
+      fontFamilyFallback: OnesTypography.bodyFallbacks,
     );
 
     final textTheme = base.textTheme.copyWith(
-      displayLarge: base.textTheme.displayLarge?.copyWith(fontWeight: FontWeight.w900),
-      displayMedium: base.textTheme.displayMedium?.copyWith(fontWeight: FontWeight.w900),
-      displaySmall: base.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w900),
-      headlineLarge: base.textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.w900),
-      headlineMedium: base.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
-      headlineSmall: base.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-      titleLarge: base.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
-      titleMedium: base.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-      titleSmall: base.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
-      bodyLarge: base.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
-      bodyMedium: base.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-      bodySmall: base.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
-      labelLarge: base.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
-      labelMedium: base.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700),
-      labelSmall: base.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700),
+      displayLarge: base.textTheme.displayLarge?.copyWith(
+        fontFamily: OnesTypography.airstrike,
+        fontWeight: FontWeight.w400,
+        letterSpacing: 1.2,
+        height: 0.95,
+      ),
+      displayMedium: base.textTheme.displayMedium?.copyWith(
+        fontFamily: OnesTypography.airstrike,
+        fontWeight: FontWeight.w400,
+        letterSpacing: 1.0,
+        height: 0.95,
+      ),
+      displaySmall: base.textTheme.displaySmall?.copyWith(
+        fontFamily: OnesTypography.airstrike,
+        fontWeight: FontWeight.w400,
+        letterSpacing: 0.9,
+        height: 0.95,
+      ),
+      headlineLarge: base.textTheme.headlineLarge?.copyWith(
+        fontFamily: OnesTypography.airstrike,
+        fontWeight: FontWeight.w400,
+        letterSpacing: 0.9,
+        height: 0.95,
+      ),
+      headlineMedium: base.textTheme.headlineMedium?.copyWith(
+        fontFamily: OnesTypography.airstrike,
+        fontWeight: FontWeight.w400,
+        letterSpacing: 0.8,
+        height: 0.95,
+      ),
+      headlineSmall: base.textTheme.headlineSmall?.copyWith(
+        fontFamily: OnesTypography.airstrike,
+        fontWeight: FontWeight.w400,
+        letterSpacing: 0.8,
+        height: 0.95,
+      ),
+      titleLarge: base.textTheme.titleLarge?.copyWith(
+        fontFamily: OnesTypography.airstrike,
+        fontWeight: FontWeight.w400,
+        letterSpacing: 0.8,
+        height: 0.95,
+      ),
+      titleMedium: base.textTheme.titleMedium?.copyWith(
+        fontFamily: OnesTypography.lemonMilk,
+        fontWeight: FontWeight.w500,
+      ),
+      titleSmall: base.textTheme.titleSmall?.copyWith(
+        fontFamily: OnesTypography.lemonMilk,
+        fontWeight: FontWeight.w500,
+      ),
+      bodyLarge:
+          base.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+      bodyMedium:
+          base.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+      bodySmall:
+          base.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+      labelLarge:
+          base.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+      labelMedium:
+          base.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700),
+      labelSmall:
+          base.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700),
     );
 
     return base.copyWith(

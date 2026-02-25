@@ -189,18 +189,16 @@ class _Header extends StatelessWidget {
                 title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 18,
-                ),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      letterSpacing: 0.6,
+                    ),
               ),
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: TextStyle(
-                  color: OnesColors.black.withOpacity(0.55),
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: OnesColors.black.withOpacity(0.55),
+                    ),
               ),
             ],
           ),

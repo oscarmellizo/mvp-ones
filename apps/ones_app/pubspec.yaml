@@ -77,6 +77,22 @@ flutter:
     - assets/auth/
     - assets/config/
 
+  fonts:
+    - family: Airstrike
+      fonts:
+        - asset: assets/fonts/airstrike/Airstrike-Regular.otf
+          weight: 400
+ 
+    - family: LemonMilk
+      fonts:
+        - asset: assets/fonts/lemon_milk/LemonMilk-Regular.otf
+          weight: 400
+        # si tienes estos archivos, los agregas también:
+        - asset: assets/fonts/lemon_milk/LemonMilk-Light.otf
+          weight: 300
+        - asset: assets/fonts/lemon_milk/LemonMilk-Medium.otf
+          weight: 500
+
 flutter_native_splash:
   color: "#F4B64E"
   image: assets/splash/native_splash.png

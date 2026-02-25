@@ -55,8 +55,13 @@ class OnesApiFactory {
 
           try {
             client.setBearerAuth('bearerAuth', refreshed);
+
+            final mergedHeaders = Map<String, dynamic>.from(opts.headers);
+            mergedHeaders['Authorization'] = 'Bearer $refreshed';
+
             final newOptions = opts.copyWith(
               extra: {...opts.extra, '__retried_401': true},
+              headers: mergedHeaders,
             );
             final response = await client.dio.fetch<dynamic>(newOptions);
             handler.resolve(response);
