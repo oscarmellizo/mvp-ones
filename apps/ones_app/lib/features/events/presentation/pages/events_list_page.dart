@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/ui/ones_colors.dart';
 import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
 import 'event_detail_page.dart';
@@ -17,8 +18,8 @@ class EventsListPage extends StatefulWidget {
 }
 
 class _EventsListPageState extends State<EventsListPage> {
-  static const _bg = Color(0xFFF4B64E);
-  static const _divider = Color(0xFFE9A52E);
+  static const _bg = OnesColors.background;
+  static const _divider = OnesColors.orange;
 
   final _searchController = TextEditingController();
 
@@ -165,12 +166,12 @@ class _EventsListPageState extends State<EventsListPage> {
                   margin: const EdgeInsets.symmetric(horizontal: 16),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.6),
+                    color: OnesColors.white.withOpacity(0.6),
                     borderRadius: BorderRadius.zero,
                   ),
                   child: Text(
                     'Error: ${controller.error}',
-                    style: const TextStyle(color: Colors.red),
+                    style: const TextStyle(color: OnesColors.danger),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -305,13 +306,13 @@ class _Header extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 6, vertical: 2),
                             decoration: const BoxDecoration(
-                              color: Color(0xFFE25555),
+                              color: OnesColors.danger,
                               shape: BoxShape.circle,
                             ),
                             child: Text(
                               unread > 99 ? '99+' : unread.toString(),
                               style: const TextStyle(
-                                color: Colors.white,
+                                color: OnesColors.white,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w900,
                               ),
@@ -344,16 +345,17 @@ class _SearchBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
-      decoration: const InputDecoration(
-        prefixIcon: Icon(Icons.search),
+      decoration: InputDecoration(
+        prefixIcon: const Icon(Icons.search),
         hintText: 'Search events...',
         filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
+        fillColor: OnesColors.white,
+        border: const OutlineInputBorder(
           borderRadius: BorderRadius.zero,
           borderSide: BorderSide.none,
         ),
-        contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       ),
     );
   }
@@ -374,7 +376,7 @@ class _SectionHeader extends StatelessWidget {
           title,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w800,
-                color: const Color(0xFF3B1D6D),
+                color: OnesColors.purpleDeep,
               ),
         ),
         const Spacer(),
@@ -390,8 +392,8 @@ class _EmptyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 260,
-      decoration: const BoxDecoration(
-        color: Color(0x99FFFFFF),
+      decoration: BoxDecoration(
+        color: OnesColors.white.withOpacity(0.60),
         borderRadius: BorderRadius.zero,
       ),
       child: const Center(child: Text('No upcoming events')),
@@ -459,8 +461,8 @@ class _UpcomingCard extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withOpacity(0.05),
-                    Colors.black.withOpacity(0.65),
+                    OnesColors.black.withOpacity(0.05),
+                    OnesColors.black.withOpacity(0.65),
                   ],
                 ),
               ),
@@ -475,13 +477,13 @@ class _UpcomingCard extends StatelessWidget {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.25),
-                        borderRadius: BorderRadius.zero,
+                        color: OnesColors.white.withOpacity(0.25),
+                        borderRadius: BorderRadius.circular(18),
                       ),
                       child: Text(
                         badgeText!,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: OnesColors.black,
                           fontWeight: FontWeight.w700,
                           fontSize: 12,
                         ),
@@ -491,7 +493,7 @@ class _UpcomingCard extends StatelessWidget {
                   Text(
                     title,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Colors.white,
+                          color: OnesColors.white,
                           fontWeight: FontWeight.w900,
                           height: 1.05,
                         ),
@@ -503,13 +505,13 @@ class _UpcomingCard extends StatelessWidget {
                         const Icon(
                           Icons.calendar_today,
                           size: 16,
-                          color: Colors.white,
+                          color: OnesColors.white,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           dateText!,
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: OnesColors.white,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -522,13 +524,13 @@ class _UpcomingCard extends StatelessWidget {
                       const Icon(
                         Icons.access_time,
                         size: 16,
-                        color: Colors.white,
+                        color: OnesColors.white,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         timeText,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: OnesColors.white,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -540,13 +542,13 @@ class _UpcomingCard extends StatelessWidget {
                       const Icon(
                         Icons.location_on,
                         size: 16,
-                        color: Colors.white,
+                        color: OnesColors.white,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         location,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: OnesColors.white,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

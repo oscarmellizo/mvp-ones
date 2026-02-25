@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/ui/ones_colors.dart';
 import '../auth_controller.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
-
-  static const _bg = Color(0xFFF4B64E);
-  static const _purple = Color(0xFF3B1D6D);
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +15,7 @@ class LoginPage extends StatelessWidget {
     final horizontalPadding = size.width >= 520 ? 32.0 : 20.0;
 
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: OnesColors.background,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -46,7 +44,7 @@ class LoginPage extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.w800,
-                          color: Colors.black,
+                          color: OnesColors.black,
                         ),
                   ),
                   const SizedBox(height: 10),
@@ -54,7 +52,7 @@ class LoginPage extends StatelessWidget {
                     'Capture moments, share galleries, and\nrelive the event together.',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.black.withOpacity(0.7),
+                          color: OnesColors.black.withOpacity(0.7),
                           height: 1.3,
                         ),
                   ),
@@ -65,13 +63,13 @@ class LoginPage extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.6),
+                        color: OnesColors.white.withOpacity(0.6),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         'Error: ${auth.error}',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.red),
+                        style: const TextStyle(color: OnesColors.danger),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -82,8 +80,8 @@ class LoginPage extends StatelessWidget {
                     child: ElevatedButton(
                       onPressed: auth.isLoading ? null : () => auth.signIn(),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.black,
+                        backgroundColor: OnesColors.white,
+                        foregroundColor: OnesColors.black,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(28),
                         ),
@@ -103,7 +101,7 @@ class LoginPage extends StatelessWidget {
                     child: const Text(
                       'Create an account with Email',
                       style: TextStyle(
-                        color: _purple,
+                        color: OnesColors.purpleDeep,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -113,7 +111,7 @@ class LoginPage extends StatelessWidget {
                     'By continuing, you agree to our Terms of Service\nand Privacy Policy.',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.black.withOpacity(0.55),
+                          color: OnesColors.black.withOpacity(0.55),
                           height: 1.3,
                         ),
                   ),
@@ -132,8 +130,6 @@ class _HeroStack extends StatelessWidget {
   final double height;
 
   const _HeroStack({required this.height});
-
-  static const _purple = Color(0xFF3B1D6D);
 
   @override
   Widget build(BuildContext context) {
@@ -200,7 +196,8 @@ class _HeroStack extends StatelessWidget {
             top: 32,
             child: Opacity(
               opacity: 0.9,
-              child: Icon(Icons.auto_awesome, color: _purple, size: 22),
+              child: Icon(Icons.auto_awesome,
+                  color: OnesColors.purpleDeep, size: 22),
             ),
           ),
           const Positioned(
@@ -208,7 +205,8 @@ class _HeroStack extends StatelessWidget {
             top: 58,
             child: Opacity(
               opacity: 0.7,
-              child: Icon(Icons.auto_awesome, color: _purple, size: 16),
+              child: Icon(Icons.auto_awesome,
+                  color: OnesColors.purpleDeep, size: 16),
             ),
           ),
           const Positioned(
@@ -216,7 +214,8 @@ class _HeroStack extends StatelessWidget {
             bottom: 14,
             child: Opacity(
               opacity: 0.9,
-              child: Icon(Icons.camera_alt, color: _purple, size: 22),
+              child: Icon(Icons.camera_alt,
+                  color: OnesColors.purpleDeep, size: 22),
             ),
           ),
         ],

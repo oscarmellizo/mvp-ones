@@ -106,6 +106,20 @@ class AuthController extends ChangeNotifier {
     return lookupUserByEmailUseCase.execute(token, email);
   }
 
+  Future<String?> refreshIdToken() async {
+    try {
+      final token = await getIdToken.execute();
+      if (token != null && token.isNotEmpty) {
+        _idToken = token;
+        notifyListeners();
+        return token;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> logout() async {
     _setLoading(true);
     try {

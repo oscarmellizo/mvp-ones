@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/ui/ones_colors.dart';
 import '../../../auth/presentation/auth_controller.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -54,7 +55,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final lastName = parts.$2;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4B64E),
+      backgroundColor: OnesColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -65,12 +66,12 @@ class _ProfilePageState extends State<ProfilePage> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: OnesColors.white,
                     borderRadius: BorderRadius.circular(18),
                   ),
                   child: Text(
                     'No authenticated user.',
-                    style: TextStyle(color: Colors.black.withOpacity(0.6)),
+                    style: TextStyle(color: OnesColors.black.withOpacity(0.6)),
                   ),
                 )
               else ...[
@@ -79,7 +80,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     width: 88,
                     height: 88,
                     decoration: const BoxDecoration(
-                      color: Colors.white,
+                      color: OnesColors.white,
                       shape: BoxShape.circle,
                     ),
                     child: ClipOval(
@@ -145,7 +146,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       decoration: InputDecoration(
                         hintText: 'Preferred name',
                         filled: true,
-                        fillColor: const Color(0xFFF7F3EA),
+                        fillColor: OnesColors.yellowLight.withOpacity(0.35),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                           borderSide: BorderSide.none,
@@ -158,7 +159,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     Text(
                       'This name is used to indicate which are your photos.',
                       style: TextStyle(
-                        color: Colors.black.withOpacity(0.55),
+                        color: OnesColors.black.withOpacity(0.55),
                         fontWeight: FontWeight.w600,
                         fontSize: 12,
                       ),
@@ -168,8 +169,8 @@ class _ProfilePageState extends State<ProfilePage> {
                       width: double.infinity,
                       child: FilledButton(
                         style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF6A0D73),
-                          foregroundColor: Colors.white,
+                          backgroundColor: OnesColors.purpleMid,
+                          foregroundColor: OnesColors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
@@ -218,8 +219,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 height: 56,
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF6A0D73),
-                    foregroundColor: Colors.white,
+                    backgroundColor: OnesColors.purpleMid,
+                    foregroundColor: OnesColors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -262,7 +263,7 @@ class _Card extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: OnesColors.white,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
@@ -295,7 +296,7 @@ class _ReadOnlyField extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: Colors.black.withOpacity(0.55),
+            color: OnesColors.black.withOpacity(0.55),
             fontWeight: FontWeight.w700,
             fontSize: 12,
           ),
@@ -308,7 +309,7 @@ class _ReadOnlyField extends StatelessWidget {
           style: const TextStyle(
             fontWeight: FontWeight.w900,
             fontSize: 14,
-            color: Colors.black,
+            color: OnesColors.black,
           ),
         ),
       ],

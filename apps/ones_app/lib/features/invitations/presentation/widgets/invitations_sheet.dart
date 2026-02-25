@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ones_api_client/ones_api_client.dart' as api;
 
+import '../../../../core/ui/ones_colors.dart';
 import '../../../events/presentation/events_controller.dart';
 import '../invitations_controller.dart';
 
@@ -44,7 +45,7 @@ class _InvitationsSheetState extends State<_InvitationsSheet> {
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: OnesColors.white,
             borderRadius: BorderRadius.circular(18),
           ),
           child: ConstrainedBox(
@@ -85,7 +86,8 @@ class _InvitationsSheetState extends State<_InvitationsSheet> {
                     padding: const EdgeInsets.all(16),
                     child: Text(
                       'No invitations.',
-                      style: TextStyle(color: Colors.black.withOpacity(0.6)),
+                      style:
+                          TextStyle(color: OnesColors.black.withOpacity(0.6)),
                     ),
                   )
                 else
@@ -95,7 +97,7 @@ class _InvitationsSheetState extends State<_InvitationsSheet> {
                       itemCount: invites.items.length,
                       separatorBuilder: (_, __) => Divider(
                         height: 16,
-                        color: Colors.black.withOpacity(0.08),
+                        color: OnesColors.black.withOpacity(0.08),
                       ),
                       itemBuilder: (context, index) {
                         final inv = invites.items[index];
@@ -146,16 +148,10 @@ class _InvitationRow extends StatelessWidget {
         (location == null || location!.trim().isEmpty) ? '-' : location!.trim();
 
     final (chipText, chipColor) = switch (status) {
-      api.InvitationStatusEnum.accepted => (
-          'Accepted',
-          const Color(0xFF58C7C7)
-        ),
-      api.InvitationStatusEnum.rejected => (
-          'Rejected',
-          const Color(0xFFE25555)
-        ),
-      api.InvitationStatusEnum.invited => ('Invited', const Color(0xFFFFC857)),
-      _ => ('Invited', const Color(0xFFFFC857)),
+      api.InvitationStatusEnum.accepted => ('Accepted', OnesColors.green),
+      api.InvitationStatusEnum.rejected => ('Rejected', OnesColors.danger),
+      api.InvitationStatusEnum.invited => ('Invited', OnesColors.yellowSoft),
+      _ => ('Invited', OnesColors.yellowSoft),
     };
 
     return Column(
@@ -175,7 +171,7 @@ class _InvitationRow extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     '$when • $loc',
-                    style: TextStyle(color: Colors.black.withOpacity(0.6)),
+                    style: TextStyle(color: OnesColors.black.withOpacity(0.6)),
                   ),
                 ],
               ),
@@ -216,8 +212,8 @@ class _InvitationRow extends StatelessWidget {
             Expanded(
               child: FilledButton(
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF6A0D73),
-                  foregroundColor: Colors.white,
+                  backgroundColor: OnesColors.purpleMid,
+                  foregroundColor: OnesColors.white,
                 ),
                 onPressed: controller.loading
                     ? null

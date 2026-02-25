@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/ui/ones_colors.dart';
 import '../../../auth/presentation/auth_controller.dart';
 import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
@@ -48,10 +49,10 @@ class _EventDetailPageState extends State<EventDetailPage> {
     final horizontalPadding = size.width >= 520 ? 28.0 : 16.0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4B64E),
+      backgroundColor: OnesColors.background,
       floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF6A0D73),
-        foregroundColor: Colors.white,
+        backgroundColor: OnesColors.purpleMid,
+        foregroundColor: OnesColors.white,
         onPressed: event == null
             ? null
             : () => Navigator.of(context).push(
@@ -177,7 +178,7 @@ class _Header extends StatelessWidget {
       children: [
         IconButton(
           onPressed: onBack,
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back, color: OnesColors.black),
         ),
         const SizedBox(width: 4),
         Expanded(
@@ -197,7 +198,7 @@ class _Header extends StatelessWidget {
               Text(
                 subtitle,
                 style: TextStyle(
-                  color: Colors.black.withOpacity(0.55),
+                  color: OnesColors.black.withOpacity(0.55),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -210,7 +211,8 @@ class _Header extends StatelessWidget {
           children: [
             IconButton(
               onPressed: onBell,
-              icon: const Icon(Icons.notifications_none, color: Colors.black),
+              icon:
+                  const Icon(Icons.notifications_none, color: OnesColors.black),
             ),
             if (unread > 0)
               Positioned(
@@ -220,13 +222,13 @@ class _Header extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: const BoxDecoration(
-                    color: Color(0xFFE25555),
+                    color: OnesColors.danger,
                     shape: BoxShape.circle,
                   ),
                   child: Text(
                     unread > 99 ? '99+' : unread.toString(),
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: OnesColors.white,
                       fontSize: 10,
                       fontWeight: FontWeight.w900,
                     ),
@@ -251,7 +253,7 @@ class _Tabs extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.04),
+        color: OnesColors.black.withOpacity(0.04),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
@@ -296,12 +298,12 @@ class _TabButton extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? Colors.white : Colors.transparent,
+          color: selected ? OnesColors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(14),
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
+                    color: OnesColors.black.withOpacity(0.06),
                     blurRadius: 12,
                     offset: const Offset(0, 6),
                   ),
@@ -313,7 +315,7 @@ class _TabButton extends StatelessWidget {
           textAlign: TextAlign.center,
           style: TextStyle(
             fontWeight: FontWeight.w800,
-            color: selected ? const Color(0xFF6A0D73) : Colors.black54,
+            color: selected ? OnesColors.purpleMid : Colors.black54,
           ),
         ),
       ),
@@ -447,7 +449,7 @@ class _SearchRow extends StatelessWidget {
         prefixIcon: const Icon(Icons.search),
         hintText: 'Search by attendee or date',
         filled: true,
-        fillColor: Colors.white,
+        fillColor: OnesColors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
@@ -479,7 +481,7 @@ class _HighlightsSection extends StatelessWidget {
               child: const Text(
                 'View Reel',
                 style: TextStyle(
-                  color: Color(0xFF6A0D73),
+                  color: OnesColors.purpleMid,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -505,9 +507,9 @@ class _HighlightsSection extends StatelessWidget {
                 _ => 'assets/auth/amigos.png'
               };
               final ring = switch (index) {
-                0 => const Color(0xFF6A0D73),
-                1 => const Color(0xFF58C7C7),
-                _ => const Color(0xFFFFB74D)
+                0 => OnesColors.purpleMid,
+                1 => OnesColors.green,
+                _ => OnesColors.yellowSoft
               };
 
               return _HighlightChip(
@@ -601,15 +603,15 @@ class _MediaTile extends StatelessWidget {
                   if (item.isRaw)
                     _TopPill(
                       text: 'RAW',
-                      bg: Colors.black.withOpacity(0.65),
-                      fg: Colors.white,
+                      bg: OnesColors.black.withOpacity(0.65),
+                      fg: OnesColors.white,
                     ),
                   if (item.isRaw) const SizedBox(width: 8),
                   if (isNew)
                     const _TopPill(
                       text: 'NEW',
-                      bg: Color(0xFFFFC857),
-                      fg: Colors.black,
+                      bg: OnesColors.yellowSoft,
+                      fg: OnesColors.black,
                     ),
                 ],
               ),
@@ -625,10 +627,10 @@ class _MediaTile extends StatelessWidget {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.45),
+                    color: OnesColors.black.withOpacity(0.45),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.play_arrow, color: Colors.white),
+                  child: const Icon(Icons.play_arrow, color: OnesColors.white),
                 ),
               ),
           ],
@@ -671,12 +673,15 @@ class _BottomAuthorChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.92),
+        color: OnesColors.white.withOpacity(0.92),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Text(
         author,
-        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12),
+        style: const TextStyle(
+          fontWeight: FontWeight.w900,
+          fontSize: 12,
+        ),
       ),
     );
   }
@@ -889,7 +894,7 @@ class _DetailsTabState extends State<_DetailsTab> {
                 decoration: InputDecoration(
                   hintText: 'Email (required)',
                   filled: true,
-                  fillColor: const Color(0xFFF7F3EA),
+                  fillColor: OnesColors.yellowLight.withOpacity(0.35),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide.none,
@@ -903,7 +908,7 @@ class _DetailsTabState extends State<_DetailsTab> {
                 Text(
                   _inviteError!,
                   style: const TextStyle(
-                    color: Color(0xFFE25555),
+                    color: OnesColors.danger,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -913,8 +918,8 @@ class _DetailsTabState extends State<_DetailsTab> {
                 width: double.infinity,
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF6A0D73),
-                    foregroundColor: Colors.white,
+                    backgroundColor: OnesColors.purpleMid,
+                    foregroundColor: OnesColors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -950,14 +955,14 @@ class _DetailsTabState extends State<_DetailsTab> {
                 if (snapshot.hasError) {
                   return Text(
                     'Failed to load guests.',
-                    style: TextStyle(color: Colors.black.withOpacity(0.55)),
+                    style: TextStyle(color: OnesColors.black.withOpacity(0.55)),
                   );
                 }
 
                 if (guests == null || guests.isEmpty) {
                   return Text(
                     'No guests yet.',
-                    style: TextStyle(color: Colors.black.withOpacity(0.55)),
+                    style: TextStyle(color: OnesColors.black.withOpacity(0.55)),
                   );
                 }
 
@@ -967,7 +972,7 @@ class _DetailsTabState extends State<_DetailsTab> {
                   shrinkWrap: true,
                   separatorBuilder: (_, __) => Divider(
                     height: 14,
-                    color: Colors.black.withOpacity(0.06),
+                    color: OnesColors.black.withOpacity(0.06),
                   ),
                   itemBuilder: (context, index) {
                     final g = guests[index];
@@ -988,14 +993,15 @@ class _DetailsTabState extends State<_DetailsTab> {
                           };
 
                     final statusBg = isOwner
-                        ? const Color(0xFF6A0D73)
+                        ? OnesColors.purpleMid
                         : switch (g.status) {
-                            'accepted' => const Color(0xFF58C7C7),
-                            'rejected' => const Color(0xFFE25555),
-                            _ => const Color(0xFFFFC857),
+                            'accepted' => OnesColors.green,
+                            'rejected' => OnesColors.danger,
+                            _ => OnesColors.yellowSoft,
                           };
 
-                    final statusFg = isOwner ? Colors.white : Colors.black;
+                    final statusFg =
+                        isOwner ? OnesColors.white : OnesColors.black;
 
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
@@ -1008,7 +1014,7 @@ class _DetailsTabState extends State<_DetailsTab> {
                           : Text(
                               subtitle,
                               style: TextStyle(
-                                color: Colors.black.withOpacity(0.6),
+                                color: OnesColors.black.withOpacity(0.6),
                               ),
                             ),
                       trailing: Container(
@@ -1051,7 +1057,7 @@ class _DetailsCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: OnesColors.white,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
@@ -1091,7 +1097,7 @@ class _ReadOnlyField extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: Colors.black.withOpacity(0.55),
+            color: OnesColors.black.withOpacity(0.55),
             fontWeight: FontWeight.w700,
             fontSize: 12,
           ),
@@ -1104,7 +1110,7 @@ class _ReadOnlyField extends StatelessWidget {
           style: const TextStyle(
             fontWeight: FontWeight.w900,
             fontSize: 14,
-            color: Colors.black,
+            color: OnesColors.black,
           ),
         ),
       ],

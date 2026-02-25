@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/ui/ones_colors.dart';
 import '../events_controller.dart';
 import 'event_detail_page.dart';
 
@@ -70,7 +71,7 @@ class _GalleriesPageState extends State<GalleriesPage> {
       ..sort((a, b) => b.compareTo(a));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4B64E),
+      backgroundColor: OnesColors.background,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () => context.read<EventsController>().refresh(),
@@ -83,7 +84,7 @@ class _GalleriesPageState extends State<GalleriesPage> {
                   prefixIcon: const Icon(Icons.search),
                   hintText: 'Search past events',
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: OnesColors.white,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide.none,
@@ -104,12 +105,12 @@ class _GalleriesPageState extends State<GalleriesPage> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: OnesColors.white,
                     borderRadius: BorderRadius.circular(18),
                   ),
                   child: Text(
                     q.isEmpty ? 'No past events yet.' : 'No results for "$q".',
-                    style: TextStyle(color: Colors.black.withOpacity(0.6)),
+                    style: TextStyle(color: OnesColors.black.withOpacity(0.6)),
                   ),
                 )
               else
@@ -122,7 +123,7 @@ class _GalleriesPageState extends State<GalleriesPage> {
                         _formatDayHeader(day),
                         style: const TextStyle(
                           fontWeight: FontWeight.w900,
-                          color: Colors.black,
+                          color: OnesColors.black,
                         ),
                       ),
                     ),
@@ -180,7 +181,7 @@ class _GalleryEventCard extends StatelessWidget {
       child: Ink(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: OnesColors.white,
           borderRadius: BorderRadius.circular(18),
         ),
         child: Row(
@@ -214,7 +215,7 @@ class _GalleryEventCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: Colors.black.withOpacity(0.55),
+                      color: OnesColors.black.withOpacity(0.55),
                       fontWeight: FontWeight.w700,
                     ),
                   ),

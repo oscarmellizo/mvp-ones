@@ -1,6 +1,8 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/ui/ones_colors.dart';
 import '../../../auth/presentation/auth_controller.dart';
 import '../event_covers_controller.dart';
 import '../events_controller.dart';
@@ -38,8 +40,14 @@ class _CreateEventPageState extends State<CreateEventPage> {
   final _locationController = TextEditingController();
   final _inviteEmailController = TextEditingController();
 
+  static const double _ctaHeight = 56;
+  static const double _ctaBottomGap = 16;
+  static const Duration _minEventDuration = Duration(minutes: 15);
+
   final List<_Invitee> _invitees = [];
   String? _inviteError;
+
+  String? _dateTimeError;
 
   DateTime? _startDate;
   TimeOfDay? _startTime;
@@ -53,6 +61,10 @@ class _CreateEventPageState extends State<CreateEventPage> {
   @override
   void initState() {
     super.initState();
+
+    _nameController.addListener(_onFormChanged);
+    _objectiveController.addListener(_onFormChanged);
+    _locationController.addListener(_onFormChanged);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -79,6 +91,9 @@ class _CreateEventPageState extends State<CreateEventPage> {
 
   @override
   void dispose() {
+    _nameController.removeListener(_onFormChanged);
+    _objectiveController.removeListener(_onFormChanged);
+    _locationController.removeListener(_onFormChanged);
     _nameController.dispose();
     _objectiveController.dispose();
     _locationController.dispose();
@@ -86,55 +101,187 @@ class _CreateEventPageState extends State<CreateEventPage> {
     super.dispose();
   }
 
-  Future<void> _addInvitee() async {
-    final email = _inviteEmailController.text.trim();
-    final normalizedEmail = email.toLowerCase();
+  void _onFormChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
 
-    if (email.isEmpty) {
+  InputDecoration _inputDecoration({
+    required String hintText,
+    Widget? prefixIcon,
+    Widget? suffixIcon,
+  }) {
+    final baseBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(color: OnesColors.black.withOpacity(0.12)),
+    );
+    return InputDecoration(
+      hintText: hintText,
+      prefixIcon: prefixIcon,
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: OnesColors.black.withOpacity(0.04),
+      border: baseBorder,
+      enabledBorder: baseBorder,
+      focusedBorder: baseBorder.copyWith(
+        borderSide: const BorderSide(color: OnesColors.purpleMid, width: 1.6),
+      ),
+    );
+  }
+
+  DateTime? _combineLocal(DateTime? date, TimeOfDay? time) {
+    if (date == null || time == null) return null;
+    return DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
+  }
+
+  bool get _canGenerateCover {
+    return _nameController.text.trim().isNotEmpty &&
+        _objectiveController.text.trim().isNotEmpty;
+  }
+
+  bool get _isFormReady {
+    if (!_nameController.text.trim().isNotEmpty) return false;
+    if (!_objectiveController.text.trim().isNotEmpty) return false;
+    final start = _combineLocal(_startDate, _startTime);
+    final end = _combineLocal(_endDate, _endTime);
+    if (start == null || end == null) return false;
+    if (end.isBefore(start.add(_minEventDuration))) return false;
+    return true;
+  }
+
+  String _resolveLocation() {
+    final value = _locationController.text.trim();
+    if (value.isNotEmpty) return value;
+    return 'TBD';
+  }
+
+  void _ensureEndDefaults() {
+    final start = _combineLocal(_startDate, _startTime);
+    if (start == null) return;
+    if (_endDate != null && _endTime != null) return;
+
+    final suggested = start.add(const Duration(hours: 2));
+    _endDate = DateTime(suggested.year, suggested.month, suggested.day);
+    _endTime = TimeOfDay(hour: suggested.hour, minute: suggested.minute);
+  }
+
+  void _validateDateTimes({bool showErrors = false}) {
+    final start = _combineLocal(_startDate, _startTime);
+    final end = _combineLocal(_endDate, _endTime);
+
+    String? error;
+    if (start != null &&
+        end != null &&
+        end.isBefore(start.add(_minEventDuration))) {
+      error = 'Event must be at least 15 minutes.';
+    }
+
+    setState(() {
+      _dateTimeError = error;
+    });
+
+    if (showErrors && error != null) {
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(SnackBar(content: Text(error)));
+    }
+  }
+
+  Future<void> _addInvitee() async {
+    final raw = _inviteEmailController.text;
+    final parts = raw
+        .split(RegExp(r'[\s,;]+'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList(growable: false);
+
+    if (parts.isEmpty) {
       setState(() {
         _inviteError = 'Please enter an email.';
       });
       return;
     }
 
-    if (!_looksLikeEmail(normalizedEmail)) {
+    final candidates =
+        parts.map((e) => e.toLowerCase()).toList(growable: false);
+    final invalid =
+        candidates.where((e) => !_looksLikeEmail(e)).toList(growable: false);
+    if (invalid.isNotEmpty) {
       setState(() {
         _inviteError = 'Please enter a valid email.';
       });
       return;
     }
 
-    final alreadyExists =
-        _invitees.any((i) => i.email.toLowerCase() == normalizedEmail);
-    if (alreadyExists) {
+    final existing = _invitees.map((i) => i.email.toLowerCase()).toSet();
+    final auth = context.read<AuthController>();
+    final meEmail = auth.user?.email?.trim().toLowerCase();
+
+    final toAdd = <String>[];
+    bool removedSelf = false;
+    for (final c in candidates) {
+      if (existing.contains(c)) continue;
+      if (toAdd.contains(c)) continue;
+      if (meEmail != null && meEmail.isNotEmpty && c == meEmail) {
+        removedSelf = true;
+        continue;
+      }
+      toAdd.add(c);
+    }
+
+    if (toAdd.isEmpty) {
       setState(() {
-        _inviteError = 'This email is already invited.';
+        _inviteError = removedSelf
+            ? 'You cannot invite yourself.'
+            : 'This email is already invited.';
       });
       return;
     }
 
-    final auth = context.read<AuthController>();
-    String displayName = normalizedEmail;
-    try {
-      final lookup = await auth.lookupUserByEmail(normalizedEmail);
-      final pn = lookup?.preferredName?.trim();
-      if (pn != null && pn.isNotEmpty) {
-        displayName = pn;
+    final newInvitees = <_Invitee>[];
+    for (final email in toAdd) {
+      String displayName = email;
+      try {
+        final lookup = await auth.lookupUserByEmail(email);
+        final pn = lookup?.preferredName?.trim();
+        if (pn != null && pn.isNotEmpty) {
+          displayName = pn;
+        }
+      } catch (_) {
+        // ignore lookup errors and fall back to email
       }
-    } catch (_) {
-      // ignore lookup errors and fall back to email
+      newInvitees.add(_Invitee(name: displayName, email: email));
     }
 
     if (!mounted) return;
     setState(() {
-      _invitees.insert(
-        0,
-        _Invitee(name: displayName, email: normalizedEmail),
-      );
+      _invitees.insertAll(0, newInvitees);
       _inviteError = null;
       _inviteEmailController.clear();
       FocusScope.of(context).unfocus();
     });
+
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            removedSelf
+                ? (newInvitees.length == 1
+                    ? 'Guest added. Skipped your email.'
+                    : '${newInvitees.length} guests added. Skipped your email.')
+                : (newInvitees.length == 1
+                    ? 'Guest added.'
+                    : '${newInvitees.length} guests added.'),
+          ),
+        ),
+      );
   }
 
   void _removeInvitee(_Invitee invitee) {
@@ -159,15 +306,16 @@ class _CreateEventPageState extends State<CreateEventPage> {
     _coverReservationId = coversController.reservationId;
 
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final isKeyboardOpen = bottomInset > 0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4B64E),
+      backgroundColor: OnesColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF4B64E),
+        backgroundColor: OnesColors.background,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Color(0xFF3B1D6D)),
+          icon: const Icon(Icons.close, color: OnesColors.purpleDeep),
           onPressed:
               controller.loading ? null : () => Navigator.of(context).pop(),
         ),
@@ -175,20 +323,33 @@ class _CreateEventPageState extends State<CreateEventPage> {
           'Create Event',
           style: TextStyle(
             fontWeight: FontWeight.w900,
-            color: Colors.black,
+            color: OnesColors.black,
           ),
         ),
         centerTitle: true,
-        actions: const [],
+        actions: [
+          TextButton(
+            onPressed: controller.loading ? null : () => _submit(context),
+            child: const Text(
+              'Crear',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                color: OnesColors.purpleDeep,
+              ),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(16, 10, 16, 120 + bottomInset),
-                child: Form(
-                  key: _formKey,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(16, 10, 16, isKeyboardOpen ? 16 : 32),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _FormSection(
+                  title: 'Basics',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -197,15 +358,9 @@ class _CreateEventPageState extends State<CreateEventPage> {
                       TextFormField(
                         controller: _nameController,
                         textInputAction: TextInputAction.next,
-                        decoration: InputDecoration(
+                        decoration: _inputDecoration(
                           hintText: 'e.g. Summer Roadtrip 2024',
                           suffixIcon: const Icon(Icons.edit_outlined),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide.none,
-                          ),
                         ),
                         validator: (v) =>
                             (v == null || v.trim().isEmpty) ? 'Required' : null,
@@ -219,19 +374,13 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         minLines: 3,
                         maxLines: 6,
                         textInputAction: TextInputAction.newline,
-                        decoration: InputDecoration(
-                          hintText:
-                              'What is the objective of this event? (required)',
+                        decoration: _inputDecoration(
+                          hintText: 'What is the objective of this event?',
                           prefixIcon: const Icon(
                             Icons.flag,
-                            color: Color(0xFF3B1D6D),
+                            color: OnesColors.purpleDeep,
                           ),
-                          filled: true,
-                          fillColor: const Color(0xFFF7F3EA),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide.none,
-                          ),
+                        ).copyWith(
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12,
                             vertical: 12,
@@ -243,74 +392,112 @@ class _CreateEventPageState extends State<CreateEventPage> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
-                      _DateTimeCard(
-                        startDate: _startDate,
-                        startTime: _startTime,
-                        endDate: _endDate,
-                        endTime: _endTime,
-                        onPickStartDate: () => _pickDate(
-                          initial: _startDate,
-                          onPicked: (d) => setState(() => _startDate = d),
-                        ),
-                        onPickStartTime: () => _pickTime(
-                          initial: _startTime,
-                          onPicked: (t) => setState(() => _startTime = t),
-                        ),
-                        onPickEndDate: () => _pickDate(
-                          initial: _endDate,
-                          onPicked: (d) => setState(() => _endDate = d),
-                        ),
-                        onPickEndTime: () => _pickTime(
-                          initial: _endTime,
-                          onPicked: (t) => setState(() => _endTime = t),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _FormSection(
+                  title: 'When',
+                  child: _DateTimeCard(
+                    startDate: _startDate,
+                    startTime: _startTime,
+                    endDate: _endDate,
+                    endTime: _endTime,
+                    errorText: _dateTimeError,
+                    onPickStartDate: () => _pickDate(
+                      initial: _startDate,
+                      onPicked: (d) {
+                        setState(() {
+                          _startDate = d;
+                          _ensureEndDefaults();
+                        });
+                        _validateDateTimes();
+                      },
+                    ),
+                    onPickStartTime: () => _pickTime(
+                      initial: _startTime,
+                      onPicked: (t) {
+                        setState(() {
+                          _startTime = t;
+                          _ensureEndDefaults();
+                        });
+                        _validateDateTimes();
+                      },
+                    ),
+                    onPickEndDate: () => _pickDate(
+                      initial: _endDate,
+                      onPicked: (d) {
+                        setState(() => _endDate = d);
+                        _validateDateTimes();
+                      },
+                    ),
+                    onPickEndTime: () => _pickTime(
+                      initial: _endTime,
+                      onPicked: (t) {
+                        setState(() => _endTime = t);
+                        _validateDateTimes();
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _FormSection(
+                  title: 'Cover',
+                  child: _CoverPicker(
+                    imageUrl: coversController.preview?.previewUrl,
+                    loading: coversController.loading,
+                    accepted: coversController.reservationId != null,
+                    errorText: coversController.error?.toString(),
+                    showGenerateHelper: !_canGenerateCover,
+                    onGenerate: _canGenerateCover
+                        ? () => _generateCover(context)
+                        : null,
+                    onAccept: coversController.preview == null
+                        ? null
+                        : () async {
+                            await coversController.accept();
+                          },
+                    onCancel: coversController.preview == null
+                        ? null
+                        : () async {
+                            await coversController.cancel();
+                          },
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _FormSection(
+                  title: 'Where (optional)',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       const _FieldLabel('Location'),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _locationController,
-                        decoration: InputDecoration(
-                          hintText: 'Add a location',
+                        decoration: _inputDecoration(
+                          hintText: 'Add a location (optional)',
                           prefixIcon: const Icon(
                             Icons.location_on,
-                            color: Color(0xFF3B1D6D),
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide.none,
+                            color: OnesColors.purpleDeep,
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      _CoverPicker(
-                        imageUrl: coversController.preview?.previewUrl,
-                        loading: coversController.loading,
-                        accepted: coversController.reservationId != null,
-                        errorText: coversController.error?.toString(),
-                        onGenerate: () => _generateCover(context),
-                        onAccept: coversController.preview == null
-                            ? null
-                            : () async {
-                                await coversController.accept();
-                              },
-                        onCancel: coversController.preview == null
-                            ? null
-                            : () async {
-                                await coversController.cancel();
-                              },
-                      ),
-                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _FormSection(
+                  title: 'Guests',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Row(
                         children: [
                           const Text(
                             'Allow Guest Invites',
                             style: TextStyle(
                               fontWeight: FontWeight.w800,
-                              color: Colors.black,
+                              color: OnesColors.black,
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -324,7 +511,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       _InviteGuestsCard(
                         emailController: _inviteEmailController,
                         inviteError: _inviteError,
@@ -335,42 +522,46 @@ class _CreateEventPageState extends State<CreateEventPage> {
                     ],
                   ),
                 ),
-              ),
-            ),
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16 + bottomInset,
-              child: SizedBox(
-                height: 56,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF6A0D73),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                if (!isKeyboardOpen) ...[
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: _ctaHeight,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: OnesColors.purpleMid,
+                        disabledBackgroundColor:
+                            OnesColors.purpleMid.withOpacity(0.5),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      onPressed: (controller.loading || !_isFormReady)
+                          ? null
+                          : () => _submit(context),
+                      child: controller.loading
+                          ? const Text('Creating...')
+                          : const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Create Event',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                SizedBox(width: 10),
+                                Icon(Icons.arrow_forward),
+                              ],
+                            ),
                     ),
                   ),
-                  onPressed: controller.loading ? null : () => _submit(context),
-                  child: controller.loading
-                      ? const Text('Creating...')
-                      : const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Create Event',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 16,
-                              ),
-                            ),
-                            SizedBox(width: 10),
-                            Icon(Icons.arrow_forward),
-                          ],
-                        ),
-                ),
-              ),
+                  const SizedBox(height: _ctaBottomGap),
+                ],
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -378,43 +569,73 @@ class _CreateEventPageState extends State<CreateEventPage> {
 
   Future<void> _submit(BuildContext context) async {
     final controller = context.read<EventsController>();
-    if (!_formKey.currentState!.validate()) return;
+    final auth = context.read<AuthController>();
+    if (!_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(
+          const SnackBar(content: Text('Please complete required fields.')),
+        );
+      return;
+    }
     final objective = _objectiveController.text.trim();
-    if (objective.isEmpty) return;
+    if (objective.isEmpty) {
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(const SnackBar(content: Text('Objective is required.')));
+      return;
+    }
 
-    final startDate = _startDate;
-    final startTime = _startTime;
-    final endDate = _endDate;
-    final endTime = _endTime;
-    if (startDate == null || startTime == null) return;
-    if (endDate == null || endTime == null) return;
+    _validateDateTimes(showErrors: false);
 
-    final startAt = DateTime(
-      startDate.year,
-      startDate.month,
-      startDate.day,
-      startTime.hour,
-      startTime.minute,
-    ).toUtc();
-    final endAt = DateTime(
-      endDate.year,
-      endDate.month,
-      endDate.day,
-      endTime.hour,
-      endTime.minute,
-    ).toUtc();
+    final startLocal = _combineLocal(_startDate, _startTime);
+    final endLocal = _combineLocal(_endDate, _endTime);
 
-    await controller.createNew(
-      _nameController.text.trim(),
-      objective,
-      _locationController.text.trim(),
-      startAt,
-      endAt,
-      _coverReservationId,
-      _invitees.map((i) => i.email).toList(growable: false),
-      _allowGuestInvites,
-    );
-    if (context.mounted) Navigator.of(context).pop();
+    if (startLocal == null || endLocal == null) {
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(
+          const SnackBar(content: Text('Please select start and end time.')),
+        );
+      return;
+    }
+
+    if (endLocal.isBefore(startLocal.add(_minEventDuration))) {
+      _validateDateTimes(showErrors: true);
+      return;
+    }
+
+    final startAt = startLocal.toUtc();
+    final endAt = endLocal.toUtc();
+
+    try {
+      await controller.createNew(
+        _nameController.text.trim(),
+        objective,
+        _resolveLocation(),
+        startAt,
+        endAt,
+        _coverReservationId,
+        _invitees.map((i) => i.email).toList(growable: false),
+        _allowGuestInvites,
+      );
+      if (context.mounted) Navigator.of(context).pop();
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      if (status == 401) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(
+            const SnackBar(
+              content: Text('Your session expired. Please sign in again.'),
+            ),
+          );
+        await auth.logout();
+        return;
+      }
+      rethrow;
+    }
   }
 
   Future<void> _generateCover(
@@ -423,11 +644,10 @@ class _CreateEventPageState extends State<CreateEventPage> {
     final covers = context.read<EventCoversController>();
 
     final eventName = _nameController.text.trim();
-    final location = _locationController.text.trim();
     final objective = _objectiveController.text.trim();
     if (eventName.isEmpty) return;
     if (objective.isEmpty) return;
-    if (location.isEmpty) return;
+    final location = _locationController.text.trim();
 
     await covers.generate(
       eventName: eventName,
@@ -483,15 +703,28 @@ class _InviteGuestsCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: OnesColors.white,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Invite Guests',
-            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Invite Guests',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                ),
+              ),
+              Text(
+                '${invitees.length}',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  color: OnesColors.black.withOpacity(0.6),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
           TextField(
@@ -502,12 +735,25 @@ class _InviteGuestsCard extends StatelessWidget {
               onInvite();
             },
             decoration: InputDecoration(
-              hintText: 'Email (required)',
+              hintText: 'Add emails (comma/space separated)',
               filled: true,
-              fillColor: const Color(0xFFF7F3EA),
+              fillColor: OnesColors.black.withOpacity(0.04),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide.none,
+                borderSide:
+                    BorderSide(color: OnesColors.black.withOpacity(0.12)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide:
+                    BorderSide(color: OnesColors.black.withOpacity(0.12)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(
+                  color: OnesColors.purpleMid,
+                  width: 1.6,
+                ),
               ),
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -518,7 +764,7 @@ class _InviteGuestsCard extends StatelessWidget {
             Text(
               inviteError!,
               style: const TextStyle(
-                color: Color(0xFFE25555),
+                color: OnesColors.danger,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -528,8 +774,8 @@ class _InviteGuestsCard extends StatelessWidget {
             width: double.infinity,
             child: FilledButton(
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF6A0D73),
-                foregroundColor: Colors.white,
+                backgroundColor: OnesColors.purpleMid,
+                foregroundColor: OnesColors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -553,38 +799,60 @@ class _InviteGuestsCard extends StatelessWidget {
           if (invitees.isEmpty)
             Text(
               'No invited guests yet.',
-              style: TextStyle(color: Colors.black.withOpacity(0.55)),
+              style: TextStyle(color: OnesColors.black.withOpacity(0.55)),
             )
           else
-            ListView.separated(
-              itemCount: invitees.length,
-              physics: const NeverScrollableScrollPhysics(),
-              shrinkWrap: true,
-              separatorBuilder: (_, __) => Divider(
-                height: 14,
-                color: Colors.black.withOpacity(0.06),
-              ),
-              itemBuilder: (context, index) {
-                final invitee = invitees[index];
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    invitee.name,
-                    style: const TextStyle(fontWeight: FontWeight.w900),
-                  ),
-                  subtitle: Text(
-                    invitee.email,
-                    style: TextStyle(
-                      color: Colors.black.withOpacity(0.6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: invitees
+                  .map(
+                    (invitee) => InputChip(
+                      label: Tooltip(
+                        message: invitee.email,
+                        child: Text(
+                          invitee.name.trim().isNotEmpty &&
+                                  invitee.name != invitee.email
+                              ? invitee.name
+                              : invitee.email,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      onDeleted: () => onRemove(invitee),
+                      deleteIcon: const Icon(Icons.close, size: 18),
                     ),
-                  ),
-                  trailing: IconButton(
-                    onPressed: () => onRemove(invitee),
-                    icon: const Icon(Icons.close),
-                  ),
-                );
-              },
+                  )
+                  .toList(growable: false),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FormSection extends StatelessWidget {
+  final String title;
+  final Widget child;
+
+  const _FormSection({required this.title, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: OnesColors.white,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+          ),
+          const SizedBox(height: 12),
+          child,
         ],
       ),
     );
@@ -609,7 +877,7 @@ class _FieldLabel extends StatelessWidget {
       text,
       style: const TextStyle(
         fontWeight: FontWeight.w800,
-        color: Colors.black,
+        color: OnesColors.black,
       ),
     );
   }
@@ -620,7 +888,8 @@ class _CoverPicker extends StatelessWidget {
   final bool loading;
   final bool accepted;
   final String? errorText;
-  final VoidCallback onGenerate;
+  final VoidCallback? onGenerate;
+  final bool showGenerateHelper;
   final VoidCallback? onAccept;
   final VoidCallback? onCancel;
 
@@ -630,6 +899,7 @@ class _CoverPicker extends StatelessWidget {
     required this.accepted,
     required this.errorText,
     required this.onGenerate,
+    required this.showGenerateHelper,
     required this.onAccept,
     required this.onCancel,
   });
@@ -645,7 +915,7 @@ class _CoverPicker extends StatelessWidget {
             width: double.infinity,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
-              color: const Color(0xFFF6E6CF),
+              color: OnesColors.yellowPale.withOpacity(0.55),
             ),
             child: Stack(
               children: [
@@ -665,8 +935,10 @@ class _CoverPicker extends StatelessWidget {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Colors.black.withOpacity(imageUrl == null ? 0 : 0.10),
-                          Colors.black.withOpacity(imageUrl == null ? 0 : 0.55),
+                          OnesColors.black
+                              .withOpacity(imageUrl == null ? 0 : 0.10),
+                          OnesColors.black
+                              .withOpacity(imageUrl == null ? 0 : 0.55),
                         ],
                       ),
                     ),
@@ -676,7 +948,7 @@ class _CoverPicker extends StatelessWidget {
                   Positioned.fill(
                     child: CustomPaint(
                       painter: const _DashedBorderPainter(
-                        color: Color(0xFFD5A3C7),
+                        color: OnesColors.purpleBright,
                         radius: 18,
                       ),
                       child: Column(
@@ -686,19 +958,19 @@ class _CoverPicker extends StatelessWidget {
                             width: 48,
                             height: 48,
                             decoration: const BoxDecoration(
-                              color: Color(0xFFE5D0D8),
+                              color: OnesColors.yellowPale,
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
                               Icons.image,
-                              color: Color(0xFF6A0D73),
+                              color: OnesColors.purpleMid,
                             ),
                           ),
                           const SizedBox(height: 10),
                           const Text(
                             'Event Cover',
                             style: TextStyle(
-                              color: Color(0xFF6A0D73),
+                              color: OnesColors.purpleMid,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -723,7 +995,17 @@ class _CoverPicker extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: Colors.red,
+              color: OnesColors.danger,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+        ],
+        if (showGenerateHelper) ...[
+          const Text(
+            'Complete name and objective to generate a cover.',
+            style: TextStyle(
+              color: OnesColors.black,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -734,13 +1016,13 @@ class _CoverPicker extends StatelessWidget {
             Expanded(
               child: FilledButton(
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF6A0D73),
-                  foregroundColor: Colors.white,
+                  backgroundColor: OnesColors.purpleMid,
+                  foregroundColor: OnesColors.white,
                   disabledBackgroundColor:
-                      const Color(0xFF6A0D73).withOpacity(0.5),
-                  disabledForegroundColor: Colors.white.withOpacity(0.85),
+                      OnesColors.purpleMid.withOpacity(0.5),
+                  disabledForegroundColor: OnesColors.white.withOpacity(0.85),
                 ),
-                onPressed: loading ? null : onGenerate,
+                onPressed: (loading || onGenerate == null) ? null : onGenerate,
                 child: loading
                     ? const SizedBox(
                         height: 16,
@@ -759,9 +1041,9 @@ class _CoverPicker extends StatelessWidget {
               Expanded(
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF6A0D73),
+                    foregroundColor: OnesColors.purpleMid,
                     side: const BorderSide(
-                      color: Color(0xFF6A0D73),
+                      color: OnesColors.purpleMid,
                       width: 1.6,
                     ),
                   ),
@@ -773,9 +1055,9 @@ class _CoverPicker extends StatelessWidget {
               Expanded(
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF6A0D73),
+                    foregroundColor: OnesColors.purpleMid,
                     side: const BorderSide(
-                      color: Color(0xFF6A0D73),
+                      color: OnesColors.purpleMid,
                       width: 1.6,
                     ),
                   ),
@@ -796,6 +1078,7 @@ class _DateTimeCard extends StatelessWidget {
   final TimeOfDay? startTime;
   final DateTime? endDate;
   final TimeOfDay? endTime;
+  final String? errorText;
   final VoidCallback onPickStartDate;
   final VoidCallback onPickStartTime;
   final VoidCallback onPickEndDate;
@@ -806,6 +1089,7 @@ class _DateTimeCard extends StatelessWidget {
     required this.startTime,
     required this.endDate,
     required this.endTime,
+    required this.errorText,
     required this.onPickStartDate,
     required this.onPickStartTime,
     required this.onPickEndDate,
@@ -817,7 +1101,7 @@ class _DateTimeCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: OnesColors.white,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
@@ -839,6 +1123,19 @@ class _DateTimeCard extends StatelessWidget {
             onPickDate: onPickEndDate,
             onPickTime: onPickEndTime,
           ),
+          if (errorText != null && errorText!.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                errorText!,
+                style: const TextStyle(
+                  color: OnesColors.danger,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -884,10 +1181,10 @@ class _DateTimeRow extends StatelessWidget {
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: const Color(0xFFF1E9F7),
+            color: OnesColors.purpleBright.withOpacity(0.12),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: const Color(0xFF6A0D73)),
+          child: Icon(icon, color: OnesColors.purpleMid),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -949,7 +1246,7 @@ class _MiniField extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: Colors.black.withOpacity(0.55),
+            color: OnesColors.black.withOpacity(0.55),
             fontWeight: FontWeight.w700,
             fontSize: 12,
           ),
@@ -961,9 +1258,9 @@ class _MiniField extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFFF7F7F7),
+              color: OnesColors.white.withOpacity(0.75),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.black.withOpacity(0.06)),
+              border: Border.all(color: OnesColors.black.withOpacity(0.06)),
             ),
             child: Row(
               children: [
@@ -971,12 +1268,12 @@ class _MiniField extends StatelessWidget {
                   child: Text(
                     value,
                     style: TextStyle(
-                      color: Colors.black.withOpacity(0.65),
+                      color: OnesColors.black.withOpacity(0.65),
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
-                Icon(icon, size: 18, color: Colors.black.withOpacity(0.55)),
+                Icon(icon, size: 18, color: OnesColors.black.withOpacity(0.55)),
               ],
             ),
           ),

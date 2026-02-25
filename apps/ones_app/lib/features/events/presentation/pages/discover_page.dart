@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/ui/ones_colors.dart';
 import 'create_event_page.dart';
 
 class DiscoverPage extends StatefulWidget {
@@ -41,7 +42,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
     }).toList(growable: false);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4B64E),
+      backgroundColor: OnesColors.background,
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 120),
@@ -52,7 +53,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                 prefixIcon: const Icon(Icons.search),
                 hintText: 'Search templates (concert, movie, football...)',
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: OnesColors.white,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
@@ -66,12 +67,12 @@ class _DiscoverPageState extends State<DiscoverPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: OnesColors.white,
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Text(
                   'No templates found for "$q".',
-                  style: TextStyle(color: Colors.black.withOpacity(0.6)),
+                  style: TextStyle(color: OnesColors.black.withOpacity(0.6)),
                 ),
               )
             else
@@ -178,7 +179,7 @@ class _TemplateCard extends StatelessWidget {
       child: Ink(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: OnesColors.white,
           borderRadius: BorderRadius.circular(18),
         ),
         child: Row(
@@ -213,14 +214,14 @@ class _TemplateCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF58C7C7).withOpacity(0.25),
+                          color: OnesColors.green.withOpacity(0.25),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: const Text(
                           'Public',
                           style: TextStyle(
                             fontWeight: FontWeight.w900,
-                            color: Color(0xFF0B6A6A),
+                            color: OnesColors.purpleDark,
                             fontSize: 12,
                           ),
                         ),
@@ -232,7 +233,7 @@ class _TemplateCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: Colors.black.withOpacity(0.55),
+                            color: OnesColors.black.withOpacity(0.55),
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -267,8 +268,8 @@ class _TemplateDetailsSheet extends StatelessWidget {
       maxChildSize: 0.90,
       builder: (context, scrollController) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFFF7F3EA),
+          decoration: BoxDecoration(
+            color: OnesColors.yellowLight.withOpacity(0.35),
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: ListView(
@@ -280,7 +281,7 @@ class _TemplateDetailsSheet extends StatelessWidget {
                   width: 44,
                   height: 5,
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.12),
+                    color: OnesColors.black.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
@@ -333,8 +334,8 @@ class _TemplateDetailsSheet extends StatelessWidget {
                     child: FilledButton(
                       onPressed: onUseTemplate,
                       style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF6A0D73),
-                        foregroundColor: Colors.white,
+                        backgroundColor: OnesColors.purpleMid,
+                        foregroundColor: OnesColors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),

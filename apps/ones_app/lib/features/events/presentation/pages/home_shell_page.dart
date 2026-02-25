@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/ui/ones_colors.dart';
 import 'create_event_page.dart';
 import 'discover_page.dart';
 import 'events_list_page.dart';
@@ -34,19 +35,19 @@ class _HomeShellPageState extends State<HomeShellPage> {
       ),
       bottomNavigationBar: NavigationBarTheme(
         data: NavigationBarThemeData(
-          indicatorColor: const Color(0xFF6A0D73).withOpacity(0.18),
+          indicatorColor: OnesColors.purpleMid.withOpacity(0.18),
           labelTextStyle: WidgetStateProperty.resolveWith(
             (states) => TextStyle(
               fontWeight: FontWeight.w800,
               color: states.contains(WidgetState.selected)
-                  ? const Color(0xFF6A0D73)
+                  ? OnesColors.purpleMid
                   : Colors.black54,
             ),
           ),
           iconTheme: WidgetStateProperty.resolveWith(
             (states) => IconThemeData(
               color: states.contains(WidgetState.selected)
-                  ? const Color(0xFF6A0D73)
+                  ? OnesColors.purpleMid
                   : Colors.black54,
             ),
           ),
