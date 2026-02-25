@@ -310,6 +310,7 @@ Resources:
                   - dynamodb:PutItem
                   - dynamodb:GetItem
                   - dynamodb:Query
+                  - dynamodb:Scan
                   - dynamodb:DeleteItem
                 Resource:
                   - !GetAtt EventsTable.Arn
