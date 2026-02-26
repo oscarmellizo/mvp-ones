@@ -4,15 +4,16 @@ import 'package:provider/provider.dart';
 import '../../../../core/utils/datetime_formatters.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/ui/ones_colors.dart';
-import '../../../../core/ui/widgets/ones_card.dart';
 import '../../../../core/ui/widgets/ones_search_field.dart';
 import '../../../../core/ui/widgets/ones_text_field.dart';
 import '../../../auth/presentation/auth_controller.dart';
 import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
+import '../widgets/event_detail_details_widgets.dart';
+import '../widgets/event_detail_header.dart';
+import '../widgets/event_detail_tabs.dart';
 import 'photo_capture_page.dart';
 import '../../../invitations/presentation/widgets/invitations_sheet.dart';
-import '../../../invitations/presentation/invitations_controller.dart';
 import '../../domain/events_repository.dart';
 
 class EventDetailPage extends StatefulWidget {
@@ -80,7 +81,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                       Padding(
                         padding: EdgeInsets.fromLTRB(
                             horizontalPadding, 6, horizontalPadding, 10),
-                        child: _Header(
+                        child: EventDetailHeader(
                           title: event.title,
                           subtitle:
                               _eventSubtitle(event.startAt, event.location),
@@ -91,7 +92,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                       Padding(
                         padding:
                             EdgeInsets.symmetric(horizontal: horizontalPadding),
-                        child: _Tabs(
+                        child: EventDetailTabs(
                           index: _tabIndex,
                           onChanged: (i) => setState(() => _tabIndex = i),
                         ),
@@ -130,172 +131,6 @@ String _eventSubtitle(DateTime startAt, String location) {
   final date = formatMonthDayYear(startAt.toLocal());
   final loc = location.trim().isEmpty ? '-' : location.trim();
   return '$date • $loc';
-}
-
-class _Header extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final VoidCallback onBack;
-  final VoidCallback onBell;
-
-  const _Header({
-    required this.title,
-    required this.subtitle,
-    required this.onBack,
-    required this.onBell,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final invitations = context.watch<InvitationsController>();
-    final unread = invitations.unreadCount;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        IconButton(
-          onPressed: onBack,
-          icon: const Icon(Icons.arrow_back, color: OnesColors.black),
-        ),
-        const SizedBox(width: 4),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      letterSpacing: 0.6,
-                    ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: OnesColors.black.withOpacity(0.55),
-                    ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 4),
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            IconButton(
-              onPressed: onBell,
-              icon:
-                  const Icon(Icons.notifications_none, color: OnesColors.black),
-            ),
-            if (unread > 0)
-              Positioned(
-                right: 10,
-                top: 10,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: const BoxDecoration(
-                    color: OnesColors.danger,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    unread > 99 ? '99+' : unread.toString(),
-                    style: const TextStyle(
-                      color: OnesColors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _Tabs extends StatelessWidget {
-  final int index;
-  final ValueChanged<int> onChanged;
-
-  const _Tabs({required this.index, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: OnesColors.black.withOpacity(0.04),
-        borderRadius: BorderRadius.zero,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _TabButton(
-              label: 'Gallery',
-              selected: index == 0,
-              onTap: () => onChanged(0),
-            ),
-          ),
-          Expanded(
-            child: _TabButton(
-              label: 'Details',
-              selected: index == 1,
-              onTap: () => onChanged(1),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TabButton extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _TabButton({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.zero,
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: selected ? OnesColors.white : Colors.transparent,
-          borderRadius: BorderRadius.zero,
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: OnesColors.black.withOpacity(0.06),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
-                  ),
-                ]
-              : null,
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            color: selected ? OnesColors.purpleMid : Colors.black54,
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _GalleryTab extends StatefulWidget {
@@ -767,21 +602,21 @@ class _DetailsTabState extends State<_DetailsTab> {
           ),
           const SizedBox(height: 14),
         ],
-        _DetailsCard(
+        EventDetailSectionCard(
           title: 'Event Details',
           children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: _ReadOnlyField(
+                  child: ReadOnlyField(
                     label: 'Event Name',
                     value: widget.title,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _ReadOnlyField(
+                  child: ReadOnlyField(
                     label: 'Location',
                     value: location,
                   ),
@@ -793,7 +628,7 @@ class _DetailsTabState extends State<_DetailsTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: _ReadOnlyField(
+                  child: ReadOnlyField(
                     label: 'Starts',
                     value:
                         '${formatMonthDayYear(start)} • ${formatTimeOfDay(start)}',
@@ -801,7 +636,7 @@ class _DetailsTabState extends State<_DetailsTab> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _ReadOnlyField(
+                  child: ReadOnlyField(
                     label: 'Ends',
                     value:
                         '${formatMonthDayYear(end)} • ${formatTimeOfDay(end)}',
@@ -810,7 +645,7 @@ class _DetailsTabState extends State<_DetailsTab> {
               ],
             ),
             const SizedBox(height: 12),
-            _ReadOnlyField(
+            ReadOnlyField(
               label: 'Description',
               value: description,
               maxLines: null,
@@ -819,7 +654,7 @@ class _DetailsTabState extends State<_DetailsTab> {
           ],
         ),
         const SizedBox(height: 14),
-        _DetailsCard(
+        EventDetailSectionCard(
           title: 'Invite Guests',
           children: [
             if (widget.isOwner || widget.allowGuestInvites) ...[
@@ -974,74 +809,6 @@ class _DetailsTabState extends State<_DetailsTab> {
           ],
         ),
         const SizedBox(height: 100),
-      ],
-    );
-  }
-}
-
-class _DetailsCard extends StatelessWidget {
-  final String title;
-  final List<Widget> children;
-
-  const _DetailsCard({required this.title, required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return OnesCard(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
-          ),
-          const SizedBox(height: 10),
-          ...children,
-        ],
-      ),
-    );
-  }
-}
-
-class _ReadOnlyField extends StatelessWidget {
-  final String label;
-  final String value;
-  final int? maxLines;
-  final TextOverflow? overflow;
-
-  const _ReadOnlyField({
-    required this.label,
-    required this.value,
-    this.maxLines = 1,
-    this.overflow = TextOverflow.ellipsis,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final v = value.isEmpty ? '-' : value;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: OnesColors.black.withOpacity(0.55),
-            fontWeight: FontWeight.w700,
-            fontSize: 12,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          v,
-          maxLines: maxLines,
-          overflow: overflow,
-          style: const TextStyle(
-            fontWeight: FontWeight.w900,
-            fontSize: 14,
-            color: OnesColors.black,
-          ),
-        ),
       ],
     );
   }
