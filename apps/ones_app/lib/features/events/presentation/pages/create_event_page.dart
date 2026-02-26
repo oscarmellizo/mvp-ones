@@ -11,6 +11,7 @@ import '../../../../core/ui/widgets/ones_text_form_field.dart';
 import '../../../auth/presentation/auth_controller.dart';
 import '../event_covers_controller.dart';
 import '../events_controller.dart';
+import '../widgets/create_event_form_widgets.dart';
 
 class CreateEventPage extends StatefulWidget {
   static const routeName = '/events/create';
@@ -423,12 +424,12 @@ class _CreateEventPageState extends State<CreateEventPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _FormSection(
+                CreateEventFormSection(
                   title: 'Basics',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const _FieldLabel('Event Name'),
+                      const CreateEventFieldLabel('Event Name'),
                       const SizedBox(height: 8),
                       OnesTextFormField(
                         controller: _nameController,
@@ -439,7 +440,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                             (v == null || v.trim().isEmpty) ? 'Required' : null,
                       ),
                       const SizedBox(height: 16),
-                      const _FieldLabel('Objective'),
+                      const CreateEventFieldLabel('Objective'),
                       const SizedBox(height: 8),
                       OnesTextFormField(
                         controller: _objectiveController,
@@ -466,7 +467,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                _FormSection(
+                CreateEventFormSection(
                   title: 'When',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -540,7 +541,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                _FormSection(
+                CreateEventFormSection(
                   title: 'Cover',
                   child: _CoverPicker(
                     imageUrl: coversController.preview?.previewUrl,
@@ -564,12 +565,12 @@ class _CreateEventPageState extends State<CreateEventPage> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                _FormSection(
+                CreateEventFormSection(
                   title: 'Where (optional)',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const _FieldLabel('Location'),
+                      const CreateEventFieldLabel('Location'),
                       const SizedBox(height: 8),
                       OnesTextFormField(
                         controller: _locationController,
@@ -583,7 +584,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                _FormSection(
+                CreateEventFormSection(
                   title: 'Guests',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -902,53 +903,11 @@ class _InviteGuestsCard extends StatelessWidget {
   }
 }
 
-class _FormSection extends StatelessWidget {
-  final String title;
-  final Widget child;
-
-  const _FormSection({required this.title, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return OnesCard(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
-          ),
-          const SizedBox(height: 12),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
 class _Invitee {
   final String name;
   final String email;
 
   const _Invitee({required this.name, required this.email});
-}
-
-class _FieldLabel extends StatelessWidget {
-  final String text;
-
-  const _FieldLabel(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontWeight: FontWeight.w800,
-        color: OnesColors.black,
-      ),
-    );
-  }
 }
 
 class _CoverPicker extends StatelessWidget {
@@ -1015,7 +974,7 @@ class _CoverPicker extends StatelessWidget {
                 if (imageUrl == null && !loading)
                   Positioned.fill(
                     child: CustomPaint(
-                      painter: const _DashedBorderPainter(
+                      painter: const CreateEventDashedBorderPainter(
                         color: OnesColors.purpleBright,
                         radius: 18,
                       ),
@@ -1174,7 +1133,7 @@ class _DateTimeCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _DateTimeRow(
+          CreateEventDateTimeRow(
             icon: Icons.calendar_month,
             title: 'Starts',
             dateValue: _formatDate(startDate),
@@ -1183,7 +1142,7 @@ class _DateTimeCard extends StatelessWidget {
             onPickTime: onPickStartTime,
           ),
           const SizedBox(height: 14),
-          _DateTimeRow(
+          CreateEventDateTimeRow(
             icon: Icons.event_busy,
             title: 'Ends',
             dateValue: _formatDate(endDate),
@@ -1220,173 +1179,5 @@ class _DateTimeCard extends StatelessWidget {
   String _formatTime(BuildContext context, TimeOfDay? time) {
     if (time == null) return '--:--';
     return time.format(context);
-  }
-}
-
-class _DateTimeRow extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String dateValue;
-  final String timeValue;
-  final VoidCallback onPickDate;
-  final VoidCallback onPickTime;
-
-  const _DateTimeRow({
-    required this.icon,
-    required this.title,
-    required this.dateValue,
-    required this.timeValue,
-    required this.onPickDate,
-    required this.onPickTime,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: OnesColors.purpleBright.withOpacity(0.12),
-            borderRadius: BorderRadius.zero,
-          ),
-          child: Icon(icon, color: OnesColors.purpleMid),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: _MiniField(
-                      label: 'Date',
-                      value: dateValue,
-                      icon: Icons.calendar_today,
-                      onTap: onPickDate,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _MiniField(
-                      label: 'Time',
-                      value: timeValue,
-                      icon: Icons.access_time,
-                      onTap: onPickTime,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _MiniField extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _MiniField({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: OnesColors.black.withOpacity(0.55),
-            fontWeight: FontWeight.w700,
-            fontSize: 12,
-          ),
-        ),
-        const SizedBox(height: 6),
-        InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.zero,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            decoration: BoxDecoration(
-              color: OnesColors.white.withOpacity(0.75),
-              borderRadius: BorderRadius.zero,
-              border: Border.all(color: OnesColors.black.withOpacity(0.06)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    value,
-                    style: TextStyle(
-                      color: OnesColors.black.withOpacity(0.65),
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                Icon(icon, size: 18, color: OnesColors.black.withOpacity(0.55)),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _DashedBorderPainter extends CustomPainter {
-  final Color color;
-  final double radius;
-
-  const _DashedBorderPainter({required this.color, required this.radius});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4;
-
-    final rrect = RRect.fromRectAndRadius(
-      Offset.zero & size,
-      Radius.zero,
-    );
-
-    const dash = 6.0;
-    const gap = 4.0;
-    final path = Path()..addRRect(rrect);
-    for (final metric in path.computeMetrics()) {
-      double distance = 0;
-      while (distance < metric.length) {
-        final next = distance + dash;
-        canvas.drawPath(
-          metric.extractPath(distance, next.clamp(0, metric.length)),
-          paint,
-        );
-        distance = next + gap;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _DashedBorderPainter oldDelegate) {
-    return oldDelegate.color != color || oldDelegate.radius != radius;
   }
 }
