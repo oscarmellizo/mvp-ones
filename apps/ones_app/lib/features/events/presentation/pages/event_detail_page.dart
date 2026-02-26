@@ -4,7 +4,8 @@ import 'package:provider/provider.dart';
 import '../../../../core/utils/datetime_formatters.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/ui/ones_colors.dart';
-import '../../../../core/ui/ones_typography.dart';
+import '../../../../core/ui/widgets/ones_card.dart';
+import '../../../../core/ui/widgets/ones_search_field.dart';
 import '../../../auth/presentation/auth_controller.dart';
 import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
@@ -359,7 +360,7 @@ class _GalleryTabState extends State<_GalleryTab> {
     final filtered = _items.where((e) {
       if (q.isEmpty) return true;
       if (e.author.toLowerCase().contains(q)) return true;
-      final dateStr = _formatShortDate(e.takenAt).toLowerCase();
+      final dateStr = formatShortDate(e.takenAt).toLowerCase();
       return dateStr.contains(q);
     }).toList(growable: false);
 
@@ -369,7 +370,10 @@ class _GalleryTabState extends State<_GalleryTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _SearchRow(controller: widget.searchController),
+              OnesSearchField(
+                controller: widget.searchController,
+                hintText: 'Search by attendee or date',
+              ),
               const SizedBox(height: 14),
               const _HighlightsSection(),
               const SizedBox(height: 14),
@@ -399,42 +403,6 @@ class _GalleryTabState extends State<_GalleryTab> {
         ),
         const SliverToBoxAdapter(child: SizedBox(height: 100)),
       ],
-    );
-  }
-
-  String _formatShortDate(DateTime dt) {
-    final mm = dt.month.toString().padLeft(2, '0');
-    final dd = dt.day.toString().padLeft(2, '0');
-    return '$mm/$dd/${dt.year}';
-  }
-}
-
-class _SearchRow extends StatelessWidget {
-  final TextEditingController controller;
-
-  const _SearchRow({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      style: const TextStyle(
-        fontFamilyFallback: OnesTypography.bodyFallbacks,
-        color: OnesColors.black,
-        fontWeight: FontWeight.w600,
-      ),
-      decoration: InputDecoration(
-        prefixIcon: const Icon(Icons.search),
-        hintText: 'Search by attendee or date',
-        filled: true,
-        fillColor: OnesColors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      ),
     );
   }
 }
@@ -1024,12 +992,8 @@ class _DetailsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return OnesCard(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: OnesColors.white,
-        borderRadius: BorderRadius.circular(18),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
