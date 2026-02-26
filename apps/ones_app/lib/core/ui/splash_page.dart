@@ -30,14 +30,17 @@ class _Content extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image(
-              image: AssetImage('assets/splash/symbol_purple.png'),
-              width: 380,
-            ),
-          ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final w =
+                (constraints.maxWidth * 0.90).clamp(240.0, 520.0).toDouble();
+            return Center(
+              child: Image.asset(
+                'assets/splash/ones-logo-grande.png',
+                width: w,
+              ),
+            );
+          },
         ),
         const SizedBox(height: 24),
         Text(

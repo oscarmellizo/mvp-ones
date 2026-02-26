@@ -96,10 +96,14 @@ flutter:
 
 flutter_native_splash:
   color: "#F4B64E"
-  image: assets/splash/native_splash.png
+  image: assets/splash/ones-logo-grande.png
   android: true
   ios: true
   web: false
+  android_12:
+    color: "#F4B64E"
+    image: assets/splash/ones-logo-grande.png
+    icon_background_color: "#F4B64E"
 
 flutter_launcher_icons:
   image_path: assets/branding/app_icon_1024.png
