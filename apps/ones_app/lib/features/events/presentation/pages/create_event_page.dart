@@ -6,6 +6,7 @@ import '../../../../core/utils/datetime_formatters.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/ones_typography.dart';
+import '../../../../core/ui/widgets/ones_card.dart';
 import '../../../auth/presentation/auth_controller.dart';
 import '../event_covers_controller.dart';
 import '../events_controller.dart';
@@ -845,12 +846,8 @@ class _InviteGuestsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return OnesCard(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: OnesColors.white,
-        borderRadius: BorderRadius.circular(18),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -993,12 +990,8 @@ class _FormSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return OnesCard(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: OnesColors.white,
-        borderRadius: BorderRadius.circular(18),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
