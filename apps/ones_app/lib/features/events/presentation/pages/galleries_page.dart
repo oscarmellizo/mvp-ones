@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/utils/datetime_formatters.dart';
 import '../../../../core/ui/ones_colors.dart';
+import '../../../../core/ui/widgets/ones_card.dart';
+import '../../../../core/ui/widgets/ones_search_field.dart';
 import '../events_controller.dart';
 import 'event_detail_page.dart';
 
@@ -79,22 +81,9 @@ class _GalleriesPageState extends State<GalleriesPage> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 120),
             children: [
-              TextField(
+              OnesSearchField(
                 controller: _searchController,
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.search),
-                  hintText: 'Search past events',
-                  filled: true,
-                  fillColor: OnesColors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 14,
-                  ),
-                ),
+                hintText: 'Search past events',
               ),
               const SizedBox(height: 14),
               if (controller.loading && controller.events.isEmpty)
@@ -103,12 +92,7 @@ class _GalleriesPageState extends State<GalleriesPage> {
                   child: Center(child: CircularProgressIndicator()),
                 )
               else if (orderedDays.isEmpty)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: OnesColors.white,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
+                OnesCard(
                   child: Text(
                     q.isEmpty ? 'No past events yet.' : 'No results for "$q".',
                     style: TextStyle(color: OnesColors.black.withOpacity(0.6)),

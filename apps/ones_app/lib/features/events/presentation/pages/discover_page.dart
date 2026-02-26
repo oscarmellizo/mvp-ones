@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/ui/ones_colors.dart';
-import '../../../../core/ui/ones_typography.dart';
+import '../../../../core/ui/widgets/ones_card.dart';
+import '../../../../core/ui/widgets/ones_search_field.dart';
 import 'create_event_page.dart';
 
 class DiscoverPage extends StatefulWidget {
@@ -48,34 +49,13 @@ class _DiscoverPageState extends State<DiscoverPage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 120),
           children: [
-            TextField(
+            OnesSearchField(
               controller: _searchController,
-              style: const TextStyle(
-                fontFamilyFallback: OnesTypography.bodyFallbacks,
-                color: OnesColors.black,
-                fontWeight: FontWeight.w600,
-              ),
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search),
-                hintText: 'Search templates (concert, movie, football...)',
-                filled: true,
-                fillColor: OnesColors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-              ),
+              hintText: 'Search templates (concert, movie, football...)',
             ),
             const SizedBox(height: 14),
             if (filtered.isEmpty)
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: OnesColors.white,
-                  borderRadius: BorderRadius.circular(18),
-                ),
+              OnesCard(
                 child: Text(
                   'No templates found for "$q".',
                   style: TextStyle(color: OnesColors.black.withOpacity(0.6)),
