@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/ui/ones_colors.dart';
+import '../../../../core/ui/ones_typography.dart';
 import '../../../auth/presentation/auth_controller.dart';
 import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
@@ -443,6 +444,11 @@ class _SearchRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
+      style: const TextStyle(
+        fontFamilyFallback: OnesTypography.bodyFallbacks,
+        color: OnesColors.black,
+        fontWeight: FontWeight.w600,
+      ),
       decoration: InputDecoration(
         prefixIcon: const Icon(Icons.search),
         hintText: 'Search by attendee or date',

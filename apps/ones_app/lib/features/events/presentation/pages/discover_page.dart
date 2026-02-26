@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/ui/ones_colors.dart';
+import '../../../../core/ui/ones_typography.dart';
 import 'create_event_page.dart';
 
 class DiscoverPage extends StatefulWidget {
@@ -49,6 +50,11 @@ class _DiscoverPageState extends State<DiscoverPage> {
           children: [
             TextField(
               controller: _searchController,
+              style: const TextStyle(
+                fontFamilyFallback: OnesTypography.bodyFallbacks,
+                color: OnesColors.black,
+                fontWeight: FontWeight.w600,
+              ),
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.search),
                 hintText: 'Search templates (concert, movie, football...)',

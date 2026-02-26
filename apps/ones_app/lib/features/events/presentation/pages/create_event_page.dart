@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/ui/ones_colors.dart';
+import '../../../../core/ui/ones_typography.dart';
 import '../../../auth/presentation/auth_controller.dart';
 import '../event_covers_controller.dart';
 import '../events_controller.dart';
@@ -117,6 +118,11 @@ class _CreateEventPageState extends State<CreateEventPage> {
     );
     return InputDecoration(
       hintText: hintText,
+      hintStyle: TextStyle(
+        fontFamilyFallback: OnesTypography.bodyFallbacks,
+        color: OnesColors.black.withOpacity(0.38),
+        fontWeight: FontWeight.w500,
+      ),
       prefixIcon: prefixIcon,
       suffixIcon: suffixIcon,
       filled: true,
@@ -465,6 +471,11 @@ class _CreateEventPageState extends State<CreateEventPage> {
                       TextFormField(
                         controller: _nameController,
                         textInputAction: TextInputAction.next,
+                        style: const TextStyle(
+                          fontFamilyFallback: OnesTypography.bodyFallbacks,
+                          color: OnesColors.black,
+                          fontWeight: FontWeight.w600,
+                        ),
                         decoration: _inputDecoration(
                           hintText: 'e.g. Summer Roadtrip 2024',
                           suffixIcon: const Icon(Icons.edit_outlined),
@@ -481,6 +492,11 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         minLines: 3,
                         maxLines: 6,
                         textInputAction: TextInputAction.newline,
+                        style: const TextStyle(
+                          fontFamilyFallback: OnesTypography.bodyFallbacks,
+                          color: OnesColors.black,
+                          fontWeight: FontWeight.w600,
+                        ),
                         decoration: _inputDecoration(
                           hintText: 'What is the objective of this event?',
                           prefixIcon: const Icon(
@@ -610,6 +626,11 @@ class _CreateEventPageState extends State<CreateEventPage> {
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _locationController,
+                        style: const TextStyle(
+                          fontFamilyFallback: OnesTypography.bodyFallbacks,
+                          color: OnesColors.black,
+                          fontWeight: FontWeight.w600,
+                        ),
                         decoration: _inputDecoration(
                           hintText: 'Add a location (optional)',
                           prefixIcon: const Icon(
@@ -867,11 +888,21 @@ class _InviteGuestsCard extends StatelessWidget {
             controller: emailController,
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.done,
+            style: const TextStyle(
+              fontFamilyFallback: OnesTypography.bodyFallbacks,
+              color: OnesColors.black,
+              fontWeight: FontWeight.w600,
+            ),
             onSubmitted: (_) {
               onInvite();
             },
             decoration: InputDecoration(
               hintText: 'Add emails (comma/space separated)',
+              hintStyle: TextStyle(
+                fontFamilyFallback: OnesTypography.bodyFallbacks,
+                color: OnesColors.black.withOpacity(0.38),
+                fontWeight: FontWeight.w500,
+              ),
               filled: true,
               fillColor: OnesColors.black.withOpacity(0.04),
               border: OutlineInputBorder(

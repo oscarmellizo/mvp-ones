@@ -58,16 +58,12 @@ class OnesTheme {
         height: 0.95,
       ),
       headlineSmall: base.textTheme.headlineSmall?.copyWith(
-        fontFamily: OnesTypography.airstrike,
-        fontWeight: FontWeight.w400,
-        letterSpacing: 0.8,
-        height: 0.95,
+        fontFamily: OnesTypography.lemonMilk,
+        fontWeight: FontWeight.w500,
       ),
       titleLarge: base.textTheme.titleLarge?.copyWith(
-        fontFamily: OnesTypography.airstrike,
-        fontWeight: FontWeight.w400,
-        letterSpacing: 0.8,
-        height: 0.95,
+        fontFamily: OnesTypography.lemonMilk,
+        fontWeight: FontWeight.w500,
       ),
       titleMedium: base.textTheme.titleMedium?.copyWith(
         fontFamily: OnesTypography.lemonMilk,
@@ -93,6 +89,13 @@ class OnesTheme {
 
     return base.copyWith(
       textTheme: textTheme,
+      inputDecorationTheme: InputDecorationTheme(
+        hintStyle: TextStyle(
+          fontFamilyFallback: OnesTypography.bodyFallbacks,
+          color: OnesColors.black.withOpacity(0.38),
+          fontWeight: FontWeight.w500,
+        ),
+      ),
       appBarTheme: const AppBarTheme(
         backgroundColor: OnesColors.background,
         foregroundColor: OnesColors.purpleDeep,
