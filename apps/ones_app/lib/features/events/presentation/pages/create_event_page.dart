@@ -140,6 +140,28 @@ class _CreateEventPageState extends State<CreateEventPage> {
     );
   }
 
+  String _dateTimeSummary(BuildContext context) {
+    final start = _combineLocal(_startDate, _startTime);
+    final end = _combineLocal(_endDate, _endTime);
+    if (start == null || end == null) return 'Select start and end time';
+    final duration = end.difference(start);
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    final hh = hours > 0 ? '${hours}h ' : '';
+    final mm = '${minutes}m';
+    final s =
+        '${_formatShortDate(start)} • ${TimeOfDay.fromDateTime(start).format(context)}';
+    final e =
+        '${_formatShortDate(end)} • ${TimeOfDay.fromDateTime(end).format(context)}';
+    return '$s → $e  ($hh$mm)';
+  }
+
+  String _formatShortDate(DateTime dt) {
+    final mm = dt.month.toString().padLeft(2, '0');
+    final dd = dt.day.toString().padLeft(2, '0');
+    return '$mm/$dd';
+  }
+
   bool get _canGenerateCover {
     return _nameController.text.trim().isNotEmpty &&
         _objectiveController.text.trim().isNotEmpty;
@@ -191,6 +213,91 @@ class _CreateEventPageState extends State<CreateEventPage> {
         ..clearSnackBars()
         ..showSnackBar(SnackBar(content: Text(error)));
     }
+  }
+
+  Future<void> _pickStartDateTime() async {
+    final now = DateTime.now();
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _startDate ?? now,
+      firstDate: DateTime(now.year - 1),
+      lastDate: DateTime(now.year + 5),
+    );
+    if (!mounted || pickedDate == null) return;
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: _startTime ?? TimeOfDay.now(),
+    );
+    if (!mounted || pickedTime == null) return;
+
+    setState(() {
+      _startDate = pickedDate;
+      _startTime = pickedTime;
+      _ensureEndDefaults();
+    });
+    _validateDateTimes();
+  }
+
+  Future<void> _pickEndDateTime() async {
+    final now = DateTime.now();
+    final initialEnd = _combineLocal(_endDate, _endTime);
+    final initialDate =
+        initialEnd ?? _combineLocal(_startDate, _startTime) ?? now;
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate:
+          DateTime(initialDate.year, initialDate.month, initialDate.day),
+      firstDate: DateTime(now.year - 1),
+      lastDate: DateTime(now.year + 5),
+    );
+    if (!mounted || pickedDate == null) return;
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: _endTime ?? _startTime ?? TimeOfDay.now(),
+    );
+    if (!mounted || pickedTime == null) return;
+
+    setState(() {
+      _endDate = pickedDate;
+      _endTime = pickedTime;
+    });
+    _validateDateTimes();
+  }
+
+  void _applyQuickStartDate(DateTime date) {
+    setState(() {
+      _startDate = DateTime(date.year, date.month, date.day);
+      _ensureEndDefaults();
+    });
+    _validateDateTimes();
+  }
+
+  void _applyQuickStartTime(TimeOfDay time) {
+    setState(() {
+      _startTime = time;
+      _ensureEndDefaults();
+    });
+    _validateDateTimes();
+  }
+
+  DateTime _nextWeekendStart() {
+    final now = DateTime.now();
+    final weekday = now.weekday; // Mon=1..Sun=7
+    final daysUntilSat = (6 - weekday) % 7;
+    final sat = now.add(Duration(days: daysUntilSat));
+    return DateTime(sat.year, sat.month, sat.day);
+  }
+
+  TimeOfDay _roundedNowTime() {
+    final now = DateTime.now();
+    final minute = now.minute;
+    final rounded = ((minute + 4) / 5).floor() * 5;
+    final carry = rounded >= 60;
+    final h = carry ? (now.hour + 1) % 24 : now.hour;
+    final m = carry ? 0 : rounded;
+    return TimeOfDay(hour: h, minute: m);
   }
 
   Future<void> _addInvitee() async {
@@ -398,46 +505,75 @@ class _CreateEventPageState extends State<CreateEventPage> {
                 const SizedBox(height: 14),
                 _FormSection(
                   title: 'When',
-                  child: _DateTimeCard(
-                    startDate: _startDate,
-                    startTime: _startTime,
-                    endDate: _endDate,
-                    endTime: _endTime,
-                    errorText: _dateTimeError,
-                    onPickStartDate: () => _pickDate(
-                      initial: _startDate,
-                      onPicked: (d) {
-                        setState(() {
-                          _startDate = d;
-                          _ensureEndDefaults();
-                        });
-                        _validateDateTimes();
-                      },
-                    ),
-                    onPickStartTime: () => _pickTime(
-                      initial: _startTime,
-                      onPicked: (t) {
-                        setState(() {
-                          _startTime = t;
-                          _ensureEndDefaults();
-                        });
-                        _validateDateTimes();
-                      },
-                    ),
-                    onPickEndDate: () => _pickDate(
-                      initial: _endDate,
-                      onPicked: (d) {
-                        setState(() => _endDate = d);
-                        _validateDateTimes();
-                      },
-                    ),
-                    onPickEndTime: () => _pickTime(
-                      initial: _endTime,
-                      onPicked: (t) {
-                        setState(() => _endTime = t);
-                        _validateDateTimes();
-                      },
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _dateTimeSummary(context),
+                        style: TextStyle(
+                          color: OnesColors.black.withOpacity(0.7),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          ActionChip(
+                            label: const Text('Today'),
+                            onPressed: () =>
+                                _applyQuickStartDate(DateTime.now()),
+                          ),
+                          ActionChip(
+                            label: const Text('Tomorrow'),
+                            onPressed: () => _applyQuickStartDate(
+                                DateTime.now().add(const Duration(days: 1))),
+                          ),
+                          ActionChip(
+                            label: const Text('This weekend'),
+                            onPressed: () =>
+                                _applyQuickStartDate(_nextWeekendStart()),
+                          ),
+                          ActionChip(
+                            label: const Text('Now'),
+                            onPressed: () =>
+                                _applyQuickStartTime(_roundedNowTime()),
+                          ),
+                          ActionChip(
+                            label: const Text('+30m'),
+                            onPressed: () {
+                              final base = _combineLocal(
+                                      _startDate ?? DateTime.now(),
+                                      _startTime ?? _roundedNowTime()) ??
+                                  DateTime.now();
+                              final next =
+                                  base.add(const Duration(minutes: 30));
+                              _applyQuickStartDate(next);
+                              _applyQuickStartTime(
+                                  TimeOfDay.fromDateTime(next));
+                            },
+                          ),
+                          ActionChip(
+                            label: const Text('Evening'),
+                            onPressed: () => _applyQuickStartTime(
+                                const TimeOfDay(hour: 19, minute: 0)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _DateTimeCard(
+                        startDate: _startDate,
+                        startTime: _startTime,
+                        endDate: _endDate,
+                        endTime: _endTime,
+                        errorText: _dateTimeError,
+                        onPickStartDate: _pickStartDateTime,
+                        onPickStartTime: _pickStartDateTime,
+                        onPickEndDate: _pickEndDateTime,
+                        onPickEndTime: _pickEndDateTime,
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -680,31 +816,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
         );
       rethrow;
     }
-  }
-
-  Future<void> _pickDate({
-    required DateTime? initial,
-    required ValueChanged<DateTime> onPicked,
-  }) async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initial ?? now,
-      firstDate: DateTime(now.year - 1),
-      lastDate: DateTime(now.year + 5),
-    );
-    if (picked != null) onPicked(picked);
-  }
-
-  Future<void> _pickTime({
-    required TimeOfDay? initial,
-    required ValueChanged<TimeOfDay> onPicked,
-  }) async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: initial ?? TimeOfDay.now(),
-    );
-    if (picked != null) onPicked(picked);
   }
 }
 
