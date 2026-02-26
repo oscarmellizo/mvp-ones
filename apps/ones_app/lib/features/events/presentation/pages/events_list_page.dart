@@ -3,7 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/utils/datetime_formatters.dart';
 import '../../../../core/ui/ones_colors.dart';
-import '../../../../core/ui/ones_typography.dart';
+import '../../../../core/ui/widgets/ones_search_field.dart';
+import '../../../../core/ui/widgets/ones_section_header.dart';
 import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
 import 'event_detail_page.dart';
@@ -88,13 +89,17 @@ class _EventsListPageState extends State<EventsListPage> {
               const SizedBox(height: 14),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _SearchBar(controller: _searchController),
+                child: OnesSearchField(
+                  controller: _searchController,
+                  hintText: 'Search events...',
+                  borderRadius: BorderRadius.zero,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                  prefixIcon: const Icon(Icons.search),
+                ),
               ),
               const SizedBox(height: 18),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: _SectionHeader(title: 'Today'),
-              ),
+              const OnesSectionHeader(title: 'Today'),
               const SizedBox(height: 12),
               SizedBox(
                 height: 260,
@@ -158,10 +163,7 @@ class _EventsListPageState extends State<EventsListPage> {
                       ),
               ),
               const SizedBox(height: 22),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: _SectionHeader(title: 'Next Events'),
-              ),
+              const OnesSectionHeader(title: 'Next Events'),
               const SizedBox(height: 12),
               if (controller.error != null) ...[
                 Container(
@@ -334,58 +336,6 @@ class _Header extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _SearchBar extends StatelessWidget {
-  final TextEditingController controller;
-
-  const _SearchBar({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      style: const TextStyle(
-        fontFamilyFallback: OnesTypography.bodyFallbacks,
-        color: OnesColors.black,
-        fontWeight: FontWeight.w600,
-      ),
-      decoration: const InputDecoration(
-        prefixIcon: Icon(Icons.search),
-        hintText: 'Search events...',
-        filled: true,
-        fillColor: OnesColors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
-          borderSide: BorderSide.none,
-        ),
-        contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  final String title;
-
-  const _SectionHeader({
-    required this.title,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: OnesColors.purpleDeep,
-              ),
-        ),
-        const Spacer(),
-      ],
     );
   }
 }
