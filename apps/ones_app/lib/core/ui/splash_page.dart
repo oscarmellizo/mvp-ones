@@ -30,10 +30,10 @@ class _Content extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
+        const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Image(
+            Image(
               image: AssetImage('assets/splash/symbol_purple.png'),
               width: 380,
             ),

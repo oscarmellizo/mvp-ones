@@ -2,6 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/utils/datetime_formatters.dart';
+import '../../../../core/utils/validators.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/ones_typography.dart';
 import '../../../auth/presentation/auth_controller.dart';
@@ -156,16 +158,10 @@ class _CreateEventPageState extends State<CreateEventPage> {
     final hh = hours > 0 ? '${hours}h ' : '';
     final mm = '${minutes}m';
     final s =
-        '${_formatShortDate(start)} • ${TimeOfDay.fromDateTime(start).format(context)}';
+        '${formatShortMonthDay(start)} • ${TimeOfDay.fromDateTime(start).format(context)}';
     final e =
-        '${_formatShortDate(end)} • ${TimeOfDay.fromDateTime(end).format(context)}';
+        '${formatShortMonthDay(end)} • ${TimeOfDay.fromDateTime(end).format(context)}';
     return '$s → $e  ($hh$mm)';
-  }
-
-  String _formatShortDate(DateTime dt) {
-    final mm = dt.month.toString().padLeft(2, '0');
-    final dd = dt.day.toString().padLeft(2, '0');
-    return '$mm/$dd';
   }
 
   bool get _canGenerateCover {
@@ -324,7 +320,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
     final candidates =
         parts.map((e) => e.toLowerCase()).toList(growable: false);
     final invalid =
-        candidates.where((e) => !_looksLikeEmail(e)).toList(growable: false);
+        candidates.where((e) => !looksLikeEmail(e)).toList(growable: false);
     if (invalid.isNotEmpty) {
       setState(() {
         _inviteError = 'Please enter a valid email.';
@@ -401,14 +397,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
     setState(() {
       _invitees.removeWhere((i) => i.email == invitee.email);
     });
-  }
-
-  bool _looksLikeEmail(String value) {
-    final v = value.trim();
-    if (!v.contains('@')) return false;
-    if (v.startsWith('@') || v.endsWith('@')) return false;
-    if (!v.contains('.')) return false;
-    return true;
   }
 
   @override

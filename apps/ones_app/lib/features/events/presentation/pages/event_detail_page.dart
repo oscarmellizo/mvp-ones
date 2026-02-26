@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/utils/datetime_formatters.dart';
+import '../../../../core/utils/validators.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/ones_typography.dart';
 import '../../../auth/presentation/auth_controller.dart';
@@ -123,37 +125,9 @@ class _EventDetailPageState extends State<EventDetailPage> {
 }
 
 String _eventSubtitle(DateTime startAt, String location) {
-  final date = _formatMonthDayYear(startAt.toLocal());
+  final date = formatMonthDayYear(startAt.toLocal());
   final loc = location.trim().isEmpty ? '-' : location.trim();
   return '$date • $loc';
-}
-
-String _formatMonthDayYear(DateTime dt) {
-  const months = [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December'
-  ];
-  return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
-}
-
-String _formatTimeOfDay(DateTime dt) {
-  final hour = dt.hour;
-  final minute = dt.minute;
-  final isPm = hour >= 12;
-  final h12 = hour % 12 == 0 ? 12 : hour % 12;
-  final mm = minute.toString().padLeft(2, '0');
-  final suffix = isPm ? 'PM' : 'AM';
-  return '$h12:$mm $suffix';
 }
 
 class _Header extends StatelessWidget {
@@ -756,7 +730,7 @@ class _DetailsTabState extends State<_DetailsTab> {
       return;
     }
 
-    if (!_looksLikeEmail(normalizedEmail)) {
+    if (!looksLikeEmail(normalizedEmail)) {
       setState(() {
         _inviteError = 'Please enter a valid email.';
       });
@@ -786,14 +760,6 @@ class _DetailsTabState extends State<_DetailsTab> {
       _emailController.clear();
       FocusScope.of(context).unfocus();
     });
-  }
-
-  bool _looksLikeEmail(String value) {
-    final v = value.trim();
-    if (!v.contains('@')) return false;
-    if (v.startsWith('@') || v.endsWith('@')) return false;
-    if (!v.contains('.')) return false;
-    return true;
   }
 
   @override
@@ -861,7 +827,7 @@ class _DetailsTabState extends State<_DetailsTab> {
                   child: _ReadOnlyField(
                     label: 'Starts',
                     value:
-                        '${_formatMonthDayYear(start)} • ${_formatTimeOfDay(start)}',
+                        '${formatMonthDayYear(start)} • ${formatTimeOfDay(start)}',
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -869,7 +835,7 @@ class _DetailsTabState extends State<_DetailsTab> {
                   child: _ReadOnlyField(
                     label: 'Ends',
                     value:
-                        '${_formatMonthDayYear(end)} • ${_formatTimeOfDay(end)}',
+                        '${formatMonthDayYear(end)} • ${formatTimeOfDay(end)}',
                   ),
                 ),
               ],

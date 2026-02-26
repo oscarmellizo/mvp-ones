@@ -276,7 +276,9 @@ class _TemplateDetailsSheet extends StatelessWidget {
         return Container(
           decoration: BoxDecoration(
             color: OnesColors.yellowLight.withOpacity(0.35),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(24),
+            ),
           ),
           child: ListView(
             controller: scrollController,

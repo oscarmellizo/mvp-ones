@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/utils/datetime_formatters.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../events_controller.dart';
 import 'event_detail_page.dart';
@@ -149,21 +150,7 @@ class _GalleriesPageState extends State<GalleriesPage> {
   }
 
   String _formatDayHeader(DateTime d) {
-    const months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December'
-    ];
-    return '${months[d.month - 1]} ${d.day}, ${d.year}';
+    return formatMonthDayYear(d);
   }
 }
 

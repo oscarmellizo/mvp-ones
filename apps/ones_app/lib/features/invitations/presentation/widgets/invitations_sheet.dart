@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ones_api_client/ones_api_client.dart' as api;
 
+import '../../../../core/utils/datetime_formatters.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../../../events/presentation/events_controller.dart';
 import '../invitations_controller.dart';
@@ -143,7 +144,7 @@ class _InvitationRow extends StatelessWidget {
     final controller = context.read<InvitationsController>();
 
     final when =
-        '${_formatMonthDayYear(startAt.toLocal())} • ${_formatTimeOfDay(startAt.toLocal())}';
+        '${formatMonthDayYear(startAt.toLocal())} • ${formatTimeOfDay(startAt.toLocal())}';
     final loc =
         (location == null || location!.trim().isEmpty) ? '-' : location!.trim();
 
@@ -231,32 +232,4 @@ class _InvitationRow extends StatelessWidget {
       ],
     );
   }
-}
-
-String _formatMonthDayYear(DateTime dt) {
-  const months = [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December'
-  ];
-  return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
-}
-
-String _formatTimeOfDay(DateTime dt) {
-  final hour = dt.hour;
-  final minute = dt.minute;
-  final isPm = hour >= 12;
-  final h12 = hour % 12 == 0 ? 12 : hour % 12;
-  final mm = minute.toString().padLeft(2, '0');
-  final suffix = isPm ? 'PM' : 'AM';
-  return '$h12:$mm $suffix';
 }

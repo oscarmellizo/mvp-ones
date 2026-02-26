@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/utils/datetime_formatters.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/ones_typography.dart';
 import '../event_cover_urls_controller.dart';
@@ -351,17 +352,16 @@ class _SearchBar extends StatelessWidget {
         color: OnesColors.black,
         fontWeight: FontWeight.w600,
       ),
-      decoration: InputDecoration(
-        prefixIcon: const Icon(Icons.search),
+      decoration: const InputDecoration(
+        prefixIcon: Icon(Icons.search),
         hintText: 'Search events...',
         filled: true,
         fillColor: OnesColors.white,
-        border: const OutlineInputBorder(
+        border: OutlineInputBorder(
           borderRadius: BorderRadius.zero,
           borderSide: BorderSide.none,
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       ),
     );
   }
@@ -569,30 +569,6 @@ class _UpcomingCard extends StatelessWidget {
   }
 }
 
-String _formatTimeOfDay(DateTime dt) {
-  final hour = dt.hour;
-  final minute = dt.minute;
-  final isPm = hour >= 12;
-  final h12 = hour % 12 == 0 ? 12 : hour % 12;
-  final mm = minute.toString().padLeft(2, '0');
-  final suffix = isPm ? 'PM' : 'AM';
-  return '$h12:$mm $suffix';
-}
+String _formatTimeOfDay(DateTime dt) => formatTimeOfDay(dt);
 
-String _formatMonthDayYear(DateTime dt) {
-  const months = [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December'
-  ];
-  return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
-}
+String _formatMonthDayYear(DateTime dt) => formatMonthDayYear(dt);
