@@ -5,8 +5,9 @@ import 'package:provider/provider.dart';
 import '../../../../core/utils/datetime_formatters.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/ui/ones_colors.dart';
-import '../../../../core/ui/ones_typography.dart';
 import '../../../../core/ui/widgets/ones_card.dart';
+import '../../../../core/ui/widgets/ones_text_field.dart';
+import '../../../../core/ui/widgets/ones_text_form_field.dart';
 import '../../../auth/presentation/auth_controller.dart';
 import '../event_covers_controller.dart';
 import '../events_controller.dart';
@@ -108,34 +109,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
   void _onFormChanged() {
     if (!mounted) return;
     setState(() {});
-  }
-
-  InputDecoration _inputDecoration({
-    required String hintText,
-    Widget? prefixIcon,
-    Widget? suffixIcon,
-  }) {
-    final baseBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: BorderSide(color: OnesColors.black.withOpacity(0.12)),
-    );
-    return InputDecoration(
-      hintText: hintText,
-      hintStyle: TextStyle(
-        fontFamilyFallback: OnesTypography.bodyFallbacks,
-        color: OnesColors.black.withOpacity(0.38),
-        fontWeight: FontWeight.w500,
-      ),
-      prefixIcon: prefixIcon,
-      suffixIcon: suffixIcon,
-      filled: true,
-      fillColor: OnesColors.black.withOpacity(0.04),
-      border: baseBorder,
-      enabledBorder: baseBorder,
-      focusedBorder: baseBorder.copyWith(
-        borderSide: const BorderSide(color: OnesColors.purpleMid, width: 1.6),
-      ),
-    );
   }
 
   DateTime? _combineLocal(DateTime? date, TimeOfDay? time) {
@@ -457,46 +430,31 @@ class _CreateEventPageState extends State<CreateEventPage> {
                     children: [
                       const _FieldLabel('Event Name'),
                       const SizedBox(height: 8),
-                      TextFormField(
+                      OnesTextFormField(
                         controller: _nameController,
+                        hintText: 'e.g. Summer Roadtrip 2024',
+                        suffixIcon: const Icon(Icons.edit_outlined),
                         textInputAction: TextInputAction.next,
-                        style: const TextStyle(
-                          fontFamilyFallback: OnesTypography.bodyFallbacks,
-                          color: OnesColors.black,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        decoration: _inputDecoration(
-                          hintText: 'e.g. Summer Roadtrip 2024',
-                          suffixIcon: const Icon(Icons.edit_outlined),
-                        ),
                         validator: (v) =>
                             (v == null || v.trim().isEmpty) ? 'Required' : null,
                       ),
                       const SizedBox(height: 16),
                       const _FieldLabel('Objective'),
                       const SizedBox(height: 8),
-                      TextFormField(
+                      OnesTextFormField(
                         controller: _objectiveController,
+                        hintText: 'What is the objective of this event?',
+                        prefixIcon: const Icon(
+                          Icons.flag,
+                          color: OnesColors.purpleDeep,
+                        ),
                         keyboardType: TextInputType.multiline,
                         minLines: 3,
                         maxLines: 6,
                         textInputAction: TextInputAction.newline,
-                        style: const TextStyle(
-                          fontFamilyFallback: OnesTypography.bodyFallbacks,
-                          color: OnesColors.black,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        decoration: _inputDecoration(
-                          hintText: 'What is the objective of this event?',
-                          prefixIcon: const Icon(
-                            Icons.flag,
-                            color: OnesColors.purpleDeep,
-                          ),
-                        ).copyWith(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 12,
-                          ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
                         ),
                         validator: (value) {
                           final v = value?.trim() ?? '';
@@ -613,19 +571,12 @@ class _CreateEventPageState extends State<CreateEventPage> {
                     children: [
                       const _FieldLabel('Location'),
                       const SizedBox(height: 8),
-                      TextFormField(
+                      OnesTextFormField(
                         controller: _locationController,
-                        style: const TextStyle(
-                          fontFamilyFallback: OnesTypography.bodyFallbacks,
-                          color: OnesColors.black,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        decoration: _inputDecoration(
-                          hintText: 'Add a location (optional)',
-                          prefixIcon: const Icon(
-                            Icons.location_on,
-                            color: OnesColors.purpleDeep,
-                          ),
+                        hintText: 'Add a location (optional)',
+                        prefixIcon: const Icon(
+                          Icons.location_on,
+                          color: OnesColors.purpleDeep,
                         ),
                       ),
                     ],
@@ -869,47 +820,16 @@ class _InviteGuestsCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          TextField(
+          OnesTextField(
             controller: emailController,
+            hintText: 'Add emails (comma/space separated)',
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.done,
-            style: const TextStyle(
-              fontFamilyFallback: OnesTypography.bodyFallbacks,
-              color: OnesColors.black,
-              fontWeight: FontWeight.w600,
-            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             onSubmitted: (_) {
               onInvite();
             },
-            decoration: InputDecoration(
-              hintText: 'Add emails (comma/space separated)',
-              hintStyle: TextStyle(
-                fontFamilyFallback: OnesTypography.bodyFallbacks,
-                color: OnesColors.black.withOpacity(0.38),
-                fontWeight: FontWeight.w500,
-              ),
-              filled: true,
-              fillColor: OnesColors.black.withOpacity(0.04),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide:
-                    BorderSide(color: OnesColors.black.withOpacity(0.12)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide:
-                    BorderSide(color: OnesColors.black.withOpacity(0.12)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(
-                  color: OnesColors.purpleMid,
-                  width: 1.6,
-                ),
-              ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            ),
           ),
           if (inviteError != null) ...[
             const SizedBox(height: 10),
