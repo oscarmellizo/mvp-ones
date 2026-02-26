@@ -14,6 +14,8 @@ class OnesTextField extends StatelessWidget {
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
   final EdgeInsetsGeometry? contentPadding;
+  final Color? fillColor;
+  final BorderSide? borderSide;
 
   const OnesTextField({
     super.key,
@@ -26,6 +28,8 @@ class OnesTextField extends StatelessWidget {
     this.onChanged,
     this.onSubmitted,
     this.contentPadding,
+    this.fillColor,
+    this.borderSide,
   });
 
   @override
@@ -46,6 +50,8 @@ class OnesTextField extends StatelessWidget {
         prefixIcon: prefixIcon,
         suffixIcon: suffixIcon,
         contentPadding: contentPadding,
+        fillColor: fillColor,
+        borderSide: borderSide,
       ),
     );
   }

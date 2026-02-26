@@ -6,6 +6,7 @@ import '../../../../core/utils/validators.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/widgets/ones_card.dart';
 import '../../../../core/ui/widgets/ones_search_field.dart';
+import '../../../../core/ui/widgets/ones_text_field.dart';
 import '../../../auth/presentation/auth_controller.dart';
 import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
@@ -822,24 +823,18 @@ class _DetailsTabState extends State<_DetailsTab> {
           title: 'Invite Guests',
           children: [
             if (widget.isOwner || widget.allowGuestInvites) ...[
-              TextField(
+              OnesTextField(
                 controller: _emailController,
+                hintText: 'Email (required)',
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.done,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                fillColor: OnesColors.yellowLight.withOpacity(0.35),
+                borderSide: BorderSide.none,
                 onSubmitted: (_) {
                   _addInvitee();
                 },
-                decoration: InputDecoration(
-                  hintText: 'Email (required)',
-                  filled: true,
-                  fillColor: OnesColors.yellowLight.withOpacity(0.35),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                ),
               ),
               if (_inviteError != null) ...[
                 const SizedBox(height: 10),

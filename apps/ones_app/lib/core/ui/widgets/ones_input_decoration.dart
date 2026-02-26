@@ -11,10 +11,14 @@ class OnesInputDecoration {
     Widget? prefixIcon,
     Widget? suffixIcon,
     EdgeInsetsGeometry? contentPadding,
+    Color? fillColor,
+    BorderSide? borderSide,
   }) {
+    final side =
+        borderSide ?? BorderSide(color: OnesColors.black.withOpacity(0.12));
     final baseBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
-      borderSide: BorderSide(color: OnesColors.black.withOpacity(0.12)),
+      borderSide: side,
     );
 
     return InputDecoration(
@@ -27,7 +31,7 @@ class OnesInputDecoration {
       prefixIcon: prefixIcon,
       suffixIcon: suffixIcon,
       filled: true,
-      fillColor: OnesColors.black.withOpacity(0.04),
+      fillColor: fillColor ?? OnesColors.black.withOpacity(0.04),
       border: baseBorder,
       enabledBorder: baseBorder,
       focusedBorder: baseBorder.copyWith(
