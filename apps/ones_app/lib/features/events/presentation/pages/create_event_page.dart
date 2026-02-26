@@ -5,13 +5,12 @@ import 'package:provider/provider.dart';
 import '../../../../core/utils/datetime_formatters.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/ui/ones_colors.dart';
-import '../../../../core/ui/widgets/ones_card.dart';
-import '../../../../core/ui/widgets/ones_text_field.dart';
 import '../../../../core/ui/widgets/ones_text_form_field.dart';
 import '../../../auth/presentation/auth_controller.dart';
 import '../event_covers_controller.dart';
 import '../events_controller.dart';
 import '../widgets/create_event_form_widgets.dart';
+import '../widgets/create_event_invite_widgets.dart';
 
 class CreateEventPage extends StatefulWidget {
   static const routeName = '/events/create';
@@ -50,7 +49,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
   static const double _ctaBottomGap = 16;
   static const Duration _minEventDuration = Duration(minutes: 15);
 
-  final List<_Invitee> _invitees = [];
+  final List<CreateEventInvitee> _invitees = [];
   String? _inviteError;
 
   String? _dateTimeError;
@@ -328,7 +327,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
       return;
     }
 
-    final newInvitees = <_Invitee>[];
+    final newInvitees = <CreateEventInvitee>[];
     for (final email in toAdd) {
       String displayName = email;
       try {
@@ -340,7 +339,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
       } catch (_) {
         // ignore lookup errors and fall back to email
       }
-      newInvitees.add(_Invitee(name: displayName, email: email));
+      newInvitees.add(CreateEventInvitee(name: displayName, email: email));
     }
 
     if (!mounted) return;
@@ -368,7 +367,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
       );
   }
 
-  void _removeInvitee(_Invitee invitee) {
+  void _removeInvitee(CreateEventInvitee invitee) {
     setState(() {
       _invitees.removeWhere((i) => i.email == invitee.email);
     });
@@ -610,7 +609,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      _InviteGuestsCard(
+                      CreateEventInviteGuestsCard(
                         emailController: _inviteEmailController,
                         inviteError: _inviteError,
                         invitees: _invitees,
@@ -779,135 +778,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
       rethrow;
     }
   }
-}
-
-class _InviteGuestsCard extends StatelessWidget {
-  final TextEditingController emailController;
-  final String? inviteError;
-  final List<_Invitee> invitees;
-  final Future<void> Function() onInvite;
-  final ValueChanged<_Invitee> onRemove;
-
-  const _InviteGuestsCard({
-    required this.emailController,
-    required this.inviteError,
-    required this.invitees,
-    required this.onInvite,
-    required this.onRemove,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return OnesCard(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Invite Guests',
-                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
-                ),
-              ),
-              Text(
-                '${invitees.length}',
-                style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  color: OnesColors.black.withOpacity(0.6),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          OnesTextField(
-            controller: emailController,
-            hintText: 'Add emails (comma/space separated)',
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.done,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            onSubmitted: (_) {
-              onInvite();
-            },
-          ),
-          if (inviteError != null) ...[
-            const SizedBox(height: 10),
-            Text(
-              inviteError!,
-              style: const TextStyle(
-                color: OnesColors.danger,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: OnesColors.purpleMid,
-                foregroundColor: OnesColors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.zero,
-                ),
-              ),
-              onPressed: () {
-                onInvite();
-              },
-              child: const Text(
-                'Invite',
-                style: TextStyle(fontWeight: FontWeight.w900),
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          const Text(
-            'Invited',
-            style: TextStyle(fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 8),
-          if (invitees.isEmpty)
-            Text(
-              'No invited guests yet.',
-              style: TextStyle(color: OnesColors.black.withOpacity(0.55)),
-            )
-          else
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: invitees
-                  .map(
-                    (invitee) => InputChip(
-                      label: Tooltip(
-                        message: invitee.email,
-                        child: Text(
-                          invitee.name.trim().isNotEmpty &&
-                                  invitee.name != invitee.email
-                              ? invitee.name
-                              : invitee.email,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      onDeleted: () => onRemove(invitee),
-                      deleteIcon: const Icon(Icons.close, size: 18),
-                    ),
-                  )
-                  .toList(growable: false),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Invitee {
-  final String name;
-  final String email;
-
-  const _Invitee({required this.name, required this.email});
 }
 
 class _CoverPicker extends StatelessWidget {
