@@ -16,7 +16,7 @@ class OnesSearchField extends StatelessWidget {
     required this.controller,
     required this.hintText,
     this.onChanged,
-    this.borderRadius = const BorderRadius.all(Radius.circular(16)),
+    this.borderRadius = BorderRadius.zero,
     this.contentPadding =
         const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     this.prefixIcon,

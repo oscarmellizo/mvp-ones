@@ -17,7 +17,7 @@ class OnesInputDecoration {
     final side =
         borderSide ?? BorderSide(color: OnesColors.black.withOpacity(0.12));
     final baseBorder = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.zero,
       borderSide: side,
     );
 

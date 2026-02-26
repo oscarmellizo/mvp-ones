@@ -64,7 +64,7 @@ class LoginPage extends StatelessWidget {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: OnesColors.white.withOpacity(0.6),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.zero,
                       ),
                       child: Text(
                         'Error: ${auth.error}',
@@ -82,8 +82,8 @@ class LoginPage extends StatelessWidget {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: OnesColors.white,
                         foregroundColor: OnesColors.black,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(28),
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.zero,
                         ),
                         elevation: 0,
                       ),
@@ -149,10 +149,10 @@ class _HeroStack extends StatelessWidget {
                 height: 190,
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.85),
-                  borderRadius: BorderRadius.circular(22),
+                  borderRadius: BorderRadius.zero,
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(22),
+                  borderRadius: BorderRadius.zero,
                   child: Image.asset(
                     'assets/auth/concierto.png',
                     fit: BoxFit.cover,
@@ -172,7 +172,7 @@ class _HeroStack extends StatelessWidget {
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(26),
+                  borderRadius: BorderRadius.zero,
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.18),
@@ -182,7 +182,7 @@ class _HeroStack extends StatelessWidget {
                   ],
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(22),
+                  borderRadius: BorderRadius.zero,
                   child: Image.asset(
                     'assets/auth/amigos.png',
                     fit: BoxFit.cover,

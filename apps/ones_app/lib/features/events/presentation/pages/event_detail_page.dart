@@ -229,7 +229,7 @@ class _Tabs extends StatelessWidget {
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: OnesColors.black.withOpacity(0.04),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.zero,
       ),
       child: Row(
         children: [
@@ -267,14 +267,14 @@ class _TabButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.zero,
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
           color: selected ? OnesColors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.zero,
           boxShadow: selected
               ? [
                   BoxShadow(
@@ -490,7 +490,7 @@ class _HighlightChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.zero,
       child: Column(
         children: [
           Container(
@@ -531,10 +531,10 @@ class _MediaTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.zero,
       child: Ink(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.zero,
           image: DecorationImage(
             image: AssetImage(item.asset),
             fit: BoxFit.cover,
@@ -600,7 +600,7 @@ class _TopPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.zero,
       ),
       child: Text(
         text,
@@ -621,7 +621,7 @@ class _BottomAuthorChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: OnesColors.white.withOpacity(0.92),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.zero,
       ),
       child: Text(
         author,
@@ -756,7 +756,7 @@ class _DetailsTabState extends State<_DetailsTab> {
               }
 
               return ClipRRect(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.zero,
                 child: SizedBox(
                   height: 160,
                   width: double.infinity,
@@ -854,8 +854,8 @@ class _DetailsTabState extends State<_DetailsTab> {
                     backgroundColor: OnesColors.purpleMid,
                     foregroundColor: OnesColors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.zero,
                     ),
                   ),
                   onPressed: () {
@@ -955,7 +955,7 @@ class _DetailsTabState extends State<_DetailsTab> {
                             horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
                           color: statusBg,
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.zero,
                         ),
                         child: Text(
                           statusText,

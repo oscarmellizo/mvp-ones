@@ -12,7 +12,7 @@ class OnesCard extends StatelessWidget {
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(16),
-    this.borderRadius = const BorderRadius.all(Radius.circular(18)),
+    this.borderRadius = BorderRadius.zero,
     this.color,
   });
 

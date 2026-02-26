@@ -161,17 +161,17 @@ class _TemplateCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.zero,
       child: Ink(
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: OnesColors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.zero,
         ),
         child: Row(
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.zero,
               child: Image.asset(
                 template.coverAsset,
                 width: 56,
@@ -201,7 +201,7 @@ class _TemplateCard extends StatelessWidget {
                             horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
                           color: OnesColors.green.withOpacity(0.25),
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.zero,
                         ),
                         child: const Text(
                           'Public',
@@ -256,9 +256,7 @@ class _TemplateDetailsSheet extends StatelessWidget {
         return Container(
           decoration: BoxDecoration(
             color: OnesColors.yellowLight.withOpacity(0.35),
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(24),
-            ),
+            borderRadius: BorderRadius.zero,
           ),
           child: ListView(
             controller: scrollController,
@@ -270,13 +268,13 @@ class _TemplateDetailsSheet extends StatelessWidget {
                   height: 5,
                   decoration: BoxDecoration(
                     color: OnesColors.black.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.zero,
                   ),
                 ),
               ),
               const SizedBox(height: 14),
               ClipRRect(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.zero,
                 child: Image.asset(
                   template.coverAsset,
                   height: 160,
@@ -310,8 +308,8 @@ class _TemplateDetailsSheet extends StatelessWidget {
                       onPressed: () => Navigator.of(context).pop(),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.zero,
                         ),
                       ),
                       child: const Text('Not now'),
@@ -325,8 +323,8 @@ class _TemplateDetailsSheet extends StatelessWidget {
                         backgroundColor: OnesColors.purpleMid,
                         foregroundColor: OnesColors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.zero,
                         ),
                       ),
                       child: const Text(

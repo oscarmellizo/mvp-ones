@@ -629,8 +629,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         backgroundColor: OnesColors.purpleMid,
                         disabledBackgroundColor:
                             OnesColors.purpleMid.withOpacity(0.5),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.zero,
                         ),
                       ),
                       onPressed: (controller.loading || !_isFormReady)
@@ -849,8 +849,8 @@ class _InviteGuestsCard extends StatelessWidget {
                 backgroundColor: OnesColors.purpleMid,
                 foregroundColor: OnesColors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.zero,
                 ),
               ),
               onPressed: () {
@@ -982,14 +982,14 @@ class _CoverPicker extends StatelessWidget {
           child: Container(
             width: double.infinity,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.zero,
               color: OnesColors.yellowPale.withOpacity(0.55),
             ),
             child: Stack(
               children: [
                 Positioned.fill(
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.zero,
                     child: imageUrl == null
                         ? const SizedBox.shrink()
                         : Image.network(imageUrl!, fit: BoxFit.cover),
@@ -998,7 +998,7 @@ class _CoverPicker extends StatelessWidget {
                 Positioned.fill(
                   child: Container(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.zero,
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
@@ -1168,9 +1168,9 @@ class _DateTimeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: OnesColors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.zero,
       ),
       child: Column(
         children: [
@@ -1250,7 +1250,7 @@ class _DateTimeRow extends StatelessWidget {
           height: 44,
           decoration: BoxDecoration(
             color: OnesColors.purpleBright.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.zero,
           ),
           child: Icon(icon, color: OnesColors.purpleMid),
         ),
@@ -1322,12 +1322,12 @@ class _MiniField extends StatelessWidget {
         const SizedBox(height: 6),
         InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.zero,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
               color: OnesColors.white.withOpacity(0.75),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.zero,
               border: Border.all(color: OnesColors.black.withOpacity(0.06)),
             ),
             child: Row(
@@ -1366,7 +1366,7 @@ class _DashedBorderPainter extends CustomPainter {
 
     final rrect = RRect.fromRectAndRadius(
       Offset.zero & size,
-      Radius.circular(radius),
+      Radius.zero,
     );
 
     const dash = 6.0;

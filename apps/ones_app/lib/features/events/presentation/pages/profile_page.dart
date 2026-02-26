@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/ui/ones_colors.dart';
+import '../../../../core/ui/widgets/ones_card.dart';
+import '../../../../core/ui/widgets/ones_text_field.dart';
 import '../../../auth/presentation/auth_controller.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -63,12 +65,8 @@ class _ProfilePageState extends State<ProfilePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (user == null)
-                Container(
+                OnesCard(
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: OnesColors.white,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
                   child: Text(
                     'No authenticated user.',
                     style: TextStyle(color: OnesColors.black.withOpacity(0.6)),
@@ -141,18 +139,14 @@ class _ProfilePageState extends State<ProfilePage> {
                       style: TextStyle(fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 8),
-                    TextField(
+                    OnesTextField(
                       controller: _preferredNameController,
-                      decoration: InputDecoration(
-                        hintText: 'Preferred name',
-                        filled: true,
-                        fillColor: OnesColors.yellowLight.withOpacity(0.35),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 12),
+                      hintText: 'Preferred name',
+                      fillColor: OnesColors.yellowLight.withOpacity(0.35),
+                      borderSide: BorderSide.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -172,8 +166,8 @@ class _ProfilePageState extends State<ProfilePage> {
                           backgroundColor: OnesColors.purpleMid,
                           foregroundColor: OnesColors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.zero,
                           ),
                         ),
                         onPressed: auth.isLoading
@@ -221,8 +215,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   style: FilledButton.styleFrom(
                     backgroundColor: OnesColors.purpleMid,
                     foregroundColor: OnesColors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.zero,
                     ),
                   ),
                   onPressed: auth.isLoading ? null : () => auth.logout(),
@@ -259,13 +253,8 @@ class _Card extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
+    return OnesCard(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: OnesColors.white,
-        borderRadius: BorderRadius.circular(18),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

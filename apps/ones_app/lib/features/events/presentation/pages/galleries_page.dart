@@ -148,17 +148,17 @@ class _GalleryEventCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.zero,
       child: Ink(
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: OnesColors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.zero,
         ),
         child: Row(
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.zero,
               child: Image.asset(
                 data.coverAsset,
                 width: 56,
