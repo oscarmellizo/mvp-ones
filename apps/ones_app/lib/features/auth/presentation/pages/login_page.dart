@@ -29,21 +29,18 @@ class LoginPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final w = (constraints.maxWidth * 0.90)
-                              .clamp(200.0, 340.0)
-                              .toDouble();
-                          return Image.asset(
-                            'assets/splash/symbol_purple.png',
-                            width: w,
-                          );
-                        },
-                      ),
-                    ],
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final w = (constraints.maxWidth * 0.90)
+                          .clamp(200.0, 340.0)
+                          .toDouble();
+                      return Center(
+                        child: Image.asset(
+                          'assets/splash/symbol_purple.png',
+                          width: w,
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 24),
                   Text(

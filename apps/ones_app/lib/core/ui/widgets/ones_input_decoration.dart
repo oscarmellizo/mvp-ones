@@ -13,7 +13,7 @@ class OnesInputDecoration {
     EdgeInsetsGeometry? contentPadding,
     Color? fillColor,
     BorderSide? borderSide,
-    BorderRadiusGeometry? borderRadius,
+    BorderRadius? borderRadius,
   }) {
     final side =
         borderSide ?? BorderSide(color: OnesColors.black.withOpacity(0.12));
