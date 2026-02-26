@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../ones_colors.dart';
 import '../ones_typography.dart';
+import 'ones_input_decoration.dart';
 
 class OnesSearchField extends StatelessWidget {
   final TextEditingController controller;
@@ -32,16 +33,13 @@ class OnesSearchField extends StatelessWidget {
         color: OnesColors.black,
         fontWeight: FontWeight.w600,
       ),
-      decoration: InputDecoration(
-        prefixIcon: prefixIcon ?? const Icon(Icons.search),
+      decoration: OnesInputDecoration.build(
         hintText: hintText,
-        filled: true,
+        prefixIcon: prefixIcon ?? const Icon(Icons.search),
         fillColor: OnesColors.white,
-        border: OutlineInputBorder(
-          borderRadius: borderRadius,
-          borderSide: BorderSide.none,
-        ),
+        borderSide: BorderSide.none,
         contentPadding: contentPadding,
+        borderRadius: borderRadius,
       ),
     );
   }
