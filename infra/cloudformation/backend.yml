@@ -51,9 +51,18 @@ Resources:
       AttributeDefinitions:
         - AttributeName: userId
           AttributeType: S
+        - AttributeName: email
+          AttributeType: S
       KeySchema:
         - AttributeName: userId
           KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: byEmail
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
 
   InvitationsTable:
     Type: AWS::DynamoDB::Table
@@ -152,6 +161,18 @@ Resources:
       Name: !Sub ${StackPrefix}/${Environment}/openai-api-key
       Description: OpenAI API key for AI Event Cover generation
       SecretString: '{}'
+
+  ActuatorBasicAuthSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ${StackPrefix}/${Environment}/actuator-basic-auth
+      Description: Basic Auth credentials for /actuator endpoints (username/password)
+      SecretString: '{"username":"","password":""}'
+
+  PrometheusWorkspace:
+    Type: AWS::APS::Workspace
+    Properties:
+      Alias: !Sub ${StackPrefix}-${Environment}-amp
 
   EcrRepository:
     Type: AWS::ECR::Repository
@@ -311,6 +332,7 @@ Resources:
                   - dynamodb:GetItem
                   - dynamodb:Query
                   - dynamodb:Scan
+                  - dynamodb:DescribeTable
                   - dynamodb:DeleteItem
                 Resource:
                   - !GetAtt EventsTable.Arn
@@ -339,7 +361,21 @@ Resources:
               - Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
-                Resource: !Ref OpenAiApiKeySecret
+                Resource:
+                  - !Ref OpenAiApiKeySecret
+                  - !Ref ActuatorBasicAuthSecret
+
+        - PolicyName: ones-amp-remote-write
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - aps:RemoteWrite
+                  - aps:GetSeries
+                  - aps:GetLabels
+                  - aps:GetMetricMetadata
+                Resource: !GetAtt PrometheusWorkspace.Arn
 
   LogGroup:
     Type: AWS::Logs::LogGroup
@@ -351,7 +387,7 @@ Resources:
     Properties:
       Family: !Sub ${StackPrefix}-ones-api
       Cpu: '256'
-      Memory: '512'
+      Memory: '1024'
       NetworkMode: awsvpc
       RequiresCompatibilities:
         - FARGATE
@@ -388,6 +424,55 @@ Resources:
               Value: !Ref GoogleClientId
             - Name: CORS_ALLOWED_ORIGINS
               Value: '*'
+            - Name: ONES_ACTUATOR_BASIC_USERNAME
+              Value: !Sub '{{resolve:secretsmanager:${ActuatorBasicAuthSecret}:SecretString:username}}'
+            - Name: ONES_ACTUATOR_BASIC_PASSWORD
+              Value: !Sub '{{resolve:secretsmanager:${ActuatorBasicAuthSecret}:SecretString:password}}'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+
+        - Name: adot-collector
+          Image: public.ecr.aws/aws-observability/aws-otel-collector:latest
+          Environment:
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+            - Name: ONES_ACTUATOR_BASIC_USERNAME
+              Value: !Sub '{{resolve:secretsmanager:${ActuatorBasicAuthSecret}:SecretString:username}}'
+            - Name: ONES_ACTUATOR_BASIC_PASSWORD
+              Value: !Sub '{{resolve:secretsmanager:${ActuatorBasicAuthSecret}:SecretString:password}}'
+            - Name: AOT_CONFIG_CONTENT
+              Value: !Sub |
+                receivers:
+                  prometheus:
+                    config:
+                      scrape_configs:
+                        - job_name: ones-api
+                          metrics_path: /actuator/prometheus
+                          scheme: http
+                          basic_auth:
+                            username: ${!ONES_ACTUATOR_BASIC_USERNAME}
+                            password: ${!ONES_ACTUATOR_BASIC_PASSWORD}
+                          static_configs:
+                            - targets: ["127.0.0.1:8080"]
+                exporters:
+                  prometheusremotewrite:
+                    endpoint: https://aps-workspaces.${AWS::Region}.amazonaws.com/workspaces/${PrometheusWorkspace}/api/v1/remote_write
+                    auth:
+                      authenticator: sigv4auth
+                extensions:
+                  sigv4auth:
+                    region: ${AWS::Region}
+                    service: aps
+                service:
+                  extensions: [sigv4auth]
+                  pipelines:
+                    metrics:
+                      receivers: [prometheus]
+                      exporters: [prometheusremotewrite]
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -447,3 +532,12 @@ Outputs:
     Value: !Ref OpenAiApiKeySecret
   OpenAiApiKeySecretArn:
     Value: !GetAtt OpenAiApiKeySecret.Id
+
+  ActuatorBasicAuthSecretName:
+    Value: !Ref ActuatorBasicAuthSecret
+
+  PrometheusWorkspaceId:
+    Value: !Ref PrometheusWorkspace
+
+  PrometheusWorkspaceArn:
+    Value: !GetAtt PrometheusWorkspace.Arn

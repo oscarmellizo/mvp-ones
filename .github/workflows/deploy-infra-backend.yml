@@ -31,6 +31,8 @@ jobs:
 
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ONES_ACTUATOR_BASIC_USERNAME: ${{ secrets.ONES_ACTUATOR_BASIC_USERNAME }}
+      ONES_ACTUATOR_BASIC_PASSWORD: ${{ secrets.ONES_ACTUATOR_BASIC_PASSWORD }}
 
     steps:
       - name: Checkout
@@ -62,6 +64,16 @@ jobs:
           aws secretsmanager put-secret-value \
             --secret-id "${secretName}" \
             --secret-string "${OPENAI_API_KEY}" \
+            --no-cli-pager
+
+      - name: Set Actuator Basic Auth in Secrets Manager
+        if: ${{ env.ONES_ACTUATOR_BASIC_USERNAME != '' && env.ONES_ACTUATOR_BASIC_PASSWORD != '' }}
+        run: |
+          secretName="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}/${{ inputs.environment }}/actuator-basic-auth"
+
+          aws secretsmanager put-secret-value \
+            --secret-id "${secretName}" \
+            --secret-string "{\"username\":\"${ONES_ACTUATOR_BASIC_USERNAME}\",\"password\":\"${ONES_ACTUATOR_BASIC_PASSWORD}\"}" \
             --no-cli-pager
 
       - name: Show outputs
