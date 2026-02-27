@@ -34,17 +34,20 @@ public class DynamoDbInvitationsRepository implements InvitationsRepository {
 
     private final DynamoDbTable<DynamoInvitationItem> table;
     private final Counter scanFallbackCounter;
+    private final boolean failOnScanFallback;
 
     public DynamoDbInvitationsRepository(
             DynamoDbEnhancedClient enhancedClient,
             MeterRegistry meterRegistry,
-            @Value("${ones.dynamodb.invitations-table-name:ones-dev-event-invitations}") String tableName
+            @Value("${ones.dynamodb.invitations-table-name:ones-dev-event-invitations}") String tableName,
+            @Value("${ones.dynamodb.fail-on-scan-fallback:false}") boolean failOnScanFallback
     ) {
         this.table = enhancedClient.table(tableName, TableSchema.fromBean(DynamoInvitationItem.class));
         this.scanFallbackCounter = Counter.builder("ones.dynamodb.scan_fallback")
                 .tag("repository", "invitations")
                 .tag("operation", "listByEventId")
                 .register(meterRegistry);
+        this.failOnScanFallback = failOnScanFallback;
     }
 
     @Override
@@ -113,6 +116,9 @@ public class DynamoDbInvitationsRepository implements InvitationsRepository {
             log.warn("Falling back to DynamoDB Scan for listByEventId; consider creating GSI byEventId (eventId={}, limit={})",
                     normalizedEventId,
                     limit);
+            if (failOnScanFallback) {
+                throw new IllegalStateException("DynamoDB Scan fallback disabled for invitations.listByEventId; missing GSI byEventId", e);
+            }
             scanFallbackCounter.increment();
             return scanByEventId(normalizedEventId, limit);
         } catch (Exception e) {
@@ -121,6 +127,9 @@ public class DynamoDbInvitationsRepository implements InvitationsRepository {
                 log.warn("Falling back to DynamoDB Scan for listByEventId; consider creating GSI byEventId (eventId={}, limit={})",
                         normalizedEventId,
                         limit);
+                if (failOnScanFallback) {
+                    throw new IllegalStateException("DynamoDB Scan fallback disabled for invitations.listByEventId; missing GSI byEventId", e);
+                }
                 scanFallbackCounter.increment();
                 return scanByEventId(normalizedEventId, limit);
             }

@@ -33,17 +33,20 @@ public class DynamoDbUsersRepository implements UsersRepository {
 
     private final DynamoDbTable<DynamoUserItem> table;
     private final Counter scanFallbackCounter;
+    private final boolean failOnScanFallback;
 
     public DynamoDbUsersRepository(
             DynamoDbEnhancedClient enhancedClient,
             MeterRegistry meterRegistry,
-            @Value("${ones.dynamodb.users-table-name:ones-users}") String tableName
+            @Value("${ones.dynamodb.users-table-name:ones-users}") String tableName,
+            @Value("${ones.dynamodb.fail-on-scan-fallback:false}") boolean failOnScanFallback
     ) {
         this.table = enhancedClient.table(tableName, TableSchema.fromBean(DynamoUserItem.class));
         this.scanFallbackCounter = Counter.builder("ones.dynamodb.scan_fallback")
                 .tag("repository", "users")
                 .tag("operation", "findByEmail")
                 .register(meterRegistry);
+        this.failOnScanFallback = failOnScanFallback;
     }
 
     @Override
@@ -62,6 +65,10 @@ public class DynamoDbUsersRepository implements UsersRepository {
         Optional<User> byIndex = findByEmailUsingIndex(normalizedEmail);
         if (byIndex.isPresent()) {
             return byIndex;
+        }
+
+        if (failOnScanFallback) {
+            throw new IllegalStateException("DynamoDB Scan fallback disabled for users.findByEmail; missing GSI byEmail");
         }
 
         log.warn("Falling back to DynamoDB Scan for findByEmail; consider creating GSI byEmail");

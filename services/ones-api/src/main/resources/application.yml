@@ -1,6 +1,12 @@
 server:
   port: 8080
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
 spring:
   application:
     name: ones-api
@@ -193,6 +199,7 @@ ones:
             - id: group_trip
               label: Viaje grupal
   dynamodb:
+    fail-on-scan-fallback: ${ONES_DYNAMODB_FAIL_ON_SCAN_FALLBACK:false}
     table-name: ${ONES_EVENTS_TABLE:ones-events}
     users-table-name: ${ONES_USERS_TABLE:ones-users}
     invitations-table-name: ${ONES_INVITATIONS_TABLE:ones-${ONES_ENV:dev}-event-invitations}
