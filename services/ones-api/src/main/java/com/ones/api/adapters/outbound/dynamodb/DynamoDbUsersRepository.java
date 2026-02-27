@@ -4,6 +4,8 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,12 +32,18 @@ public class DynamoDbUsersRepository implements UsersRepository {
     private static final Logger log = LoggerFactory.getLogger(DynamoDbUsersRepository.class);
 
     private final DynamoDbTable<DynamoUserItem> table;
+    private final Counter scanFallbackCounter;
 
     public DynamoDbUsersRepository(
             DynamoDbEnhancedClient enhancedClient,
+            MeterRegistry meterRegistry,
             @Value("${ones.dynamodb.users-table-name:ones-users}") String tableName
     ) {
         this.table = enhancedClient.table(tableName, TableSchema.fromBean(DynamoUserItem.class));
+        this.scanFallbackCounter = Counter.builder("ones.dynamodb.scan_fallback")
+                .tag("repository", "users")
+                .tag("operation", "findByEmail")
+                .register(meterRegistry);
     }
 
     @Override
@@ -57,6 +65,7 @@ public class DynamoDbUsersRepository implements UsersRepository {
         }
 
         log.warn("Falling back to DynamoDB Scan for findByEmail; consider creating GSI byEmail");
+        scanFallbackCounter.increment();
 
         Expression filter = Expression.builder()
                 .expression("#email = :email")

@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,12 +33,18 @@ public class DynamoDbInvitationsRepository implements InvitationsRepository {
     private static final Logger log = LoggerFactory.getLogger(DynamoDbInvitationsRepository.class);
 
     private final DynamoDbTable<DynamoInvitationItem> table;
+    private final Counter scanFallbackCounter;
 
     public DynamoDbInvitationsRepository(
             DynamoDbEnhancedClient enhancedClient,
+            MeterRegistry meterRegistry,
             @Value("${ones.dynamodb.invitations-table-name:ones-dev-event-invitations}") String tableName
     ) {
         this.table = enhancedClient.table(tableName, TableSchema.fromBean(DynamoInvitationItem.class));
+        this.scanFallbackCounter = Counter.builder("ones.dynamodb.scan_fallback")
+                .tag("repository", "invitations")
+                .tag("operation", "listByEventId")
+                .register(meterRegistry);
     }
 
     @Override
@@ -105,6 +113,7 @@ public class DynamoDbInvitationsRepository implements InvitationsRepository {
             log.warn("Falling back to DynamoDB Scan for listByEventId; consider creating GSI byEventId (eventId={}, limit={})",
                     normalizedEventId,
                     limit);
+            scanFallbackCounter.increment();
             return scanByEventId(normalizedEventId, limit);
         } catch (Exception e) {
             String msg = e.getMessage();
@@ -112,6 +121,7 @@ public class DynamoDbInvitationsRepository implements InvitationsRepository {
                 log.warn("Falling back to DynamoDB Scan for listByEventId; consider creating GSI byEventId (eventId={}, limit={})",
                         normalizedEventId,
                         limit);
+                scanFallbackCounter.increment();
                 return scanByEventId(normalizedEventId, limit);
             }
             throw e;
