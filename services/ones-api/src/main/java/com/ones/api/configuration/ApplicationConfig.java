@@ -15,6 +15,9 @@ import com.ones.api.application.events.ListEventGuestsUseCase;
 import com.ones.api.application.events.ListEventsUseCase;
 import com.ones.api.application.events.ports.EventsRepository;
 import com.ones.api.application.users.EnsureUserUseCase;
+import com.ones.api.application.users.GetUserByIdUseCase;
+import com.ones.api.application.users.LookupUserByEmailUseCase;
+import com.ones.api.application.users.UpdateUserPreferencesUseCase;
 import com.ones.api.application.users.ports.UsersRepository;
 
 @Configuration
@@ -64,6 +67,21 @@ public class ApplicationConfig {
     @Bean
     EnsureUserUseCase ensureUserUseCase(UsersRepository repository, Clock clock) {
         return new EnsureUserUseCase(repository, clock);
+    }
+
+    @Bean
+    GetUserByIdUseCase getUserByIdUseCase(UsersRepository repository) {
+        return new GetUserByIdUseCase(repository);
+    }
+
+    @Bean
+    LookupUserByEmailUseCase lookupUserByEmailUseCase(UsersRepository repository) {
+        return new LookupUserByEmailUseCase(repository);
+    }
+
+    @Bean
+    UpdateUserPreferencesUseCase updateUserPreferencesUseCase(UsersRepository repository, Clock clock) {
+        return new UpdateUserPreferencesUseCase(repository, clock);
     }
 
     @Bean

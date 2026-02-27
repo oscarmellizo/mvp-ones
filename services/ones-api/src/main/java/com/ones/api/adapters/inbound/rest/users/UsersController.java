@@ -1,22 +1,21 @@
 package com.ones.api.adapters.inbound.rest.users;
 
-import java.time.Clock;
-import java.time.Instant;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.ones.api.adapters.inbound.rest.AuthClaims;
 import com.ones.api.application.users.EnsureUserCommand;
 import com.ones.api.application.users.EnsureUserUseCase;
-import com.ones.api.application.users.ports.UsersRepository;
+import com.ones.api.application.users.GetUserByIdUseCase;
+import com.ones.api.application.users.LookupUserByEmailUseCase;
+import com.ones.api.application.users.UpdateUserPreferencesUseCase;
 import com.ones.api.domain.users.User;
 
 @RestController
@@ -24,17 +23,20 @@ import com.ones.api.domain.users.User;
 public class UsersController {
 
     private final EnsureUserUseCase ensureUserUseCase;
-    private final UsersRepository usersRepository;
-    private final Clock clock;
+    private final GetUserByIdUseCase getUserByIdUseCase;
+    private final LookupUserByEmailUseCase lookupUserByEmailUseCase;
+    private final UpdateUserPreferencesUseCase updateUserPreferencesUseCase;
 
     public UsersController(
             EnsureUserUseCase ensureUserUseCase,
-            UsersRepository usersRepository,
-            Clock clock
+            GetUserByIdUseCase getUserByIdUseCase,
+            LookupUserByEmailUseCase lookupUserByEmailUseCase,
+            UpdateUserPreferencesUseCase updateUserPreferencesUseCase
     ) {
         this.ensureUserUseCase = ensureUserUseCase;
-        this.usersRepository = usersRepository;
-        this.clock = clock;
+        this.getUserByIdUseCase = getUserByIdUseCase;
+        this.lookupUserByEmailUseCase = lookupUserByEmailUseCase;
+        this.updateUserPreferencesUseCase = updateUserPreferencesUseCase;
     }
 
     @PostMapping("/ensure")
@@ -58,7 +60,7 @@ public class UsersController {
     @GetMapping("/me")
     public ResponseEntity<EnsureUserResponse> me(Authentication authentication) {
         String userId = authentication.getName();
-        return usersRepository.findById(userId)
+        return getUserByIdUseCase.execute(userId)
                 .map(u -> ResponseEntity.ok(toResponse(u)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
@@ -72,7 +74,7 @@ public class UsersController {
             return ResponseEntity.badRequest().build();
         }
 
-        return usersRepository.findByEmail(email.trim().toLowerCase())
+        return lookupUserByEmailUseCase.execute(email)
                 .map(u -> ResponseEntity.ok(new UserLookupResponse(
                         u.getEmail(),
                         u.getPreferredName()
@@ -88,24 +90,8 @@ public class UsersController {
         String userId = authentication.getName();
         String preferredName = request != null ? request.preferredName() : null;
 
-        return usersRepository.findById(userId)
-                .map(existing -> {
-                    Instant now = Instant.now(clock);
-                    User updated = new User(
-                            existing.getUserId(),
-                            existing.getEmail(),
-                            existing.getName(),
-                            existing.getGivenName(),
-                            existing.getFamilyName(),
-                            existing.getPicture(),
-                            preferredName,
-                            existing.getProvider(),
-                            existing.getCreatedAt(),
-                            now
-                    );
-                    usersRepository.upsert(updated);
-                    return ResponseEntity.ok(toResponse(updated));
-                })
+        return updateUserPreferencesUseCase.execute(userId, preferredName)
+                .map(updated -> ResponseEntity.ok(toResponse(updated)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
