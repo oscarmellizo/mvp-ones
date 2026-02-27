@@ -9,19 +9,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.ones.api.application.events.ports.EventsRepository;
+import com.ones.api.application.events.ports.AiImagesClient;
 import com.ones.api.application.events.ports.CoverPreviewsRepository;
 import com.ones.api.application.events.ports.CoverReservationsRepository;
+import com.ones.api.application.events.ports.ObjectStorage;
+import com.ones.api.application.events.ports.ObjectStoragePresigner;
+import com.ones.api.application.events.ports.SecretsProvider;
 import com.ones.api.domain.events.Event;
-
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.s3.presigner.S3Presigner;
-import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
-import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
-import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 
 @Service
 public class EventCoversService {
@@ -29,10 +23,10 @@ public class EventCoversService {
     private final EventsRepository eventsRepository;
     private final CoverPreviewsRepository previewsRepository;
     private final CoverReservationsRepository reservationsRepository;
-    private final OpenAiImagesClient openAiImagesClient;
-    private final SecretsManagerClient secretsManagerClient;
-    private final S3Client s3Client;
-    private final S3Presigner s3Presigner;
+    private final AiImagesClient aiImagesClient;
+    private final SecretsProvider secretsProvider;
+    private final ObjectStorage objectStorage;
+    private final ObjectStoragePresigner objectStoragePresigner;
     private final Clock clock;
 
     private final String openAiApiKeySecretName;
@@ -47,10 +41,10 @@ public class EventCoversService {
             EventsRepository eventsRepository,
             CoverPreviewsRepository previewsRepository,
             CoverReservationsRepository reservationsRepository,
-            OpenAiImagesClient openAiImagesClient,
-            SecretsManagerClient secretsManagerClient,
-            S3Client s3Client,
-            S3Presigner s3Presigner,
+            AiImagesClient aiImagesClient,
+            SecretsProvider secretsProvider,
+            ObjectStorage objectStorage,
+            ObjectStoragePresigner objectStoragePresigner,
             Clock clock,
             @Value("${ones.ai.openai.api-key-secret-name}") String openAiApiKeySecretName,
             @Value("${ones.ai.openai.image-size:512x512}") String openAiImageSize,
@@ -63,10 +57,10 @@ public class EventCoversService {
         this.eventsRepository = eventsRepository;
         this.previewsRepository = previewsRepository;
         this.reservationsRepository = reservationsRepository;
-        this.openAiImagesClient = openAiImagesClient;
-        this.secretsManagerClient = secretsManagerClient;
-        this.s3Client = s3Client;
-        this.s3Presigner = s3Presigner;
+        this.aiImagesClient = aiImagesClient;
+        this.secretsProvider = secretsProvider;
+        this.objectStorage = objectStorage;
+        this.objectStoragePresigner = objectStoragePresigner;
         this.clock = clock;
         this.openAiApiKeySecretName = openAiApiKeySecretName;
         this.openAiImageSize = openAiImageSize;
@@ -91,20 +85,19 @@ public class EventCoversService {
         String resolvedSize = (size == null || size.isBlank()) ? openAiImageSize : size.trim();
 
         String apiKey = loadOpenAiApiKey();
-        byte[] png = openAiImagesClient.generatePng(apiKey, prompt, resolvedSize);
+        byte[] png = aiImagesClient.generatePng(apiKey, prompt, resolvedSize);
 
         String key = tempKey(ownerId, coverId);
-        PutObjectRequest put = PutObjectRequest.builder()
-                .bucket(tempBucket)
-                .key(key)
-                .contentType("image/png")
-                .build();
-        s3Client.putObject(put, RequestBody.fromBytes(png));
+        objectStorage.putPng(tempBucket, key, png);
 
         previewsRepository.save(coverId, ownerId, now, tempBucket, key);
 
         Instant expiresAt = now.plus(previewPresignTtlMinutes, ChronoUnit.MINUTES);
-        java.net.URL url = presignGet(tempBucket, key, previewPresignTtlMinutes);
+        java.net.URL url = objectStoragePresigner.presignGet(
+                tempBucket,
+                key,
+                java.time.Duration.ofMinutes(previewPresignTtlMinutes)
+        );
 
         return new GenerateCoverResult(coverId, url.toString(), expiresAt);
     }
@@ -136,10 +129,7 @@ public class EventCoversService {
                 .orElseThrow(() -> new CoverPreviewNotFoundException(coverId));
 
         try {
-            s3Client.deleteObject(DeleteObjectRequest.builder()
-                    .bucket(preview.tempBucket())
-                    .key(preview.tempKey())
-                    .build());
+            objectStorage.delete(preview.tempBucket(), preview.tempKey());
         } catch (Exception ignored) {
         }
 
@@ -160,17 +150,10 @@ public class EventCoversService {
 
         String destKey = finalKey(eventId);
 
-        s3Client.copyObject(CopyObjectRequest.builder()
-                .copySource(reservation.tempBucket() + "/" + reservation.tempKey())
-                .destinationBucket(finalBucket)
-                .destinationKey(destKey)
-                .build());
+        objectStorage.copy(reservation.tempBucket(), reservation.tempKey(), finalBucket, destKey);
 
         try {
-            s3Client.deleteObject(DeleteObjectRequest.builder()
-                    .bucket(reservation.tempBucket())
-                    .key(reservation.tempKey())
-                    .build());
+            objectStorage.delete(reservation.tempBucket(), reservation.tempKey());
         } catch (Exception ignored) {
         }
 
@@ -182,7 +165,11 @@ public class EventCoversService {
     public PresignedUrlResult getFinalCoverUrl(String coverKey) {
         Instant now = Instant.now(clock);
         Instant expiresAt = now.plus(finalPresignTtlMinutes, ChronoUnit.MINUTES);
-        java.net.URL url = presignGet(finalBucket, coverKey, finalPresignTtlMinutes);
+        java.net.URL url = objectStoragePresigner.presignGet(
+                finalBucket,
+                coverKey,
+                java.time.Duration.ofMinutes(finalPresignTtlMinutes)
+        );
         return new PresignedUrlResult(url.toString(), expiresAt);
     }
 
@@ -198,24 +185,8 @@ public class EventCoversService {
         return coverKey;
     }
 
-    private java.net.URL presignGet(String bucket, String key, long ttlMinutes) {
-        software.amazon.awssdk.services.s3.model.GetObjectRequest get = software.amazon.awssdk.services.s3.model.GetObjectRequest.builder()
-                .bucket(bucket)
-                .key(key)
-                .build();
-
-        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
-                .signatureDuration(java.time.Duration.ofMinutes(ttlMinutes))
-                .getObjectRequest(get)
-                .build();
-
-        return s3Presigner.presignGetObject(presignRequest).url();
-    }
-
     private String loadOpenAiApiKey() {
-        return secretsManagerClient.getSecretValue(
-                        GetSecretValueRequest.builder().secretId(openAiApiKeySecretName).build())
-                .secretString();
+        return secretsProvider.getSecretString(openAiApiKeySecretName);
     }
 
     private static String buildPrompt(String eventName, String objective, String location) {
