@@ -6,14 +6,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ones.api.adapters.inbound.rest.AuthClaims;
 import com.ones.api.application.invitations.InvitationsService;
 import com.ones.api.domain.invitations.Invitation;
 
@@ -31,7 +30,7 @@ public class InvitationsController {
 
     @GetMapping
     public List<InvitationResponse> list(Authentication authentication) {
-        String email = requireEmail(authentication);
+        String email = AuthClaims.requireEmail(authentication);
         List<Invitation> items = service.listByInviteeEmail(email, 100);
         log.info("List invitations for email={}, count={}", email, items.size());
         return items
@@ -42,7 +41,7 @@ public class InvitationsController {
 
     @PostMapping("/{eventId}/accept")
     public ResponseEntity<InvitationResponse> accept(Authentication authentication, @PathVariable("eventId") String eventId) {
-        String email = requireEmail(authentication);
+        String email = AuthClaims.requireEmail(authentication);
         String userId = authentication.getName();
         Invitation updated = service.accept(email, userId, eventId);
         return ResponseEntity.ok(toResponse(updated));
@@ -50,23 +49,10 @@ public class InvitationsController {
 
     @PostMapping("/{eventId}/reject")
     public ResponseEntity<InvitationResponse> reject(Authentication authentication, @PathVariable("eventId") String eventId) {
-        String email = requireEmail(authentication);
+        String email = AuthClaims.requireEmail(authentication);
         String userId = authentication.getName();
         Invitation updated = service.reject(email, userId, eventId);
         return ResponseEntity.ok(toResponse(updated));
-    }
-
-    private static String requireEmail(Authentication authentication) {
-        Jwt jwt = null;
-        if (authentication instanceof JwtAuthenticationToken jwtAuth) {
-            jwt = jwtAuth.getToken();
-        }
-        Object value = jwt != null ? jwt.getClaims().get("email") : null;
-        String email = value != null ? value.toString().trim().toLowerCase() : "";
-        if (email.isEmpty()) {
-            throw new IllegalStateException("Missing email claim");
-        }
-        return email;
     }
 
     private static InvitationResponse toResponse(Invitation inv) {

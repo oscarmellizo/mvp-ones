@@ -5,8 +5,6 @@ import java.time.Instant;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -15,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ones.api.adapters.inbound.rest.AuthClaims;
 import com.ones.api.application.users.EnsureUserCommand;
 import com.ones.api.application.users.EnsureUserUseCase;
 import com.ones.api.application.users.ports.UsersRepository;
@@ -42,18 +41,13 @@ public class UsersController {
     public ResponseEntity<EnsureUserResponse> ensure(Authentication authentication) {
         String userId = authentication.getName();
 
-        Jwt jwt = null;
-        if (authentication instanceof JwtAuthenticationToken jwtAuth) {
-            jwt = jwtAuth.getToken();
-        }
-
         EnsureUserCommand cmd = new EnsureUserCommand(
                 userId,
-                getClaim(jwt, "email"),
-                getClaim(jwt, "name"),
-                getClaim(jwt, "given_name"),
-                getClaim(jwt, "family_name"),
-                getClaim(jwt, "picture"),
+                AuthClaims.getClaim(authentication, "email"),
+                AuthClaims.getClaim(authentication, "name"),
+                AuthClaims.getClaim(authentication, "given_name"),
+                AuthClaims.getClaim(authentication, "family_name"),
+                AuthClaims.getClaim(authentication, "picture"),
                 "google"
         );
 
@@ -113,14 +107,6 @@ public class UsersController {
                     return ResponseEntity.ok(toResponse(updated));
                 })
                 .orElseGet(() -> ResponseEntity.notFound().build());
-    }
-
-    private static String getClaim(Jwt jwt, String name) {
-        if (jwt == null) {
-            return null;
-        }
-        Object value = jwt.getClaims().get(name);
-        return value != null ? value.toString() : null;
     }
 
     private static EnsureUserResponse toResponse(User u) {

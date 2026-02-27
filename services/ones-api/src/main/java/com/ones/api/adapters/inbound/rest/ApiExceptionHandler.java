@@ -1,11 +1,19 @@
 package com.ones.api.adapters.inbound.rest;
 
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 import com.ones.api.application.events.CoverPreviewNotFoundException;
 import com.ones.api.application.events.CoverReservationExpiredException;
@@ -67,11 +75,73 @@ public class ApiExceptionHandler {
         ));
     }
 
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> validation(MethodArgumentNotValidException ex) {
+        List<Map<String, Object>> details = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .map(ApiExceptionHandler::toFieldErrorDetail)
+                .toList();
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", "bad_request");
+        body.put("message", "Validation failed");
+        body.put("details", details);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<Map<String, Object>> constraintViolation(ConstraintViolationException ex) {
+        List<Map<String, Object>> details = ex.getConstraintViolations()
+                .stream()
+                .map(ApiExceptionHandler::toConstraintViolationDetail)
+                .toList();
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", "bad_request");
+        body.put("message", "Validation failed");
+        body.put("details", details);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<Map<String, Object>> handlerMethodValidation(HandlerMethodValidationException ex) {
+        List<Map<String, Object>> details = ex.getAllValidationResults()
+                .stream()
+                .flatMap(r -> r.getResolvableErrors().stream())
+                .map(err -> Map.<String, Object>of(
+                        "field", "",
+                        "message", err.getDefaultMessage() == null ? "Invalid value" : err.getDefaultMessage()
+                ))
+                .toList();
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", "bad_request");
+        body.put("message", "Validation failed");
+        body.put("details", details);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, Object>> unauthorized(IllegalStateException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
                 "error", "unauthorized",
                 "message", ex.getMessage()
         ));
+    }
+
+    private static Map<String, Object> toFieldErrorDetail(FieldError e) {
+        return Map.of(
+                "field", e.getField(),
+                "message", e.getDefaultMessage() == null ? "Invalid value" : e.getDefaultMessage()
+        );
+    }
+
+    private static Map<String, Object> toConstraintViolationDetail(ConstraintViolation<?> v) {
+        String path = v.getPropertyPath() != null ? v.getPropertyPath().toString() : "";
+        return Map.of(
+                "field", path,
+                "message", v.getMessage() == null ? "Invalid value" : v.getMessage()
+        );
     }
 }

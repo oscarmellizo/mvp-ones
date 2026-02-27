@@ -7,8 +7,6 @@ import jakarta.validation.Valid;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ones.api.adapters.inbound.rest.AuthClaims;
 import com.ones.api.application.events.CreateEventUseCase;
 import com.ones.api.application.events.EventForbiddenException;
 import com.ones.api.application.events.EventsMetadataService;
@@ -60,7 +59,7 @@ public class EventsController {
     @GetMapping
     public List<EventResponse> list(Authentication authentication) {
         String ownerId = authentication.getName();
-        String email = getEmail(authentication);
+        String email = AuthClaims.requireEmail(authentication);
         return listEventsUseCase.execute(ownerId, email, 50).stream().map(EventsController::toResponse).toList();
     }
 
@@ -87,29 +86,10 @@ public class EventsController {
         return ResponseEntity.created(URI.create("/v1/events/" + created.getEventId())).body(toResponse(created));
     }
 
-    private static String getEmail(Authentication authentication) {
-        Jwt jwt = null;
-        if (authentication instanceof JwtAuthenticationToken jwtAuth) {
-            jwt = jwtAuth.getToken();
-        }
-        Object value = jwt != null ? jwt.getClaims().get("email") : null;
-        if (value == null && jwt != null) {
-            value = jwt.getClaims().get("cognito:username");
-        }
-        if (value == null && jwt != null) {
-            value = jwt.getClaims().get("preferred_username");
-        }
-        String email = value != null ? value.toString().trim().toLowerCase() : "";
-        if (email.isEmpty()) {
-            throw new IllegalStateException("Missing email claim");
-        }
-        return email;
-    }
-
     @GetMapping("/{id}")
     public EventResponse getById(Authentication authentication, @PathVariable("id") String id) {
         String ownerId = authentication.getName();
-        String email = getEmail(authentication);
+        String email = AuthClaims.requireEmail(authentication);
         Event event = getEventUseCase.execute(ownerId, email, id);
         return toResponse(event);
     }
@@ -117,7 +97,7 @@ public class EventsController {
     @GetMapping("/{id}/guests")
     public List<GuestResponse> guests(Authentication authentication, @PathVariable("id") String id) {
         String ownerId = authentication.getName();
-        String email = getEmail(authentication);
+        String email = AuthClaims.requireEmail(authentication);
         Event event = getEventUseCase.execute(ownerId, email, id);
 
         User owner = usersRepository.findById(event.getOwnerId()).orElse(null);
@@ -179,7 +159,7 @@ public class EventsController {
             @Valid @RequestBody InviteEventGuestsRequest request
     ) {
         String ownerId = authentication.getName();
-        String email = getEmail(authentication);
+        String email = AuthClaims.requireEmail(authentication);
         Event event = getEventUseCase.execute(ownerId, email, id);
 
         boolean isOwner = ownerId != null && ownerId.trim().equals(event.getOwnerId());
