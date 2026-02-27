@@ -5,10 +5,13 @@ import java.util.Collection;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -16,21 +19,65 @@ import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.crypto.factory.PasswordEncoderFactories;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.config.http.SessionCreationPolicy;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     @Bean
+    PasswordEncoder passwordEncoder() {
+        return PasswordEncoderFactories.createDelegatingPasswordEncoder();
+    }
+
+    @Bean
+    UserDetailsService actuatorUserDetailsService(
+            PasswordEncoder passwordEncoder,
+            @Value("${ones.actuator.basic.username:}") String username,
+            @Value("${ones.actuator.basic.password:}") String password
+    ) {
+        if (username == null || username.isBlank() || password == null || password.isBlank()) {
+            return new InMemoryUserDetailsManager();
+        }
+        return new InMemoryUserDetailsManager(
+                User.withUsername(username)
+                        .password(passwordEncoder.encode(password))
+                        .roles("ACTUATOR")
+                        .build()
+        );
+    }
+
+    @Bean
+    @Order(1)
+    SecurityFilterChain actuatorSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher(new AntPathRequestMatcher("/actuator/**"))
+                .csrf(csrf -> csrf.disable())
+                .cors(Customizer.withDefaults())
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/actuator/health/**").permitAll()
+                        .anyRequest().hasRole("ACTUATOR")
+                )
+                .httpBasic(Customizer.withDefaults());
+
+        return http.build();
+    }
+
+    @Bean
+    @Order(2)
     SecurityFilterChain securityFilterChain(HttpSecurity http, JwtDecoder jwtDecoder, JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/health",
-                                "/actuator/health/**",
-                                "/actuator/info",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"

@@ -13,6 +13,10 @@ spring:
 
 ones:
   env: ${ONES_ENV:dev}
+  actuator:
+    basic:
+      username: ${ONES_ACTUATOR_BASIC_USERNAME:}
+      password: ${ONES_ACTUATOR_BASIC_PASSWORD:}
   auth:
     google:
       client-id: ${GOOGLE_CLIENT_ID:}
