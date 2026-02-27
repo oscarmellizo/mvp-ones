@@ -8,11 +8,9 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.ones.api.adapters.outbound.dynamodb.DynamoCoverPreviewItem;
-import com.ones.api.adapters.outbound.dynamodb.DynamoCoverReservationItem;
-import com.ones.api.adapters.outbound.dynamodb.DynamoDbCoverPreviewsRepository;
-import com.ones.api.adapters.outbound.dynamodb.DynamoDbCoverReservationsRepository;
 import com.ones.api.application.events.ports.EventsRepository;
+import com.ones.api.application.events.ports.CoverPreviewsRepository;
+import com.ones.api.application.events.ports.CoverReservationsRepository;
 import com.ones.api.domain.events.Event;
 
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -29,8 +27,8 @@ import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueReques
 public class EventCoversService {
 
     private final EventsRepository eventsRepository;
-    private final DynamoDbCoverPreviewsRepository previewsRepository;
-    private final DynamoDbCoverReservationsRepository reservationsRepository;
+    private final CoverPreviewsRepository previewsRepository;
+    private final CoverReservationsRepository reservationsRepository;
     private final OpenAiImagesClient openAiImagesClient;
     private final SecretsManagerClient secretsManagerClient;
     private final S3Client s3Client;
@@ -47,8 +45,8 @@ public class EventCoversService {
 
     public EventCoversService(
             EventsRepository eventsRepository,
-            DynamoDbCoverPreviewsRepository previewsRepository,
-            DynamoDbCoverReservationsRepository reservationsRepository,
+            CoverPreviewsRepository previewsRepository,
+            CoverReservationsRepository reservationsRepository,
             OpenAiImagesClient openAiImagesClient,
             SecretsManagerClient secretsManagerClient,
             S3Client s3Client,
@@ -112,8 +110,8 @@ public class EventCoversService {
     }
 
     public AcceptCoverResult accept(String ownerId, String coverId) {
-        DynamoCoverPreviewItem preview = previewsRepository.findById(coverId)
-                .filter(p -> ownerId.equals(p.getOwnerId()))
+        CoverPreviewsRepository.CoverPreview preview = previewsRepository.findById(coverId)
+                .filter(p -> ownerId.equals(p.ownerId()))
                 .orElseThrow(() -> new CoverPreviewNotFoundException(coverId));
 
         Instant now = Instant.now(clock);
@@ -125,22 +123,22 @@ public class EventCoversService {
                 ownerId,
                 now,
                 expiresAt,
-                preview.getTempBucket(),
-                preview.getTempKey()
+                preview.tempBucket(),
+                preview.tempKey()
         );
 
         return new AcceptCoverResult(reservationId);
     }
 
     public void cancel(String ownerId, String coverId) {
-        DynamoCoverPreviewItem preview = previewsRepository.findById(coverId)
-                .filter(p -> ownerId.equals(p.getOwnerId()))
+        CoverPreviewsRepository.CoverPreview preview = previewsRepository.findById(coverId)
+                .filter(p -> ownerId.equals(p.ownerId()))
                 .orElseThrow(() -> new CoverPreviewNotFoundException(coverId));
 
         try {
             s3Client.deleteObject(DeleteObjectRequest.builder()
-                    .bucket(preview.getTempBucket())
-                    .key(preview.getTempKey())
+                    .bucket(preview.tempBucket())
+                    .key(preview.tempKey())
                     .build());
         } catch (Exception ignored) {
         }
@@ -149,11 +147,11 @@ public class EventCoversService {
     }
 
     public String consumeReservationAndCopyToEvent(String ownerId, String reservationId, String eventId) {
-        DynamoCoverReservationItem reservation = reservationsRepository.findById(reservationId)
-                .filter(r -> ownerId.equals(r.getOwnerId()))
+        CoverReservationsRepository.CoverReservation reservation = reservationsRepository.findById(reservationId)
+                .filter(r -> ownerId.equals(r.ownerId()))
                 .orElseThrow(() -> new CoverReservationNotFoundException(reservationId));
 
-        Instant expiresAt = Instant.parse(reservation.getExpiresAt());
+        Instant expiresAt = reservation.expiresAt();
         Instant now = Instant.now(clock);
         if (now.isAfter(expiresAt)) {
             reservationsRepository.deleteById(reservationId);
@@ -163,15 +161,15 @@ public class EventCoversService {
         String destKey = finalKey(eventId);
 
         s3Client.copyObject(CopyObjectRequest.builder()
-                .copySource(reservation.getTempBucket() + "/" + reservation.getTempKey())
+                .copySource(reservation.tempBucket() + "/" + reservation.tempKey())
                 .destinationBucket(finalBucket)
                 .destinationKey(destKey)
                 .build());
 
         try {
             s3Client.deleteObject(DeleteObjectRequest.builder()
-                    .bucket(reservation.getTempBucket())
-                    .key(reservation.getTempKey())
+                    .bucket(reservation.tempBucket())
+                    .key(reservation.tempKey())
                     .build());
         } catch (Exception ignored) {
         }
