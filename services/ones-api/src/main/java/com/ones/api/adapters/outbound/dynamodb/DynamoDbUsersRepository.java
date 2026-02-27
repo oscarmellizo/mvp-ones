@@ -1,9 +1,11 @@
 package com.ones.api.adapters.outbound.dynamodb;
 
 import java.time.Instant;
-import java.util.Optional;
 import java.util.Map;
+import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 
@@ -11,15 +13,21 @@ import com.ones.api.application.users.ports.UsersRepository;
 import com.ones.api.domain.users.User;
 
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbIndex;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Expression;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
 import software.amazon.awssdk.enhanced.dynamodb.model.ScanEnhancedRequest;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
 
 @Repository
 public class DynamoDbUsersRepository implements UsersRepository {
+
+    private static final Logger log = LoggerFactory.getLogger(DynamoDbUsersRepository.class);
 
     private final DynamoDbTable<DynamoUserItem> table;
 
@@ -42,10 +50,18 @@ public class DynamoDbUsersRepository implements UsersRepository {
             return Optional.empty();
         }
 
+        String normalizedEmail = email.trim().toLowerCase();
+        Optional<User> byIndex = findByEmailUsingIndex(normalizedEmail);
+        if (byIndex.isPresent()) {
+            return byIndex;
+        }
+
+        log.warn("Falling back to DynamoDB Scan for findByEmail; consider creating GSI byEmail");
+
         Expression filter = Expression.builder()
                 .expression("#email = :email")
                 .expressionNames(Map.of("#email", "email"))
-                .expressionValues(Map.of(":email", AttributeValue.builder().s(email.trim()).build()))
+                .expressionValues(Map.of(":email", AttributeValue.builder().s(normalizedEmail).build()))
                 .build();
 
         ScanEnhancedRequest request = ScanEnhancedRequest.builder()
@@ -58,6 +74,30 @@ public class DynamoDbUsersRepository implements UsersRepository {
                 .stream()
                 .findFirst()
                 .map(DynamoDbUsersRepository::toDomain);
+    }
+
+    private Optional<User> findByEmailUsingIndex(String normalizedEmail) {
+        try {
+            DynamoDbIndex<DynamoUserItem> index = table.index("byEmail");
+            QueryEnhancedRequest request = QueryEnhancedRequest.builder()
+                    .queryConditional(QueryConditional.keyEqualTo(Key.builder().partitionValue(normalizedEmail).build()))
+                    .limit(1)
+                    .build();
+
+            return index.query(request)
+                    .items()
+                    .stream()
+                    .findFirst()
+                    .map(DynamoDbUsersRepository::toDomain);
+        } catch (ResourceNotFoundException e) {
+            return Optional.empty();
+        } catch (Exception e) {
+            String msg = e.getMessage();
+            if (msg != null && msg.toLowerCase().contains("byemail")) {
+                return Optional.empty();
+            }
+            throw e;
+        }
     }
 
     @Override

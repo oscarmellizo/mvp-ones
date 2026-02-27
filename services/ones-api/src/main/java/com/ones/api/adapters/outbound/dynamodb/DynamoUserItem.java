@@ -3,6 +3,7 @@ package com.ones.api.adapters.outbound.dynamodb;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttribute;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSecondaryPartitionKey;
 
 @DynamoDbBean
 public class DynamoUserItem {
@@ -29,6 +30,7 @@ public class DynamoUserItem {
     }
 
     @DynamoDbAttribute("email")
+    @DynamoDbSecondaryPartitionKey(indexNames = {"byEmail"})
     public String getEmail() {
         return email;
     }
