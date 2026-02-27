@@ -19,6 +19,7 @@ import com.ones.api.application.events.CreateEventUseCase;
 import com.ones.api.application.events.EventsMetadataService;
 import com.ones.api.application.events.GetEventUseCase;
 import com.ones.api.application.events.InviteEventGuestsUseCase;
+import com.ones.api.application.events.ListEventGuestsUseCase;
 import com.ones.api.application.events.ListEventsUseCase;
 import com.ones.api.application.invitations.ports.InvitationsRepository;
 import com.ones.api.application.users.ports.UsersRepository;
@@ -51,6 +52,9 @@ class ApiExceptionHandlerValidationTest {
 
     @MockBean
     private InviteEventGuestsUseCase inviteEventGuestsUseCase;
+
+    @MockBean
+    private ListEventGuestsUseCase listEventGuestsUseCase;
 
     @Test
     void createEvent_whenInvalidBody_returnsBadRequestWithDetails() throws Exception {

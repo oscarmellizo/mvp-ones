@@ -20,11 +20,11 @@ import com.ones.api.application.events.EventForbiddenException;
 import com.ones.api.application.events.EventsMetadataService;
 import com.ones.api.application.events.GetEventUseCase;
 import com.ones.api.application.events.InviteEventGuestsUseCase;
+import com.ones.api.application.events.ListEventGuestsUseCase;
 import com.ones.api.application.events.ListEventsUseCase;
 import com.ones.api.application.invitations.ports.InvitationsRepository;
 import com.ones.api.application.users.ports.UsersRepository;
 import com.ones.api.domain.events.Event;
-import com.ones.api.domain.users.User;
 
 @RestController
 @RequestMapping("/v1/events")
@@ -37,6 +37,7 @@ public class EventsController {
     private final InvitationsRepository invitationsRepository;
     private final UsersRepository usersRepository;
     private final InviteEventGuestsUseCase inviteEventGuestsUseCase;
+    private final ListEventGuestsUseCase listEventGuestsUseCase;
 
     public EventsController(
             CreateEventUseCase createEventUseCase,
@@ -45,7 +46,8 @@ public class EventsController {
             EventsMetadataService eventsMetadataService,
             InvitationsRepository invitationsRepository,
             UsersRepository usersRepository,
-            InviteEventGuestsUseCase inviteEventGuestsUseCase
+            InviteEventGuestsUseCase inviteEventGuestsUseCase,
+            ListEventGuestsUseCase listEventGuestsUseCase
     ) {
         this.createEventUseCase = createEventUseCase;
         this.listEventsUseCase = listEventsUseCase;
@@ -54,6 +56,7 @@ public class EventsController {
         this.invitationsRepository = invitationsRepository;
         this.usersRepository = usersRepository;
         this.inviteEventGuestsUseCase = inviteEventGuestsUseCase;
+        this.listEventGuestsUseCase = listEventGuestsUseCase;
     }
 
     @GetMapping
@@ -100,56 +103,10 @@ public class EventsController {
         String email = AuthClaims.requireEmail(authentication);
         Event event = getEventUseCase.execute(ownerId, email, id);
 
-        User owner = usersRepository.findById(event.getOwnerId()).orElse(null);
-        String ownerEmail = owner != null ? owner.getEmail() : null;
-        String ownerName = owner != null && owner.getPreferredName() != null && !owner.getPreferredName().isBlank()
-                ? owner.getPreferredName()
-                : (owner != null && owner.getName() != null && !owner.getName().isBlank() ? owner.getName() : ownerEmail);
-
-        List<GuestResponse> invitees = invitationsRepository.listByEventId(id, 200)
+        return listEventGuestsUseCase.execute(event, 200)
                 .stream()
-                .map(inv -> {
-                    User invitee = null;
-                    if (inv.getInviteeUserId() != null && !inv.getInviteeUserId().isBlank()) {
-                        invitee = usersRepository.findById(inv.getInviteeUserId()).orElse(null);
-                    }
-                    if (invitee == null) {
-                        invitee = usersRepository.findByEmail(inv.getInviteeEmail()).orElse(null);
-                    }
-                    String displayName = resolveDisplayName(invitee, inv.getInviteeEmail());
-                    return new GuestResponse(
-                            inv.getInviteeEmail(),
-                            displayName,
-                            "guest",
-                            inv.getStatus().name()
-                    );
-                })
+                .map(g -> new GuestResponse(g.email(), g.displayName(), g.role(), g.status()))
                 .toList();
-
-        GuestResponse ownerResp = new GuestResponse(
-                ownerEmail,
-                ownerName,
-                "owner",
-                "owner"
-        );
-
-        return java.util.stream.Stream.concat(java.util.stream.Stream.of(ownerResp), invitees.stream()).toList();
-    }
-
-    private static String resolveDisplayName(User user, String email) {
-        if (user == null) {
-            return null;
-        }
-        if (user.getPreferredName() != null && !user.getPreferredName().isBlank()) {
-            return user.getPreferredName();
-        }
-        if (user.getName() != null && !user.getName().isBlank()) {
-            return user.getName();
-        }
-        if (email != null && !email.isBlank()) {
-            return email;
-        }
-        return null;
     }
 
     @PostMapping("/{id}/invitees")

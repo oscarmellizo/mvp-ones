@@ -11,6 +11,7 @@ import com.ones.api.application.events.CreateEventUseCase;
 import com.ones.api.application.events.EventCoversService;
 import com.ones.api.application.events.GetEventUseCase;
 import com.ones.api.application.events.InviteEventGuestsUseCase;
+import com.ones.api.application.events.ListEventGuestsUseCase;
 import com.ones.api.application.events.ListEventsUseCase;
 import com.ones.api.application.events.ports.EventsRepository;
 import com.ones.api.application.users.EnsureUserUseCase;
@@ -53,6 +54,11 @@ public class ApplicationConfig {
             Clock clock
     ) {
         return new InviteEventGuestsUseCase(eventsRepository, invitationsRepository, usersRepository, clock);
+    }
+
+    @Bean
+    ListEventGuestsUseCase listEventGuestsUseCase(InvitationsRepository invitationsRepository, UsersRepository usersRepository) {
+        return new ListEventGuestsUseCase(invitationsRepository, usersRepository);
     }
 
     @Bean
