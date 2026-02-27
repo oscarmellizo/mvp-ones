@@ -1,4 +1,4 @@
-package com.ones.api.application.events;
+package com.ones.api.adapters.outbound.openai;
 
 import java.util.Base64;
 import java.util.List;
@@ -6,9 +6,9 @@ import java.util.List;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
-import org.springframework.web.reactive.function.client.ExchangeStrategies;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
