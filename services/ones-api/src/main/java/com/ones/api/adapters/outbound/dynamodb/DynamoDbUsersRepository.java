@@ -84,11 +84,12 @@ public class DynamoDbUsersRepository implements UsersRepository {
                     .limit(1)
                     .build();
 
-            return index.query(request)
-                    .items()
-                    .stream()
-                    .findFirst()
-                    .map(DynamoDbUsersRepository::toDomain);
+            for (var page : index.query(request)) {
+                for (var item : page.items()) {
+                    return Optional.of(toDomain(item));
+                }
+            }
+            return Optional.empty();
         } catch (ResourceNotFoundException e) {
             return Optional.empty();
         } catch (Exception e) {

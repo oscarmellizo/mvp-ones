@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 
@@ -25,6 +27,8 @@ import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
 
 @Repository
 public class DynamoDbInvitationsRepository implements InvitationsRepository {
+
+    private static final Logger log = LoggerFactory.getLogger(DynamoDbInvitationsRepository.class);
 
     private final DynamoDbTable<DynamoInvitationItem> table;
 
@@ -98,10 +102,16 @@ public class DynamoDbInvitationsRepository implements InvitationsRepository {
             }
             return out;
         } catch (ResourceNotFoundException e) {
+            log.warn("Falling back to DynamoDB Scan for listByEventId; consider creating GSI byEventId (eventId={}, limit={})",
+                    normalizedEventId,
+                    limit);
             return scanByEventId(normalizedEventId, limit);
         } catch (Exception e) {
             String msg = e.getMessage();
             if (msg != null && msg.toLowerCase().contains("byeventid")) {
+                log.warn("Falling back to DynamoDB Scan for listByEventId; consider creating GSI byEventId (eventId={}, limit={})",
+                        normalizedEventId,
+                        limit);
                 return scanByEventId(normalizedEventId, limit);
             }
             throw e;
