@@ -2,8 +2,6 @@ package com.ones.api.adapters.inbound.rest.invitations;
 
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,8 +18,6 @@ import com.ones.api.domain.invitations.Invitation;
 @RequestMapping("/v1/invitations")
 public class InvitationsController {
 
-    private static final Logger log = LoggerFactory.getLogger(InvitationsController.class);
-
     private final InvitationsService service;
 
     public InvitationsController(InvitationsService service) {
@@ -32,7 +28,6 @@ public class InvitationsController {
     public List<InvitationResponse> list(Authentication authentication) {
         String email = AuthClaims.requireEmail(authentication);
         List<Invitation> items = service.listByInviteeEmail(email, 100);
-        log.info("List invitations for email={}, count={}", email, items.size());
         return items
                 .stream()
                 .map(InvitationsController::toResponse)

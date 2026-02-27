@@ -4,10 +4,15 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.ones.api.application.invitations.ports.InvitationsRepository;
 import com.ones.api.domain.invitations.Invitation;
 
 public class InvitationsService {
+
+    private static final Logger log = LoggerFactory.getLogger(InvitationsService.class);
 
     private final InvitationsRepository repository;
     private final Clock clock;
@@ -19,9 +24,12 @@ public class InvitationsService {
 
     public List<Invitation> listByInviteeEmail(String inviteeEmail, int limit) {
         Instant now = Instant.now(clock);
-        return repository.listByInviteeEmail(inviteeEmail, limit).stream()
+        List<Invitation> out = repository.listByInviteeEmail(inviteeEmail, limit).stream()
                 .filter(inv -> !now.isAfter(inv.getEventEndAt()))
                 .toList();
+
+        log.info("List invitations for email={}, count={}", inviteeEmail, out.size());
+        return out;
     }
 
     public Invitation accept(String inviteeEmail, String inviteeUserId, String eventId) {
