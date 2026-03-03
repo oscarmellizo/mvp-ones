@@ -215,6 +215,18 @@ Resources:
                   - secretsmanager:ListSecrets
                 Resource: '*'
 
+              - Sid: AmazonManagedPrometheus
+                Effect: Allow
+                Action:
+                  - aps:CreateWorkspace
+                  - aps:DeleteWorkspace
+                  - aps:DescribeWorkspace
+                  - aps:ListWorkspaces
+                  - aps:TagResource
+                  - aps:UntagResource
+                  - aps:ListTagsForResource
+                Resource: '*'
+
               - Sid: IAMForEcsTasks
                 Effect: Allow
                 Action:
