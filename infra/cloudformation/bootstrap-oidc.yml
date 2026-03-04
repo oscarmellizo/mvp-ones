@@ -162,6 +162,7 @@ Resources:
                   - elasticloadbalancing:CreateLoadBalancer
                   - elasticloadbalancing:CreateTargetGroup
                   - elasticloadbalancing:CreateListener
+                  - elasticloadbalancing:CreateRule
                   - elasticloadbalancing:Modify*
                   - elasticloadbalancing:Describe*
                   - elasticloadbalancing:Delete*
