@@ -19,6 +19,10 @@ Parameters:
     Type: Number
     Default: 0
 
+  GrafanaDesiredCount:
+    Type: Number
+    Default: 1
+
 Resources:
   EventsTable:
     Type: AWS::DynamoDB::Table
@@ -178,6 +182,13 @@ Resources:
       Description: Basic Auth credentials for /actuator endpoints (username/password)
       SecretString: '{"username":"","password":""}'
 
+  GrafanaAdminSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ${StackPrefix}/${Environment}/grafana-admin
+      Description: Admin credentials for Grafana (username/password)
+      SecretString: '{"username":"admin","password":"CHANGE_ME"}'
+
   PrometheusWorkspace:
     Type: AWS::APS::Workspace
     Properties:
@@ -280,6 +291,10 @@ Resources:
           FromPort: 8080
           ToPort: 8080
           SourceSecurityGroupId: !Ref AlbSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          SourceSecurityGroupId: !Ref AlbSecurityGroup
       Tags:
         - Key: Name
           Value: !Sub ${StackPrefix}-${Environment}-svc-sg
@@ -312,6 +327,20 @@ Resources:
         - Key: Name
           Value: !Sub ${StackPrefix}-${Environment}-tg
 
+  GrafanaTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 3000
+      Protocol: HTTP
+      VpcId: !Ref Vpc
+      TargetType: ip
+      HealthCheckPath: /api/health
+      Matcher:
+        HttpCode: '200'
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-${Environment}-grafana-tg
+
   Listener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
@@ -321,6 +350,21 @@ Resources:
       DefaultActions:
         - Type: forward
           TargetGroupArn: !Ref TargetGroup
+
+  GrafanaListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref Listener
+      Priority: 10
+      Conditions:
+        - Field: path-pattern
+          PathPatternConfig:
+            Values:
+              - /grafana
+              - /grafana/*
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref GrafanaTargetGroup
 
   Cluster:
     Type: AWS::ECS::Cluster
@@ -350,6 +394,7 @@ Resources:
                 Resource:
                   - !Ref OpenAiApiKeySecret
                   - !Ref ActuatorBasicAuthSecret
+                  - !Ref GrafanaAdminSecret
 
   TaskRole:
     Type: AWS::IAM::Role
@@ -412,6 +457,29 @@ Resources:
               - Effect: Allow
                 Action:
                   - aps:RemoteWrite
+                  - aps:GetSeries
+                  - aps:GetLabels
+                  - aps:GetMetricMetadata
+                Resource: !GetAtt PrometheusWorkspace.Arn
+
+  GrafanaTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: grafana-amp-query
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - aps:QueryMetrics
                   - aps:GetSeries
                   - aps:GetLabels
                   - aps:GetMetricMetadata
@@ -523,6 +591,60 @@ Resources:
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: ecs
 
+  GrafanaTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub ${StackPrefix}-${Environment}-grafana
+      Cpu: '256'
+      Memory: '512'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt GrafanaTaskRole.Arn
+      ContainerDefinitions:
+        - Name: grafana
+          Image: grafana/grafana:11.0.0
+          PortMappings:
+            - ContainerPort: 3000
+              Protocol: tcp
+          Secrets:
+            - Name: GF_SECURITY_ADMIN_USER
+              ValueFrom: !Sub '${GrafanaAdminSecret}:username::'
+            - Name: GF_SECURITY_ADMIN_PASSWORD
+              ValueFrom: !Sub '${GrafanaAdminSecret}:password::'
+          Environment:
+            - Name: GF_SERVER_ROOT_URL
+              Value: !Sub http://${LoadBalancer.DNSName}/grafana/
+            - Name: GF_SERVER_SERVE_FROM_SUB_PATH
+              Value: 'true'
+          Command:
+            - /bin/sh
+            - -ec
+            - !Sub |
+              mkdir -p /etc/grafana/provisioning/datasources
+              cat > /etc/grafana/provisioning/datasources/amp.yaml <<'EOF'
+              apiVersion: 1
+              datasources:
+                - name: AMP
+                  type: prometheus
+                  access: proxy
+                  url: https://aps-workspaces.${AWS::Region}.amazonaws.com/workspaces/${PrometheusWorkspace.WorkspaceId}
+                  isDefault: true
+                  jsonData:
+                    httpMethod: POST
+                    sigV4Auth: true
+                    sigV4Region: ${AWS::Region}
+                    sigV4Service: aps
+              EOF
+              /run.sh
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+
   Service:
     Type: AWS::ECS::Service
     DependsOn:
@@ -547,11 +669,38 @@ Resources:
           ContainerPort: 8080
           TargetGroupArn: !Ref TargetGroup
 
+  GrafanaService:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - Listener
+      - GrafanaListenerRule
+    Properties:
+      ServiceName: !Sub ${StackPrefix}-${Environment}-grafana
+      Cluster: !Ref Cluster
+      DesiredCount: !Ref GrafanaDesiredCount
+      HealthCheckGracePeriodSeconds: 120
+      LaunchType: FARGATE
+      TaskDefinition: !Ref GrafanaTaskDefinition
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          Subnets:
+            - !Ref PublicSubnetA
+            - !Ref PublicSubnetB
+          SecurityGroups:
+            - !Ref ServiceSecurityGroup
+      LoadBalancers:
+        - ContainerName: grafana
+          ContainerPort: 3000
+          TargetGroupArn: !Ref GrafanaTargetGroup
+
 Outputs:
   AlbUrl:
     Value: !Sub http://${LoadBalancer.DNSName}
   AlbDnsName:
     Value: !GetAtt LoadBalancer.DNSName
+  GrafanaUrl:
+    Value: !Sub http://${LoadBalancer.DNSName}/grafana/
   EcrRepositoryUri:
     Value: !GetAtt EcrRepository.RepositoryUri
   ClusterName:
