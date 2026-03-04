@@ -254,6 +254,23 @@ Resources:
                   - aps:ListTagsForResource
                 Resource: '*'
 
+              - Sid: Lambda
+                Effect: Allow
+                Action:
+                  - lambda:CreateFunction
+                  - lambda:DeleteFunction
+                  - lambda:GetFunction
+                  - lambda:GetFunctionConfiguration
+                  - lambda:UpdateFunctionCode
+                  - lambda:UpdateFunctionConfiguration
+                  - lambda:AddPermission
+                  - lambda:RemovePermission
+                  - lambda:TagResource
+                  - lambda:UntagResource
+                  - lambda:ListTags
+                  - lambda:ListVersionsByFunction
+                Resource: '*'
+
               - Sid: IAMForEcsTasks
                 Effect: Allow
                 Action:
