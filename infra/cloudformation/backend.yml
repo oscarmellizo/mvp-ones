@@ -119,7 +119,7 @@ Resources:
   EventsCoversTempBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub ${StackPrefix}-${Environment}-events-covers-tmp
+      BucketName: !Sub ${StackPrefix}-${Environment}-${AWS::AccountId}-events-covers-tmp
       CorsConfiguration:
         CorsRules:
           - AllowedOrigins:
@@ -141,7 +141,7 @@ Resources:
   EventsAssetsBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub ${StackPrefix}-${Environment}-events-assets
+      BucketName: !Sub ${StackPrefix}-${Environment}-${AWS::AccountId}-events-assets
       CorsConfiguration:
         CorsRules:
           - AllowedOrigins:
