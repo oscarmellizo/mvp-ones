@@ -29,6 +29,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    environment: ${{ inputs.environment }}
+
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ONES_ACTUATOR_BASIC_USERNAME: ${{ secrets.ONES_ACTUATOR_BASIC_USERNAME }}
