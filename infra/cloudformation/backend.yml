@@ -305,7 +305,7 @@ Resources:
       Protocol: HTTP
       VpcId: !Ref Vpc
       TargetType: ip
-      HealthCheckPath: /health
+      HealthCheckPath: /actuator/health
       Matcher:
         HttpCode: '200'
       Tags:
