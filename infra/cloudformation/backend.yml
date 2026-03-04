@@ -127,6 +127,8 @@ Resources:
 
   EventsCoversTempBucket:
     Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       Tags:
         - Key: Name
@@ -151,6 +153,8 @@ Resources:
 
   EventsAssetsBucket:
     Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       Tags:
         - Key: Name
@@ -170,6 +174,8 @@ Resources:
 
   OpenAiApiKeySecret:
     Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       Name: !Sub ${StackPrefix}/${Environment}/openai-api-key
       Description: OpenAI API key for AI Event Cover generation
@@ -177,6 +183,8 @@ Resources:
 
   ActuatorBasicAuthSecret:
     Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       Name: !Sub ${StackPrefix}/${Environment}/actuator-basic-auth
       Description: Basic Auth credentials for /actuator endpoints (username/password)
@@ -184,6 +192,8 @@ Resources:
 
   GrafanaAdminSecret:
     Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       Name: !Sub ${StackPrefix}/${Environment}/grafana-admin
       Description: Admin credentials for Grafana (username/password)
@@ -191,11 +201,15 @@ Resources:
 
   PrometheusWorkspace:
     Type: AWS::APS::Workspace
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       Alias: !Sub ${StackPrefix}-${Environment}-amp
 
   EcrRepository:
     Type: AWS::ECR::Repository
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       RepositoryName: !Sub ${StackPrefix}-${Environment}-ones-api
       ImageScanningConfiguration:
