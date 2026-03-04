@@ -171,33 +171,29 @@ Resources:
   OpenAiApiKeySecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Name: !Sub ${StackPrefix}/${Environment}/openai-api-key
       Description: OpenAI API key for AI Event Cover generation
       SecretString: '{}'
 
   ActuatorBasicAuthSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Name: !Sub ${StackPrefix}/${Environment}/actuator-basic-auth
       Description: Basic Auth credentials for /actuator endpoints (username/password)
       SecretString: '{"username":"","password":""}'
 
   GrafanaAdminSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Name: !Sub ${StackPrefix}/${Environment}/grafana-admin
       Description: Admin credentials for Grafana (username/password)
       SecretString: '{"username":"admin","password":"CHANGE_ME"}'
 
   PrometheusWorkspace:
     Type: AWS::APS::Workspace
     Properties:
-      Alias: !Sub ${StackPrefix}-${Environment}-amp
+      # Alias omitted to avoid conflicts on recreate (workspace is still addressable via WorkspaceId output)
 
   EcrRepository:
     Type: AWS::ECR::Repository
     Properties:
-      RepositoryName: !Sub ${StackPrefix}-${Environment}-ones-api
       ImageScanningConfiguration:
         ScanOnPush: true
 
