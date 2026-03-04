@@ -739,9 +739,10 @@ Resources:
               Value: !Sub http://${LoadBalancer.DNSName}/grafana/
             - Name: GF_SERVER_SERVE_FROM_SUB_PATH
               Value: 'true'
-          Command:
+          EntryPoint:
             - /bin/sh
             - -ec
+          Command:
             - !Sub |
               mkdir -p /etc/grafana/provisioning/datasources
               cat > /etc/grafana/provisioning/datasources/amp.yaml <<'EOF'
@@ -758,7 +759,7 @@ Resources:
                     sigV4Region: ${AWS::Region}
                     sigV4Service: aps
               EOF
-              /run.sh
+              exec /run.sh
           LogConfiguration:
             LogDriver: awslogs
             Options:
