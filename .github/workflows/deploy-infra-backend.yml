@@ -45,6 +45,8 @@ jobs:
           aws-region: ${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}
 
       - name: Deploy backend stack
+        id: deploy_cfn
+        continue-on-error: true
         run: |
           aws cloudformation deploy \
             --stack-name "${BACKEND_STACK_NAME}" \
@@ -57,7 +59,7 @@ jobs:
               BackendDesiredCount="${{ inputs.backendDesiredCount }}"
 
       - name: Debug CloudFormation (on failure)
-        if: ${{ failure() }}
+        if: ${{ steps.deploy_cfn.outcome != 'success' }}
         run: |
           echo "--- Stack events (latest) ---"
           aws cloudformation describe-stack-events \
@@ -70,6 +72,12 @@ jobs:
           aws cloudformation describe-stack-resources \
             --stack-name "${BACKEND_STACK_NAME}" \
             --output table || true
+
+      - name: Fail if CloudFormation deploy failed
+        if: ${{ steps.deploy_cfn.outcome != 'success' }}
+        run: |
+          echo "CloudFormation deploy failed. See debug output above."
+          exit 1
 
       - name: Set OpenAI API key in Secrets Manager
         if: ${{ env.OPENAI_API_KEY != '' }}
