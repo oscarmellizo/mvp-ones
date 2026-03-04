@@ -223,6 +223,7 @@ Resources:
                   - aps:CreateWorkspace
                   - aps:DeleteWorkspace
                   - aps:DescribeWorkspace
+                  - aps:DescribeWorkspaceConfiguration
                   - aps:DescribeAlertManagerDefinition
                   - aps:DescribeLoggingConfiguration
                   - aps:DescribeRuleGroupsNamespace
