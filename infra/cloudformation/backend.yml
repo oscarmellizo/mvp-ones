@@ -725,6 +725,7 @@ Resources:
       ContainerDefinitions:
         - Name: grafana
           Image: grafana/grafana:11.0.0
+          User: '0'
           PortMappings:
             - ContainerPort: 3000
               Protocol: tcp
