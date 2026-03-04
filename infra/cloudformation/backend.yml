@@ -188,8 +188,7 @@ Resources:
 
   PrometheusWorkspace:
     Type: AWS::APS::Workspace
-    Properties:
-      # Alias omitted to avoid conflicts on recreate (workspace is still addressable via WorkspaceId output)
+    # Properties omitted to avoid null/empty map validation errors
 
   EcrRepository:
     Type: AWS::ECR::Repository
