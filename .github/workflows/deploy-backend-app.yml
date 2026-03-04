@@ -39,10 +39,25 @@ jobs:
         run: |
           stackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
 
+          repoName="ones-${{ inputs.environment }}-ones-api"
+
           repoUri=$(aws cloudformation describe-stacks \
             --stack-name "${stackName}" \
             --query "Stacks[0].Outputs[?OutputKey=='EcrRepositoryUri'].OutputValue" \
             --output text)
+
+          if [ -z "${repoUri}" ] || [ "${repoUri}" = "None" ]; then
+            repoUri=$(aws ecr describe-repositories \
+              --repository-names "${repoName}" \
+              --query "repositories[0].repositoryUri" \
+              --output text 2>/dev/null || true)
+          fi
+
+          if [ -z "${repoUri}" ] || [ "${repoUri}" = "None" ]; then
+            echo "ERROR: Could not resolve ECR repo URI. CloudFormation outputs not ready and ECR repo '${repoName}' not found."
+            exit 1
+          fi
+
           clusterName=$(aws cloudformation describe-stacks \
             --stack-name "${stackName}" \
             --query "Stacks[0].Outputs[?OutputKey=='ClusterName'].OutputValue" \
@@ -66,6 +81,11 @@ jobs:
 
       - name: Force new ECS deployment
         run: |
+          if [ -z "${{ steps.cfn.outputs.clusterName }}" ] || [ "${{ steps.cfn.outputs.clusterName }}" = "None" ] || [ -z "${{ steps.cfn.outputs.serviceName }}" ] || [ "${{ steps.cfn.outputs.serviceName }}" = "None" ]; then
+            echo "Skipping ECS update-service because ClusterName/ServiceName outputs are not available yet."
+            exit 0
+          fi
+
           aws ecs update-service \
             --cluster "${{ steps.cfn.outputs.clusterName }}" \
             --service "${{ steps.cfn.outputs.serviceName }}" \
