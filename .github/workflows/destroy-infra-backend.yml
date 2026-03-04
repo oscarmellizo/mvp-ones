@@ -2,6 +2,11 @@ name: Destroy Infra (Backend)
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment (dev, staging, prod)'
+        required: false
+        default: 'dev'
 
 permissions:
   id-token: write
@@ -13,7 +18,7 @@ concurrency:
 
 env:
   AWS_REGION: us-east-1
-  BACKEND_STACK_NAME: ones-backend
+  BACKEND_STACK_NAME_PREFIX: ones-backend
 
 jobs:
   destroy:
@@ -35,18 +40,20 @@ jobs:
         run: |
           set -euo pipefail
 
+          stackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
+
           repoUri=$(aws cloudformation describe-stacks \
-            --stack-name "${BACKEND_STACK_NAME}" \
+            --stack-name "${stackName}" \
             --query "Stacks[0].Outputs[?OutputKey=='EcrRepositoryUri'].OutputValue" \
             --output text)
 
           clusterName=$(aws cloudformation describe-stacks \
-            --stack-name "${BACKEND_STACK_NAME}" \
+            --stack-name "${stackName}" \
             --query "Stacks[0].Outputs[?OutputKey=='ClusterName'].OutputValue" \
             --output text)
 
           serviceName=$(aws cloudformation describe-stacks \
-            --stack-name "${BACKEND_STACK_NAME}" \
+            --stack-name "${stackName}" \
             --query "Stacks[0].Outputs[?OutputKey=='ServiceName'].OutputValue" \
             --output text)
 
@@ -125,5 +132,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          aws cloudformation delete-stack --stack-name "${BACKEND_STACK_NAME}" --no-cli-pager
-          aws cloudformation wait stack-delete-complete --stack-name "${BACKEND_STACK_NAME}" --no-cli-pager
+          stackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
+
+          aws cloudformation delete-stack --stack-name "${stackName}" --no-cli-pager
+          aws cloudformation wait stack-delete-complete --stack-name "${stackName}" --no-cli-pager

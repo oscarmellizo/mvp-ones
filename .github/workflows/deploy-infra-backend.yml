@@ -23,7 +23,7 @@ concurrency:
 env:
   AWS_REGION: us-east-1
   STACK_PREFIX: ones
-  BACKEND_STACK_NAME: ones-backend
+  BACKEND_STACK_NAME_PREFIX: ones-backend
 
 jobs:
   deploy:
@@ -48,8 +48,10 @@ jobs:
         id: deploy_cfn
         continue-on-error: true
         run: |
+          stackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
+
           aws cloudformation deploy \
-            --stack-name "${BACKEND_STACK_NAME}" \
+            --stack-name "${stackName}" \
             --template-file infra/cloudformation/backend.yml \
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
@@ -61,16 +63,18 @@ jobs:
       - name: Debug CloudFormation (on failure)
         if: ${{ steps.deploy_cfn.outcome != 'success' }}
         run: |
+          stackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
+
           echo "--- Stack events (latest) ---"
           aws cloudformation describe-stack-events \
-            --stack-name "${BACKEND_STACK_NAME}" \
+            --stack-name "${stackName}" \
             --max-items 30 \
             --query "StackEvents[0:30].[Timestamp,LogicalResourceId,ResourceType,ResourceStatus,ResourceStatusReason]" \
             --output table || true
 
           echo "--- Stack resources (if any) ---"
           aws cloudformation describe-stack-resources \
-            --stack-name "${BACKEND_STACK_NAME}" \
+            --stack-name "${stackName}" \
             --output table || true
 
       - name: Fail if CloudFormation deploy failed
@@ -101,5 +105,7 @@ jobs:
 
       - name: Show outputs
         run: |
-          aws cloudformation describe-stacks --stack-name "${BACKEND_STACK_NAME}" \
+          stackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
+
+          aws cloudformation describe-stacks --stack-name "${stackName}" \
             --query "Stacks[0].Outputs" --output table
