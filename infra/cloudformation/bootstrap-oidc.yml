@@ -259,6 +259,7 @@ Resources:
                 Action:
                   - lambda:CreateFunction
                   - lambda:DeleteFunction
+                  - lambda:InvokeFunction
                   - lambda:GetFunction
                   - lambda:GetFunctionConfiguration
                   - lambda:UpdateFunctionCode
