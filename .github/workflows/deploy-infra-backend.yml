@@ -56,6 +56,21 @@ jobs:
               GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}" \
               BackendDesiredCount="${{ inputs.backendDesiredCount }}"
 
+      - name: Debug CloudFormation (on failure)
+        if: ${{ failure() }}
+        run: |
+          echo "--- Stack events (latest) ---"
+          aws cloudformation describe-stack-events \
+            --stack-name "${BACKEND_STACK_NAME}" \
+            --max-items 30 \
+            --query "StackEvents[0:30].[Timestamp,LogicalResourceId,ResourceType,ResourceStatus,ResourceStatusReason]" \
+            --output table || true
+
+          echo "--- Stack resources (if any) ---"
+          aws cloudformation describe-stack-resources \
+            --stack-name "${BACKEND_STACK_NAME}" \
+            --output table || true
+
       - name: Set OpenAI API key in Secrets Manager
         if: ${{ env.OPENAI_API_KEY != '' }}
         run: |
