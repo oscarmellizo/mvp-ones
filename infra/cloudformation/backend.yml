@@ -503,7 +503,7 @@ Resources:
                             - targets: ["127.0.0.1:8080"]
                 exporters:
                   prometheusremotewrite:
-                    endpoint: https://aps-workspaces.${AWS::Region}.amazonaws.com/workspaces/${PrometheusWorkspace}/api/v1/remote_write
+                    endpoint: https://aps-workspaces.${AWS::Region}.amazonaws.com/workspaces/${PrometheusWorkspace.WorkspaceId}/api/v1/remote_write
                     auth:
                       authenticator: sigv4auth
                 extensions:
@@ -581,7 +581,6 @@ Outputs:
     Value: !Ref ActuatorBasicAuthSecret
 
   PrometheusWorkspaceId:
-    Value: !Ref PrometheusWorkspace
-
+    Value: !GetAtt PrometheusWorkspace.WorkspaceId
   PrometheusWorkspaceArn:
     Value: !GetAtt PrometheusWorkspace.Arn
