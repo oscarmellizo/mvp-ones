@@ -18,6 +18,8 @@ Parameters:
 Resources:
   GitHubOidcProvider:
     Type: AWS::IAM::OIDCProvider
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       Url: https://token.actions.githubusercontent.com
       ClientIdList:
@@ -27,6 +29,8 @@ Resources:
 
   GitHubActionsDeployRole:
     Type: AWS::IAM::Role
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       RoleName: !Ref RoleName
       AssumeRolePolicyDocument:
@@ -245,6 +249,7 @@ Resources:
                   - iam:CreateRole
                   - iam:DeleteRole
                   - iam:GetRole
+                  - iam:UpdateAssumeRolePolicy
                   - iam:AttachRolePolicy
                   - iam:DetachRolePolicy
                   - iam:PutRolePolicy
