@@ -226,6 +226,7 @@ Resources:
                   - aps:DescribeWorkspaceConfiguration
                   - aps:DescribeAlertManagerDefinition
                   - aps:DescribeLoggingConfiguration
+                  - aps:DescribeQueryLoggingConfiguration
                   - aps:DescribeRuleGroupsNamespace
                   - aps:ListWorkspaces
                   - aps:ListRuleGroupsNamespaces
