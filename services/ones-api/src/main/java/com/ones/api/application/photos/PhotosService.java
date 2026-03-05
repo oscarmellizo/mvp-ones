@@ -3,6 +3,7 @@ package com.ones.api.application.photos;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -112,32 +113,65 @@ public class PhotosService {
             String requesterEmail,
             String eventId,
             int limit,
-            String nextToken
+            String nextToken,
+            String scope
     ) {
         require(eventId, "eventId");
 
         getEventUseCase.execute(requesterUserId, requesterEmail, eventId);
 
-        PhotosRepository.PageResult<Photo> page = photosRepository.listByEventId(eventId, limit, nextToken);
+        String resolvedScope = scope != null ? scope.trim().toLowerCase() : "";
 
-        List<ListItem> items = page.items().stream().map(p -> {
-            String originalUrl = presignGetIfAny(p.getS3KeyOriginal());
-            String mediumUrl = presignGetIfAny(p.getS3KeyMedium());
-            String smallUrl = presignGetIfAny(p.getS3KeySmall());
+        if ("shared".equals(resolvedScope)) {
+            return new ListPage(List.of(), null);
+        }
 
-            return new ListItem(
-                    p.getPhotoId(),
-                    p.getGuestId(),
-                    p.getCreatedAt(),
-                    p.getUploadedAt(),
-                    p.getStatus(),
-                    originalUrl,
-                    mediumUrl,
-                    smallUrl
-            );
-        }).toList();
+        int resolvedLimit = limit <= 0 ? 10 : Math.min(limit, 50);
 
-        return new ListPage(items, page.nextToken());
+        boolean guestOnly = "guest".equals(resolvedScope);
+
+        List<ListItem> out = new ArrayList<>(resolvedLimit);
+        String cursor = nextToken;
+        String outNextToken = null;
+
+        while (out.size() < resolvedLimit) {
+            PhotosRepository.PageResult<Photo> page = photosRepository.listByEventId(eventId, resolvedLimit, cursor);
+
+            for (Photo p : page.items()) {
+                if (guestOnly && (p.getGuestId() == null || !p.getGuestId().equals(requesterUserId))) {
+                    continue;
+                }
+
+                String originalUrl = presignGetIfAny(p.getS3KeyOriginal());
+                String mediumUrl = presignGetIfAny(p.getS3KeyMedium());
+                String smallUrl = presignGetIfAny(p.getS3KeySmall());
+
+                out.add(new ListItem(
+                        p.getPhotoId(),
+                        p.getGuestId(),
+                        p.getCreatedAt(),
+                        p.getUploadedAt(),
+                        p.getStatus(),
+                        originalUrl,
+                        mediumUrl,
+                        smallUrl
+                ));
+
+                if (out.size() >= resolvedLimit) {
+                    break;
+                }
+            }
+
+            if (page.nextToken() == null || page.nextToken().isBlank()) {
+                outNextToken = null;
+                break;
+            }
+
+            cursor = page.nextToken();
+            outNextToken = cursor;
+        }
+
+        return new ListPage(out, outNextToken);
     }
 
     public Photo markReady(
