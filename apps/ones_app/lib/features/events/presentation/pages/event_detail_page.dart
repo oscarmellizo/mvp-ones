@@ -4,9 +4,10 @@ import 'package:provider/provider.dart';
 import '../../../../core/utils/datetime_formatters.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/ui/ones_colors.dart';
-import '../../../../core/ui/widgets/ones_search_field.dart';
 import '../../../../core/ui/widgets/ones_text_field.dart';
 import '../../../auth/presentation/auth_controller.dart';
+import '../../../photos/presentation/pages/photo_viewer_page.dart';
+import '../../../photos/presentation/photos_gallery_controller.dart';
 import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
 import '../widgets/event_detail_details_widgets.dart';
@@ -61,11 +62,17 @@ class _EventDetailPageState extends State<EventDetailPage> {
         foregroundColor: OnesColors.white,
         onPressed: event == null
             ? null
-            : () => Navigator.of(context).push(
+            : () async {
+                await Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => PhotoCapturePage(eventId: event.id),
                   ),
-                ),
+                );
+                if (!context.mounted) return;
+                await context
+                    .read<PhotosGalleryController>()
+                    .refreshMerged(eventId: event.id);
+              },
         child: const Icon(Icons.photo_camera),
       ),
       body: SafeArea(
@@ -144,325 +151,126 @@ class _GalleryTab extends StatefulWidget {
 }
 
 class _GalleryTabState extends State<_GalleryTab> {
-  static const _authors = [
-    'Oscar',
-    'Andrea',
-    'Camila',
-    'Luis',
-    'Sofia',
-  ];
-
-  late final List<_GalleryItem> _items;
+  bool _requested = false;
 
   @override
   void initState() {
     super.initState();
-    _items = _buildItems();
-    widget.searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_requested) return;
+    _requested = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context
+          .read<PhotosGalleryController>()
+          .refreshMerged(eventId: widget.eventId);
+    });
   }
 
   @override
   void dispose() {
-    widget.searchController.removeListener(_onSearchChanged);
     super.dispose();
   }
 
-  void _onSearchChanged() => setState(() {});
-
-  List<_GalleryItem> _buildItems() {
-    final now = DateTime.now();
-    final raw = <_GalleryItem>[];
-    for (var i = 0; i < 24; i++) {
-      final takenAt = now.subtract(Duration(minutes: i * 7));
-      raw.add(
-        _GalleryItem(
-          id: 'm_$i',
-          asset:
-              i.isEven ? 'assets/auth/amigos.png' : 'assets/auth/concierto.png',
-          takenAt: takenAt,
-          author: _authors[i % _authors.length],
-          isVideo: i % 5 == 0,
-          isRaw: i % 7 == 0,
-        ),
-      );
-    }
-    raw.sort((a, b) => b.takenAt.compareTo(a.takenAt));
-    return raw;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final q = widget.searchController.text.trim().toLowerCase();
-    final filtered = _items.where((e) {
-      if (q.isEmpty) return true;
-      if (e.author.toLowerCase().contains(q)) return true;
-      final dateStr = formatShortDate(e.takenAt).toLowerCase();
-      return dateStr.contains(q);
-    }).toList(growable: false);
+    final controller = context.watch<PhotosGalleryController>();
 
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
+    if (!controller.loading &&
+        controller.error == null &&
+        controller.items.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context
+            .read<PhotosGalleryController>()
+            .refreshMerged(eventId: widget.eventId);
+      });
+    }
+
+    if (controller.loading && controller.items.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (controller.error != null && controller.items.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              OnesSearchField(
-                controller: widget.searchController,
-                hintText: 'Search by attendee or date',
+              Text(
+                'Error cargando galería: ${controller.error}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.w700),
               ),
-              const SizedBox(height: 14),
-              const _HighlightsSection(),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
+              FilledButton.tonal(
+                onPressed: () =>
+                    controller.refreshMerged(eventId: widget.eventId),
+                child: const Text('Reintentar'),
+              ),
             ],
           ),
         ),
-        SliverGrid(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              final item = filtered[index];
-              final isNew = DateTime.now().difference(item.takenAt) <
-                  const Duration(minutes: 15);
-              return _MediaTile(
-                item: item,
-                isNew: isNew,
-                onTap: () {},
-              );
-            },
-            childCount: filtered.length,
-          ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => controller.refreshMerged(eventId: widget.eventId),
+      child: Container(
+        color: OnesColors.background,
+        child: GridView.builder(
+          padding: EdgeInsets.zero,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            mainAxisSpacing: 14,
-            crossAxisSpacing: 14,
-            childAspectRatio: 0.86,
+            crossAxisCount: 3,
+            mainAxisSpacing: 1,
+            crossAxisSpacing: 1,
+            childAspectRatio: 1,
           ),
-        ),
-        const SliverToBoxAdapter(child: SizedBox(height: 100)),
-      ],
-    );
-  }
-}
+          itemCount: controller.items.length,
+          itemBuilder: (context, index) {
+            final item = controller.items[index];
+            final small = item.smallUrl;
+            final medium = item.mediumUrl;
+            final fallback = item.originalUrl;
 
-class _HighlightsSection extends StatelessWidget {
-  const _HighlightsSection();
+            final thumbUrl = (small != null && small.isNotEmpty)
+                ? small
+                : (medium != null && medium.isNotEmpty)
+                    ? medium
+                    : fallback;
 
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Text(
-              'HIGHLIGHTS',
-              style: TextStyle(fontWeight: FontWeight.w900),
-            ),
-            const Spacer(),
-            TextButton(
-              onPressed: () {},
-              child: const Text(
-                'View Reel',
-                style: TextStyle(
-                  color: OnesColors.purpleMid,
-                  fontWeight: FontWeight.w800,
-                ),
+            final viewerUrl = (medium != null && medium.isNotEmpty)
+                ? medium
+                : (fallback ?? small);
+
+            return InkWell(
+              onTap: (viewerUrl == null || viewerUrl.isEmpty)
+                  ? null
+                  : () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => PhotoViewerPage(imageUrl: viewerUrl),
+                        ),
+                      ),
+              borderRadius: BorderRadius.zero,
+              child: Ink(
+                color: Colors.black12,
+                child: (thumbUrl == null || thumbUrl.isEmpty)
+                    ? const SizedBox.expand()
+                    : Image.network(
+                        thumbUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stack) {
+                          return const SizedBox.expand();
+                        },
+                      ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 96,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: 3,
-            separatorBuilder: (_, __) => const SizedBox(width: 16),
-            itemBuilder: (context, index) {
-              final title = switch (index) {
-                0 => 'Opening',
-                1 => 'DJ Set',
-                _ => 'Drinks'
-              };
-              final asset = switch (index) {
-                0 => 'assets/auth/amigos.png',
-                1 => 'assets/auth/concierto.png',
-                _ => 'assets/auth/amigos.png'
-              };
-              final ring = switch (index) {
-                0 => OnesColors.purpleMid,
-                1 => OnesColors.green,
-                _ => OnesColors.yellowSoft
-              };
-
-              return _HighlightChip(
-                title: title,
-                asset: asset,
-                ring: ring,
-                onTap: () {},
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _HighlightChip extends StatelessWidget {
-  final String title;
-  final String asset;
-  final Color ring;
-  final VoidCallback onTap;
-
-  const _HighlightChip({
-    required this.title,
-    required this.asset,
-    required this.ring,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.zero,
-      child: Column(
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: ring, width: 2.5),
-            ),
-            child: ClipOval(
-              child: Image.asset(asset, fit: BoxFit.cover),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MediaTile extends StatelessWidget {
-  final _GalleryItem item;
-  final bool isNew;
-  final VoidCallback onTap;
-
-  const _MediaTile({
-    required this.item,
-    required this.isNew,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.zero,
-      child: Ink(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.zero,
-          image: DecorationImage(
-            image: AssetImage(item.asset),
-            fit: BoxFit.cover,
-          ),
-        ),
-        child: Stack(
-          children: [
-            Positioned(
-              top: 10,
-              right: 10,
-              child: Row(
-                children: [
-                  if (item.isRaw)
-                    _TopPill(
-                      text: 'RAW',
-                      bg: OnesColors.black.withOpacity(0.65),
-                      fg: OnesColors.white,
-                    ),
-                  if (item.isRaw) const SizedBox(width: 8),
-                  if (isNew)
-                    const _TopPill(
-                      text: 'NEW',
-                      bg: OnesColors.yellowSoft,
-                      fg: OnesColors.black,
-                    ),
-                ],
-              ),
-            ),
-            Positioned(
-              bottom: 10,
-              right: 10,
-              child: _BottomAuthorChip(author: item.author),
-            ),
-            if (item.isVideo)
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: OnesColors.black.withOpacity(0.45),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.play_arrow, color: OnesColors.white),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TopPill extends StatelessWidget {
-  final String text;
-  final Color bg;
-  final Color fg;
-
-  const _TopPill({required this.text, required this.bg, required this.fg});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.zero,
-      ),
-      child: Text(
-        text,
-        style: TextStyle(fontWeight: FontWeight.w900, color: fg, fontSize: 12),
-      ),
-    );
-  }
-}
-
-class _BottomAuthorChip extends StatelessWidget {
-  final String author;
-
-  const _BottomAuthorChip({required this.author});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: OnesColors.white.withOpacity(0.92),
-        borderRadius: BorderRadius.zero,
-      ),
-      child: Text(
-        author,
-        style: const TextStyle(
-          fontWeight: FontWeight.w900,
-          fontSize: 12,
+            );
+          },
         ),
       ),
     );
@@ -812,22 +620,4 @@ class _DetailsTabState extends State<_DetailsTab> {
       ],
     );
   }
-}
-
-class _GalleryItem {
-  final String id;
-  final String asset;
-  final DateTime takenAt;
-  final String author;
-  final bool isVideo;
-  final bool isRaw;
-
-  const _GalleryItem({
-    required this.id,
-    required this.asset,
-    required this.takenAt,
-    required this.author,
-    required this.isVideo,
-    required this.isRaw,
-  });
 }

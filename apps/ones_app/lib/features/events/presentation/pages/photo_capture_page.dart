@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'dart:io';
+
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
+
+import '../../../photos/presentation/photos_upload_controller.dart';
 
 class PhotoCapturePage extends StatefulWidget {
   final String eventId;
@@ -21,6 +27,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
   Object? _error;
   bool _disposed = false;
   bool _switchingCamera = false;
+  bool _capturing = false;
 
   @override
   void initState() {
@@ -199,9 +206,70 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
               icon: const Icon(Icons.cameraswitch, color: Colors.white),
             ),
           ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 24 + MediaQuery.paddingOf(context).bottom,
+            child: Center(
+              child: IconButton(
+                onPressed: (_initializing || _capturing || _error != null)
+                    ? null
+                    : () => _captureAndEnqueue(context),
+                iconSize: 72,
+                icon: Icon(
+                  Icons.radio_button_checked,
+                  color: (_initializing || _capturing || _error != null)
+                      ? Colors.white54
+                      : Colors.white,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _captureAndEnqueue(BuildContext context) async {
+    if (kIsWeb) return;
+
+    final cam = _controller;
+    if (cam == null || !cam.value.isInitialized) return;
+
+    final uploader = context.read<PhotosUploadController>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    setState(() {
+      _capturing = true;
+    });
+
+    try {
+      final file = await cam.takePicture();
+      final photoId = const Uuid().v4();
+
+      await uploader.enqueueCapturedJpeg(
+        eventId: widget.eventId,
+        photoId: photoId,
+        capturedFile: File(file.path),
+        createdAt: DateTime.now(),
+      );
+
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Foto guardada y en cola para subir')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('Error capturando foto: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _capturing = false;
+        });
+      }
+    }
   }
 }
 

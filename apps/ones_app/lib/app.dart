@@ -24,6 +24,11 @@ import 'features/events/presentation/event_cover_urls_controller.dart';
 import 'features/events/presentation/events_metadata_controller.dart';
 import 'features/invitations/adapters/api/invitations_api_repository.dart';
 import 'features/invitations/presentation/invitations_controller.dart';
+import 'features/photos/adapters/api/event_photos_api.dart';
+import 'features/photos/adapters/local/photo_storage.dart';
+import 'features/photos/adapters/local/photo_upload_db.dart';
+import 'features/photos/presentation/photos_gallery_controller.dart';
+import 'features/photos/presentation/photos_upload_controller.dart';
 import 'features/users/adapters/api/users_api_repository.dart';
 import 'features/users/application/ensure_user_use_case.dart';
 import 'features/events/presentation/pages/event_detail_page.dart';
@@ -63,6 +68,11 @@ class OnesApp extends StatelessWidget {
     final eventCoversRepository = EventCoversApiRepository(apiFactory);
     final eventCoverUrlsRepository = EventCoverUrlsApiRepository(apiFactory);
     final invitationsRepository = InvitationsApiRepository(apiFactory);
+
+    final eventPhotosApi = EventPhotosApi(apiFactory);
+    final eventPhotosGalleryApi = EventPhotosApi(apiFactory);
+    final photoUploadDb = PhotoUploadDb();
+    final photoStorage = PhotoStorage();
 
     return MultiProvider(
       providers: [
@@ -145,6 +155,36 @@ class OnesApp extends StatelessWidget {
             final controller = inv ??
                 InvitationsController(
                   repository: invitationsRepository,
+                );
+            controller.setIdToken(auth.idToken);
+            return controller;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthController, PhotosUploadController>(
+          create: (_) => PhotosUploadController(
+            api: eventPhotosApi,
+            db: photoUploadDb,
+            storage: photoStorage,
+          ),
+          update: (_, auth, ctrl) {
+            final controller = ctrl ??
+                PhotosUploadController(
+                  api: eventPhotosApi,
+                  db: photoUploadDb,
+                  storage: photoStorage,
+                );
+            controller.setIdToken(auth.idToken);
+            return controller;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthController, PhotosGalleryController>(
+          create: (_) => PhotosGalleryController(
+            api: eventPhotosGalleryApi,
+          ),
+          update: (_, auth, ctrl) {
+            final controller = ctrl ??
+                PhotosGalleryController(
+                  api: eventPhotosGalleryApi,
                 );
             controller.setIdToken(auth.idToken);
             return controller;
