@@ -17,6 +17,10 @@ ones:
     basic:
       username: ${ONES_ACTUATOR_BASIC_USERNAME:}
       password: ${ONES_ACTUATOR_BASIC_PASSWORD:}
+  internal:
+    basic:
+      username: ${ONES_INTERNAL_BASIC_USERNAME:}
+      password: ${ONES_INTERNAL_BASIC_PASSWORD:}
   auth:
     google:
       client-id: ${GOOGLE_CLIENT_ID:}
@@ -32,6 +36,10 @@ ones:
         preview-presign-ttl-minutes: ${ONES_EVENTS_COVER_PREVIEW_PRESIGN_TTL_MINUTES:15}
         final-presign-ttl-minutes: ${ONES_EVENTS_COVER_FINAL_PRESIGN_TTL_MINUTES:15}
         reservation-ttl-minutes: ${ONES_EVENTS_COVER_RESERVATION_TTL_MINUTES:30}
+      photos:
+        bucket: ${ONES_EVENTS_PHOTOS_BUCKET:ones-dev-events-photos}
+        put-presign-ttl-minutes: ${ONES_EVENTS_PHOTOS_PUT_PRESIGN_TTL_MINUTES:15}
+        get-presign-ttl-minutes: ${ONES_EVENTS_PHOTOS_GET_PRESIGN_TTL_MINUTES:15}
   events:
     metadata:
       categories:
@@ -209,6 +217,7 @@ ones:
     invitations-table-name: ${ONES_INVITATIONS_TABLE:ones-${ONES_ENV:dev}-event-invitations}
     cover-previews-table-name: ${ONES_COVER_PREVIEWS_TABLE:ones-cover-previews}
     cover-reservations-table-name: ${ONES_COVER_RESERVATIONS_TABLE:ones-cover-reservations}
+    photos-table-name: ${ONES_PHOTOS_TABLE:ones-photos}
     endpoint: ${DYNAMODB_ENDPOINT:}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000,http://localhost:8080,http://localhost:5000,http://localhost:4000,http://localhost:1234,http://localhost:7357,http://localhost:56321,http://localhost:49234,http://localhost:40233}

@@ -125,6 +125,31 @@ Resources:
         AttributeName: expiresAt
         Enabled: true
 
+  PhotosTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-photos
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: photoId
+          AttributeType: S
+        - AttributeName: eventId
+          AttributeType: S
+        - AttributeName: eventSortKey
+          AttributeType: S
+      KeySchema:
+        - AttributeName: photoId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: byEventId
+          KeySchema:
+            - AttributeName: eventId
+              KeyType: HASH
+            - AttributeName: eventSortKey
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
   EventsCoversTempBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -168,6 +193,33 @@ Resources:
               - ETag
             MaxAge: 3000
 
+  EventsPhotosBucket:
+    Type: AWS::S3::Bucket
+    DependsOn:
+      - PhotoThumbnailsPermission
+    Properties:
+      BucketName: !Sub ${StackPrefix}-${Environment}-events-photos
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-${Environment}-events-photos
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - '*'
+            AllowedMethods:
+              - GET
+              - HEAD
+              - PUT
+            AllowedHeaders:
+              - '*'
+            ExposedHeaders:
+              - ETag
+            MaxAge: 3000
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:Put
+            Function: !GetAtt PhotoThumbnailsFunction.Arn
+
   OpenAiApiKeySecret:
     Type: AWS::SecretsManager::Secret
     Properties:
@@ -178,6 +230,12 @@ Resources:
     Type: AWS::SecretsManager::Secret
     Properties:
       Description: Basic Auth credentials for /actuator endpoints (username/password)
+      SecretString: '{"username":"","password":""}'
+
+  InternalBasicAuthSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: Basic Auth credentials for /internal endpoints (username/password)
       SecretString: '{"username":"","password":""}'
 
   GrafanaAdminSecret:
@@ -221,6 +279,7 @@ Resources:
                 Resource:
                   - !Sub arn:aws:s3:::${EventsCoversTempBucket}
                   - !Sub arn:aws:s3:::${EventsAssetsBucket}
+                  - !Sub arn:aws:s3:::${EventsPhotosBucket}
               - Effect: Allow
                 Action:
                   - s3:DeleteObject
@@ -228,6 +287,7 @@ Resources:
                 Resource:
                   - !Sub arn:aws:s3:::${EventsCoversTempBucket}/*
                   - !Sub arn:aws:s3:::${EventsAssetsBucket}/*
+                  - !Sub arn:aws:s3:::${EventsPhotosBucket}/*
               - Effect: Allow
                 Action:
                   - ecr:ListImages
@@ -319,6 +379,7 @@ Resources:
       Buckets:
         - !Ref EventsCoversTempBucket
         - !Ref EventsAssetsBucket
+        - !Ref EventsPhotosBucket
       EcrRepositoryName: !Ref EcrRepository
 
   Vpc:
@@ -514,6 +575,7 @@ Resources:
                 Resource:
                   - !Ref OpenAiApiKeySecret
                   - !Ref ActuatorBasicAuthSecret
+                  - !Ref InternalBasicAuthSecret
                   - !Ref GrafanaAdminSecret
 
   TaskRole:
@@ -547,7 +609,9 @@ Resources:
                   - !Sub ${InvitationsTable.Arn}/index/*
                   - !GetAtt CoverPreviewsTable.Arn
                   - !GetAtt CoverReservationsTable.Arn
-        - PolicyName: ones-s3-covers
+                  - !GetAtt PhotosTable.Arn
+                  - !Sub ${PhotosTable.Arn}/index/*
+        - PolicyName: ones-s3
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -559,6 +623,7 @@ Resources:
                 Resource:
                   - !Sub ${EventsCoversTempBucket.Arn}/*
                   - !Sub ${EventsAssetsBucket.Arn}/*
+                  - !Sub arn:aws:s3:::${StackPrefix}-${Environment}-events-photos/*
         - PolicyName: ones-secrets
           PolicyDocument:
             Version: '2012-10-17'
@@ -633,6 +698,10 @@ Resources:
               ValueFrom: !Sub '${ActuatorBasicAuthSecret}:username::'
             - Name: ONES_ACTUATOR_BASIC_PASSWORD
               ValueFrom: !Sub '${ActuatorBasicAuthSecret}:password::'
+            - Name: ONES_INTERNAL_BASIC_USERNAME
+              ValueFrom: !Sub '${InternalBasicAuthSecret}:username::'
+            - Name: ONES_INTERNAL_BASIC_PASSWORD
+              ValueFrom: !Sub '${InternalBasicAuthSecret}:password::'
           Environment:
             - Name: AWS_REGION
               Value: !Ref AWS::Region
@@ -648,10 +717,14 @@ Resources:
               Value: !Ref CoverPreviewsTable
             - Name: ONES_COVER_RESERVATIONS_TABLE
               Value: !Ref CoverReservationsTable
+            - Name: ONES_PHOTOS_TABLE
+              Value: !Ref PhotosTable
             - Name: ONES_EVENTS_COVERS_TEMP_BUCKET
               Value: !Ref EventsCoversTempBucket
             - Name: ONES_EVENTS_ASSETS_BUCKET
               Value: !Ref EventsAssetsBucket
+            - Name: ONES_EVENTS_PHOTOS_BUCKET
+              Value: !Sub ${StackPrefix}-${Environment}-events-photos
             - Name: OPENAI_API_KEY_SECRET_NAME
               Value: !Sub ${StackPrefix}/${Environment}/openai-api-key
             - Name: GOOGLE_CLIENT_ID
@@ -710,6 +783,146 @@ Resources:
               awslogs-group: !Ref LogGroup
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: ecs
+
+  PhotoThumbnailsFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: ones-photos-thumbnails
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource:
+                  - !Sub arn:aws:s3:::${StackPrefix}-${Environment}-events-photos/*
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - !Ref InternalBasicAuthSecret
+
+  PhotoThumbnailsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.12
+      Handler: index.handler
+      Timeout: 60
+      MemorySize: 512
+      Role: !GetAtt PhotoThumbnailsFunctionRole.Arn
+      Environment:
+        Variables:
+          BUCKET: !Sub ${StackPrefix}-${Environment}-events-photos
+          BACKEND_BASE_URL: !Sub http://${LoadBalancer.DNSName}
+          INTERNAL_SECRET_ARN: !Ref InternalBasicAuthSecret
+      Code:
+        ZipFile: |
+          import base64
+          import json
+          import os
+          import urllib.request
+          import urllib.parse
+
+          import boto3
+
+          s3 = boto3.client('s3')
+          secrets = boto3.client('secretsmanager')
+
+          def _load_internal_basic_auth():
+              arn = os.environ.get('INTERNAL_SECRET_ARN', '')
+              if not arn:
+                  return None
+              v = secrets.get_secret_value(SecretId=arn).get('SecretString', '{}')
+              try:
+                  data = json.loads(v)
+              except Exception:
+                  data = {}
+              u = (data.get('username') or '').strip()
+              p = (data.get('password') or '').strip()
+              if not u or not p:
+                  return None
+              token = base64.b64encode((u + ':' + p).encode('utf-8')).decode('utf-8')
+              return 'Basic ' + token
+
+          def _call_backend_ready(event_id, photo_id, key_m, key_s):
+              base = os.environ.get('BACKEND_BASE_URL', '').rstrip('/')
+              if not base:
+                  return
+              url = f"{base}/internal/events/{urllib.parse.quote(event_id)}/photos/{urllib.parse.quote(photo_id)}/ready"
+
+              auth = _load_internal_basic_auth()
+              if not auth:
+                  return
+
+              body = json.dumps({"s3KeyMedium": key_m, "s3KeySmall": key_s}).encode('utf-8')
+              req = urllib.request.Request(url, data=body, method='POST')
+              req.add_header('Content-Type', 'application/json')
+              req.add_header('Authorization', auth)
+              with urllib.request.urlopen(req, timeout=10) as resp:
+                  resp.read()
+
+          def _parse_key(key: str):
+              # expected: eventos/<eventId>/guests/<guestId>/private/<photoId>.jpg
+              parts = key.split('/')
+              if len(parts) < 6:
+                  return None, None
+              if parts[0] != 'eventos':
+                  return None, None
+              event_id = parts[1]
+              filename = parts[-1]
+              if not filename.endswith('.jpg'):
+                  return None, None
+              photo_id = filename[:-4]
+              return event_id, photo_id
+
+          def handler(event, context):
+              bucket = os.environ.get('BUCKET')
+              if not bucket:
+                  return
+
+              for rec in event.get('Records', []):
+                  s3info = (rec.get('s3') or {})
+                  obj = (s3info.get('object') or {})
+                  key = obj.get('key')
+                  if not key:
+                      continue
+                  key = urllib.parse.unquote_plus(key)
+
+                  if key.endswith('_m.jpg') or key.endswith('_s.jpg'):
+                      continue
+
+                  event_id, photo_id = _parse_key(key)
+                  if not event_id or not photo_id:
+                      continue
+
+                  # MVP placeholder: copy original bytes as medium/small
+                  key_m = key[:-4] + '_m.jpg'
+                  key_s = key[:-4] + '_s.jpg'
+
+                  copy_source = {'Bucket': bucket, 'Key': key}
+                  s3.copy_object(Bucket=bucket, Key=key_m, CopySource=copy_source, ContentType='image/jpeg', MetadataDirective='REPLACE')
+                  s3.copy_object(Bucket=bucket, Key=key_s, CopySource=copy_source, ContentType='image/jpeg', MetadataDirective='REPLACE')
+
+                  _call_backend_ready(event_id, photo_id, key_m, key_s)
+
+  PhotoThumbnailsPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref PhotoThumbnailsFunction
+      Principal: s3.amazonaws.com
+      SourceArn: !Sub arn:aws:s3:::${StackPrefix}-${Environment}-events-photos
 
   GrafanaTaskDefinition:
     Type: AWS::ECS::TaskDefinition
@@ -839,10 +1052,14 @@ Outputs:
     Value: !Ref CoverPreviewsTable
   CoverReservationsTableName:
     Value: !Ref CoverReservationsTable
+  PhotosTableName:
+    Value: !Ref PhotosTable
   EventsCoversTempBucketName:
     Value: !Ref EventsCoversTempBucket
   EventsAssetsBucketName:
     Value: !Ref EventsAssetsBucket
+  EventsPhotosBucketName:
+    Value: !Ref EventsPhotosBucket
   OpenAiApiKeySecretName:
     Value: !Ref OpenAiApiKeySecret
   OpenAiApiKeySecretArn:
@@ -850,6 +1067,9 @@ Outputs:
 
   ActuatorBasicAuthSecretName:
     Value: !Ref ActuatorBasicAuthSecret
+
+  InternalBasicAuthSecretName:
+    Value: !Ref InternalBasicAuthSecret
 
   PrometheusWorkspaceId:
     Value: !GetAtt PrometheusWorkspace.WorkspaceId

@@ -308,6 +308,11 @@ class EventCoversServiceTest {
         public URL presignGet(String bucket, String key, Duration ttl) {
             return url;
         }
+
+        @Override
+        public URL presignPut(String bucket, String key, Duration ttl, String contentType) {
+            return url;
+        }
     }
 
     private static class InMemoryObjectStorage implements ObjectStorage {

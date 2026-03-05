@@ -38,17 +38,31 @@ public class SecurityConfig {
     UserDetailsService actuatorUserDetailsService(
             PasswordEncoder passwordEncoder,
             @Value("${ones.actuator.basic.username:}") String username,
-            @Value("${ones.actuator.basic.password:}") String password
+            @Value("${ones.actuator.basic.password:}") String password,
+            @Value("${ones.internal.basic.username:}") String internalUsername,
+            @Value("${ones.internal.basic.password:}") String internalPassword
     ) {
-        if (username == null || username.isBlank() || password == null || password.isBlank()) {
-            return new InMemoryUserDetailsManager();
+        InMemoryUserDetailsManager mgr = new InMemoryUserDetailsManager();
+
+        if (username != null && !username.isBlank() && password != null && !password.isBlank()) {
+            mgr.createUser(
+                    User.withUsername(username)
+                            .password(passwordEncoder.encode(password))
+                            .roles("ACTUATOR")
+                            .build()
+            );
         }
-        return new InMemoryUserDetailsManager(
-                User.withUsername(username)
-                        .password(passwordEncoder.encode(password))
-                        .roles("ACTUATOR")
-                        .build()
-        );
+
+        if (internalUsername != null && !internalUsername.isBlank() && internalPassword != null && !internalPassword.isBlank()) {
+            mgr.createUser(
+                    User.withUsername(internalUsername)
+                            .password(passwordEncoder.encode(internalPassword))
+                            .roles("INTERNAL")
+                            .build()
+            );
+        }
+
+        return mgr;
     }
 
     @Bean
@@ -70,6 +84,22 @@ public class SecurityConfig {
 
     @Bean
     @Order(2)
+    SecurityFilterChain internalSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher(new AntPathRequestMatcher("/internal/**"))
+                .csrf(csrf -> csrf.disable())
+                .cors(Customizer.withDefaults())
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .anyRequest().hasRole("INTERNAL")
+                )
+                .httpBasic(Customizer.withDefaults());
+
+        return http.build();
+    }
+
+    @Bean
+    @Order(3)
     SecurityFilterChain securityFilterChain(HttpSecurity http, JwtDecoder jwtDecoder, JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
