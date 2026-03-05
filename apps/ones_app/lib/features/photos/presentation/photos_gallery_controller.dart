@@ -22,6 +22,31 @@ class PhotosGalleryController extends ChangeNotifier {
     api.setIdToken(token);
   }
 
+  Future<void> sharePhotos({
+    required String eventId,
+    required List<String> photoIds,
+  }) async {
+    final token = _idToken;
+    if (token == null || token.isEmpty) {
+      _error = StateError('Missing idToken');
+      notifyListeners();
+      return;
+    }
+    if (photoIds.isEmpty) return;
+
+    _setLoading(true);
+    try {
+      _error = null;
+      await api.sharePhotos(eventId: eventId, photoIds: photoIds);
+      await refreshMerged(eventId: eventId);
+    } catch (e) {
+      _error = e;
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<void> refreshMerged({required String eventId}) async {
     final token = _idToken;
     if (token == null || token.isEmpty) {

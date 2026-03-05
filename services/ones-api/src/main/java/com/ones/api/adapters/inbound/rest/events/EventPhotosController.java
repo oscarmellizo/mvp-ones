@@ -1,6 +1,7 @@
 package com.ones.api.adapters.inbound.rest.events;
 
 import java.time.Instant;
+import java.util.List;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -96,6 +97,17 @@ public class EventPhotosController {
 
         return photosService.markReady(userId, email, eventId, photoId, request.s3KeyMedium(), request.s3KeySmall());
     }
+
+    @PostMapping("/{eventId}/photos/share")
+    public List<Photo> share(
+            Authentication authentication,
+            @PathVariable("eventId") String eventId,
+            @Valid @RequestBody SharePhotosRequest request
+    ) {
+        String userId = authentication.getName();
+        String email = AuthClaims.requireEmail(authentication);
+        return photosService.sharePhotos(userId, email, eventId, request.photoIds());
+    }
 }
 
 record PresignPhotoRequest(
@@ -114,5 +126,10 @@ record CompletePhotoRequest(
 record MarkReadyRequest(
         String s3KeyMedium,
         String s3KeySmall
+) {
+}
+
+record SharePhotosRequest(
+        List<String> photoIds
 ) {
 }

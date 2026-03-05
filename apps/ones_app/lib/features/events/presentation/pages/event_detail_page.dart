@@ -51,6 +51,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
     final controller = context.watch<EventsController>();
     final auth = context.watch<AuthController>();
     final event = controller.selected;
+    final currentUserId = auth.user?.userId;
 
     final size = MediaQuery.sizeOf(context);
     final horizontalPadding = size.width >= 520 ? 28.0 : 16.0;
@@ -112,6 +113,9 @@ class _EventDetailPageState extends State<EventDetailPage> {
                           child: _tabIndex == 0
                               ? _GalleryTab(
                                   eventId: event.id,
+                                  currentUserId: currentUserId,
+                                  isOwner: currentUserId != null &&
+                                      currentUserId == event.ownerId,
                                   searchController: _searchController,
                                 )
                               : _DetailsTab(
@@ -142,9 +146,16 @@ String _eventSubtitle(DateTime startAt, String location) {
 
 class _GalleryTab extends StatefulWidget {
   final String eventId;
+  final String? currentUserId;
+  final bool isOwner;
   final TextEditingController searchController;
 
-  const _GalleryTab({required this.eventId, required this.searchController});
+  const _GalleryTab({
+    required this.eventId,
+    required this.currentUserId,
+    required this.isOwner,
+    required this.searchController,
+  });
 
   @override
   State<_GalleryTab> createState() => _GalleryTabState();
@@ -152,6 +163,8 @@ class _GalleryTab extends StatefulWidget {
 
 class _GalleryTabState extends State<_GalleryTab> {
   bool _requested = false;
+  bool _selecting = false;
+  final Set<String> _selectedIds = {};
 
   @override
   void initState() {
@@ -174,6 +187,21 @@ class _GalleryTabState extends State<_GalleryTab> {
   @override
   void dispose() {
     super.dispose();
+  }
+
+  void _exitSelectionMode() {
+    if (!_selecting && _selectedIds.isEmpty) return;
+    setState(() {
+      _selecting = false;
+      _selectedIds.clear();
+    });
+  }
+
+  bool _canSelect(String photoOwnerId) {
+    final me = widget.currentUserId;
+    if (widget.isOwner) return true;
+    if (me == null || me.isEmpty) return false;
+    return photoOwnerId == me;
   }
 
   @override
@@ -219,60 +247,165 @@ class _GalleryTabState extends State<_GalleryTab> {
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: () => controller.refreshMerged(eventId: widget.eventId),
-      child: Container(
-        color: OnesColors.background,
-        child: GridView.builder(
-          padding: EdgeInsets.zero,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            mainAxisSpacing: 1,
-            crossAxisSpacing: 1,
-            childAspectRatio: 1,
-          ),
-          itemCount: controller.items.length,
-          itemBuilder: (context, index) {
-            final item = controller.items[index];
-            final small = item.smallUrl;
-            final medium = item.mediumUrl;
-            final fallback = item.originalUrl;
-
-            final thumbUrl = (small != null && small.isNotEmpty)
-                ? small
-                : (medium != null && medium.isNotEmpty)
-                    ? medium
-                    : fallback;
-
-            final viewerUrl = (medium != null && medium.isNotEmpty)
-                ? medium
-                : (fallback ?? small);
-
-            return InkWell(
-              onTap: (viewerUrl == null || viewerUrl.isEmpty)
-                  ? null
-                  : () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => PhotoViewerPage(imageUrl: viewerUrl),
-                        ),
-                      ),
-              borderRadius: BorderRadius.zero,
-              child: Ink(
-                color: Colors.black12,
-                child: (thumbUrl == null || thumbUrl.isEmpty)
-                    ? const SizedBox.expand()
-                    : Image.network(
-                        thumbUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stack) {
-                          return const SizedBox.expand();
-                        },
-                      ),
+    return Stack(
+      children: [
+        RefreshIndicator(
+          onRefresh: () => controller.refreshMerged(eventId: widget.eventId),
+          child: Container(
+            color: OnesColors.background,
+            child: GridView.builder(
+              padding: EdgeInsets.zero,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                mainAxisSpacing: 1,
+                crossAxisSpacing: 1,
+                childAspectRatio: 1,
               ),
-            );
-          },
+              itemCount: controller.items.length,
+              itemBuilder: (context, index) {
+                final item = controller.items[index];
+                final small = item.smallUrl;
+                final medium = item.mediumUrl;
+                final fallback = item.originalUrl;
+
+                final thumbUrl = (small != null && small.isNotEmpty)
+                    ? small
+                    : (medium != null && medium.isNotEmpty)
+                        ? medium
+                        : fallback;
+
+                final viewerUrl = (medium != null && medium.isNotEmpty)
+                    ? medium
+                    : (fallback ?? small);
+
+                final canSelect = _canSelect(item.guestId);
+                final isSelected = _selectedIds.contains(item.photoId);
+
+                void toggleSelected() {
+                  if (!canSelect) return;
+                  setState(() {
+                    _selecting = true;
+                    if (isSelected) {
+                      _selectedIds.remove(item.photoId);
+                      if (_selectedIds.isEmpty) {
+                        _selecting = false;
+                      }
+                    } else {
+                      _selectedIds.add(item.photoId);
+                    }
+                  });
+                }
+
+                return InkWell(
+                  onLongPress: canSelect ? toggleSelected : null,
+                  onTap: () {
+                    if (_selecting) {
+                      toggleSelected();
+                      return;
+                    }
+                    if (viewerUrl == null || viewerUrl.isEmpty) return;
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => PhotoViewerPage(imageUrl: viewerUrl),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.zero,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Ink(
+                        color: Colors.black12,
+                        child: (thumbUrl == null || thumbUrl.isEmpty)
+                            ? const SizedBox.expand()
+                            : Image.network(
+                                thumbUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stack) {
+                                  return const SizedBox.expand();
+                                },
+                              ),
+                      ),
+                      if (_selecting)
+                        Positioned(
+                          left: 6,
+                          top: 6,
+                          child: Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? OnesColors.purpleMid
+                                  : Colors.black.withOpacity(0.35),
+                              borderRadius: BorderRadius.zero,
+                            ),
+                            child: isSelected
+                                ? const Icon(
+                                    Icons.check,
+                                    size: 16,
+                                    color: OnesColors.white,
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
+                        ),
+                      if (_selecting && !canSelect)
+                        Container(
+                          color: Colors.black.withOpacity(0.15),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
         ),
-      ),
+        if (_selecting)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              color: OnesColors.white,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: controller.loading ? null : _exitSelectionMode,
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: OnesColors.purpleMid,
+                        foregroundColor: OnesColors.white,
+                      ),
+                      onPressed: (controller.loading || _selectedIds.isEmpty)
+                          ? null
+                          : () async {
+                              final ids = _selectedIds.toList(growable: false);
+                              await context
+                                  .read<PhotosGalleryController>()
+                                  .sharePhotos(
+                                    eventId: widget.eventId,
+                                    photoIds: ids,
+                                  );
+                              if (!mounted) return;
+                              _exitSelectionMode();
+                            },
+                      child: Text(
+                        'Share (${_selectedIds.length})',
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

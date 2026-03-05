@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import com.ones.api.application.events.GetEventUseCase;
 import com.ones.api.application.events.ports.EventsRepository;
+import com.ones.api.application.events.ports.ObjectStorage;
 import com.ones.api.application.events.ports.ObjectStoragePresigner;
 import com.ones.api.application.photos.ports.PhotosRepository;
 import com.ones.api.domain.events.Event;
@@ -23,6 +24,7 @@ public class PhotosService {
     private final GetEventUseCase getEventUseCase;
     private final EventsRepository eventsRepository;
     private final ObjectStoragePresigner objectStoragePresigner;
+    private final ObjectStorage objectStorage;
     private final Clock clock;
 
     private final String photosBucket;
@@ -34,6 +36,7 @@ public class PhotosService {
             GetEventUseCase getEventUseCase,
             EventsRepository eventsRepository,
             ObjectStoragePresigner objectStoragePresigner,
+            ObjectStorage objectStorage,
             Clock clock,
             @Value("${ones.s3.events.photos.bucket}") String photosBucket,
             @Value("${ones.s3.events.photos.put-presign-ttl-minutes:15}") long putPresignTtlMinutes,
@@ -43,6 +46,7 @@ public class PhotosService {
         this.getEventUseCase = getEventUseCase;
         this.eventsRepository = eventsRepository;
         this.objectStoragePresigner = objectStoragePresigner;
+        this.objectStorage = objectStorage;
         this.clock = clock;
         this.photosBucket = photosBucket;
         this.putPresignTtlMinutes = putPresignTtlMinutes;
@@ -122,13 +126,10 @@ public class PhotosService {
 
         String resolvedScope = scope != null ? scope.trim().toLowerCase() : "";
 
-        if ("shared".equals(resolvedScope)) {
-            return new ListPage(List.of(), null);
-        }
-
         int resolvedLimit = limit <= 0 ? 10 : Math.min(limit, 50);
 
         boolean guestOnly = "guest".equals(resolvedScope);
+        boolean sharedOnly = "shared".equals(resolvedScope);
 
         List<ListItem> out = new ArrayList<>(resolvedLimit);
         String cursor = nextToken;
@@ -138,8 +139,19 @@ public class PhotosService {
             PhotosRepository.PageResult<Photo> page = photosRepository.listByEventId(eventId, resolvedLimit, cursor);
 
             for (Photo p : page.items()) {
-                if (guestOnly && (p.getGuestId() == null || !p.getGuestId().equals(requesterUserId))) {
+                boolean isShared = isShared(p);
+
+                if (sharedOnly && !isShared) {
                     continue;
+                }
+
+                if (guestOnly) {
+                    if (p.getGuestId() == null || !p.getGuestId().equals(requesterUserId)) {
+                        continue;
+                    }
+                    if (isShared) {
+                        continue;
+                    }
                 }
 
                 String originalUrl = presignGetIfAny(p.getS3KeyOriginal());
@@ -172,6 +184,77 @@ public class PhotosService {
         }
 
         return new ListPage(out, outNextToken);
+    }
+
+    public List<Photo> sharePhotos(
+            String requesterUserId,
+            String requesterEmail,
+            String eventId,
+            List<String> photoIds
+    ) {
+        require(eventId, "eventId");
+        getEventUseCase.execute(requesterUserId, requesterEmail, eventId);
+
+        if (photoIds == null || photoIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<Photo> updated = new ArrayList<>(photoIds.size());
+        for (String rawId : photoIds) {
+            if (rawId == null || rawId.isBlank()) {
+                continue;
+            }
+            String photoId = rawId.trim();
+
+            Photo existing = photosRepository.findById(photoId).orElse(null);
+            if (existing == null) {
+                continue;
+            }
+
+            if (existing.getEventId() == null || !existing.getEventId().equals(eventId)) {
+                continue;
+            }
+
+            Event event = eventsRepository.findById(eventId.trim()).orElse(null);
+            if (event == null) {
+                continue;
+            }
+
+            boolean isOwner = requesterUserId != null && requesterUserId.equals(event.getOwnerId());
+            boolean isPhotoOwner = requesterUserId != null && requesterUserId.equals(existing.getGuestId());
+            if (!isOwner && !isPhotoOwner) {
+                continue;
+            }
+
+            if (isShared(existing)) {
+                updated.add(existing);
+                continue;
+            }
+
+            String nextOriginal = sharedKeyFrom(existing.getS3KeyOriginal(), eventId, photoId, "");
+            String nextMedium = sharedKeyFrom(existing.getS3KeyMedium(), eventId, photoId, "_m");
+            String nextSmall = sharedKeyFrom(existing.getS3KeySmall(), eventId, photoId, "_s");
+
+            moveIfPresent(existing.getS3KeyOriginal(), nextOriginal);
+            moveIfPresent(existing.getS3KeyMedium(), nextMedium);
+            moveIfPresent(existing.getS3KeySmall(), nextSmall);
+
+            Photo next = new Photo(
+                    existing.getPhotoId(),
+                    existing.getEventId(),
+                    existing.getGuestId(),
+                    existing.getCreatedAt(),
+                    existing.getUploadedAt(),
+                    existing.getStatus(),
+                    nextOriginal,
+                    nextMedium,
+                    nextSmall
+            );
+
+            updated.add(photosRepository.upsert(next));
+        }
+
+        return updated;
     }
 
     public Photo markReady(
@@ -272,6 +355,51 @@ public class PhotosService {
 
     private static String originalKey(String eventId, String guestId, String photoId) {
         return "eventos/" + eventId + "/guests/" + guestId + "/private/" + photoId + ".jpg";
+    }
+
+    private static String sharedBaseKey(String eventId, String photoId) {
+        return "eventos/" + eventId + "/shared/" + photoId;
+    }
+
+    private static boolean isShared(Photo p) {
+        if (p == null) {
+            return false;
+        }
+        return isSharedKey(p.getS3KeyOriginal()) || isSharedKey(p.getS3KeyMedium()) || isSharedKey(p.getS3KeySmall());
+    }
+
+    private static boolean isSharedKey(String key) {
+        if (key == null || key.isBlank()) {
+            return false;
+        }
+        return key.contains("/shared/");
+    }
+
+    private static String sharedKeyFrom(String existingKey, String eventId, String photoId, String suffix) {
+        if (eventId == null || eventId.isBlank() || photoId == null || photoId.isBlank()) {
+            return null;
+        }
+        if (existingKey == null || existingKey.isBlank()) {
+            return null;
+        }
+        String sfx = suffix != null ? suffix : "";
+        return sharedBaseKey(eventId.trim(), photoId.trim()) + sfx + ".jpg";
+    }
+
+    private void moveIfPresent(String sourceKey, String destinationKey) {
+        if (sourceKey == null || sourceKey.isBlank() || destinationKey == null || destinationKey.isBlank()) {
+            return;
+        }
+        String src = sourceKey.trim();
+        String dst = destinationKey.trim();
+        if (src.equals(dst)) {
+            return;
+        }
+        objectStorage.copy(photosBucket, src, photosBucket, dst);
+        try {
+            objectStorage.delete(photosBucket, src);
+        } catch (Exception ignored) {
+        }
     }
 
     private static void require(String s, String name) {
