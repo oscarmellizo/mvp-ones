@@ -23,11 +23,7 @@ public class InvitationsService {
     }
 
     public List<Invitation> listByInviteeEmail(String inviteeEmail, int limit) {
-        Instant now = Instant.now(clock);
-        List<Invitation> out = repository.listByInviteeEmail(inviteeEmail, limit).stream()
-                .filter(inv -> !now.isAfter(inv.getEventEndAt()))
-                .toList();
-
+        List<Invitation> out = repository.listByInviteeEmail(inviteeEmail, limit);
         log.info("List invitations for email={}, count={}", inviteeEmail, out.size());
         return out;
     }
