@@ -208,19 +208,34 @@ class _GalleryTabState extends State<_GalleryTab> {
   Widget build(BuildContext context) {
     final controller = context.watch<PhotosGalleryController>();
 
+    if (controller.loading && controller.items.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     if (!controller.loading &&
         controller.error == null &&
         controller.items.isEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        context
-            .read<PhotosGalleryController>()
-            .refreshMerged(eventId: widget.eventId);
-      });
-    }
-
-    if (controller.loading && controller.items.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Aún no hay fotos en este evento.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.tonal(
+                onPressed: () =>
+                    controller.refreshMerged(eventId: widget.eventId),
+                child: const Text('Actualizar'),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     if (controller.error != null && controller.items.isEmpty) {
