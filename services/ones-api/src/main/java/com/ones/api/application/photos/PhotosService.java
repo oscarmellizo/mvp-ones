@@ -14,8 +14,10 @@ import com.ones.api.application.events.ports.EventsRepository;
 import com.ones.api.application.events.ports.ObjectStorage;
 import com.ones.api.application.events.ports.ObjectStoragePresigner;
 import com.ones.api.application.photos.ports.PhotosRepository;
+import com.ones.api.application.users.GetUserByIdUseCase;
 import com.ones.api.domain.events.Event;
 import com.ones.api.domain.photos.Photo;
+import com.ones.api.domain.users.User;
 
 @Service
 public class PhotosService {
@@ -23,6 +25,7 @@ public class PhotosService {
     private final PhotosRepository photosRepository;
     private final GetEventUseCase getEventUseCase;
     private final EventsRepository eventsRepository;
+    private final GetUserByIdUseCase getUserByIdUseCase;
     private final ObjectStoragePresigner objectStoragePresigner;
     private final ObjectStorage objectStorage;
     private final Clock clock;
@@ -35,6 +38,7 @@ public class PhotosService {
             PhotosRepository photosRepository,
             GetEventUseCase getEventUseCase,
             EventsRepository eventsRepository,
+            GetUserByIdUseCase getUserByIdUseCase,
             ObjectStoragePresigner objectStoragePresigner,
             ObjectStorage objectStorage,
             Clock clock,
@@ -45,6 +49,7 @@ public class PhotosService {
         this.photosRepository = photosRepository;
         this.getEventUseCase = getEventUseCase;
         this.eventsRepository = eventsRepository;
+        this.getUserByIdUseCase = getUserByIdUseCase;
         this.objectStoragePresigner = objectStoragePresigner;
         this.objectStorage = objectStorage;
         this.clock = clock;
@@ -166,7 +171,9 @@ public class PhotosService {
                         p.getStatus(),
                         originalUrl,
                         mediumUrl,
-                        smallUrl
+                        smallUrl,
+                        isShared,
+                        p.getSharedByName()
                 ));
 
                 if (out.size() >= resolvedLimit) {
@@ -198,6 +205,8 @@ public class PhotosService {
         if (photoIds == null || photoIds.isEmpty()) {
             return List.of();
         }
+
+        String sharedByName = resolvePreferredName(requesterUserId, requesterEmail);
 
         List<Photo> updated = new ArrayList<>(photoIds.size());
         for (String rawId : photoIds) {
@@ -259,7 +268,9 @@ public class PhotosService {
                     existing.getStatus(),
                     nextOriginal,
                     nextMedium,
-                    nextSmall
+                    nextSmall,
+                    requesterUserId,
+                    sharedByName
             );
 
             updated.add(photosRepository.upsert(next));
@@ -431,6 +442,34 @@ public class PhotosService {
         }
     }
 
+    private String resolvePreferredName(String userId, String fallbackEmail) {
+        if (userId == null || userId.isBlank()) {
+            return fallbackEmail;
+        }
+
+        try {
+            User u = getUserByIdUseCase.execute(userId.trim()).orElse(null);
+            if (u == null) {
+                return fallbackEmail;
+            }
+            if (u.getPreferredName() != null && !u.getPreferredName().isBlank()) {
+                return u.getPreferredName().trim();
+            }
+            if (u.getGivenName() != null && !u.getGivenName().isBlank()) {
+                return u.getGivenName().trim();
+            }
+            if (u.getName() != null && !u.getName().isBlank()) {
+                return u.getName().trim();
+            }
+            if (u.getEmail() != null && !u.getEmail().isBlank()) {
+                return u.getEmail().trim();
+            }
+            return fallbackEmail;
+        } catch (Exception ignored) {
+            return fallbackEmail;
+        }
+    }
+
     public record PresignPutResult(String photoId, String putUrl, String s3KeyOriginal, Instant expiresAt) {
     }
 
@@ -445,7 +484,9 @@ public class PhotosService {
             String status,
             String originalUrl,
             String mediumUrl,
-            String smallUrl
+            String smallUrl,
+            boolean shared,
+            String sharedByName
     ) {
     }
 }

@@ -25,6 +25,9 @@ public class DynamoPhotoItem {
     private String s3KeyMedium;
     private String s3KeySmall;
 
+    private String sharedByUserId;
+    private String sharedByName;
+
     @DynamoDbPartitionKey
     @DynamoDbAttribute("photoId")
     public String getPhotoId() {
@@ -116,5 +119,23 @@ public class DynamoPhotoItem {
 
     public void setS3KeySmall(String s3KeySmall) {
         this.s3KeySmall = s3KeySmall;
+    }
+
+    @DynamoDbAttribute("sharedByUserId")
+    public String getSharedByUserId() {
+        return sharedByUserId;
+    }
+
+    public void setSharedByUserId(String sharedByUserId) {
+        this.sharedByUserId = sharedByUserId;
+    }
+
+    @DynamoDbAttribute("sharedByName")
+    public String getSharedByName() {
+        return sharedByName;
+    }
+
+    public void setSharedByName(String sharedByName) {
+        this.sharedByName = sharedByName;
     }
 }

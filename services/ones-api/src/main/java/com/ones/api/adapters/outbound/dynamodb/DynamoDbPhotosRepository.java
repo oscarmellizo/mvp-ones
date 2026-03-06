@@ -151,6 +151,8 @@ public class DynamoDbPhotosRepository implements PhotosRepository {
         item.setS3KeyOriginal(p.getS3KeyOriginal());
         item.setS3KeyMedium(p.getS3KeyMedium());
         item.setS3KeySmall(p.getS3KeySmall());
+        item.setSharedByUserId(p.getSharedByUserId());
+        item.setSharedByName(p.getSharedByName());
         return item;
     }
 
@@ -169,7 +171,9 @@ public class DynamoDbPhotosRepository implements PhotosRepository {
                 item.getStatus(),
                 item.getS3KeyOriginal(),
                 item.getS3KeyMedium(),
-                item.getS3KeySmall()
+                item.getS3KeySmall(),
+                item.getSharedByUserId(),
+                item.getSharedByName()
         );
     }
 

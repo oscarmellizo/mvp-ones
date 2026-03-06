@@ -7,6 +7,8 @@ class EventPhoto {
   final String? originalUrl;
   final String? mediumUrl;
   final String? smallUrl;
+  final bool shared;
+  final String? sharedByName;
 
   const EventPhoto({
     required this.photoId,
@@ -17,5 +19,7 @@ class EventPhoto {
     required this.originalUrl,
     required this.mediumUrl,
     required this.smallUrl,
+    required this.shared,
+    required this.sharedByName,
   });
 }
