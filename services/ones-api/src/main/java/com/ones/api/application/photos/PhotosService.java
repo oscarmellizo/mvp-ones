@@ -231,13 +231,24 @@ public class PhotosService {
                 continue;
             }
 
-            String nextOriginal = sharedKeyFrom(existing.getS3KeyOriginal(), eventId, photoId, "");
-            String nextMedium = sharedKeyFrom(existing.getS3KeyMedium(), eventId, photoId, "_m");
-            String nextSmall = sharedKeyFrom(existing.getS3KeySmall(), eventId, photoId, "_s");
+            String nextOriginal = sharedKey(eventId, photoId, "");
+            String nextMedium = sharedKey(eventId, photoId, "_m");
+            String nextSmall = sharedKey(eventId, photoId, "_s");
 
-            moveIfPresent(existing.getS3KeyOriginal(), nextOriginal);
-            moveIfPresent(existing.getS3KeyMedium(), nextMedium);
-            moveIfPresent(existing.getS3KeySmall(), nextSmall);
+            String sourceOriginal = existing.getS3KeyOriginal();
+            String sourceMedium = existing.getS3KeyMedium();
+            String sourceSmall = existing.getS3KeySmall();
+
+            if ((sourceMedium == null || sourceMedium.isBlank()) && sourceOriginal != null && !sourceOriginal.isBlank()) {
+                sourceMedium = variantKeyFromOriginal(sourceOriginal, "_m");
+            }
+            if ((sourceSmall == null || sourceSmall.isBlank()) && sourceOriginal != null && !sourceOriginal.isBlank()) {
+                sourceSmall = variantKeyFromOriginal(sourceOriginal, "_s");
+            }
+
+            moveIfPresent(sourceOriginal, nextOriginal);
+            moveIfPresent(sourceMedium, nextMedium);
+            moveIfPresent(sourceSmall, nextSmall);
 
             Photo next = new Photo(
                     existing.getPhotoId(),
@@ -375,15 +386,27 @@ public class PhotosService {
         return key.contains("/shared/");
     }
 
-    private static String sharedKeyFrom(String existingKey, String eventId, String photoId, String suffix) {
+    private static String sharedKey(String eventId, String photoId, String suffix) {
         if (eventId == null || eventId.isBlank() || photoId == null || photoId.isBlank()) {
-            return null;
-        }
-        if (existingKey == null || existingKey.isBlank()) {
             return null;
         }
         String sfx = suffix != null ? suffix : "";
         return sharedBaseKey(eventId.trim(), photoId.trim()) + sfx + ".jpg";
+    }
+
+    private static String variantKeyFromOriginal(String originalKey, String suffix) {
+        if (originalKey == null || originalKey.isBlank()) {
+            return null;
+        }
+        String key = originalKey.trim();
+        String sfx = suffix != null ? suffix : "";
+        if (key.endsWith(".jpg")) {
+            return key.substring(0, key.length() - 4) + sfx + ".jpg";
+        }
+        if (key.endsWith(".jpeg")) {
+            return key.substring(0, key.length() - 5) + sfx + ".jpeg";
+        }
+        return key + sfx;
     }
 
     private void moveIfPresent(String sourceKey, String destinationKey) {
