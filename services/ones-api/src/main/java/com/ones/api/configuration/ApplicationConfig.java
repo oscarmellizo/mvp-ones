@@ -18,6 +18,7 @@ import com.ones.api.application.users.EnsureUserUseCase;
 import com.ones.api.application.users.GetUserByIdUseCase;
 import com.ones.api.application.users.LookupUserByEmailUseCase;
 import com.ones.api.application.users.UpdateUserPreferencesUseCase;
+import com.ones.api.application.users.ports.PreferredNamesCacheRepository;
 import com.ones.api.application.users.ports.UsersRepository;
 
 @Configuration
@@ -80,8 +81,12 @@ public class ApplicationConfig {
     }
 
     @Bean
-    UpdateUserPreferencesUseCase updateUserPreferencesUseCase(UsersRepository repository, Clock clock) {
-        return new UpdateUserPreferencesUseCase(repository, clock);
+    UpdateUserPreferencesUseCase updateUserPreferencesUseCase(
+            UsersRepository repository,
+            PreferredNamesCacheRepository preferredNamesCacheRepository,
+            Clock clock
+    ) {
+        return new UpdateUserPreferencesUseCase(repository, preferredNamesCacheRepository, clock);
     }
 
     @Bean

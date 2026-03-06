@@ -3,8 +3,12 @@ package com.ones.api.application.photos;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -14,6 +18,7 @@ import com.ones.api.application.events.ports.EventsRepository;
 import com.ones.api.application.events.ports.ObjectStorage;
 import com.ones.api.application.events.ports.ObjectStoragePresigner;
 import com.ones.api.application.photos.ports.PhotosRepository;
+import com.ones.api.application.users.ports.PreferredNamesCacheRepository;
 import com.ones.api.application.users.GetUserByIdUseCase;
 import com.ones.api.domain.events.Event;
 import com.ones.api.domain.photos.Photo;
@@ -26,6 +31,7 @@ public class PhotosService {
     private final GetEventUseCase getEventUseCase;
     private final EventsRepository eventsRepository;
     private final GetUserByIdUseCase getUserByIdUseCase;
+    private final PreferredNamesCacheRepository preferredNamesCacheRepository;
     private final ObjectStoragePresigner objectStoragePresigner;
     private final ObjectStorage objectStorage;
     private final Clock clock;
@@ -39,6 +45,7 @@ public class PhotosService {
             GetEventUseCase getEventUseCase,
             EventsRepository eventsRepository,
             GetUserByIdUseCase getUserByIdUseCase,
+            PreferredNamesCacheRepository preferredNamesCacheRepository,
             ObjectStoragePresigner objectStoragePresigner,
             ObjectStorage objectStorage,
             Clock clock,
@@ -50,6 +57,7 @@ public class PhotosService {
         this.getEventUseCase = getEventUseCase;
         this.eventsRepository = eventsRepository;
         this.getUserByIdUseCase = getUserByIdUseCase;
+        this.preferredNamesCacheRepository = preferredNamesCacheRepository;
         this.objectStoragePresigner = objectStoragePresigner;
         this.objectStorage = objectStorage;
         this.clock = clock;
@@ -146,7 +154,11 @@ public class PhotosService {
         String outNextToken = null;
 
         while (out.size() < resolvedLimit) {
-            PhotosRepository.PageResult<Photo> page = photosRepository.listByEventId(eventId, resolvedLimit, cursor);
+            int remaining = resolvedLimit - out.size();
+            PhotosRepository.PageResult<Photo> page = photosRepository.listByEventId(eventId, remaining, cursor);
+
+            Set<String> nameUserIds = new HashSet<>();
+            List<Photo> selected = new ArrayList<>(remaining);
 
             for (Photo p : page.items()) {
                 boolean isShared = isShared(p);
@@ -164,27 +176,51 @@ public class PhotosService {
                     }
                 }
 
-                String originalUrl = presignGetIfAny(p.getS3KeyOriginal());
-                String mediumUrl = presignGetIfAny(p.getS3KeyMedium());
-                String smallUrl = presignGetIfAny(p.getS3KeySmall());
+                if (p.getGuestId() != null && !p.getGuestId().isBlank()) {
+                    nameUserIds.add(p.getGuestId().trim());
+                }
+                if (p.getSharedByUserId() != null && !p.getSharedByUserId().isBlank()) {
+                    nameUserIds.add(p.getSharedByUserId().trim());
+                }
 
-                out.add(new ListItem(
-                        p.getPhotoId(),
-                        p.getGuestId(),
-                        p.getCreatedAt(),
-                        p.getUploadedAt(),
-                        p.getStatus(),
-                        originalUrl,
-                        mediumUrl,
-                        smallUrl,
-                        isShared,
-                        p.getOwnerName(),
-                        p.getSharedByUserId(),
-                        p.getSharedByName()
-                ));
+                selected.add(p);
 
-                if (out.size() >= resolvedLimit) {
-                    break;
+                if (selected.size() >= remaining) break;
+            }
+
+            if (!selected.isEmpty()) {
+                Map<String, String> resolvedNames = resolvePreferredNames(nameUserIds);
+                for (Photo p : selected) {
+                    boolean isShared = isShared(p);
+
+                    String originalUrl = presignGetIfAny(p.getS3KeyOriginal());
+                    String mediumUrl = presignGetIfAny(p.getS3KeyMedium());
+                    String smallUrl = presignGetIfAny(p.getS3KeySmall());
+
+                    String ownerName = resolvedNames.get(p.getGuestId());
+                    if (ownerName == null || ownerName.isBlank()) {
+                        ownerName = p.getOwnerName();
+                    }
+
+                    String sharedByName = resolvedNames.get(p.getSharedByUserId());
+                    if (sharedByName == null || sharedByName.isBlank()) {
+                        sharedByName = p.getSharedByName();
+                    }
+
+                    out.add(new ListItem(
+                            p.getPhotoId(),
+                            p.getGuestId(),
+                            p.getCreatedAt(),
+                            p.getUploadedAt(),
+                            p.getStatus(),
+                            originalUrl,
+                            mediumUrl,
+                            smallUrl,
+                            isShared,
+                            ownerName,
+                            p.getSharedByUserId(),
+                            sharedByName
+                    ));
                 }
             }
 
@@ -518,31 +554,59 @@ public class PhotosService {
     }
 
     private String resolvePreferredName(String userId, String fallbackEmail) {
-        if (userId == null || userId.isBlank()) {
-            return fallbackEmail;
+        if (userId == null || userId.isBlank()) return fallbackEmail;
+
+        Map<String, String> resolved = resolvePreferredNames(Set.of(userId.trim()));
+        String name = resolved.get(userId.trim());
+        return (name == null || name.isBlank()) ? fallbackEmail : name;
+    }
+
+    private Map<String, String> resolvePreferredNames(Set<String> userIds) {
+        Map<String, PreferredNamesCacheRepository.CachedPreferredName> cached = preferredNamesCacheRepository.getMany(userIds);
+        Instant now = Instant.now(clock);
+        Map<String, String> out = new java.util.HashMap<>();
+
+        Set<String> misses = new java.util.HashSet<>();
+        for (String raw : userIds) {
+            if (raw == null || raw.isBlank()) continue;
+            String id = raw.trim();
+            PreferredNamesCacheRepository.CachedPreferredName c = cached.get(id);
+            if (c == null || c.expiresAt() == null || now.isAfter(c.expiresAt())) {
+                misses.add(id);
+                continue;
+            }
+            if (c.preferredName() != null && !c.preferredName().isBlank()) {
+                out.put(id, c.preferredName().trim());
+            }
         }
 
-        try {
-            User u = getUserByIdUseCase.execute(userId.trim()).orElse(null);
-            if (u == null) {
-                return fallbackEmail;
-            }
-            if (u.getPreferredName() != null && !u.getPreferredName().isBlank()) {
-                return u.getPreferredName().trim();
-            }
-            if (u.getGivenName() != null && !u.getGivenName().isBlank()) {
-                return u.getGivenName().trim();
-            }
-            if (u.getName() != null && !u.getName().isBlank()) {
-                return u.getName().trim();
-            }
-            if (u.getEmail() != null && !u.getEmail().isBlank()) {
-                return u.getEmail().trim();
-            }
-            return fallbackEmail;
-        } catch (Exception ignored) {
-            return fallbackEmail;
+        if (misses.isEmpty()) {
+            return out;
         }
+
+        Instant expiresAt = now.plus(30, ChronoUnit.DAYS);
+        for (String id : misses) {
+            try {
+                User u = getUserByIdUseCase.execute(id).orElse(null);
+                if (u == null) continue;
+                String name = computeDisplayName(u);
+                if (name == null || name.isBlank()) continue;
+                out.put(id, name);
+                preferredNamesCacheRepository.put(id, name, expiresAt, now);
+            } catch (Exception ignored) {
+            }
+        }
+
+        return out;
+    }
+
+    private static String computeDisplayName(User u) {
+        if (u == null) return null;
+        if (u.getPreferredName() != null && !u.getPreferredName().isBlank()) return u.getPreferredName().trim();
+        if (u.getGivenName() != null && !u.getGivenName().isBlank()) return u.getGivenName().trim();
+        if (u.getName() != null && !u.getName().isBlank()) return u.getName().trim();
+        if (u.getEmail() != null && !u.getEmail().isBlank()) return u.getEmail().trim();
+        return null;
     }
 
     public record PresignPutResult(String photoId, String putUrl, String s3KeyOriginal, Instant expiresAt) {

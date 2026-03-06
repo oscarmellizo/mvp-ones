@@ -150,6 +150,21 @@ Resources:
           Projection:
             ProjectionType: ALL
 
+  PreferredNamesCacheTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-preferred-names-cache
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
   EventsCoversTempBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -597,6 +612,7 @@ Resources:
                 Action:
                   - dynamodb:PutItem
                   - dynamodb:GetItem
+                  - dynamodb:BatchGetItem
                   - dynamodb:Query
                   - dynamodb:Scan
                   - dynamodb:DescribeTable
@@ -611,6 +627,7 @@ Resources:
                   - !GetAtt CoverReservationsTable.Arn
                   - !GetAtt PhotosTable.Arn
                   - !Sub ${PhotosTable.Arn}/index/*
+                  - !GetAtt PreferredNamesCacheTable.Arn
         - PolicyName: ones-s3
           PolicyDocument:
             Version: '2012-10-17'
@@ -1055,6 +1072,8 @@ Outputs:
     Value: !Ref CoverReservationsTable
   PhotosTableName:
     Value: !Ref PhotosTable
+  PreferredNamesCacheTableName:
+    Value: !Ref PreferredNamesCacheTable
   EventsCoversTempBucketName:
     Value: !Ref EventsCoversTempBucket
   EventsAssetsBucketName:
