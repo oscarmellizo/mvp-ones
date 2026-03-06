@@ -304,11 +304,20 @@ class _GalleryTabState extends State<_GalleryTab> {
                       return;
                     }
                     if (viewerUrl == null || viewerUrl.isEmpty) return;
+
+                    final isSharedByMe = item.shared &&
+                        widget.currentUserId != null &&
+                        item.sharedByUserId != null &&
+                        item.sharedByUserId == widget.currentUserId;
+
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => PhotoViewerPage(
                           imageUrl: viewerUrl,
-                          sharedByName: item.shared ? item.sharedByName : null,
+                          sharedByName: isSharedByMe ? item.sharedByName : null,
+                          ownerName: (!isSharedByMe && item.shared)
+                              ? item.ownerName
+                              : null,
                         ),
                       ),
                     );
@@ -351,7 +360,10 @@ class _GalleryTabState extends State<_GalleryTab> {
                                 : const SizedBox.shrink(),
                           ),
                         ),
-                      if (item.shared)
+                      if (item.shared &&
+                          widget.currentUserId != null &&
+                          item.sharedByUserId != null &&
+                          item.sharedByUserId == widget.currentUserId)
                         Positioned(
                           left: 0,
                           right: 0,
@@ -365,6 +377,36 @@ class _GalleryTabState extends State<_GalleryTab> {
                             child: const Text(
                               'Shared',
                               style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                      if (item.shared &&
+                          (widget.currentUserId == null ||
+                              item.sharedByUserId == null ||
+                              item.sharedByUserId != widget.currentUserId))
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 4,
+                            ),
+                            color: Colors.black.withOpacity(0.45),
+                            child: Text(
+                              (item.ownerName != null &&
+                                      item.ownerName!.isNotEmpty)
+                                  ? 'De ${item.ownerName}'
+                                  : 'De invitado',
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w900,

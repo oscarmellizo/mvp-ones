@@ -3,18 +3,22 @@ import 'package:flutter/material.dart';
 class PhotoViewerPage extends StatelessWidget {
   final String imageUrl;
   final String? sharedByName;
+  final String? ownerName;
 
   const PhotoViewerPage({
     super.key,
     required this.imageUrl,
     this.sharedByName,
+    this.ownerName,
   });
 
   @override
   Widget build(BuildContext context) {
-    final sharedLabel = (sharedByName == null || sharedByName!.isEmpty)
-        ? null
-        : 'Compartida por $sharedByName';
+    final sharedLabel = (sharedByName != null && sharedByName!.isNotEmpty)
+        ? 'Compartida por $sharedByName'
+        : (ownerName != null && ownerName!.isNotEmpty)
+            ? 'De $ownerName'
+            : null;
 
     return Scaffold(
       backgroundColor: Colors.black,

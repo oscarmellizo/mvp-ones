@@ -102,6 +102,8 @@ public class PhotosService {
         Instant now = Instant.now(clock);
         Instant resolvedCreatedAt = createdAt != null ? createdAt : now;
 
+        String ownerName = resolvePreferredName(requesterUserId, requesterEmail);
+
         Photo photo = new Photo(
                 photoId,
                 event.getEventId(),
@@ -110,6 +112,9 @@ public class PhotosService {
                 now,
                 "uploaded",
                 s3KeyOriginal,
+                null,
+                null,
+                ownerName,
                 null,
                 null
         );
@@ -173,6 +178,8 @@ public class PhotosService {
                         mediumUrl,
                         smallUrl,
                         isShared,
+                        p.getOwnerName(),
+                        p.getSharedByUserId(),
                         p.getSharedByName()
                 ));
 
@@ -240,6 +247,11 @@ public class PhotosService {
                 continue;
             }
 
+            String ownerName = existing.getOwnerName();
+            if (ownerName == null || ownerName.isBlank()) {
+                ownerName = resolvePreferredName(existing.getGuestId(), null);
+            }
+
             String nextOriginal = sharedKey(eventId, photoId, "");
             String nextMedium = sharedKey(eventId, photoId, "_m");
             String nextSmall = sharedKey(eventId, photoId, "_s");
@@ -269,6 +281,7 @@ public class PhotosService {
                     nextOriginal,
                     nextMedium,
                     nextSmall,
+                    ownerName,
                     requesterUserId,
                     sharedByName
             );
@@ -295,6 +308,7 @@ public class PhotosService {
         Photo existing = photosRepository.findById(photoId).orElse(null);
         if (existing == null) {
             Instant now = Instant.now(clock);
+            String ownerName = resolvePreferredName(requesterUserId, requesterEmail);
             Photo created = new Photo(
                     photoId,
                     eventId,
@@ -304,9 +318,17 @@ public class PhotosService {
                     "ready",
                     null,
                     s3KeyMedium,
-                    s3KeySmall
+                    s3KeySmall,
+                    ownerName,
+                    null,
+                    null
             );
             return photosRepository.upsert(created);
+        }
+
+        String ownerName = existing.getOwnerName();
+        if (ownerName == null || ownerName.isBlank()) {
+            ownerName = resolvePreferredName(existing.getGuestId(), null);
         }
 
         Photo updated = new Photo(
@@ -318,7 +340,10 @@ public class PhotosService {
                 "ready",
                 existing.getS3KeyOriginal(),
                 s3KeyMedium != null && !s3KeyMedium.isBlank() ? s3KeyMedium.trim() : existing.getS3KeyMedium(),
-                s3KeySmall != null && !s3KeySmall.isBlank() ? s3KeySmall.trim() : existing.getS3KeySmall()
+                s3KeySmall != null && !s3KeySmall.isBlank() ? s3KeySmall.trim() : existing.getS3KeySmall(),
+                ownerName,
+                existing.getSharedByUserId(),
+                existing.getSharedByName()
         );
 
         return photosRepository.upsert(updated);
@@ -346,9 +371,17 @@ public class PhotosService {
                     "ready",
                     null,
                     s3KeyMedium,
-                    s3KeySmall
+                    s3KeySmall,
+                    null,
+                    null,
+                    null
             );
             return photosRepository.upsert(created);
+        }
+
+        String ownerName = existing.getOwnerName();
+        if (ownerName == null || ownerName.isBlank()) {
+            ownerName = resolvePreferredName(existing.getGuestId(), null);
         }
 
         Photo updated = new Photo(
@@ -360,7 +393,10 @@ public class PhotosService {
                 "ready",
                 existing.getS3KeyOriginal(),
                 s3KeyMedium != null && !s3KeyMedium.isBlank() ? s3KeyMedium.trim() : existing.getS3KeyMedium(),
-                s3KeySmall != null && !s3KeySmall.isBlank() ? s3KeySmall.trim() : existing.getS3KeySmall()
+                s3KeySmall != null && !s3KeySmall.isBlank() ? s3KeySmall.trim() : existing.getS3KeySmall(),
+                ownerName,
+                existing.getSharedByUserId(),
+                existing.getSharedByName()
         );
 
         return photosRepository.upsert(updated);
@@ -486,6 +522,8 @@ public class PhotosService {
             String mediumUrl,
             String smallUrl,
             boolean shared,
+            String ownerName,
+            String sharedByUserId,
             String sharedByName
     ) {
     }

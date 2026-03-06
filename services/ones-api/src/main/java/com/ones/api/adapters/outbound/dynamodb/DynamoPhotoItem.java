@@ -25,6 +25,8 @@ public class DynamoPhotoItem {
     private String s3KeyMedium;
     private String s3KeySmall;
 
+    private String ownerName;
+
     private String sharedByUserId;
     private String sharedByName;
 
@@ -119,6 +121,15 @@ public class DynamoPhotoItem {
 
     public void setS3KeySmall(String s3KeySmall) {
         this.s3KeySmall = s3KeySmall;
+    }
+
+    @DynamoDbAttribute("ownerName")
+    public String getOwnerName() {
+        return ownerName;
+    }
+
+    public void setOwnerName(String ownerName) {
+        this.ownerName = ownerName;
     }
 
     @DynamoDbAttribute("sharedByUserId")

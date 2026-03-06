@@ -8,6 +8,8 @@ class EventPhoto {
   final String? mediumUrl;
   final String? smallUrl;
   final bool shared;
+  final String? ownerName;
+  final String? sharedByUserId;
   final String? sharedByName;
 
   const EventPhoto({
@@ -20,6 +22,8 @@ class EventPhoto {
     required this.mediumUrl,
     required this.smallUrl,
     required this.shared,
+    required this.ownerName,
+    required this.sharedByUserId,
     required this.sharedByName,
   });
 }

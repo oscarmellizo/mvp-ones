@@ -218,6 +218,8 @@ class EventPhotosApi {
       mediumUrl: row['mediumUrl'] as String?,
       smallUrl: row['smallUrl'] as String?,
       shared: (row['shared'] as bool?) ?? false,
+      ownerName: row['ownerName'] as String?,
+      sharedByUserId: row['sharedByUserId'] as String?,
       sharedByName: row['sharedByName'] as String?,
     );
   }

@@ -17,6 +17,8 @@ public class Photo {
     private final String s3KeyMedium;
     private final String s3KeySmall;
 
+    private final String ownerName;
+
     private final String sharedByUserId;
     private final String sharedByName;
 
@@ -40,6 +42,8 @@ public class Photo {
         this.s3KeyOriginal = s3KeyOriginal;
         this.s3KeyMedium = s3KeyMedium;
         this.s3KeySmall = s3KeySmall;
+
+        this.ownerName = null;
         this.sharedByUserId = null;
         this.sharedByName = null;
     }
@@ -54,6 +58,7 @@ public class Photo {
             String s3KeyOriginal,
             String s3KeyMedium,
             String s3KeySmall,
+            String ownerName,
             String sharedByUserId,
             String sharedByName
     ) {
@@ -66,6 +71,8 @@ public class Photo {
         this.s3KeyOriginal = s3KeyOriginal;
         this.s3KeyMedium = s3KeyMedium;
         this.s3KeySmall = s3KeySmall;
+
+        this.ownerName = ownerName;
         this.sharedByUserId = sharedByUserId;
         this.sharedByName = sharedByName;
     }
@@ -104,6 +111,10 @@ public class Photo {
 
     public String getS3KeySmall() {
         return s3KeySmall;
+    }
+
+    public String getOwnerName() {
+        return ownerName;
     }
 
     public String getSharedByUserId() {
