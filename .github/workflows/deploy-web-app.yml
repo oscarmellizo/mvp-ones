@@ -2,6 +2,11 @@ name: Deploy Web App (Flutter -> S3 + CloudFront)
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment (dev, staging, prod)'
+        required: false
+        default: 'dev'
 
 permissions:
   id-token: write
@@ -14,7 +19,7 @@ concurrency:
 env:
   AWS_REGION: us-east-1
   WEB_STACK_NAME: ones-web
-  BACKEND_STACK_NAME: ones-backend
+  BACKEND_STACK_NAME_PREFIX: ones-backend
 
 jobs:
   deploy:
@@ -47,8 +52,9 @@ jobs:
       - name: Resolve backend ALB URL
         id: backend
         run: |
+          backendStackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
           albUrl=$(aws cloudformation describe-stacks \
-            --stack-name "${BACKEND_STACK_NAME}" \
+            --stack-name "${backendStackName}" \
             --query "Stacks[0].Outputs[?OutputKey=='AlbUrl'].OutputValue" \
             --output text)
           echo "albUrl=${albUrl}" >> $GITHUB_OUTPUT

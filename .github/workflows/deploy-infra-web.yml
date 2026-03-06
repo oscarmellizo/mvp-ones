@@ -2,6 +2,11 @@ name: Deploy Infra (Web)
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment (dev, staging, prod)'
+        required: false
+        default: 'dev'
 
 permissions:
   id-token: write
@@ -15,7 +20,7 @@ env:
   AWS_REGION: us-east-1
   STACK_PREFIX: ones
   WEB_STACK_NAME: ones-web
-  BACKEND_STACK_NAME: ones-backend
+  BACKEND_STACK_NAME_PREFIX: ones-backend
 
 jobs:
   deploy:
@@ -33,8 +38,9 @@ jobs:
 
       - name: Deploy web stack
         run: |
+          backendStackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
           albDns=$(aws cloudformation describe-stacks \
-            --stack-name "${BACKEND_STACK_NAME}" \
+            --stack-name "${backendStackName}" \
             --query "Stacks[0].Outputs[?OutputKey=='AlbDnsName'].OutputValue" \
             --output text)
 
