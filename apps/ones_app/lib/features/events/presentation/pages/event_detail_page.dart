@@ -404,8 +404,8 @@ class _GalleryTabState extends State<_GalleryTab> {
                             child: Text(
                               (item.ownerName != null &&
                                       item.ownerName!.isNotEmpty)
-                                  ? 'De ${item.ownerName}'
-                                  : 'De invitado',
+                                  ? '${item.ownerName}'
+                                  : 'Invitado',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 11,

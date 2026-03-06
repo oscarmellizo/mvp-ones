@@ -17,7 +17,7 @@ class PhotoViewerPage extends StatelessWidget {
     final sharedLabel = (sharedByName != null && sharedByName!.isNotEmpty)
         ? 'Compartida por $sharedByName'
         : (ownerName != null && ownerName!.isNotEmpty)
-            ? 'De $ownerName'
+            ? '$ownerName'
             : null;
 
     return Scaffold(
