@@ -243,7 +243,46 @@ public class PhotosService {
             }
 
             if (isShared(existing)) {
-                updated.add(existing);
+                String ownerName = existing.getOwnerName();
+                if (ownerName == null || ownerName.isBlank()) {
+                    ownerName = resolvePreferredName(existing.getGuestId(), null);
+                }
+
+                String nextSharedByUserId = existing.getSharedByUserId();
+                if (nextSharedByUserId == null || nextSharedByUserId.isBlank()) {
+                    nextSharedByUserId = requesterUserId;
+                }
+
+                String nextSharedByName = existing.getSharedByName();
+                if (nextSharedByName == null || nextSharedByName.isBlank()) {
+                    nextSharedByName = sharedByName;
+                }
+
+                boolean needsBackfill = (existing.getOwnerName() == null || existing.getOwnerName().isBlank())
+                        || (existing.getSharedByUserId() == null || existing.getSharedByUserId().isBlank())
+                        || (existing.getSharedByName() == null || existing.getSharedByName().isBlank());
+
+                if (!needsBackfill) {
+                    updated.add(existing);
+                    continue;
+                }
+
+                Photo next = new Photo(
+                        existing.getPhotoId(),
+                        existing.getEventId(),
+                        existing.getGuestId(),
+                        existing.getCreatedAt(),
+                        existing.getUploadedAt(),
+                        existing.getStatus(),
+                        existing.getS3KeyOriginal(),
+                        existing.getS3KeyMedium(),
+                        existing.getS3KeySmall(),
+                        ownerName,
+                        nextSharedByUserId,
+                        nextSharedByName
+                );
+
+                updated.add(photosRepository.upsert(next));
                 continue;
             }
 
