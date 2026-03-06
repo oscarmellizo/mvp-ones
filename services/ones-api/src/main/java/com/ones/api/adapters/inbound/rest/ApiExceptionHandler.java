@@ -18,6 +18,8 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 import com.ones.api.application.events.CoverPreviewNotFoundException;
 import com.ones.api.application.events.CoverReservationExpiredException;
 import com.ones.api.application.events.CoverReservationNotFoundException;
+import com.ones.api.application.events.AiConfigurationException;
+import com.ones.api.application.events.AiImageGenerationException;
 import com.ones.api.application.events.EventCoverNotFoundException;
 import com.ones.api.application.events.EventForbiddenException;
 import com.ones.api.application.events.EventNotFoundException;
@@ -55,6 +57,14 @@ public class ApiExceptionHandler {
     public ResponseEntity<Map<String, Object>> badRequest(CoverReservationExpiredException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
                 "error", "bad_request",
+                "message", ex.getMessage()
+        ));
+    }
+
+    @ExceptionHandler({AiConfigurationException.class, AiImageGenerationException.class})
+    public ResponseEntity<Map<String, Object>> aiUnavailable(RuntimeException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
+                "error", "ai_unavailable",
                 "message", ex.getMessage()
         ));
     }

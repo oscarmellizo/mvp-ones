@@ -85,7 +85,14 @@ public class EventCoversService {
         String resolvedSize = (size == null || size.isBlank()) ? openAiImageSize : size.trim();
 
         String apiKey = loadOpenAiApiKey();
-        byte[] png = aiImagesClient.generatePng(apiKey, prompt, resolvedSize);
+        byte[] png;
+        try {
+            png = aiImagesClient.generatePng(apiKey, prompt, resolvedSize);
+        } catch (AiImageGenerationException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new AiImageGenerationException("Failed to generate AI cover image", e);
+        }
 
         String key = tempKey(ownerId, coverId);
         objectStorage.putPng(tempBucket, key, png);
@@ -186,7 +193,26 @@ public class EventCoversService {
     }
 
     private String loadOpenAiApiKey() {
-        return secretsProvider.getSecretString(openAiApiKeySecretName);
+        if (openAiApiKeySecretName == null || openAiApiKeySecretName.isBlank()) {
+            throw new AiConfigurationException("Missing OpenAI secret name configuration: ones.ai.openai.api-key-secret-name");
+        }
+
+        final String apiKey;
+        try {
+            apiKey = secretsProvider.getSecretString(openAiApiKeySecretName);
+        } catch (Exception e) {
+            throw new AiConfigurationException(
+                    "Failed to load OpenAI API key from Secrets Manager: secretName=" + openAiApiKeySecretName,
+                    e
+            );
+        }
+
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new AiConfigurationException(
+                    "OpenAI API key secret is empty: secretName=" + openAiApiKeySecretName
+            );
+        }
+        return apiKey;
     }
 
     private static String buildPrompt(String eventName, String objective, String location) {

@@ -12,6 +12,7 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.ones.api.application.events.AiImageGenerationException;
 
 @Component
 public class OpenAiImagesClient {
@@ -50,16 +51,20 @@ public class OpenAiImagesClient {
                     .block();
         } catch (WebClientResponseException e) {
             String body = e.getResponseBodyAsString();
-            throw new RuntimeException(
-                    "OpenAI image generation failed: status=" + e.getStatusCode().value() + ", body=" + body,
+            String trimmed = body == null ? "" : body.trim();
+            if (trimmed.length() > 800) {
+                trimmed = trimmed.substring(0, 800) + "...";
+            }
+            throw new AiImageGenerationException(
+                    "OpenAI image generation failed: status=" + e.getStatusCode().value() + ", body=" + trimmed,
                     e
             );
         } catch (Exception e) {
-            throw new RuntimeException("OpenAI image generation failed", e);
+            throw new AiImageGenerationException("OpenAI image generation failed", e);
         }
 
         if (resp == null || resp.data == null || resp.data.isEmpty() || resp.data.get(0).b64Json == null) {
-            throw new RuntimeException("OpenAI image generation returned empty response");
+            throw new AiImageGenerationException("OpenAI image generation returned empty response");
         }
 
         return Base64.getDecoder().decode(resp.data.get(0).b64Json);
