@@ -737,6 +737,8 @@ Resources:
               Value: !Ref CoverReservationsTable
             - Name: ONES_PHOTOS_TABLE
               Value: !Ref PhotosTable
+            - Name: ONES_PREFERRED_NAMES_CACHE_TABLE
+              Value: !Ref PreferredNamesCacheTable
             - Name: ONES_EVENTS_COVERS_TEMP_BUCKET
               Value: !Ref EventsCoversTempBucket
             - Name: ONES_EVENTS_ASSETS_BUCKET
