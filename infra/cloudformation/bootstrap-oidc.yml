@@ -149,6 +149,9 @@ Resources:
                   - ecr:PutImage
                   - ecr:UploadLayerPart
                   - ecr:BatchGetImage
+                  - ecr:SetRepositoryPolicy
+                  - ecr:GetRepositoryPolicy
+                  - ecr:DeleteRepositoryPolicy
                 Resource: '*'
 
               - Sid: CloudWatchLogs
