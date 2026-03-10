@@ -857,7 +857,7 @@ Resources:
                   - ecr:BatchCheckLayerAvailability
                   - ecr:BatchGetImage
                   - ecr:GetDownloadUrlForLayer
-                Resource: !GetAtt PhotoThumbnailsEcrRepository.Arn
+                Resource: '*'
               - Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
