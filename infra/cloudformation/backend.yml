@@ -297,6 +297,7 @@ Resources:
             Principal:
               Service: lambda.amazonaws.com
             Action:
+              - ecr:BatchCheckLayerAvailability
               - ecr:BatchGetImage
               - ecr:GetDownloadUrlForLayer
             Condition:
