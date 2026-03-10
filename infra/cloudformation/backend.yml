@@ -850,6 +850,16 @@ Resources:
                   - !Sub arn:aws:s3:::${StackPrefix}-${Environment}-events-photos/*
               - Effect: Allow
                 Action:
+                  - ecr:GetAuthorizationToken
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:BatchGetImage
+                  - ecr:GetDownloadUrlForLayer
+                Resource: !GetAtt PhotoThumbnailsEcrRepository.Arn
+              - Effect: Allow
+                Action:
                   - secretsmanager:GetSecretValue
                 Resource:
                   - !Ref InternalBasicAuthSecret
