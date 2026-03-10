@@ -140,6 +140,7 @@ Resources:
                   - ecr:CreateRepository
                   - ecr:DeleteRepository
                   - ecr:DescribeRepositories
+                  - ecr:PutImageScanningConfiguration
                   - ecr:GetLifecyclePolicy
                   - ecr:PutLifecyclePolicy
                   - ecr:DeleteLifecyclePolicy
