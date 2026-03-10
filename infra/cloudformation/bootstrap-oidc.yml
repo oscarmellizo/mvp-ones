@@ -140,6 +140,9 @@ Resources:
                   - ecr:CreateRepository
                   - ecr:DeleteRepository
                   - ecr:DescribeRepositories
+                  - ecr:GetLifecyclePolicy
+                  - ecr:PutLifecyclePolicy
+                  - ecr:DeleteLifecyclePolicy
                   - ecr:ListImages
                   - ecr:BatchDeleteImage
                   - ecr:BatchCheckLayerAvailability
