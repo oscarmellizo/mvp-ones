@@ -11,6 +11,10 @@ on:
         description: 'ECS desired count for ones-api service'
         required: false
         default: '0'
+      usePhotoThumbnailsImage:
+        description: 'Use container-image Lambda for photo thumbnails (true/false)'
+        required: false
+        default: 'true'
 
 permissions:
   id-token: write
@@ -60,7 +64,8 @@ jobs:
               StackPrefix="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}" \
               Environment="${{ inputs.environment }}" \
               GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}" \
-              BackendDesiredCount="${{ inputs.backendDesiredCount }}"
+              BackendDesiredCount="${{ inputs.backendDesiredCount }}" \
+              UsePhotoThumbnailsImage="false"
 
       - name: Debug CloudFormation (on failure)
         if: ${{ steps.deploy_cfn.outcome != 'success' }}
@@ -84,6 +89,38 @@ jobs:
         run: |
           echo "CloudFormation deploy failed. See debug output above."
           exit 1
+
+      - name: Configure PhotoThumbnails Lambda (container image)
+        if: ${{ inputs.usePhotoThumbnailsImage == 'true' }}
+        run: |
+          stackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
+
+          repoUri=$(aws cloudformation describe-stacks \
+            --stack-name "${stackName}" \
+            --query "Stacks[0].Outputs[?OutputKey=='PhotoThumbnailsEcrRepositoryUri'].OutputValue" \
+            --output text)
+
+          if [ -z "${repoUri}" ] || [ "${repoUri}" = "None" ]; then
+            echo "ERROR: Could not resolve PhotoThumbnailsEcrRepositoryUri output."
+            exit 1
+          fi
+
+          aws ecr get-login-password --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}" | \
+            docker login --username AWS --password-stdin "$(echo "${repoUri}" | cut -d'/' -f1)"
+
+          docker build -t "${repoUri}:latest" infra/photo-thumbnails-lambda
+          docker push "${repoUri}:latest"
+
+          aws cloudformation deploy \
+            --stack-name "${stackName}" \
+            --template-file infra/cloudformation/backend.yml \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameter-overrides \
+              StackPrefix="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}" \
+              Environment="${{ inputs.environment }}" \
+              GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}" \
+              BackendDesiredCount="${{ inputs.backendDesiredCount }}" \
+              UsePhotoThumbnailsImage="true"
 
       - name: Set OpenAI API key in Secrets Manager
         if: ${{ env.OPENAI_API_KEY != '' }}

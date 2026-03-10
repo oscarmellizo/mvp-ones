@@ -19,9 +19,20 @@ Parameters:
     Type: Number
     Default: 0
 
+  UsePhotoThumbnailsImage:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
   GrafanaDesiredCount:
     Type: Number
     Default: 1
+
+Conditions:
+  UsePhotoThumbnailsImageCond: !Equals [!Ref UsePhotoThumbnailsImage, 'true']
+  UsePhotoThumbnailsZipCond: !Not [!Equals [!Ref UsePhotoThumbnailsImage, 'true']]
 
 Resources:
   EventsTable:
@@ -233,7 +244,10 @@ Resources:
       NotificationConfiguration:
         LambdaConfigurations:
           - Event: s3:ObjectCreated:Put
-            Function: !GetAtt PhotoThumbnailsFunction.Arn
+            Function: !If
+              - UsePhotoThumbnailsImageCond
+              - !GetAtt PhotoThumbnailsFunctionImage.Arn
+              - !GetAtt PhotoThumbnailsFunctionZip.Arn
 
   OpenAiApiKeySecret:
     Type: AWS::SecretsManager::Secret
@@ -266,6 +280,13 @@ Resources:
   EcrRepository:
     Type: AWS::ECR::Repository
     Properties:
+      ImageScanningConfiguration:
+        ScanOnPush: true
+
+  PhotoThumbnailsEcrRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub ${StackPrefix}-${Environment}-photo-thumbnails
       ImageScanningConfiguration:
         ScanOnPush: true
 
@@ -833,8 +854,9 @@ Resources:
                 Resource:
                   - !Ref InternalBasicAuthSecret
 
-  PhotoThumbnailsFunction:
+  PhotoThumbnailsFunctionZip:
     Type: AWS::Lambda::Function
+    Condition: UsePhotoThumbnailsZipCond
     Properties:
       Runtime: python3.12
       Handler: index.handler
@@ -936,11 +958,34 @@ Resources:
 
                   _call_backend_ready(event_id, photo_id, key_m, key_s)
 
+  PhotoThumbnailsFunctionImage:
+    Type: AWS::Lambda::Function
+    Condition: UsePhotoThumbnailsImageCond
+    Properties:
+      PackageType: Image
+      Timeout: 60
+      MemorySize: 512
+      Role: !GetAtt PhotoThumbnailsFunctionRole.Arn
+      Environment:
+        Variables:
+          BUCKET: !Sub ${StackPrefix}-${Environment}-events-photos
+          BACKEND_BASE_URL: !Sub http://${LoadBalancer.DNSName}
+          INTERNAL_SECRET_ARN: !Ref InternalBasicAuthSecret
+          M_WIDTH: '1280'
+          M_QUALITY: '85'
+          S_WIDTH: '360'
+          S_QUALITY: '70'
+      Code:
+        ImageUri: !Sub ${PhotoThumbnailsEcrRepository.RepositoryUri}:latest
+
   PhotoThumbnailsPermission:
     Type: AWS::Lambda::Permission
     Properties:
       Action: lambda:InvokeFunction
-      FunctionName: !Ref PhotoThumbnailsFunction
+      FunctionName: !If
+        - UsePhotoThumbnailsImageCond
+        - !Ref PhotoThumbnailsFunctionImage
+        - !Ref PhotoThumbnailsFunctionZip
       Principal: s3.amazonaws.com
       SourceArn: !Sub arn:aws:s3:::${StackPrefix}-${Environment}-events-photos
 
@@ -1058,6 +1103,8 @@ Outputs:
     Value: !Sub http://${LoadBalancer.DNSName}/grafana/
   EcrRepositoryUri:
     Value: !GetAtt EcrRepository.RepositoryUri
+  PhotoThumbnailsEcrRepositoryUri:
+    Value: !GetAtt PhotoThumbnailsEcrRepository.RepositoryUri
   ClusterName:
     Value: !Ref Cluster
   ServiceName:

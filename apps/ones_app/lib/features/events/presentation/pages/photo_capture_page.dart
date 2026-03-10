@@ -85,7 +85,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
 
     final next = CameraController(
       description,
-      ResolutionPreset.medium,
+      ResolutionPreset.max,
       enableAudio: false,
     );
 
