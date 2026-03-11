@@ -20,7 +20,7 @@ class GalleriesPage extends StatefulWidget {
 class _GalleriesPageState extends State<GalleriesPage> {
   final _searchController = TextEditingController();
 
-  static const _divider = OnesColors.orange;
+  _QuickFilter _filter = _QuickFilter.all;
 
   @override
   void initState() {
@@ -51,13 +51,18 @@ class _GalleriesPageState extends State<GalleriesPage> {
     final q = _searchController.text.trim().toLowerCase();
 
     final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
     final pastEvents = controller.events.where((e) {
-      final isPast = e.createdAt.isBefore(now);
+      final localStart = e.startAt.toLocal();
+      final isPast = localStart.isBefore(todayStart);
       if (!isPast) return false;
+      if (!_filter.accepts(eventStartLocal: localStart, nowLocal: now)) {
+        return false;
+      }
       if (q.isEmpty) return true;
       return e.title.toLowerCase().contains(q);
     }).toList(growable: false)
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      ..sort((a, b) => b.startAt.toLocal().compareTo(a.startAt.toLocal()));
 
     final groups = <DateTime, List<Event>>{};
     for (final e in pastEvents) {
@@ -82,6 +87,41 @@ class _GalleriesPageState extends State<GalleriesPage> {
                 controller: _searchController,
                 hintText: 'Search past events',
               ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Todas'),
+                    selected: _filter == _QuickFilter.all,
+                    onSelected: (_) => setState(() {
+                      _filter = _QuickFilter.all;
+                    }),
+                  ),
+                  ChoiceChip(
+                    label: const Text('7 días'),
+                    selected: _filter == _QuickFilter.last7Days,
+                    onSelected: (_) => setState(() {
+                      _filter = _QuickFilter.last7Days;
+                    }),
+                  ),
+                  ChoiceChip(
+                    label: const Text('30 días'),
+                    selected: _filter == _QuickFilter.last30Days,
+                    onSelected: (_) => setState(() {
+                      _filter = _QuickFilter.last30Days;
+                    }),
+                  ),
+                  ChoiceChip(
+                    label: const Text('Este año'),
+                    selected: _filter == _QuickFilter.thisYear,
+                    onSelected: (_) => setState(() {
+                      _filter = _QuickFilter.thisYear;
+                    }),
+                  ),
+                ],
+              ),
               const SizedBox(height: 14),
               if (controller.loading && controller.events.isEmpty)
                 const Padding(
@@ -98,20 +138,6 @@ class _GalleriesPageState extends State<GalleriesPage> {
               else
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    const spacing = 1.0;
-                    final availableWidth = constraints.maxWidth;
-                    const crossAxisCount = 2;
-
-                    final computedCardWidth =
-                        (availableWidth - (spacing * (crossAxisCount - 1))) /
-                            crossAxisCount;
-
-                    final childAspectRatio = computedCardWidth <= 220
-                        ? 1.05
-                        : computedCardWidth <= 320
-                            ? 1.15
-                            : 1.25;
-
                     final children = <Widget>[];
                     for (final day in orderedDays) {
                       final dayEvents = (groups[day] ?? const <Event>[])
@@ -123,7 +149,7 @@ class _GalleriesPageState extends State<GalleriesPage> {
                         Padding(
                           padding: const EdgeInsets.only(top: 6, bottom: 10),
                           child: Text(
-                            formatMonthDayYear(day),
+                            _friendlyDayHeader(day, now),
                             style: const TextStyle(
                               fontWeight: FontWeight.w900,
                               color: OnesColors.black,
@@ -132,29 +158,20 @@ class _GalleriesPageState extends State<GalleriesPage> {
                         ),
                       );
 
-                      children.add(
-                        ColoredBox(
-                          color: _divider,
-                          child: GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: dayEvents.length,
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: crossAxisCount,
-                              crossAxisSpacing: spacing,
-                              mainAxisSpacing: spacing,
-                              childAspectRatio: childAspectRatio,
-                            ),
-                            itemBuilder: (context, i) {
-                              final e = dayEvents[i];
-                              final cover = i.isEven
-                                  ? 'assets/auth/amigos.png'
-                                  : 'assets/auth/concierto.png';
-                              final when = e.startAt.toLocal();
-                              final end = e.endAt.toLocal();
+                      for (var i = 0; i < dayEvents.length; i++) {
+                        final e = dayEvents[i];
+                        final cover = i.isEven
+                            ? 'assets/auth/amigos.png'
+                            : 'assets/auth/concierto.png';
+                        final when = e.startAt.toLocal();
+                        final end = e.endAt.toLocal();
 
-                              return FutureBuilder<String?>(
+                        children.add(
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: AspectRatio(
+                              aspectRatio: 16 / 9,
+                              child: FutureBuilder<String?>(
                                 future: coverUrls.getUrlIfAny(
                                   eventId: e.id,
                                   coverKey: e.coverKey,
@@ -172,7 +189,7 @@ class _GalleriesPageState extends State<GalleriesPage> {
                                     timeText:
                                         '${_formatTimeOfDay(when)} - ${_formatTimeOfDay(end)}',
                                     badgeText: null,
-                                    width: null,
+                                    width: double.infinity,
                                     onTap: () =>
                                         Navigator.of(context).pushNamed(
                                       EventDetailPage.routeName,
@@ -180,11 +197,11 @@ class _GalleriesPageState extends State<GalleriesPage> {
                                     ),
                                   );
                                 },
-                              );
-                            },
+                              ),
+                            ),
                           ),
-                        ),
-                      );
+                        );
+                      }
                     }
 
                     return Column(
@@ -198,6 +215,19 @@ class _GalleriesPageState extends State<GalleriesPage> {
         ),
       ),
     );
+  }
+
+  String _friendlyDayHeader(DateTime day, DateTime now) {
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    if (_isSameDay(day, today)) {
+      return 'Hoy · ${formatMonthDayYear(day)}';
+    }
+    if (_isSameDay(day, yesterday)) {
+      return 'Ayer · ${formatMonthDayYear(day)}';
+    }
+    return formatMonthDayYear(day);
   }
 }
 
@@ -230,7 +260,7 @@ class _UpcomingCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.zero,
       child: Ink(
-        width: width ?? 260,
+        width: width,
         decoration: const BoxDecoration(borderRadius: BorderRadius.zero),
         child: Stack(
           children: [
@@ -368,4 +398,31 @@ String _formatTimeOfDay(DateTime dt) {
   final hh = dt.hour.toString().padLeft(2, '0');
   final mm = dt.minute.toString().padLeft(2, '0');
   return '$hh:$mm';
+}
+
+bool _isSameDay(DateTime a, DateTime b) {
+  return a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+enum _QuickFilter {
+  all,
+  last7Days,
+  last30Days,
+  thisYear;
+
+  bool accepts(
+      {required DateTime eventStartLocal, required DateTime nowLocal}) {
+    final today = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
+    switch (this) {
+      case _QuickFilter.all:
+        return true;
+      case _QuickFilter.last7Days:
+        return eventStartLocal.isAfter(today.subtract(const Duration(days: 7)));
+      case _QuickFilter.last30Days:
+        return eventStartLocal
+            .isAfter(today.subtract(const Duration(days: 30)));
+      case _QuickFilter.thisYear:
+        return eventStartLocal.year == nowLocal.year;
+    }
+  }
 }
