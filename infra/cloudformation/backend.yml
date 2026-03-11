@@ -760,6 +760,8 @@ Resources:
               Value: !Ref AWS::Region
             - Name: ONES_ENV
               Value: !Ref Environment
+            - Name: ONES_PHOTOS_DEBUG_LIST
+              Value: 'false'
             - Name: ONES_EVENTS_TABLE
               Value: !Ref EventsTable
             - Name: ONES_USERS_TABLE
