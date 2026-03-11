@@ -344,7 +344,16 @@ class _GalleryTabState extends State<_GalleryTab> {
                       Ink(
                         color: Colors.black12,
                         child: (thumbUrl == null || thumbUrl.isEmpty)
-                            ? const SizedBox.expand()
+                            ? const Center(
+                                child: Text(
+                                  'Procesando',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              )
                             : Image.network(
                                 thumbUrl,
                                 fit: BoxFit.cover,
