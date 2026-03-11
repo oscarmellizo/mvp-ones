@@ -193,9 +193,21 @@ public class PhotosService {
                 for (Photo p : selected) {
                     boolean isShared = isShared(p);
 
-                    String originalUrl = presignGetIfAny(p.getS3KeyOriginal());
-                    String mediumUrl = presignGetIfAny(p.getS3KeyMedium());
-                    String smallUrl = presignGetIfAny(p.getS3KeySmall());
+                    String originalKey = p.getS3KeyOriginal();
+
+                    String mediumKey = p.getS3KeyMedium();
+                    if ((mediumKey == null || mediumKey.isBlank()) && originalKey != null && !originalKey.isBlank()) {
+                        mediumKey = variantKeyFromOriginal(originalKey, "_m");
+                    }
+
+                    String smallKey = p.getS3KeySmall();
+                    if ((smallKey == null || smallKey.isBlank()) && originalKey != null && !originalKey.isBlank()) {
+                        smallKey = variantKeyFromOriginal(originalKey, "_s");
+                    }
+
+                    String originalUrl = presignGetIfAny(originalKey);
+                    String mediumUrl = presignGetIfAny(mediumKey);
+                    String smallUrl = presignGetIfAny(smallKey);
 
                     String ownerName = resolvedNames.get(p.getGuestId());
                     if (ownerName == null || ownerName.isBlank()) {
