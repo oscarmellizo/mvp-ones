@@ -5,6 +5,7 @@ import '../../../../core/utils/datetime_formatters.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/widgets/ones_card.dart';
 import '../../../../core/ui/widgets/ones_search_field.dart';
+import '../../domain/event.dart';
 import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
 import 'event_detail_page.dart';
@@ -58,7 +59,16 @@ class _GalleriesPageState extends State<GalleriesPage> {
     }).toList(growable: false)
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    final filtered = pastEvents;
+    final groups = <DateTime, List<Event>>{};
+    for (final e in pastEvents) {
+      final localStart = e.startAt.toLocal();
+      final dayKey =
+          DateTime(localStart.year, localStart.month, localStart.day);
+      (groups[dayKey] ??= <Event>[]).add(e);
+    }
+
+    final orderedDays = groups.keys.toList(growable: false)
+      ..sort((a, b) => b.compareTo(a));
 
     return Scaffold(
       backgroundColor: OnesColors.background,
@@ -78,7 +88,7 @@ class _GalleriesPageState extends State<GalleriesPage> {
                   padding: EdgeInsets.only(top: 40),
                   child: Center(child: CircularProgressIndicator()),
                 )
-              else if (filtered.isEmpty)
+              else if (orderedDays.isEmpty)
                 OnesCard(
                   child: Text(
                     q.isEmpty ? 'No past events yet.' : 'No results for "$q".',
@@ -89,13 +99,8 @@ class _GalleriesPageState extends State<GalleriesPage> {
                 LayoutBuilder(
                   builder: (context, constraints) {
                     const spacing = 1.0;
-                    const minCardWidth = 170.0;
-
                     final availableWidth = constraints.maxWidth;
-                    final crossAxisCount =
-                        ((availableWidth + spacing) / (minCardWidth + spacing))
-                            .floor()
-                            .clamp(1, 10);
+                    const crossAxisCount = 2;
 
                     final computedCardWidth =
                         (availableWidth - (spacing * (crossAxisCount - 1))) /
@@ -107,54 +112,84 @@ class _GalleriesPageState extends State<GalleriesPage> {
                             ? 1.15
                             : 1.25;
 
-                    return ColoredBox(
-                      color: _divider,
-                      child: GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: filtered.length,
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: crossAxisCount,
-                          crossAxisSpacing: spacing,
-                          mainAxisSpacing: spacing,
-                          childAspectRatio: childAspectRatio,
-                        ),
-                        itemBuilder: (context, i) {
-                          final e = filtered[i];
-                          final cover = i.isEven
-                              ? 'assets/auth/amigos.png'
-                              : 'assets/auth/concierto.png';
-                          final when = e.startAt.toLocal();
-                          final end = e.endAt.toLocal();
+                    final children = <Widget>[];
+                    for (final day in orderedDays) {
+                      final dayEvents = (groups[day] ?? const <Event>[])
+                          .toList(growable: false);
+                      dayEvents.sort((a, b) =>
+                          b.startAt.toLocal().compareTo(a.startAt.toLocal()));
 
-                          return FutureBuilder<String?>(
-                            future: coverUrls.getUrlIfAny(
-                              eventId: e.id,
-                              coverKey: e.coverKey,
+                      children.add(
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6, bottom: 10),
+                          child: Text(
+                            formatMonthDayYear(day),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              color: OnesColors.black,
                             ),
-                            builder: (context, snapshot) {
-                              final url = snapshot.data;
-                              return _UpcomingCard(
-                                title: e.title,
-                                location: e.location,
-                                imageUrl: (url != null && url.isNotEmpty)
-                                    ? url
-                                    : null,
-                                fallbackAsset: cover,
-                                dateText: formatMonthDayYear(when),
-                                timeText:
-                                    '${_formatTimeOfDay(when)} - ${_formatTimeOfDay(end)}',
-                                badgeText: null,
-                                width: null,
-                                onTap: () => Navigator.of(context).pushNamed(
-                                  EventDetailPage.routeName,
-                                  arguments: e.id,
+                          ),
+                        ),
+                      );
+
+                      children.add(
+                        ColoredBox(
+                          color: _divider,
+                          child: GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: dayEvents.length,
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: crossAxisCount,
+                              crossAxisSpacing: spacing,
+                              mainAxisSpacing: spacing,
+                              childAspectRatio: childAspectRatio,
+                            ),
+                            itemBuilder: (context, i) {
+                              final e = dayEvents[i];
+                              final cover = i.isEven
+                                  ? 'assets/auth/amigos.png'
+                                  : 'assets/auth/concierto.png';
+                              final when = e.startAt.toLocal();
+                              final end = e.endAt.toLocal();
+
+                              return FutureBuilder<String?>(
+                                future: coverUrls.getUrlIfAny(
+                                  eventId: e.id,
+                                  coverKey: e.coverKey,
                                 ),
+                                builder: (context, snapshot) {
+                                  final url = snapshot.data;
+                                  return _UpcomingCard(
+                                    title: e.title,
+                                    location: e.location,
+                                    imageUrl: (url != null && url.isNotEmpty)
+                                        ? url
+                                        : null,
+                                    fallbackAsset: cover,
+                                    dateText: null,
+                                    timeText:
+                                        '${_formatTimeOfDay(when)} - ${_formatTimeOfDay(end)}',
+                                    badgeText: null,
+                                    width: null,
+                                    onTap: () =>
+                                        Navigator.of(context).pushNamed(
+                                      EventDetailPage.routeName,
+                                      arguments: e.id,
+                                    ),
+                                  );
+                                },
                               );
                             },
-                          );
-                        },
-                      ),
+                          ),
+                        ),
+                      );
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: children,
                     );
                   },
                 ),
