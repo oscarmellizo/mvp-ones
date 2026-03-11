@@ -5,6 +5,7 @@ import '../../../../core/utils/datetime_formatters.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/widgets/ones_card.dart';
 import '../../../../core/ui/widgets/ones_search_field.dart';
+import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
 import 'event_detail_page.dart';
 
@@ -17,6 +18,8 @@ class GalleriesPage extends StatefulWidget {
 
 class _GalleriesPageState extends State<GalleriesPage> {
   final _searchController = TextEditingController();
+
+  static const _divider = OnesColors.orange;
 
   @override
   void initState() {
@@ -42,6 +45,7 @@ class _GalleriesPageState extends State<GalleriesPage> {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<EventsController>();
+    final coverUrls = context.watch<EventCoverUrlsController>();
 
     final q = _searchController.text.trim().toLowerCase();
 
@@ -54,24 +58,7 @@ class _GalleriesPageState extends State<GalleriesPage> {
     }).toList(growable: false)
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    final groups = <DateTime, List<_GalleryCardData>>{};
-    for (var i = 0; i < pastEvents.length; i++) {
-      final e = pastEvents[i];
-      final dayKey =
-          DateTime(e.createdAt.year, e.createdAt.month, e.createdAt.day);
-      final item = _GalleryCardData(
-        id: e.id,
-        title: e.title,
-        location: 'NYC',
-        coverAsset:
-            (i.isEven) ? 'assets/auth/amigos.png' : 'assets/auth/concierto.png',
-        date: e.createdAt,
-      );
-      (groups[dayKey] ??= []).add(item);
-    }
-
-    final orderedDays = groups.keys.toList(growable: false)
-      ..sort((a, b) => b.compareTo(a));
+    final filtered = pastEvents;
 
     return Scaffold(
       backgroundColor: OnesColors.background,
@@ -91,7 +78,7 @@ class _GalleriesPageState extends State<GalleriesPage> {
                   padding: EdgeInsets.only(top: 40),
                   child: Center(child: CircularProgressIndicator()),
                 )
-              else if (orderedDays.isEmpty)
+              else if (filtered.isEmpty)
                 OnesCard(
                   child: Text(
                     q.isEmpty ? 'No past events yet.' : 'No results for "$q".',
@@ -99,50 +86,108 @@ class _GalleriesPageState extends State<GalleriesPage> {
                   ),
                 )
               else
-                ...orderedDays.expand((day) {
-                  final items = groups[day]!;
-                  return [
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6, bottom: 10),
-                      child: Text(
-                        _formatDayHeader(day),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                          color: OnesColors.black,
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    const spacing = 1.0;
+                    const minCardWidth = 170.0;
+
+                    final availableWidth = constraints.maxWidth;
+                    final crossAxisCount =
+                        ((availableWidth + spacing) / (minCardWidth + spacing))
+                            .floor()
+                            .clamp(1, 10);
+
+                    final computedCardWidth =
+                        (availableWidth - (spacing * (crossAxisCount - 1))) /
+                            crossAxisCount;
+
+                    final childAspectRatio = computedCardWidth <= 220
+                        ? 1.05
+                        : computedCardWidth <= 320
+                            ? 1.15
+                            : 1.25;
+
+                    return ColoredBox(
+                      color: _divider,
+                      child: GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: filtered.length,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
+                          crossAxisSpacing: spacing,
+                          mainAxisSpacing: spacing,
+                          childAspectRatio: childAspectRatio,
                         ),
+                        itemBuilder: (context, i) {
+                          final e = filtered[i];
+                          final cover = i.isEven
+                              ? 'assets/auth/amigos.png'
+                              : 'assets/auth/concierto.png';
+                          final when = e.startAt.toLocal();
+                          final end = e.endAt.toLocal();
+
+                          return FutureBuilder<String?>(
+                            future: coverUrls.getUrlIfAny(
+                              eventId: e.id,
+                              coverKey: e.coverKey,
+                            ),
+                            builder: (context, snapshot) {
+                              final url = snapshot.data;
+                              return _UpcomingCard(
+                                title: e.title,
+                                location: e.location,
+                                imageUrl: (url != null && url.isNotEmpty)
+                                    ? url
+                                    : null,
+                                fallbackAsset: cover,
+                                dateText: formatMonthDayYear(when),
+                                timeText:
+                                    '${_formatTimeOfDay(when)} - ${_formatTimeOfDay(end)}',
+                                badgeText: null,
+                                width: null,
+                                onTap: () => Navigator.of(context).pushNamed(
+                                  EventDetailPage.routeName,
+                                  arguments: e.id,
+                                ),
+                              );
+                            },
+                          );
+                        },
                       ),
-                    ),
-                    ...items.map(
-                      (item) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _GalleryEventCard(
-                          data: item,
-                          onTap: () => Navigator.of(context).pushNamed(
-                            EventDetailPage.routeName,
-                            arguments: item.id,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ];
-                }),
+                    );
+                  },
+                ),
             ],
           ),
         ),
       ),
     );
   }
-
-  String _formatDayHeader(DateTime d) {
-    return formatMonthDayYear(d);
-  }
 }
 
-class _GalleryEventCard extends StatelessWidget {
-  final _GalleryCardData data;
+class _UpcomingCard extends StatelessWidget {
+  final String title;
+  final String location;
+  final String? imageUrl;
+  final String fallbackAsset;
+  final String? badgeText;
+  final String? dateText;
+  final String timeText;
+  final double? width;
   final VoidCallback onTap;
 
-  const _GalleryEventCard({required this.data, required this.onTap});
+  const _UpcomingCard({
+    required this.title,
+    required this.location,
+    required this.imageUrl,
+    required this.fallbackAsset,
+    required this.timeText,
+    required this.badgeText,
+    required this.dateText,
+    required this.width,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -150,50 +195,133 @@ class _GalleryEventCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.zero,
       child: Ink(
-        padding: const EdgeInsets.all(12),
-        decoration: const BoxDecoration(
-          color: OnesColors.white,
-          borderRadius: BorderRadius.zero,
-        ),
-        child: Row(
+        width: width ?? 260,
+        decoration: const BoxDecoration(borderRadius: BorderRadius.zero),
+        child: Stack(
           children: [
             ClipRRect(
               borderRadius: BorderRadius.zero,
-              child: Image.asset(
-                data.coverAsset,
-                width: 56,
-                height: 56,
-                fit: BoxFit.cover,
+              child: SizedBox(
+                width: double.infinity,
+                height: double.infinity,
+                child: (imageUrl != null)
+                    ? Image.network(
+                        imageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Image.asset(
+                          fallbackAsset,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : Image.asset(
+                        fallbackAsset,
+                        fit: BoxFit.cover,
+                      ),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.zero,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    OnesColors.black.withOpacity(0.05),
+                    OnesColors.black.withOpacity(0.65),
+                  ],
+                ),
+              ),
+              padding: const EdgeInsets.all(14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    data.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 16,
+                  if (badgeText != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: OnesColors.white.withOpacity(0.25),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Text(
+                        badgeText!,
+                        style: const TextStyle(
+                          color: OnesColors.black,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
+                  const Spacer(),
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: OnesColors.white,
+                          letterSpacing: 0.6,
+                          height: 1.05,
+                        ),
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    data.location,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: OnesColors.black.withOpacity(0.55),
-                      fontWeight: FontWeight.w700,
+                  if (dateText != null) ...[
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.calendar_today,
+                          size: 16,
+                          color: OnesColors.white,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          dateText!,
+                          style: const TextStyle(
+                            color: OnesColors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 6),
+                  ],
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.access_time,
+                        size: 16,
+                        color: OnesColors.white,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        timeText,
+                        style: const TextStyle(
+                          color: OnesColors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on,
+                        size: 16,
+                        color: OnesColors.white,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        location,
+                        style: const TextStyle(
+                          color: OnesColors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right),
           ],
         ),
       ),
@@ -201,18 +329,8 @@ class _GalleryEventCard extends StatelessWidget {
   }
 }
 
-class _GalleryCardData {
-  final String id;
-  final String title;
-  final String location;
-  final String coverAsset;
-  final DateTime date;
-
-  const _GalleryCardData({
-    required this.id,
-    required this.title,
-    required this.location,
-    required this.coverAsset,
-    required this.date,
-  });
+String _formatTimeOfDay(DateTime dt) {
+  final hh = dt.hour.toString().padLeft(2, '0');
+  final mm = dt.minute.toString().padLeft(2, '0');
+  return '$hh:$mm';
 }
