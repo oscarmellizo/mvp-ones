@@ -87,6 +87,15 @@ class PhotosGalleryController extends ChangeNotifier {
 
       if (kDebugMode) {
         debugPrint('[PhotosGallery] merged=${_items.length}');
+        for (final it in _items) {
+          final s = it.smallUrl;
+          final m = it.mediumUrl;
+          if (s == null || s.isEmpty || m == null || m.isEmpty) {
+            debugPrint(
+              '[PhotosGallery] item photoId=${it.photoId} guestId=${it.guestId} status=${it.status} shared=${it.shared} smallUrl=${s ?? ''} mediumUrl=${m ?? ''} originalUrl=${it.originalUrl ?? ''}',
+            );
+          }
+        }
       }
     } catch (e) {
       _error = e;

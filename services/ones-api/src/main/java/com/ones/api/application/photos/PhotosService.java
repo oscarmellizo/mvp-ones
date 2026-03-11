@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +29,8 @@ import com.ones.api.domain.users.User;
 @Service
 public class PhotosService {
 
+    private static final Logger log = LoggerFactory.getLogger(PhotosService.class);
+
     private final PhotosRepository photosRepository;
     private final GetEventUseCase getEventUseCase;
     private final EventsRepository eventsRepository;
@@ -39,6 +43,7 @@ public class PhotosService {
     private final String photosBucket;
     private final long putPresignTtlMinutes;
     private final long getPresignTtlMinutes;
+    private final boolean debugList;
 
     public PhotosService(
             PhotosRepository photosRepository,
@@ -51,7 +56,8 @@ public class PhotosService {
             Clock clock,
             @Value("${ones.s3.events.photos.bucket}") String photosBucket,
             @Value("${ones.s3.events.photos.put-presign-ttl-minutes:15}") long putPresignTtlMinutes,
-            @Value("${ones.s3.events.photos.get-presign-ttl-minutes:15}") long getPresignTtlMinutes
+            @Value("${ones.s3.events.photos.get-presign-ttl-minutes:15}") long getPresignTtlMinutes,
+            @Value("${ones.photos.debug-list:false}") boolean debugList
     ) {
         this.photosRepository = photosRepository;
         this.getEventUseCase = getEventUseCase;
@@ -64,6 +70,7 @@ public class PhotosService {
         this.photosBucket = photosBucket;
         this.putPresignTtlMinutes = putPresignTtlMinutes;
         this.getPresignTtlMinutes = getPresignTtlMinutes;
+        this.debugList = debugList;
     }
 
     public PresignPutResult presignPut(
@@ -215,6 +222,24 @@ public class PhotosService {
                     String originalUrl = presignGetIfAny(originalKey);
                     String mediumUrl = presignGetIfAny(mediumKey);
                     String smallUrl = presignGetIfAny(smallKey);
+
+                    if (debugList) {
+                        log.info(
+                                "[PhotosService.list] eventId={} scope={} requesterUserId={} photoId={} guestId={} shared={} status={} originalKey={} smallKey={} mediumKey={} smallUrl={} mediumUrl={}",
+                                eventId,
+                                resolvedScope,
+                                requesterUserId,
+                                p.getPhotoId(),
+                                p.getGuestId(),
+                                isShared,
+                                p.getStatus(),
+                                originalKey,
+                                smallKey,
+                                mediumKey,
+                                (smallUrl != null && !smallUrl.isBlank()),
+                                (mediumUrl != null && !mediumUrl.isBlank())
+                        );
+                    }
 
                     String ownerName = resolvedNames.get(p.getGuestId());
                     if (ownerName == null || ownerName.isBlank()) {
