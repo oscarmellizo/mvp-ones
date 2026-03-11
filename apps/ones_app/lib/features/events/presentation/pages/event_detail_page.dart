@@ -281,17 +281,10 @@ class _GalleryTabState extends State<_GalleryTab> {
                 final item = controller.items[index];
                 final small = item.smallUrl;
                 final medium = item.mediumUrl;
-                final fallback = item.originalUrl;
-
-                final thumbUrl = (small != null && small.isNotEmpty)
-                    ? small
-                    : (medium != null && medium.isNotEmpty)
-                        ? medium
-                        : fallback;
-
-                final viewerUrl = (medium != null && medium.isNotEmpty)
-                    ? medium
-                    : (fallback ?? small);
+                final thumbUrl =
+                    (small != null && small.isNotEmpty) ? small : null;
+                final viewerUrl =
+                    (medium != null && medium.isNotEmpty) ? medium : null;
 
                 final canSelect = _canSelect(item.guestId);
                 final isSelected = _selectedIds.contains(item.photoId);
@@ -318,7 +311,14 @@ class _GalleryTabState extends State<_GalleryTab> {
                       toggleSelected();
                       return;
                     }
-                    if (viewerUrl == null || viewerUrl.isEmpty) return;
+                    if (viewerUrl == null || viewerUrl.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('La foto aún se está procesando.'),
+                        ),
+                      );
+                      return;
+                    }
 
                     final isSharedByMe = item.shared &&
                         widget.currentUserId != null &&
