@@ -194,6 +194,13 @@ public class PhotosService {
                     boolean isShared = isShared(p);
 
                     String originalKey = p.getS3KeyOriginal();
+                    if ((originalKey == null || originalKey.isBlank())
+                            && p.getEventId() != null && !p.getEventId().isBlank()
+                            && p.getGuestId() != null && !p.getGuestId().isBlank()
+                            && p.getPhotoId() != null && !p.getPhotoId().isBlank()
+                            && !isShared) {
+                        originalKey = originalKey(p.getEventId(), p.getGuestId(), p.getPhotoId());
+                    }
 
                     String mediumKey = p.getS3KeyMedium();
                     if ((mediumKey == null || mediumKey.isBlank()) && originalKey != null && !originalKey.isBlank()) {
