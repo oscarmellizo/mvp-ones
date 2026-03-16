@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Ones MVP - Frontend root stack (nested)
+
+Parameters:
+  StackPrefix:
+    Type: String
+    Default: ones
+
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - stage
+      - prod
+
+  BackendAlbDnsName:
+    Type: String
+    Description: DNS name of the backend ALB (without protocol)
+
+Resources:
+  S3Stack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: s3.yml
+      Parameters:
+        StackPrefix: !Ref StackPrefix
+        Environment: !Ref Environment
+
+  CloudFrontStack:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - S3Stack
+    Properties:
+      TemplateURL: cloudfront.yml
+      Parameters:
+        StackPrefix: !Ref StackPrefix
+        Environment: !Ref Environment
+        BackendAlbDnsName: !Ref BackendAlbDnsName
+        WebBucketName: !GetAtt S3Stack.Outputs.BucketName
+        WebBucketArn: !GetAtt S3Stack.Outputs.BucketArn
+        WebBucketRegionalDomainName: !GetAtt S3Stack.Outputs.BucketRegionalDomainName
+
+Outputs:
+  CloudFrontUrl:
+    Value: !GetAtt CloudFrontStack.Outputs.CloudFrontUrl
+  BucketName:
+    Value: !GetAtt S3Stack.Outputs.BucketName
+  DistributionId:
+    Value: !GetAtt CloudFrontStack.Outputs.DistributionId

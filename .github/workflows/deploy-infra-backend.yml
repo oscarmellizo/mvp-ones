@@ -28,6 +28,7 @@ env:
   AWS_REGION: us-east-1
   STACK_PREFIX: ones
   BACKEND_STACK_NAME_PREFIX: ones-backend
+  CFN_PACKAGE_BUCKET_PREFIX: ones-cfn-templates
 
 jobs:
   deploy:
@@ -56,9 +57,19 @@ jobs:
         run: |
           stackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
 
+          packageBucket="${CFN_PACKAGE_BUCKET_PREFIX}-${{ inputs.environment }}"
+          if ! aws s3api head-bucket --bucket "${packageBucket}" >/dev/null 2>&1; then
+            aws s3api create-bucket --bucket "${packageBucket}" --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
+          fi
+
+          aws cloudformation package \
+            --template-file infra/cloudformation/backend/root.yml \
+            --s3-bucket "${packageBucket}" \
+            --output-template-file packaged-backend.yml
+
           aws cloudformation deploy \
             --stack-name "${stackName}" \
-            --template-file infra/cloudformation/backend.yml \
+            --template-file packaged-backend.yml \
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
               StackPrefix="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}" \
@@ -95,6 +106,11 @@ jobs:
         run: |
           stackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
 
+          packageBucket="${CFN_PACKAGE_BUCKET_PREFIX}-${{ inputs.environment }}"
+          if ! aws s3api head-bucket --bucket "${packageBucket}" >/dev/null 2>&1; then
+            aws s3api create-bucket --bucket "${packageBucket}" --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
+          fi
+
           repoUri=$(aws cloudformation describe-stacks \
             --stack-name "${stackName}" \
             --query "Stacks[0].Outputs[?OutputKey=='PhotoThumbnailsEcrRepositoryUri'].OutputValue" \
@@ -111,9 +127,14 @@ jobs:
           docker build -t "${repoUri}:latest" infra/photo-thumbnails-lambda
           docker push "${repoUri}:latest"
 
+          aws cloudformation package \
+            --template-file infra/cloudformation/backend/root.yml \
+            --s3-bucket "${packageBucket}" \
+            --output-template-file packaged-backend.yml
+
           aws cloudformation deploy \
             --stack-name "${stackName}" \
-            --template-file infra/cloudformation/backend.yml \
+            --template-file packaged-backend.yml \
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
               StackPrefix="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}" \

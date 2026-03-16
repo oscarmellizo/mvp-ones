@@ -21,6 +21,7 @@ env:
   STACK_PREFIX: ones
   WEB_STACK_NAME_PREFIX: ones-web
   BACKEND_STACK_NAME_PREFIX: ones-backend
+  CFN_PACKAGE_BUCKET_PREFIX: ones-cfn-templates
 
 jobs:
   deploy:
@@ -45,9 +46,19 @@ jobs:
             --query "Stacks[0].Outputs[?OutputKey=='AlbDnsName'].OutputValue" \
             --output text)
 
+          packageBucket="${CFN_PACKAGE_BUCKET_PREFIX}-${{ inputs.environment }}"
+          if ! aws s3api head-bucket --bucket "${packageBucket}" >/dev/null 2>&1; then
+            aws s3api create-bucket --bucket "${packageBucket}" --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
+          fi
+
+          aws cloudformation package \
+            --template-file infra/cloudformation/frontend/root.yml \
+            --s3-bucket "${packageBucket}" \
+            --output-template-file packaged-frontend.yml
+
           aws cloudformation deploy \
             --stack-name "${webStackName}" \
-            --template-file infra/cloudformation/web.yml \
+            --template-file packaged-frontend.yml \
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
               StackPrefix="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}" \

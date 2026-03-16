@@ -1,0 +1,37 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Ones MVP - Frontend S3 (web bucket)
+
+Parameters:
+  StackPrefix:
+    Type: String
+    Default: ones
+
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - stage
+      - prod
+
+Resources:
+  WebBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${StackPrefix}-${Environment}-web-webbucket
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+Outputs:
+  BucketName:
+    Value: !Ref WebBucket
+  BucketArn:
+    Value: !GetAtt WebBucket.Arn
+  BucketRegionalDomainName:
+    Value: !GetAtt WebBucket.RegionalDomainName

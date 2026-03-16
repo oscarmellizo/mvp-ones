@@ -1,0 +1,85 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Ones MVP - Backend root stack (nested)
+
+Parameters:
+  StackPrefix:
+    Type: String
+    Default: ones
+
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - stage
+      - prod
+
+  GoogleClientId:
+    Type: String
+    Default: CHANGE_ME
+
+  BackendDesiredCount:
+    Type: Number
+    Default: 0
+
+  UsePhotoThumbnailsImage:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  GrafanaDesiredCount:
+    Type: Number
+    Default: 1
+
+Resources:
+  AllStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: all.yml
+      Parameters:
+        StackPrefix: !Ref StackPrefix
+        Environment: !Ref Environment
+        GoogleClientId: !Ref GoogleClientId
+        BackendDesiredCount: !Ref BackendDesiredCount
+        UsePhotoThumbnailsImage: !Ref UsePhotoThumbnailsImage
+        GrafanaDesiredCount: !Ref GrafanaDesiredCount
+
+Outputs:
+  AlbUrl:
+    Value: !GetAtt AllStack.Outputs.AlbUrl
+  AlbDnsName:
+    Value: !GetAtt AllStack.Outputs.AlbDnsName
+  GrafanaUrl:
+    Value: !GetAtt AllStack.Outputs.GrafanaUrl
+  EcrRepositoryUri:
+    Value: !GetAtt AllStack.Outputs.EcrRepositoryUri
+  PhotoThumbnailsEcrRepositoryUri:
+    Value: !GetAtt AllStack.Outputs.PhotoThumbnailsEcrRepositoryUri
+  ClusterName:
+    Value: !GetAtt AllStack.Outputs.ClusterName
+  ServiceName:
+    Value: !GetAtt AllStack.Outputs.ServiceName
+  EventsTableName:
+    Value: !GetAtt AllStack.Outputs.EventsTableName
+  UsersTableName:
+    Value: !GetAtt AllStack.Outputs.UsersTableName
+  InvitationsTableName:
+    Value: !GetAtt AllStack.Outputs.InvitationsTableName
+  CoverPreviewsTableName:
+    Value: !GetAtt AllStack.Outputs.CoverPreviewsTableName
+  CoverReservationsTableName:
+    Value: !GetAtt AllStack.Outputs.CoverReservationsTableName
+  PhotosTableName:
+    Value: !GetAtt AllStack.Outputs.PhotosTableName
+  PreferredNamesCacheTableName:
+    Value: !GetAtt AllStack.Outputs.PreferredNamesCacheTableName
+  EventsCoversTempBucketName:
+    Value: !GetAtt AllStack.Outputs.EventsCoversTempBucketName
+  EventsAssetsBucketName:
+    Value: !GetAtt AllStack.Outputs.EventsAssetsBucketName
+  EventsPhotosBucketName:
+    Value: !GetAtt AllStack.Outputs.EventsPhotosBucketName
+  OpenAiApiKeySecretName:
+    Value: !GetAtt AllStack.Outputs.OpenAiApiKeySecretName
