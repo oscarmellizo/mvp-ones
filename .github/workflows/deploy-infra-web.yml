@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment (dev, staging, prod)'
+        description: 'Environment (dev, stage, prod)'
         required: false
         default: 'dev'
 
@@ -19,7 +19,7 @@ concurrency:
 env:
   AWS_REGION: us-east-1
   STACK_PREFIX: ones
-  WEB_STACK_NAME: ones-web
+  WEB_STACK_NAME_PREFIX: ones-web
   BACKEND_STACK_NAME_PREFIX: ones-backend
 
 jobs:
@@ -38,6 +38,7 @@ jobs:
 
       - name: Deploy web stack
         run: |
+          webStackName="${WEB_STACK_NAME_PREFIX}-${{ inputs.environment }}"
           backendStackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
           albDns=$(aws cloudformation describe-stacks \
             --stack-name "${backendStackName}" \
@@ -45,14 +46,16 @@ jobs:
             --output text)
 
           aws cloudformation deploy \
-            --stack-name "${WEB_STACK_NAME}" \
+            --stack-name "${webStackName}" \
             --template-file infra/cloudformation/web.yml \
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
               StackPrefix="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}" \
+              Environment="${{ inputs.environment }}" \
               BackendAlbDnsName="${albDns}"
 
       - name: Show outputs
         run: |
-          aws cloudformation describe-stacks --stack-name "${WEB_STACK_NAME}" \
+          webStackName="${WEB_STACK_NAME_PREFIX}-${{ inputs.environment }}"
+          aws cloudformation describe-stacks --stack-name "${webStackName}" \
             --query "Stacks[0].Outputs" --output table

@@ -6,6 +6,14 @@ Parameters:
     Type: String
     Default: ones
 
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - stage
+      - prod
+
   BackendAlbDnsName:
     Type: String
     Description: DNS name of the backend ALB (without protocol)
@@ -14,6 +22,10 @@ Resources:
   WebBucket:
     Type: AWS::S3::Bucket
     Properties:
+      BucketName: !Sub ${StackPrefix}-${Environment}-web-webbucket
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -28,6 +40,8 @@ Resources:
       FunctionConfig:
         Comment: Rewrite /api/* to /* for ALB origin
         Runtime: cloudfront-js-1.0
+      FunctionMetadata:
+        Comment: !Sub Environment=${Environment}
       FunctionCode: |
         function handler(event) {
           var request = event.request;

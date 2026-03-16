@@ -2,6 +2,11 @@ name: Destroy Infra (Web)
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment (dev, stage, prod)'
+        required: false
+        default: 'dev'
 
 permissions:
   id-token: write
@@ -13,7 +18,7 @@ concurrency:
 
 env:
   AWS_REGION: us-east-1
-  WEB_STACK_NAME: ones-web
+  WEB_STACK_NAME_PREFIX: ones-web
 
 jobs:
   destroy:
@@ -34,6 +39,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          WEB_STACK_NAME="${WEB_STACK_NAME_PREFIX}-${{ inputs.environment }}"
 
           if ! aws cloudformation describe-stacks --stack-name "${WEB_STACK_NAME}" --no-cli-pager >/dev/null 2>&1; then
             echo "stackExists=false" >> "$GITHUB_OUTPUT"
@@ -62,6 +69,8 @@ jobs:
         run: |
           set -euo pipefail
 
+          WEB_STACK_NAME="${WEB_STACK_NAME_PREFIX}-${{ inputs.environment }}"
+
           if [ "${{ steps.stack.outputs.stackExists }}" != "true" ]; then
             echo "Stack ${WEB_STACK_NAME} does not exist. Skipping bucket empty."
             exit 0
@@ -84,6 +93,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          WEB_STACK_NAME="${WEB_STACK_NAME_PREFIX}-${{ inputs.environment }}"
 
           if ! aws cloudformation describe-stacks --stack-name "${WEB_STACK_NAME}" --no-cli-pager >/dev/null 2>&1; then
             echo "Stack ${WEB_STACK_NAME} does not exist. Nothing to delete."

@@ -10,7 +10,7 @@ Parameters:
     Default: dev
     AllowedValues:
       - dev
-      - staging
+      - stage
       - prod
   GoogleClientId:
     Type: String
@@ -40,6 +40,9 @@ Resources:
     Properties:
       TableName: !Sub ${StackPrefix}-${Environment}-events
       BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
       AttributeDefinitions:
         - AttributeName: eventId
           AttributeType: S
@@ -65,6 +68,9 @@ Resources:
     Properties:
       TableName: !Sub ${StackPrefix}-${Environment}-users
       BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
       AttributeDefinitions:
         - AttributeName: userId
           AttributeType: S
@@ -86,6 +92,9 @@ Resources:
     Properties:
       TableName: !Sub ${StackPrefix}-${Environment}-invitations
       BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
       AttributeDefinitions:
         - AttributeName: inviteeEmail
           AttributeType: S
@@ -111,6 +120,9 @@ Resources:
     Properties:
       TableName: !Sub ${StackPrefix}-${Environment}-cover-previews
       BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
       AttributeDefinitions:
         - AttributeName: coverId
           AttributeType: S
@@ -126,6 +138,9 @@ Resources:
     Properties:
       TableName: !Sub ${StackPrefix}-${Environment}-cover-reservations
       BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
       AttributeDefinitions:
         - AttributeName: reservationId
           AttributeType: S
@@ -141,6 +156,9 @@ Resources:
     Properties:
       TableName: !Sub ${StackPrefix}-${Environment}-photos
       BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
       AttributeDefinitions:
         - AttributeName: photoId
           AttributeType: S
@@ -166,6 +184,9 @@ Resources:
     Properties:
       TableName: !Sub ${StackPrefix}-${Environment}-preferred-names-cache
       BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
       AttributeDefinitions:
         - AttributeName: userId
           AttributeType: S
@@ -179,9 +200,12 @@ Resources:
   EventsCoversTempBucket:
     Type: AWS::S3::Bucket
     Properties:
+      BucketName: !Sub ${StackPrefix}-${Environment}-events-covers-tmp
       Tags:
         - Key: Name
           Value: !Sub ${StackPrefix}-${Environment}-events-covers-tmp
+        - Key: Environment
+          Value: !Ref Environment
       CorsConfiguration:
         CorsRules:
           - AllowedOrigins:
@@ -203,9 +227,12 @@ Resources:
   EventsAssetsBucket:
     Type: AWS::S3::Bucket
     Properties:
+      BucketName: !Sub ${StackPrefix}-${Environment}-events-assets
       Tags:
         - Key: Name
           Value: !Sub ${StackPrefix}-${Environment}-events-assets
+        - Key: Environment
+          Value: !Ref Environment
       CorsConfiguration:
         CorsRules:
           - AllowedOrigins:
@@ -228,6 +255,8 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${StackPrefix}-${Environment}-events-photos
+        - Key: Environment
+          Value: !Ref Environment
       CorsConfiguration:
         CorsRules:
           - AllowedOrigins:
@@ -252,36 +281,60 @@ Resources:
   OpenAiApiKeySecret:
     Type: AWS::SecretsManager::Secret
     Properties:
+      Name: !Sub ${StackPrefix}-${Environment}-openai-api-key
       Description: OpenAI API key for AI Event Cover generation
       SecretString: '{}'
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
 
   ActuatorBasicAuthSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
+      Name: !Sub ${StackPrefix}-${Environment}-actuator-basic-auth
       Description: Basic Auth credentials for /actuator endpoints (username/password)
       SecretString: '{"username":"","password":""}'
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
 
   InternalBasicAuthSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
+      Name: !Sub ${StackPrefix}-${Environment}-internal-basic-auth
       Description: Basic Auth credentials for /internal endpoints (username/password)
       SecretString: '{"username":"","password":""}'
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
 
   GrafanaAdminSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
+      Name: !Sub ${StackPrefix}-${Environment}-grafana-admin
       Description: Admin credentials for Grafana (username/password)
       SecretString: '{"username":"admin","password":"CHANGE_ME"}'
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
 
   PrometheusWorkspace:
     Type: AWS::APS::Workspace
     # Properties omitted to avoid null/empty map validation errors
+    Properties:
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
 
   EcrRepository:
     Type: AWS::ECR::Repository
     Properties:
+      RepositoryName: !Sub ${StackPrefix}-${Environment}-ones-api
       ImageScanningConfiguration:
         ScanOnPush: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
 
   PhotoThumbnailsEcrRepository:
     Type: AWS::ECR::Repository
@@ -289,6 +342,9 @@ Resources:
       RepositoryName: !Sub ${StackPrefix}-${Environment}-photo-thumbnails
       ImageScanningConfiguration:
         ScanOnPush: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
       RepositoryPolicyText:
         Version: '2012-10-17'
         Statement:
@@ -307,6 +363,10 @@ Resources:
   CleanupFunctionRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: !Sub ${StackPrefix}-${Environment}-cleanup-role
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -347,9 +407,12 @@ Resources:
   CleanupFunction:
     Type: AWS::Lambda::Function
     Properties:
+      FunctionName: !Sub ${StackPrefix}-${Environment}-cleanup
+      Tags:
+        Environment: !Ref Environment
       Runtime: python3.12
       Handler: index.handler
-      Timeout: 300
+      Timeout: 120
       Role: !GetAtt CleanupFunctionRole.Arn
       Code:
         ZipFile: |
@@ -501,6 +564,7 @@ Resources:
   AlbSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
+      GroupName: !Sub ${StackPrefix}-${Environment}-alb-sg
       GroupDescription: ALB ingress
       VpcId: !Ref Vpc
       SecurityGroupIngress:
@@ -511,10 +575,13 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${StackPrefix}-${Environment}-alb-sg
+        - Key: Environment
+          Value: !Ref Environment
 
   ServiceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
+      GroupName: !Sub ${StackPrefix}-${Environment}-svc-sg
       GroupDescription: Service SG
       VpcId: !Ref Vpc
       SecurityGroupIngress:
@@ -529,10 +596,13 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${StackPrefix}-${Environment}-svc-sg
+        - Key: Environment
+          Value: !Ref Environment
 
   LoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
+      LoadBalancerName: !Sub ${StackPrefix}-${Environment}-alb
       Scheme: internet-facing
       Type: application
       Subnets:
@@ -543,34 +613,42 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${StackPrefix}-${Environment}-alb
+        - Key: Environment
+          Value: !Ref Environment
 
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
+      TargetGroupName: !Sub ${StackPrefix}-${Environment}-api-tg
       Port: 8080
       Protocol: HTTP
       VpcId: !Ref Vpc
       TargetType: ip
-      HealthCheckPath: /health
+      HealthCheckPath: /actuator/health
       Matcher:
-        HttpCode: '200'
+        HttpCode: 200
       Tags:
         - Key: Name
           Value: !Sub ${StackPrefix}-${Environment}-tg
+        - Key: Environment
+          Value: !Ref Environment
 
   GrafanaTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
+      TargetGroupName: !Sub ${StackPrefix}-${Environment}-graf-tg
       Port: 3000
       Protocol: HTTP
       VpcId: !Ref Vpc
       TargetType: ip
       HealthCheckPath: /api/health
       Matcher:
-        HttpCode: '200'
+        HttpCode: 200
       Tags:
         - Key: Name
           Value: !Sub ${StackPrefix}-${Environment}-grafana-tg
+        - Key: Environment
+          Value: !Ref Environment
 
   Listener:
     Type: AWS::ElasticLoadBalancingV2::Listener
@@ -601,10 +679,17 @@ Resources:
     Type: AWS::ECS::Cluster
     Properties:
       ClusterName: !Sub ${StackPrefix}-${Environment}-cluster
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
 
   TaskExecutionRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: !Sub ${StackPrefix}-${Environment}-task-exec-role
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -631,6 +716,10 @@ Resources:
   TaskRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: !Sub ${StackPrefix}-${Environment}-task-role
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -703,6 +792,10 @@ Resources:
   GrafanaTaskRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: !Sub ${StackPrefix}-${Environment}-grafana-task-role
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -728,6 +821,9 @@ Resources:
     Properties:
       LogGroupName: !Sub /${StackPrefix}/${Environment}/ones-api
       RetentionInDays: 7
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
 
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
@@ -844,6 +940,10 @@ Resources:
   PhotoThumbnailsFunctionRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: !Sub ${StackPrefix}-${Environment}-photo-thumbnails-role
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -884,10 +984,13 @@ Resources:
     Type: AWS::Lambda::Function
     Condition: UsePhotoThumbnailsZipCond
     Properties:
+      FunctionName: !Sub ${StackPrefix}-${Environment}-photo-thumbnails-zip
+      Tags:
+        Environment: !Ref Environment
       Runtime: python3.12
       Handler: index.handler
+      MemorySize: 1536
       Timeout: 60
-      MemorySize: 512
       Role: !GetAtt PhotoThumbnailsFunctionRole.Arn
       Environment:
         Variables:
@@ -988,9 +1091,12 @@ Resources:
     Type: AWS::Lambda::Function
     Condition: UsePhotoThumbnailsImageCond
     Properties:
+      FunctionName: !Sub ${StackPrefix}-${Environment}-photo-thumbnails-image
+      Tags:
+        Environment: !Ref Environment
       PackageType: Image
       Timeout: 60
-      MemorySize: 512
+      MemorySize: 1536
       Role: !GetAtt PhotoThumbnailsFunctionRole.Arn
       Environment:
         Variables:
@@ -1094,6 +1200,9 @@ Resources:
         - ContainerName: ones-api
           ContainerPort: 8080
           TargetGroupArn: !Ref TargetGroup
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
 
   GrafanaService:
     Type: AWS::ECS::Service
@@ -1119,6 +1228,9 @@ Resources:
         - ContainerName: grafana
           ContainerPort: 3000
           TargetGroupArn: !Ref GrafanaTargetGroup
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
 
 Outputs:
   AlbUrl:

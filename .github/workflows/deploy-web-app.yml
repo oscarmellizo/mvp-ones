@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment (dev, staging, prod)'
+        description: 'Environment (dev, stage, prod)'
         required: false
         default: 'dev'
 
@@ -18,7 +18,7 @@ concurrency:
 
 env:
   AWS_REGION: us-east-1
-  WEB_STACK_NAME: ones-web
+  WEB_STACK_NAME_PREFIX: ones-web
   BACKEND_STACK_NAME_PREFIX: ones-backend
 
 jobs:
@@ -38,12 +38,13 @@ jobs:
       - name: Resolve web outputs
         id: web
         run: |
+          webStackName="${WEB_STACK_NAME_PREFIX}-${{ inputs.environment }}"
           bucket=$(aws cloudformation describe-stacks \
-            --stack-name "${WEB_STACK_NAME}" \
+            --stack-name "${webStackName}" \
             --query "Stacks[0].Outputs[?OutputKey=='BucketName'].OutputValue" \
             --output text)
           distId=$(aws cloudformation describe-stacks \
-            --stack-name "${WEB_STACK_NAME}" \
+            --stack-name "${webStackName}" \
             --query "Stacks[0].Outputs[?OutputKey=='DistributionId'].OutputValue" \
             --output text)
           echo "bucket=${bucket}" >> $GITHUB_OUTPUT
@@ -59,15 +60,6 @@ jobs:
             --output text)
           echo "albUrl=${albUrl}" >> $GITHUB_OUTPUT
 
-      - name: Resolve CloudFront URL
-        id: cf
-        run: |
-          cfUrl=$(aws cloudformation describe-stacks \
-            --stack-name "${WEB_STACK_NAME}" \
-            --query "Stacks[0].Outputs[?OutputKey=='CloudFrontUrl'].OutputValue" \
-            --output text)
-          echo "cfUrl=${cfUrl}" >> $GITHUB_OUTPUT
-
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -79,7 +71,7 @@ jobs:
         run: |
           flutter pub get
           flutter build web --release \
-            --dart-define=ONES_API_BASE_URL="${{ steps.cf.outputs.cfUrl }}/api" \
+            --dart-define=ONES_API_BASE_URL="https://api${{ inputs.environment == 'prod' && '' || inputs.environment }}.ones.events" \
             --dart-define=GOOGLE_WEB_CLIENT_ID="${{ vars.GOOGLE_WEB_CLIENT_ID }}"
 
       - name: Upload to S3
@@ -94,6 +86,7 @@ jobs:
 
       - name: Show CloudFront URL
         run: |
-          aws cloudformation describe-stacks --stack-name "${WEB_STACK_NAME}" \
+          webStackName="${WEB_STACK_NAME_PREFIX}-${{ inputs.environment }}"
+          aws cloudformation describe-stacks --stack-name "${webStackName}" \
             --query "Stacks[0].Outputs[?OutputKey=='CloudFrontUrl'].OutputValue" \
             --output text
