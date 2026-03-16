@@ -73,6 +73,11 @@ jobs:
             exit 0
           fi
 
+          if ! aws s3api head-bucket --bucket "${bucket}" 2>/dev/null; then
+            echo "Bucket ${bucket} does not exist. Skipping bucket empty."
+            exit 0
+          fi
+
           aws s3 rm "s3://${bucket}" --recursive
 
       - name: Delete stack
