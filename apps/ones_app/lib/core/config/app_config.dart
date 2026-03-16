@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 class AppConfig {
@@ -14,6 +15,7 @@ class AppConfig {
   });
 
   static const _assetPath = 'assets/config/app_config.json';
+  static const _defaultApiBaseUrl = 'http://localhost:8080';
 
   static Future<AppConfig> load() async {
     final fromDefine = AppConfig.fromDartDefines();
@@ -24,20 +26,41 @@ class AppConfig {
         return fromDefine;
       }
 
-      final env = (json['env'] as String?) ?? fromDefine.env;
-      final apiBaseUrl =
-          (json['apiBaseUrl'] as String?) ?? fromDefine.apiBaseUrl;
+      final envFromFile = json['env'] as String?;
+      final apiBaseUrlFromFile = json['apiBaseUrl'] as String?;
       final googleWebClientIdFromFile = json['googleWebClientId'] as String?;
-      final googleWebClientId = fromDefine.googleWebClientId ??
+
+      final resolvedEnv = fromDefine.env.isNotEmpty
+          ? fromDefine.env
+          : (envFromFile == null || envFromFile.isEmpty)
+              ? 'dev'
+              : envFromFile;
+
+      final resolvedApiBaseUrl = (fromDefine.apiBaseUrl != _defaultApiBaseUrl &&
+              fromDefine.apiBaseUrl.isNotEmpty)
+          ? fromDefine.apiBaseUrl
+          : (apiBaseUrlFromFile == null || apiBaseUrlFromFile.isEmpty)
+              ? fromDefine.apiBaseUrl
+              : apiBaseUrlFromFile;
+
+      final resolvedGoogleWebClientId = fromDefine.googleWebClientId ??
           (googleWebClientIdFromFile == null ||
                   googleWebClientIdFromFile.isEmpty
               ? null
               : googleWebClientIdFromFile);
 
+      if (kIsWeb) {
+        return AppConfig(
+          env: resolvedEnv,
+          apiBaseUrl: resolvedApiBaseUrl,
+          googleWebClientId: resolvedGoogleWebClientId,
+        );
+      }
+
       return AppConfig(
-        env: env,
-        apiBaseUrl: apiBaseUrl,
-        googleWebClientId: googleWebClientId,
+        env: envFromFile ?? resolvedEnv,
+        apiBaseUrl: apiBaseUrlFromFile ?? resolvedApiBaseUrl,
+        googleWebClientId: resolvedGoogleWebClientId,
       );
     } catch (_) {
       return fromDefine;
@@ -47,7 +70,7 @@ class AppConfig {
   factory AppConfig.fromDartDefines() {
     const env = String.fromEnvironment('ONES_ENV', defaultValue: 'dev');
     const apiBaseUrl = String.fromEnvironment('ONES_API_BASE_URL',
-        defaultValue: 'http://localhost:8080');
+        defaultValue: _defaultApiBaseUrl);
     const googleWebClientId =
         String.fromEnvironment('GOOGLE_WEB_CLIENT_ID', defaultValue: '');
 
