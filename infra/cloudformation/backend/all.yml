@@ -421,7 +421,8 @@ Resources:
     Properties:
       FunctionName: !Sub ${StackPrefix}-${Environment}-cleanup
       Tags:
-        Environment: !Ref Environment
+        - Key: Environment
+          Value: !Ref Environment
       Runtime: python3.12
       Handler: index.handler
       Timeout: 120
@@ -931,7 +932,8 @@ Resources:
     Properties:
       FunctionName: !Sub ${StackPrefix}-${Environment}-photo-thumbnails-zip
       Tags:
-        Environment: !Ref Environment
+        - Key: Environment
+          Value: !Ref Environment
       Runtime: python3.12
       Handler: index.handler
       MemorySize: 1536
