@@ -71,7 +71,7 @@ jobs:
         run: |
           flutter pub get
           flutter build web --release \
-            --dart-define=ONES_API_BASE_URL="https://api${{ inputs.environment == 'prod' && '' || inputs.environment }}.ones.events" \
+            --dart-define=ONES_API_BASE_URL="/api" \
             --dart-define=GOOGLE_WEB_CLIENT_ID="${{ vars.GOOGLE_WEB_CLIENT_ID }}"
 
       - name: Upload to S3
