@@ -954,7 +954,8 @@ Resources:
     Properties:
       FunctionName: !Sub ${StackPrefix}-${Environment}-photo-thumbnails-image
       Tags:
-        Environment: !Ref Environment
+        - Key: Environment
+          Value: !Ref Environment
       PackageType: Image
       Timeout: 60
       MemorySize: 1536
