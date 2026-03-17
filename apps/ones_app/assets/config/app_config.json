@@ -1,5 +1,5 @@
 {
   "env": "dev",
-  "apiBaseUrl": "/api",
+  "apiBaseUrl": "https://appdev.ones.events/api",
   "googleWebClientId": "403122779240-ahjm73ogughiivnn3o23jfsk25usmfng.apps.googleusercontent.com"
 }
