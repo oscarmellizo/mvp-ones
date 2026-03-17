@@ -189,11 +189,26 @@ jobs:
         if: ${{ env.OPENAI_API_KEY != '' }}
         run: |
           stackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
+
           secretId=$(aws cloudformation describe-stack-resource \
             --stack-name "${stackName}" \
             --logical-resource-id OpenAiApiKeySecret \
             --query "StackResourceDetail.PhysicalResourceId" \
-            --output text)
+            --output text 2>/dev/null || true)
+
+          if [ -z "${secretId}" ] || [ "${secretId}" = "None" ]; then
+            nestedStackId=$(aws cloudformation describe-stack-resource \
+              --stack-name "${stackName}" \
+              --logical-resource-id AllStack \
+              --query "StackResourceDetail.PhysicalResourceId" \
+              --output text)
+
+            secretId=$(aws cloudformation describe-stack-resource \
+              --stack-name "${nestedStackId}" \
+              --logical-resource-id OpenAiApiKeySecret \
+              --query "StackResourceDetail.PhysicalResourceId" \
+              --output text)
+          fi
 
           aws secretsmanager put-secret-value \
             --secret-id "${secretId}" \
@@ -204,11 +219,26 @@ jobs:
         if: ${{ env.ONES_ACTUATOR_BASIC_USERNAME != '' && env.ONES_ACTUATOR_BASIC_PASSWORD != '' }}
         run: |
           stackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
+
           secretId=$(aws cloudformation describe-stack-resource \
             --stack-name "${stackName}" \
             --logical-resource-id ActuatorBasicAuthSecret \
             --query "StackResourceDetail.PhysicalResourceId" \
-            --output text)
+            --output text 2>/dev/null || true)
+
+          if [ -z "${secretId}" ] || [ "${secretId}" = "None" ]; then
+            nestedStackId=$(aws cloudformation describe-stack-resource \
+              --stack-name "${stackName}" \
+              --logical-resource-id AllStack \
+              --query "StackResourceDetail.PhysicalResourceId" \
+              --output text)
+
+            secretId=$(aws cloudformation describe-stack-resource \
+              --stack-name "${nestedStackId}" \
+              --logical-resource-id ActuatorBasicAuthSecret \
+              --query "StackResourceDetail.PhysicalResourceId" \
+              --output text)
+          fi
 
           aws secretsmanager put-secret-value \
             --secret-id "${secretId}" \
