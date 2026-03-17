@@ -1,14 +1,19 @@
 package com.ones.api.adapters.outbound.openai;
 
 import java.util.Base64;
+import java.time.Duration;
 import java.util.List;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+
+import io.netty.channel.ChannelOption;
+import reactor.netty.http.client.HttpClient;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -18,10 +23,16 @@ import com.ones.api.application.events.AiImageGenerationException;
 public class OpenAiImagesClient {
 
     private final WebClient webClient;
+    private static final Duration OPENAI_TIMEOUT = Duration.ofSeconds(110);
 
     public OpenAiImagesClient(WebClient.Builder builder) {
+        HttpClient httpClient = HttpClient.create()
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10_000)
+                .responseTimeout(OPENAI_TIMEOUT);
+
         this.webClient = builder
                 .baseUrl("https://api.openai.com")
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .exchangeStrategies(ExchangeStrategies.builder()
                         .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(10 * 1024 * 1024))
                         .build())
@@ -48,7 +59,7 @@ public class OpenAiImagesClient {
                     .bodyValue(req)
                     .retrieve()
                     .bodyToMono(OpenAiImageResponse.class)
-                    .block();
+                    .block(OPENAI_TIMEOUT);
         } catch (WebClientResponseException e) {
             String body = e.getResponseBodyAsString();
             String trimmed = body == null ? "" : body.trim();

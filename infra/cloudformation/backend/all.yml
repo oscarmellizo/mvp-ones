@@ -551,6 +551,9 @@ Resources:
       LoadBalancerName: !Sub ${StackPrefix}-${Environment}-alb
       Scheme: internet-facing
       Type: application
+      LoadBalancerAttributes:
+        - Key: idle_timeout.timeout_seconds
+          Value: '120'
       Subnets:
         - !Ref PublicSubnetA
         - !Ref PublicSubnetB

@@ -72,6 +72,8 @@ Resources:
             DomainName: !Ref BackendAlbDnsName
             CustomOriginConfig:
               OriginProtocolPolicy: http-only
+              OriginReadTimeout: 120
+              OriginKeepaliveTimeout: 60
               OriginSSLProtocols:
                 - TLSv1.2
         DefaultCacheBehavior:
