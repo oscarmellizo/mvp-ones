@@ -33,6 +33,18 @@ Parameters:
     Type: Number
     Default: 1
 
+  LambdaArtifactsBucket:
+    Type: String
+    Default: ''
+
+  CleanupFunctionS3Key:
+    Type: String
+    Default: ''
+
+  PhotoThumbnailsZipS3Key:
+    Type: String
+    Default: ''
+
 Resources:
   AllStack:
     Type: AWS::CloudFormation::Stack
@@ -45,6 +57,9 @@ Resources:
         BackendDesiredCount: !Ref BackendDesiredCount
         UsePhotoThumbnailsImage: !Ref UsePhotoThumbnailsImage
         GrafanaDesiredCount: !Ref GrafanaDesiredCount
+        LambdaArtifactsBucket: !Ref LambdaArtifactsBucket
+        CleanupFunctionS3Key: !Ref CleanupFunctionS3Key
+        PhotoThumbnailsZipS3Key: !Ref PhotoThumbnailsZipS3Key
 
 Outputs:
   AlbUrl:

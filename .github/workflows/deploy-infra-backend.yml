@@ -62,6 +62,24 @@ jobs:
             aws s3api create-bucket --bucket "${packageBucket}" --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
           fi
 
+          cleanupZip="cleanup.zip"
+          thumbnailsZip="photo-thumbnails-zip.zip"
+          python - <<'PY'
+          import zipfile
+
+          def make_zip(out_name, src_path, arc_name='index.py'):
+              with zipfile.ZipFile(out_name, 'w', compression=zipfile.ZIP_DEFLATED) as z:
+                  z.write(src_path, arc_name)
+
+          make_zip('cleanup.zip', 'infra/lambda/cleanup/index.py')
+          make_zip('photo-thumbnails-zip.zip', 'infra/lambda/photo-thumbnails-zip/index.py')
+          PY
+
+          cleanupKey="lambda/cleanup/${GITHUB_SHA}.zip"
+          thumbnailsKey="lambda/photo-thumbnails-zip/${GITHUB_SHA}.zip"
+          aws s3 cp "${cleanupZip}" "s3://${packageBucket}/${cleanupKey}"
+          aws s3 cp "${thumbnailsZip}" "s3://${packageBucket}/${thumbnailsKey}"
+
           aws cloudformation package \
             --template-file infra/cloudformation/backend/root.yml \
             --s3-bucket "${packageBucket}" \
@@ -76,7 +94,10 @@ jobs:
               Environment="${{ inputs.environment }}" \
               GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}" \
               BackendDesiredCount="${{ inputs.backendDesiredCount }}" \
-              UsePhotoThumbnailsImage="false"
+              UsePhotoThumbnailsImage="false" \
+              LambdaArtifactsBucket="${packageBucket}" \
+              CleanupFunctionS3Key="${cleanupKey}" \
+              PhotoThumbnailsZipS3Key="${thumbnailsKey}"
 
       - name: Debug CloudFormation (on failure)
         if: ${{ steps.deploy_cfn.outcome != 'success' }}
@@ -111,6 +132,24 @@ jobs:
             aws s3api create-bucket --bucket "${packageBucket}" --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
           fi
 
+          cleanupZip="cleanup.zip"
+          thumbnailsZip="photo-thumbnails-zip.zip"
+          python - <<'PY'
+          import zipfile
+
+          def make_zip(out_name, src_path, arc_name='index.py'):
+              with zipfile.ZipFile(out_name, 'w', compression=zipfile.ZIP_DEFLATED) as z:
+                  z.write(src_path, arc_name)
+
+          make_zip('cleanup.zip', 'infra/lambda/cleanup/index.py')
+          make_zip('photo-thumbnails-zip.zip', 'infra/lambda/photo-thumbnails-zip/index.py')
+          PY
+
+          cleanupKey="lambda/cleanup/${GITHUB_SHA}.zip"
+          thumbnailsKey="lambda/photo-thumbnails-zip/${GITHUB_SHA}.zip"
+          aws s3 cp "${cleanupZip}" "s3://${packageBucket}/${cleanupKey}"
+          aws s3 cp "${thumbnailsZip}" "s3://${packageBucket}/${thumbnailsKey}"
+
           repoUri=$(aws cloudformation describe-stacks \
             --stack-name "${stackName}" \
             --query "Stacks[0].Outputs[?OutputKey=='PhotoThumbnailsEcrRepositoryUri'].OutputValue" \
@@ -141,7 +180,10 @@ jobs:
               Environment="${{ inputs.environment }}" \
               GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}" \
               BackendDesiredCount="${{ inputs.backendDesiredCount }}" \
-              UsePhotoThumbnailsImage="true"
+              UsePhotoThumbnailsImage="true" \
+              LambdaArtifactsBucket="${packageBucket}" \
+              CleanupFunctionS3Key="${cleanupKey}" \
+              PhotoThumbnailsZipS3Key="${thumbnailsKey}"
 
       - name: Set OpenAI API key in Secrets Manager
         if: ${{ env.OPENAI_API_KEY != '' }}

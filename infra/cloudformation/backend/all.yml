@@ -30,6 +30,18 @@ Parameters:
     Type: Number
     Default: 1
 
+  LambdaArtifactsBucket:
+    Type: String
+    Default: ''
+
+  CleanupFunctionS3Key:
+    Type: String
+    Default: ''
+
+  PhotoThumbnailsZipS3Key:
+    Type: String
+    Default: ''
+
 Conditions:
   UsePhotoThumbnailsImageCond: !Equals [!Ref UsePhotoThumbnailsImage, 'true']
   UsePhotoThumbnailsZipCond: !Not [!Equals [!Ref UsePhotoThumbnailsImage, 'true']]
@@ -415,75 +427,8 @@ Resources:
       Timeout: 120
       Role: !GetAtt CleanupFunctionRole.Arn
       Code:
-        ZipFile: |
-          import json
-          import boto3
-          import urllib.request
-
-          s3 = boto3.client('s3')
-          ecr = boto3.client('ecr')
-
-          def _send(event, context, status, data=None, reason=None, physical_id=None):
-              response_url = event['ResponseURL']
-              body = {
-                  'Status': status,
-                  'Reason': reason or ('See CloudWatch Log Stream: ' + context.log_stream_name),
-                  'PhysicalResourceId': physical_id or context.log_stream_name,
-                  'StackId': event['StackId'],
-                  'RequestId': event['RequestId'],
-                  'LogicalResourceId': event['LogicalResourceId'],
-                  'Data': data or {},
-              }
-              req = urllib.request.Request(
-                  response_url,
-                  data=json.dumps(body).encode('utf-8'),
-                  method='PUT',
-                  headers={'content-type': ''}
-              )
-              with urllib.request.urlopen(req) as f:
-                  f.read()
-
-          def _empty_bucket(bucket):
-              versioning = s3.get_bucket_versioning(Bucket=bucket).get('Status') == 'Enabled'
-              if versioning:
-                  paginator = s3.get_paginator('list_object_versions')
-                  for page in paginator.paginate(Bucket=bucket):
-                      to_delete = []
-                      for v in page.get('Versions', []):
-                          to_delete.append({'Key': v['Key'], 'VersionId': v['VersionId']})
-                      for v in page.get('DeleteMarkers', []):
-                          to_delete.append({'Key': v['Key'], 'VersionId': v['VersionId']})
-                      if to_delete:
-                          s3.delete_objects(Bucket=bucket, Delete={'Objects': to_delete, 'Quiet': True})
-              else:
-                  paginator = s3.get_paginator('list_objects_v2')
-                  for page in paginator.paginate(Bucket=bucket):
-                      objs = [{'Key': o['Key']} for o in page.get('Contents', [])]
-                      if objs:
-                          s3.delete_objects(Bucket=bucket, Delete={'Objects': objs, 'Quiet': True})
-
-          def _delete_all_ecr_images(repo_name):
-              paginator = ecr.get_paginator('list_images')
-              for page in paginator.paginate(repositoryName=repo_name, filter={'tagStatus': 'ANY'}):
-                  ids = page.get('imageIds', [])
-                  if ids:
-                      ecr.batch_delete_image(repositoryName=repo_name, imageIds=ids)
-
-          def handler(event, context):
-              try:
-                  props = event.get('ResourceProperties', {})
-                  buckets = props.get('Buckets', [])
-                  repo = props.get('EcrRepositoryName', '')
-
-                  if event.get('RequestType') == 'Delete':
-                      for b in buckets:
-                          _empty_bucket(b)
-                      if repo:
-                          _delete_all_ecr_images(repo)
-
-                  _send(event, context, 'SUCCESS', data={'Cleaned': 'true'})
-              except Exception as e:
-                  _send(event, context, 'FAILED', reason=str(e))
+        S3Bucket: !Ref LambdaArtifactsBucket
+        S3Key: !Ref CleanupFunctionS3Key
 
   CleanupOnDelete:
     Type: Custom::CleanupOnDelete
@@ -998,94 +943,8 @@ Resources:
           BACKEND_BASE_URL: !Sub http://${LoadBalancer.DNSName}
           INTERNAL_SECRET_ARN: !Ref InternalBasicAuthSecret
       Code:
-        ZipFile: |
-          import base64
-          import json
-          import os
-          import urllib.request
-          import urllib.parse
-
-          import boto3
-
-          s3 = boto3.client('s3')
-          secrets = boto3.client('secretsmanager')
-
-          def _load_internal_basic_auth():
-              arn = os.environ.get('INTERNAL_SECRET_ARN', '')
-              if not arn:
-                  return None
-              v = secrets.get_secret_value(SecretId=arn).get('SecretString', '{}')
-              try:
-                  data = json.loads(v)
-              except Exception:
-                  data = {}
-              u = (data.get('username') or '').strip()
-              p = (data.get('password') or '').strip()
-              if not u or not p:
-                  return None
-              token = base64.b64encode((u + ':' + p).encode('utf-8')).decode('utf-8')
-              return 'Basic ' + token
-
-          def _call_backend_ready(event_id, photo_id, key_m, key_s):
-              base = os.environ.get('BACKEND_BASE_URL', '').rstrip('/')
-              if not base:
-                  return
-              url = f"{base}/internal/events/{urllib.parse.quote(event_id)}/photos/{urllib.parse.quote(photo_id)}/ready"
-
-              auth = _load_internal_basic_auth()
-              if not auth:
-                  return
-
-              body = json.dumps({"s3KeyMedium": key_m, "s3KeySmall": key_s}).encode('utf-8')
-              req = urllib.request.Request(url, data=body, method='POST')
-              req.add_header('Content-Type', 'application/json')
-              req.add_header('Authorization', auth)
-              with urllib.request.urlopen(req, timeout=10) as resp:
-                  resp.read()
-
-          def _parse_key(key: str):
-              # expected: eventos/<eventId>/guests/<guestId>/private/<photoId>.jpg
-              parts = key.split('/')
-              if len(parts) < 6:
-                  return None, None
-              if parts[0] != 'eventos':
-                  return None, None
-              event_id = parts[1]
-              filename = parts[-1]
-              if not filename.endswith('.jpg'):
-                  return None, None
-              photo_id = filename[:-4]
-              return event_id, photo_id
-
-          def handler(event, context):
-              bucket = os.environ.get('BUCKET')
-              if not bucket:
-                  return
-
-              for rec in event.get('Records', []):
-                  s3info = (rec.get('s3') or {})
-                  obj = (s3info.get('object') or {})
-                  key = obj.get('key')
-                  if not key:
-                      continue
-                  key = urllib.parse.unquote_plus(key)
-
-                  if key.endswith('_m.jpg') or key.endswith('_s.jpg'):
-                      continue
-
-                  event_id, photo_id = _parse_key(key)
-                  if not event_id or not photo_id:
-                      continue
-
-                  # MVP placeholder: copy original bytes as medium/small
-                  key_m = key[:-4] + '_m.jpg'
-                  key_s = key[:-4] + '_s.jpg'
-
-                  copy_source = {'Bucket': bucket, 'Key': key}
-                  s3.copy_object(Bucket=bucket, Key=key_m, CopySource=copy_source, ContentType='image/jpeg', MetadataDirective='REPLACE')
-                  s3.copy_object(Bucket=bucket, Key=key_s, CopySource=copy_source, ContentType='image/jpeg', MetadataDirective='REPLACE')
-
-                  _call_backend_ready(event_id, photo_id, key_m, key_s)
+        S3Bucket: !Ref LambdaArtifactsBucket
+        S3Key: !Ref PhotoThumbnailsZipS3Key
 
   PhotoThumbnailsFunctionImage:
     Type: AWS::Lambda::Function
