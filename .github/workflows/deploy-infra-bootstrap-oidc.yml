@@ -2,6 +2,15 @@ name: Deploy Infra (Bootstrap OIDC)
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment (dev/stage/prod)
+        required: true
+        type: choice
+        options:
+          - dev
+          - stage
+          - prod
 
 permissions:
   id-token: write
@@ -13,11 +22,12 @@ concurrency:
 
 env:
   AWS_REGION: us-east-1
-  BOOTSTRAP_STACK_NAME: ones-bootstrap-oidc
+  STACK_PREFIX: ones
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
 
     steps:
       - name: Checkout
@@ -31,14 +41,29 @@ jobs:
 
       - name: Deploy stack (bootstrap OIDC)
         run: |
+          stackName="${STACK_PREFIX}-bootstrap-oidc-${{ inputs.environment }}"
+
+          optionalExistingOidc=""
+          if [ "${{ vars.EXISTING_OIDC_PROVIDER_ARN }}" != "" ]; then
+            optionalExistingOidc="ExistingOidcProviderArn=${{ vars.EXISTING_OIDC_PROVIDER_ARN }}"
+          fi
+
           aws cloudformation deploy \
-            --stack-name "${BOOTSTRAP_STACK_NAME}" \
+            --stack-name "${stackName}" \
             --template-file infra/cloudformation/bootstrap-oidc.yml \
             --capabilities CAPABILITY_NAMED_IAM \
+            --parameter-overrides \
+              Environment=${{ inputs.environment }} \
+              ${optionalExistingOidc} \
+              GitHubOrg=${{ vars.GITHUB_ORG }} \
+              GitHubRepo=${{ vars.GITHUB_REPO }} \
+              GitHubBranch=${{ vars.GITHUB_BRANCH }} \
+              RoleName=${{ vars.GITHUB_ACTIONS_ROLE_NAME }} \
             --no-cli-pager
 
       - name: Show outputs
         run: |
-          aws cloudformation describe-stacks --stack-name "${BOOTSTRAP_STACK_NAME}" \
+          stackName="${STACK_PREFIX}-bootstrap-oidc-${{ inputs.environment }}"
+          aws cloudformation describe-stacks --stack-name "${stackName}" \
             --query "Stacks[0].Outputs" --output table \
             --no-cli-pager
