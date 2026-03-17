@@ -55,10 +55,10 @@ jobs:
             --parameter-overrides \
               Environment=${{ inputs.environment }} \
               ${optionalExistingOidc} \
-              GitHubOrg=${{ vars.GITHUB_ORG }} \
-              GitHubRepo=${{ vars.GITHUB_REPO }} \
-              GitHubBranch=${{ vars.GITHUB_BRANCH }} \
-              RoleName=${{ vars.GITHUB_ACTIONS_ROLE_NAME }} \
+              GitHubOrg=${{ vars.ONES_GH_ORG }} \
+              GitHubRepo=${{ vars.ONES_GH_REPO }} \
+              GitHubBranch=${{ vars.ONES_GH_BRANCH }} \
+              RoleName=${{ vars.ONES_GITHUB_ACTIONS_ROLE_NAME }} \
             --no-cli-pager
 
       - name: Show outputs
