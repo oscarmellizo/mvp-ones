@@ -11,6 +11,14 @@ Parameters:
   GitHubBranch:
     Type: String
     Default: main
+
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - stage
+      - prod
   RoleName:
     Type: String
     Default: ones-github-actions-deploy-role
@@ -40,7 +48,7 @@ Resources:
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      RoleName: !Ref RoleName
+      RoleName: !Sub ${RoleName}-${Environment}
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -58,7 +66,7 @@ Resources:
               StringLike:
                 token.actions.githubusercontent.com:sub:
                   - !Sub "repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/${GitHubBranch}"
-                  - !Sub "repo:${GitHubOrg}/${GitHubRepo}:environment:*"
+                  - !Sub "repo:${GitHubOrg}/${GitHubRepo}:environment:${Environment}"
       Policies:
         - PolicyName: ones-github-actions-deploy
           PolicyDocument:
@@ -310,4 +318,4 @@ Outputs:
   GitHubActionsDeployRoleArn:
     Value: !GetAtt GitHubActionsDeployRole.Arn
     Export:
-      Name: ones-github-actions-deploy-role-arn
+      Name: !Sub ones-github-actions-deploy-role-arn-${Environment}
