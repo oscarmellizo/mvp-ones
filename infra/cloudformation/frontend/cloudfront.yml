@@ -36,8 +36,6 @@ Resources:
       FunctionConfig:
         Comment: Rewrite /api/* to /* for ALB origin
         Runtime: cloudfront-js-1.0
-      FunctionMetadata:
-        Comment: !Sub Environment=${Environment}
       FunctionCode: |
         function handler(event) {
           var request = event.request;
