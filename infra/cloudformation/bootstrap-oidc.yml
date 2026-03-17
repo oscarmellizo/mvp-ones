@@ -177,6 +177,8 @@ Resources:
                   - logs:PutRetentionPolicy
                   - logs:CreateLogStream
                   - logs:PutLogEvents
+                  - logs:TagResource
+                  - logs:UntagResource
                 Resource: '*'
 
               - Sid: ECSAndELB
@@ -238,6 +240,8 @@ Resources:
                   - dynamodb:DescribeTable
                   - dynamodb:DescribeTimeToLive
                   - dynamodb:ListTables
+                  - dynamodb:TagResource
+                  - dynamodb:UntagResource
                 Resource: '*'
 
               - Sid: SecretsManager
@@ -302,6 +306,8 @@ Resources:
                   - iam:DetachRolePolicy
                   - iam:PutRolePolicy
                   - iam:DeleteRolePolicy
+                  - iam:TagRole
+                  - iam:UntagRole
                   - iam:PassRole
                 Resource: '*'
 
