@@ -150,6 +150,8 @@ class EventPhotosApi {
     int limit = 10,
     String? nextToken,
     String? scope,
+    String? filter,
+    List<String>? guestIds,
   }) async {
     final res = await _dioFactory(_idToken).get(
       '/v1/events/$eventId/photos',
@@ -157,6 +159,8 @@ class EventPhotosApi {
         'limit': limit,
         if (nextToken != null && nextToken.isNotEmpty) 'nextToken': nextToken,
         if (scope != null && scope.isNotEmpty) 'scope': scope,
+        if (filter != null && filter.isNotEmpty) 'filter': filter,
+        if (guestIds != null && guestIds.isNotEmpty) 'guestIds': guestIds,
       },
       options: Options(
         extra: {

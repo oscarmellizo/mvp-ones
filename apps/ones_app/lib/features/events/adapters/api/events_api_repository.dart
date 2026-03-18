@@ -1,22 +1,33 @@
 import 'package:built_collection/built_collection.dart';
+import 'package:dio/dio.dart';
 import 'package:ones_api_client/ones_api_client.dart' as api;
 
+import '../../../../core/config/app_config.dart';
 import '../../../../core/http/ones_api_factory.dart';
 import '../../domain/event.dart';
 import '../../domain/events_repository.dart';
 
 class EventsApiRepository implements EventsRepository {
   final api.DefaultApi Function(String? idToken) _defaultApi;
+  final OnesApiFactory _apiFactory;
 
   String? _idToken;
 
   EventsApiRepository(OnesApiFactory apiFactory)
       : _defaultApi =
-            ((idToken) => apiFactory.create(idToken: idToken).getDefaultApi());
+            ((idToken) => apiFactory.create(idToken: idToken).getDefaultApi()),
+        _apiFactory = apiFactory;
 
   EventsApiRepository.forTesting(
       api.DefaultApi Function(String? idToken) defaultApiFactory)
-      : _defaultApi = defaultApiFactory;
+      : _defaultApi = defaultApiFactory,
+        _apiFactory = OnesApiFactory(
+          const AppConfig(
+            env: 'test',
+            apiBaseUrl: 'http://localhost:0',
+            googleWebClientId: '',
+          ),
+        );
 
   void setIdToken(String? token) {
     _idToken = token;
@@ -46,6 +57,7 @@ class EventsApiRepository implements EventsRepository {
     return (items?.toList() ?? const <api.Guest>[])
         .map(
           (g) => EventGuest(
+            userId: null,
             email: g.email,
             displayName: g.displayName,
             role: g.role.name,
@@ -53,6 +65,42 @@ class EventsApiRepository implements EventsRepository {
           ),
         )
         .toList();
+  }
+
+  @override
+  Future<List<EventGuest>> listEventGuestsV2(String eventId) async {
+    final res = await _apiFactory.create(idToken: _idToken).dio.get(
+          '/v1/events/$eventId/guests/v2',
+          options: Options(
+            extra: {
+              'secure': [
+                {
+                  'type': 'http',
+                  'scheme': 'bearer',
+                  'name': 'bearerAuth',
+                }
+              ],
+            },
+          ),
+        );
+
+    final data = res.data;
+    if (data is! List) {
+      throw StateError('Invalid guests v2 response');
+    }
+
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(
+          (row) => EventGuest(
+            userId: row['userId'] as String?,
+            email: row['email'] as String?,
+            displayName: row['displayName'] as String?,
+            role: (row['role'] as String?) ?? 'guest',
+            status: (row['status'] as String?) ?? 'invited',
+          ),
+        )
+        .toList(growable: false);
   }
 
   @override
@@ -67,6 +115,7 @@ class EventsApiRepository implements EventsRepository {
     return (items?.toList() ?? const <api.Guest>[])
         .map(
           (g) => EventGuest(
+            userId: null,
             email: g.email,
             displayName: g.displayName,
             role: g.role.name,

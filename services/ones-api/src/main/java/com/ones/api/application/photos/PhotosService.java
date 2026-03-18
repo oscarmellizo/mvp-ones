@@ -23,6 +23,7 @@ import com.ones.api.application.photos.ports.PhotosRepository;
 import com.ones.api.application.users.ports.PreferredNamesCacheRepository;
 import com.ones.api.application.users.GetUserByIdUseCase;
 import com.ones.api.domain.events.Event;
+import com.ones.api.domain.invitations.Invitation;
 import com.ones.api.domain.photos.Photo;
 import com.ones.api.domain.users.User;
 
@@ -34,6 +35,7 @@ public class PhotosService {
     private final PhotosRepository photosRepository;
     private final GetEventUseCase getEventUseCase;
     private final EventsRepository eventsRepository;
+    private final com.ones.api.application.invitations.ports.InvitationsRepository invitationsRepository;
     private final GetUserByIdUseCase getUserByIdUseCase;
     private final PreferredNamesCacheRepository preferredNamesCacheRepository;
     private final ObjectStoragePresigner objectStoragePresigner;
@@ -49,6 +51,7 @@ public class PhotosService {
             PhotosRepository photosRepository,
             GetEventUseCase getEventUseCase,
             EventsRepository eventsRepository,
+            com.ones.api.application.invitations.ports.InvitationsRepository invitationsRepository,
             GetUserByIdUseCase getUserByIdUseCase,
             PreferredNamesCacheRepository preferredNamesCacheRepository,
             ObjectStoragePresigner objectStoragePresigner,
@@ -62,6 +65,7 @@ public class PhotosService {
         this.photosRepository = photosRepository;
         this.getEventUseCase = getEventUseCase;
         this.eventsRepository = eventsRepository;
+        this.invitationsRepository = invitationsRepository;
         this.getUserByIdUseCase = getUserByIdUseCase;
         this.preferredNamesCacheRepository = preferredNamesCacheRepository;
         this.objectStoragePresigner = objectStoragePresigner;
@@ -145,9 +149,32 @@ public class PhotosService {
             String nextToken,
             String scope
     ) {
+        return list(requesterUserId, requesterEmail, eventId, limit, nextToken, scope, null, null);
+    }
+
+    public ListPage list(
+            String requesterUserId,
+            String requesterEmail,
+            String eventId,
+            int limit,
+            String nextToken,
+            String scope,
+            String filter,
+            List<String> guestIds
+    ) {
         require(eventId, "eventId");
 
-        getEventUseCase.execute(requesterUserId, requesterEmail, eventId);
+        Event event = getEventUseCase.execute(requesterUserId, requesterEmail, eventId);
+
+        String resolvedFilter = filter != null ? filter.trim().toLowerCase() : "";
+        List<String> normalizedGuestIds = normalizeGuestIds(guestIds);
+
+        boolean useV2 = !resolvedFilter.isBlank() || !normalizedGuestIds.isEmpty();
+
+        if (useV2) {
+            validateGuestIdsAreParticipants(event, normalizedGuestIds);
+            return listV2(requesterUserId, requesterEmail, eventId, limit, nextToken, resolvedFilter, normalizedGuestIds);
+        }
 
         String resolvedScope = scope != null ? scope.trim().toLowerCase() : "";
 
@@ -278,6 +305,204 @@ public class PhotosService {
         }
 
         return new ListPage(out, outNextToken);
+    }
+
+    private ListPage listV2(
+            String requesterUserId,
+            String requesterEmail,
+            String eventId,
+            int limit,
+            String nextToken,
+            String filter,
+            List<String> guestIds
+    ) {
+        String resolvedFilter = filter != null ? filter.trim().toLowerCase() : "";
+
+        Set<String> guestIdSet = guestIds != null && !guestIds.isEmpty() ? new HashSet<>(guestIds) : Set.of();
+
+        int resolvedLimit = limit <= 0 ? 10 : Math.min(limit, 50);
+
+        boolean mineOnly = "mine".equals(resolvedFilter);
+        boolean sharedByMeOnly = "shared_by_me".equals(resolvedFilter);
+
+        List<ListItem> out = new ArrayList<>(resolvedLimit);
+        String cursor = nextToken;
+        String outNextToken = null;
+
+        while (out.size() < resolvedLimit) {
+            int remaining = resolvedLimit - out.size();
+            PhotosRepository.PageResult<Photo> page = photosRepository.listByEventId(eventId, remaining, cursor);
+
+            Set<String> nameUserIds = new HashSet<>();
+            List<Photo> selected = new ArrayList<>(remaining);
+
+            for (Photo p : page.items()) {
+                if (mineOnly) {
+                    if (p.getGuestId() == null || !p.getGuestId().equals(requesterUserId)) {
+                        continue;
+                    }
+                }
+
+                if (sharedByMeOnly) {
+                    if (p.getSharedByUserId() == null || !p.getSharedByUserId().equals(requesterUserId)) {
+                        continue;
+                    }
+                }
+
+                if (!mineOnly && !sharedByMeOnly && !guestIds.isEmpty()) {
+                    String gid = p.getGuestId();
+                    if (gid == null || gid.isBlank() || !guestIdSet.contains(gid)) {
+                        continue;
+                    }
+                }
+
+                if (p.getGuestId() != null && !p.getGuestId().isBlank()) {
+                    nameUserIds.add(p.getGuestId().trim());
+                }
+                if (p.getSharedByUserId() != null && !p.getSharedByUserId().isBlank()) {
+                    nameUserIds.add(p.getSharedByUserId().trim());
+                }
+
+                selected.add(p);
+                if (selected.size() >= remaining) break;
+            }
+
+            if (!selected.isEmpty()) {
+                Map<String, String> resolvedNames = resolvePreferredNames(nameUserIds);
+                for (Photo p : selected) {
+                    boolean isShared = isShared(p);
+
+                    String originalKey = p.getS3KeyOriginal();
+                    if ((originalKey == null || originalKey.isBlank())
+                            && p.getEventId() != null && !p.getEventId().isBlank()
+                            && p.getGuestId() != null && !p.getGuestId().isBlank()
+                            && p.getPhotoId() != null && !p.getPhotoId().isBlank()
+                            && !isShared) {
+                        originalKey = originalKey(p.getEventId(), p.getGuestId(), p.getPhotoId());
+                    }
+
+                    String mediumKey = p.getS3KeyMedium();
+                    if ((mediumKey == null || mediumKey.isBlank()) && originalKey != null && !originalKey.isBlank()) {
+                        mediumKey = variantKeyFromOriginal(originalKey, "_m");
+                    }
+
+                    String smallKey = p.getS3KeySmall();
+                    if ((smallKey == null || smallKey.isBlank()) && originalKey != null && !originalKey.isBlank()) {
+                        smallKey = variantKeyFromOriginal(originalKey, "_s");
+                    }
+
+                    String originalUrl = presignGetIfAny(originalKey);
+                    String mediumUrl = presignGetIfAny(mediumKey);
+                    String smallUrl = presignGetIfAny(smallKey);
+
+                    if (debugList) {
+                        log.info(
+                                "[PhotosService.listV2] eventId={} filter={} requesterUserId={} guestIdsCount={} photoId={} guestId={} shared={} status={} originalKey={} smallKey={} mediumKey={} smallUrl={} mediumUrl={}",
+                                eventId,
+                                resolvedFilter,
+                                requesterUserId,
+                                guestIds.size(),
+                                p.getPhotoId(),
+                                p.getGuestId(),
+                                isShared,
+                                p.getStatus(),
+                                originalKey,
+                                smallKey,
+                                mediumKey,
+                                (smallUrl != null && !smallUrl.isBlank()),
+                                (mediumUrl != null && !mediumUrl.isBlank())
+                        );
+                    }
+
+                    String ownerName = resolvedNames.get(p.getGuestId());
+                    if (ownerName == null || ownerName.isBlank()) {
+                        ownerName = p.getOwnerName();
+                    }
+
+                    String sharedByName = resolvedNames.get(p.getSharedByUserId());
+                    if (sharedByName == null || sharedByName.isBlank()) {
+                        sharedByName = p.getSharedByName();
+                    }
+
+                    out.add(new ListItem(
+                            p.getPhotoId(),
+                            p.getGuestId(),
+                            p.getCreatedAt(),
+                            p.getUploadedAt(),
+                            p.getStatus(),
+                            originalUrl,
+                            mediumUrl,
+                            smallUrl,
+                            isShared,
+                            ownerName,
+                            p.getSharedByUserId(),
+                            sharedByName
+                    ));
+                }
+            }
+
+            if (page.nextToken() == null || page.nextToken().isBlank()) {
+                outNextToken = null;
+                break;
+            }
+
+            cursor = page.nextToken();
+            outNextToken = cursor;
+        }
+
+        return new ListPage(out, outNextToken);
+    }
+
+    private static List<String> normalizeGuestIds(List<String> guestIds) {
+        if (guestIds == null || guestIds.isEmpty()) {
+            return List.of();
+        }
+        List<String> out = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (String raw : guestIds) {
+            if (raw == null) continue;
+            String normalized = raw.trim();
+            if (normalized.isBlank()) continue;
+
+            // support both multi-value (?guestIds=u1&guestIds=u2) and comma-separated (?guestIds=u1,u2)
+            String[] parts = normalized.split(",");
+            for (String part : parts) {
+                String v = part != null ? part.trim() : "";
+                if (v.isBlank()) continue;
+                if (seen.add(v)) {
+                    out.add(v);
+                }
+            }
+        }
+        return out;
+    }
+
+    private void validateGuestIdsAreParticipants(Event event, List<String> guestIds) {
+        if (guestIds == null || guestIds.isEmpty()) {
+            return;
+        }
+
+        String ownerId = event.getOwnerId();
+        Set<String> allowed = new HashSet<>();
+        if (ownerId != null && !ownerId.isBlank()) {
+            allowed.add(ownerId);
+        }
+
+        // Best-effort: repository supports limit but not pagination. For MVP, we cap.
+        List<Invitation> invs = invitationsRepository.listByEventId(event.getEventId(), 500);
+        for (Invitation inv : invs) {
+            if (inv.getStatus() == Invitation.Status.accepted
+                    && inv.getInviteeUserId() != null
+                    && !inv.getInviteeUserId().isBlank()) {
+                allowed.add(inv.getInviteeUserId().trim());
+            }
+        }
+
+        for (String guestId : guestIds) {
+            if (!allowed.contains(guestId)) {
+                throw new IllegalArgumentException("Invalid guestId for event: " + guestId);
+            }
+        }
     }
 
     public List<Photo> sharePhotos(

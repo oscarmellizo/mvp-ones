@@ -72,7 +72,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                 if (!context.mounted) return;
                 await context
                     .read<PhotosGalleryController>()
-                    .refreshMerged(eventId: event.id);
+                    .refresh(eventId: event.id);
               },
         child: const Icon(Icons.photo_camera),
       ),
@@ -166,6 +166,8 @@ class _GalleryTabState extends State<_GalleryTab> {
   bool _selecting = false;
   final Set<String> _selectedIds = {};
 
+  Future<List<EventGuest>>? _guestsFuture;
+
   @override
   void initState() {
     super.initState();
@@ -178,9 +180,13 @@ class _GalleryTabState extends State<_GalleryTab> {
     _requested = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context
-          .read<PhotosGalleryController>()
-          .refreshMerged(eventId: widget.eventId);
+      context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
+
+      // Reuse existing guests listing used in Details tab, but load it here for filters.
+      setState(() {
+        _guestsFuture =
+            context.read<EventsRepository>().listEventGuestsV2(widget.eventId);
+      });
     });
   }
 
@@ -228,8 +234,7 @@ class _GalleryTabState extends State<_GalleryTab> {
               ),
               const SizedBox(height: 12),
               FilledButton.tonal(
-                onPressed: () =>
-                    controller.refreshMerged(eventId: widget.eventId),
+                onPressed: () => controller.refresh(eventId: widget.eventId),
                 child: const Text('Actualizar'),
               ),
             ],
@@ -252,8 +257,7 @@ class _GalleryTabState extends State<_GalleryTab> {
               ),
               const SizedBox(height: 12),
               FilledButton.tonal(
-                onPressed: () =>
-                    controller.refreshMerged(eventId: widget.eventId),
+                onPressed: () => controller.refresh(eventId: widget.eventId),
                 child: const Text('Reintentar'),
               ),
             ],
@@ -264,193 +268,355 @@ class _GalleryTabState extends State<_GalleryTab> {
 
     return Stack(
       children: [
-        RefreshIndicator(
-          onRefresh: () => controller.refreshMerged(eventId: widget.eventId),
-          child: Container(
-            color: OnesColors.background,
-            child: GridView.builder(
-              padding: EdgeInsets.zero,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                mainAxisSpacing: 1,
-                crossAxisSpacing: 1,
-                childAspectRatio: 1,
+        Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SegmentedButton<PhotosGalleryFilter>(
+                      segments: const <ButtonSegment<PhotosGalleryFilter>>[
+                        ButtonSegment(
+                          value: PhotosGalleryFilter.all,
+                          label: Text('All'),
+                        ),
+                        ButtonSegment(
+                          value: PhotosGalleryFilter.sharedByMe,
+                          label: Text('Shared'),
+                        ),
+                        ButtonSegment(
+                          value: PhotosGalleryFilter.mine,
+                          label: Text('Propias'),
+                        ),
+                      ],
+                      selected: <PhotosGalleryFilter>{controller.filter},
+                      showSelectedIcon: false,
+                      onSelectionChanged: (value) async {
+                        final next = value.isEmpty
+                            ? PhotosGalleryFilter.all
+                            : value.first;
+                        controller.setFilter(next);
+                        controller.setGuestIds(<String>{});
+                        await controller.refresh(eventId: widget.eventId);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  FilledButton.tonal(
+                    onPressed: controller.filter != PhotosGalleryFilter.all
+                        ? null
+                        : () async {
+                            final guests = await _guestsFuture;
+                            if (!context.mounted) return;
+                            if (guests == null || guests.isEmpty) return;
+
+                            final initial = controller.guestIds;
+                            final selected =
+                                await showModalBottomSheet<Set<String>>(
+                              context: context,
+                              isScrollControlled: true,
+                              builder: (ctx) {
+                                final tmp = <String>{...initial};
+                                return StatefulBuilder(
+                                  builder: (ctx, setModalState) {
+                                    return SafeArea(
+                                      child: Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                            16, 12, 16, 12),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Text(
+                                              'Invitados',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w900,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Flexible(
+                                              child: ListView.builder(
+                                                shrinkWrap: true,
+                                                itemCount: guests.length,
+                                                itemBuilder: (ctx, i) {
+                                                  final g = guests[i];
+                                                  final title =
+                                                      (g.displayName != null &&
+                                                              g.displayName!
+                                                                  .trim()
+                                                                  .isNotEmpty)
+                                                          ? g.displayName!
+                                                              .trim()
+                                                          : (g.email ?? '-');
+
+                                                  final gid = g.userId ?? '';
+                                                  final enabled =
+                                                      gid.isNotEmpty;
+                                                  final checked =
+                                                      tmp.contains(gid);
+
+                                                  return CheckboxListTile(
+                                                    value: checked,
+                                                    onChanged: !enabled
+                                                        ? null
+                                                        : (v) {
+                                                            setModalState(() {
+                                                              if (v == true) {
+                                                                tmp.add(gid);
+                                                              } else {
+                                                                tmp.remove(gid);
+                                                              }
+                                                            });
+                                                          },
+                                                    title: Text(title),
+                                                    subtitle: g.email != null
+                                                        ? Text(g.email!)
+                                                        : null,
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Row(
+                                              children: [
+                                                TextButton(
+                                                  onPressed: () {
+                                                    Navigator.of(ctx)
+                                                        .pop(<String>{});
+                                                  },
+                                                  child: const Text('Clear'),
+                                                ),
+                                                const Spacer(),
+                                                FilledButton(
+                                                  onPressed: () {
+                                                    Navigator.of(ctx).pop(tmp);
+                                                  },
+                                                  child: const Text('Apply'),
+                                                )
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            );
+
+                            if (selected == null) return;
+                            controller.setGuestIds(selected);
+                            await controller.refresh(eventId: widget.eventId);
+                          },
+                    child: const Text('Invitados'),
+                  ),
+                ],
               ),
-              itemCount: controller.items.length,
-              itemBuilder: (context, index) {
-                final item = controller.items[index];
-                final small = item.smallUrl;
-                final medium = item.mediumUrl;
-                final thumbUrl =
-                    (small != null && small.isNotEmpty) ? small : null;
-                final viewerUrl =
-                    (medium != null && medium.isNotEmpty) ? medium : null;
-
-                final canSelect = _canSelect(item.guestId);
-                final isSelected = _selectedIds.contains(item.photoId);
-
-                void toggleSelected() {
-                  if (!canSelect) return;
-                  setState(() {
-                    _selecting = true;
-                    if (isSelected) {
-                      _selectedIds.remove(item.photoId);
-                      if (_selectedIds.isEmpty) {
-                        _selecting = false;
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () => controller.refresh(eventId: widget.eventId),
+                child: Container(
+                  color: OnesColors.background,
+                  child: NotificationListener<ScrollNotification>(
+                    onNotification: (n) {
+                      if (n.metrics.pixels >= n.metrics.maxScrollExtent - 400) {
+                        controller.loadMore(eventId: widget.eventId);
                       }
-                    } else {
-                      _selectedIds.add(item.photoId);
-                    }
-                  });
-                }
-
-                return InkWell(
-                  onLongPress: canSelect ? toggleSelected : null,
-                  onTap: () {
-                    if (_selecting) {
-                      toggleSelected();
-                      return;
-                    }
-                    if (viewerUrl == null || viewerUrl.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('La foto aún se está procesando.'),
-                        ),
-                      );
-                      return;
-                    }
-
-                    final isSharedByMe = item.shared &&
-                        widget.currentUserId != null &&
-                        item.sharedByUserId != null &&
-                        item.sharedByUserId == widget.currentUserId;
-
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => PhotoViewerPage(
-                          imageUrl: viewerUrl,
-                          sharedByName: isSharedByMe ? item.sharedByName : null,
-                          ownerName: (!isSharedByMe && item.shared)
-                              ? item.ownerName
-                              : null,
-                        ),
+                      return false;
+                    },
+                    child: GridView.builder(
+                      padding: EdgeInsets.zero,
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 1,
+                        crossAxisSpacing: 1,
+                        childAspectRatio: 1,
                       ),
-                    );
-                  },
-                  borderRadius: BorderRadius.zero,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Ink(
-                        color: Colors.black12,
-                        child: (thumbUrl == null || thumbUrl.isEmpty)
-                            ? const Center(
-                                child: Text(
-                                  'Procesando',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w900,
+                      itemCount: controller.items.length,
+                      itemBuilder: (context, index) {
+                        final item = controller.items[index];
+                        final small = item.smallUrl;
+                        final medium = item.mediumUrl;
+                        final thumbUrl =
+                            (small != null && small.isNotEmpty) ? small : null;
+                        final viewerUrl = (medium != null && medium.isNotEmpty)
+                            ? medium
+                            : null;
+
+                        final canSelect = _canSelect(item.guestId);
+                        final isSelected = _selectedIds.contains(item.photoId);
+
+                        void toggleSelected() {
+                          if (!canSelect) return;
+                          setState(() {
+                            _selecting = true;
+                            if (isSelected) {
+                              _selectedIds.remove(item.photoId);
+                              if (_selectedIds.isEmpty) {
+                                _selecting = false;
+                              }
+                            } else {
+                              _selectedIds.add(item.photoId);
+                            }
+                          });
+                        }
+
+                        return InkWell(
+                          onLongPress: canSelect ? toggleSelected : null,
+                          onTap: () {
+                            if (_selecting) {
+                              toggleSelected();
+                              return;
+                            }
+                            if (viewerUrl == null || viewerUrl.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content:
+                                      Text('La foto aún se está procesando.'),
+                                ),
+                              );
+                              return;
+                            }
+
+                            final isSharedByMe = item.shared &&
+                                widget.currentUserId != null &&
+                                item.sharedByUserId != null &&
+                                item.sharedByUserId == widget.currentUserId;
+
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => PhotoViewerPage(
+                                  imageUrl: viewerUrl,
+                                  sharedByName:
+                                      isSharedByMe ? item.sharedByName : null,
+                                  ownerName: (!isSharedByMe && item.shared)
+                                      ? item.ownerName
+                                      : null,
+                                ),
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.zero,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Ink(
+                                color: Colors.black12,
+                                child: (thumbUrl == null || thumbUrl.isEmpty)
+                                    ? const Center(
+                                        child: Text(
+                                          'Procesando',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
+                                      )
+                                    : Image.network(
+                                        thumbUrl,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stack) {
+                                          return const SizedBox.expand();
+                                        },
+                                      ),
+                              ),
+                              if (_selecting)
+                                Positioned(
+                                  left: 6,
+                                  top: 6,
+                                  child: Container(
+                                    width: 22,
+                                    height: 22,
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? OnesColors.purpleMid
+                                          : Colors.black.withOpacity(0.35),
+                                      borderRadius: BorderRadius.zero,
+                                    ),
+                                    child: isSelected
+                                        ? const Icon(
+                                            Icons.check,
+                                            size: 16,
+                                            color: OnesColors.white,
+                                          )
+                                        : const SizedBox.shrink(),
                                   ),
                                 ),
-                              )
-                            : Image.network(
-                                thumbUrl,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stack) {
-                                  return const SizedBox.expand();
-                                },
-                              ),
-                      ),
-                      if (_selecting)
-                        Positioned(
-                          left: 6,
-                          top: 6,
-                          child: Container(
-                            width: 22,
-                            height: 22,
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? OnesColors.purpleMid
-                                  : Colors.black.withOpacity(0.35),
-                              borderRadius: BorderRadius.zero,
-                            ),
-                            child: isSelected
-                                ? const Icon(
-                                    Icons.check,
-                                    size: 16,
-                                    color: OnesColors.white,
-                                  )
-                                : const SizedBox.shrink(),
+                              if (item.shared &&
+                                  widget.currentUserId != null &&
+                                  item.sharedByUserId != null &&
+                                  item.sharedByUserId == widget.currentUserId)
+                                Positioned(
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 4,
+                                    ),
+                                    color: Colors.black.withOpacity(0.45),
+                                    child: const Text(
+                                      'Shared',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                              if (item.shared &&
+                                  (widget.currentUserId == null ||
+                                      item.sharedByUserId == null ||
+                                      item.sharedByUserId !=
+                                          widget.currentUserId))
+                                Positioned(
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 4,
+                                    ),
+                                    color: Colors.black.withOpacity(0.45),
+                                    child: Text(
+                                      (item.ownerName != null &&
+                                              item.ownerName!.isNotEmpty)
+                                          ? '${item.ownerName}'
+                                          : 'Invitado',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                              if (_selecting && !canSelect)
+                                Container(
+                                  color: Colors.black.withOpacity(0.15),
+                                ),
+                            ],
                           ),
-                        ),
-                      if (item.shared &&
-                          widget.currentUserId != null &&
-                          item.sharedByUserId != null &&
-                          item.sharedByUserId == widget.currentUserId)
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 4,
-                            ),
-                            color: Colors.black.withOpacity(0.45),
-                            child: const Text(
-                              'Shared',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w900,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                      if (item.shared &&
-                          (widget.currentUserId == null ||
-                              item.sharedByUserId == null ||
-                              item.sharedByUserId != widget.currentUserId))
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 4,
-                            ),
-                            color: Colors.black.withOpacity(0.45),
-                            child: Text(
-                              (item.ownerName != null &&
-                                      item.ownerName!.isNotEmpty)
-                                  ? '${item.ownerName}'
-                                  : 'Invitado',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w900,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                      if (_selecting && !canSelect)
-                        Container(
-                          color: Colors.black.withOpacity(0.15),
-                        ),
-                    ],
+                        );
+                      },
+                    ),
                   ),
-                );
-              },
+                ),
+              ),
             ),
-          ),
+          ],
         ),
         if (_selecting)
           Positioned(

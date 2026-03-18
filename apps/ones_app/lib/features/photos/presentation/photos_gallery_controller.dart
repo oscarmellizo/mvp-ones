@@ -3,6 +3,12 @@ import 'package:flutter/foundation.dart';
 import '../adapters/api/event_photos_api.dart';
 import '../domain/event_photo.dart';
 
+enum PhotosGalleryFilter {
+  all,
+  mine,
+  sharedByMe,
+}
+
 class PhotosGalleryController extends ChangeNotifier {
   final EventPhotosApi api;
 
@@ -11,11 +17,20 @@ class PhotosGalleryController extends ChangeNotifier {
   Object? _error;
   List<EventPhoto> _items = const [];
 
+  PhotosGalleryFilter _filter = PhotosGalleryFilter.all;
+  Set<String> _guestIds = <String>{};
+  String? _nextToken;
+  bool _hasMore = true;
+
   PhotosGalleryController({required this.api});
 
   bool get loading => _loading;
   Object? get error => _error;
   List<EventPhoto> get items => _items;
+
+  PhotosGalleryFilter get filter => _filter;
+  Set<String> get guestIds => _guestIds;
+  bool get hasMore => _hasMore;
 
   void setIdToken(String? token) {
     _idToken = token;
@@ -38,7 +53,7 @@ class PhotosGalleryController extends ChangeNotifier {
     try {
       _error = null;
       await api.sharePhotos(eventId: eventId, photoIds: photoIds);
-      await refreshMerged(eventId: eventId);
+      await refresh(eventId: eventId);
     } catch (e) {
       _error = e;
       rethrow;
@@ -47,7 +62,19 @@ class PhotosGalleryController extends ChangeNotifier {
     }
   }
 
-  Future<void> refreshMerged({required String eventId}) async {
+  void setFilter(PhotosGalleryFilter value) {
+    if (_filter == value) return;
+    _filter = value;
+    notifyListeners();
+  }
+
+  void setGuestIds(Set<String> value) {
+    if (setEquals(_guestIds, value)) return;
+    _guestIds = {...value};
+    notifyListeners();
+  }
+
+  Future<void> refresh({required String eventId}) async {
     final token = _idToken;
     if (token == null || token.isEmpty) {
       _error = StateError('Missing idToken');
@@ -59,44 +86,84 @@ class PhotosGalleryController extends ChangeNotifier {
     try {
       _error = null;
 
-      final pages = await Future.wait([
-        api.list(eventId: eventId, limit: 50, scope: 'guest'),
-        api.list(eventId: eventId, limit: 50, scope: 'shared'),
-      ]);
+      _nextToken = null;
+      _hasMore = true;
 
-      if (kDebugMode) {
-        debugPrint(
-            '[PhotosGallery] guest=${pages[0].items.length} shared=${pages[1].items.length}');
+      final res = await api.list(
+        eventId: eventId,
+        limit: 50,
+        filter: switch (_filter) {
+          PhotosGalleryFilter.all => 'all',
+          PhotosGalleryFilter.mine => 'mine',
+          PhotosGalleryFilter.sharedByMe => 'shared_by_me',
+        },
+        guestIds: _filter == PhotosGalleryFilter.all && _guestIds.isNotEmpty
+            ? _guestIds.toList(growable: false)
+            : null,
+      );
+
+      _items = res.items;
+      _nextToken = res.nextToken;
+      _hasMore = _nextToken != null && _nextToken!.isNotEmpty;
+    } catch (e) {
+      _error = e;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> loadMore({required String eventId}) async {
+    if (_loading) return;
+    if (!_hasMore) return;
+
+    final token = _idToken;
+    if (token == null || token.isEmpty) {
+      _error = StateError('Missing idToken');
+      notifyListeners();
+      return;
+    }
+
+    final cursor = _nextToken;
+    if (cursor == null || cursor.isEmpty) {
+      _hasMore = false;
+      notifyListeners();
+      return;
+    }
+
+    _setLoading(true);
+    try {
+      _error = null;
+      final res = await api.list(
+        eventId: eventId,
+        limit: 50,
+        nextToken: cursor,
+        filter: switch (_filter) {
+          PhotosGalleryFilter.all => 'all',
+          PhotosGalleryFilter.mine => 'mine',
+          PhotosGalleryFilter.sharedByMe => 'shared_by_me',
+        },
+        guestIds: _filter == PhotosGalleryFilter.all && _guestIds.isNotEmpty
+            ? _guestIds.toList(growable: false)
+            : null,
+      );
+
+      final merged = <String, EventPhoto>{
+        for (final it in _items) it.photoId: it,
+      };
+      for (final it in res.items) {
+        merged[it.photoId] = it;
       }
 
-      final mergedById = <String, EventPhoto>{};
-      for (final p in pages) {
-        for (final item in p.items) {
-          mergedById[item.photoId] = item;
-        }
-      }
-
-      final merged = mergedById.values.toList(growable: false);
-      merged.sort((a, b) {
+      final list = merged.values.toList(growable: false);
+      list.sort((a, b) {
         final ad = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
         final bd = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
         return bd.compareTo(ad);
       });
 
-      _items = merged;
-
-      if (kDebugMode) {
-        debugPrint('[PhotosGallery] merged=${_items.length}');
-        for (final it in _items) {
-          final s = it.smallUrl;
-          final m = it.mediumUrl;
-          if (s == null || s.isEmpty || m == null || m.isEmpty) {
-            debugPrint(
-              '[PhotosGallery] item photoId=${it.photoId} guestId=${it.guestId} status=${it.status} shared=${it.shared} smallUrl=${s ?? ''} mediumUrl=${m ?? ''} originalUrl=${it.originalUrl ?? ''}',
-            );
-          }
-        }
-      }
+      _items = list;
+      _nextToken = res.nextToken;
+      _hasMore = _nextToken != null && _nextToken!.isNotEmpty;
     } catch (e) {
       _error = e;
     } finally {

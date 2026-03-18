@@ -77,12 +77,14 @@ public class EventPhotosController {
             @PathVariable("eventId") String eventId,
             @RequestParam(value = "limit", required = false, defaultValue = "10") int limit,
             @RequestParam(value = "nextToken", required = false) String nextToken,
-            @RequestParam(value = "scope", required = false) String scope
+            @RequestParam(value = "scope", required = false) String scope,
+            @RequestParam(value = "filter", required = false) String filter,
+            @RequestParam(value = "guestIds", required = false) List<String> guestIds
     ) {
         String userId = authentication.getName();
         String email = AuthClaims.requireEmail(authentication);
 
-        return photosService.list(userId, email, eventId, limit, nextToken, scope);
+        return photosService.list(userId, email, eventId, limit, nextToken, scope, filter, guestIds);
     }
 
     @PostMapping("/{eventId}/photos/{photoId}/ready")

@@ -262,6 +262,98 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /v1/events/{id}/guests/v2:
+    get:
+      operationId: listEventGuestsV2
+      summary: List guests for an event including userId (when available)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GuestV2'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/events/{eventId}/photos:
+    get:
+      operationId: listEventPhotos
+      summary: List event photos (paginated) with optional server-side filtering
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+        - name: nextToken
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+          description: Pagination cursor returned by a previous call (opaque)
+        - name: scope
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+          description: Legacy scope parameter (kept for backward compatibility)
+        - name: filter
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [all, mine, shared_by_me]
+            nullable: true
+          description: Filter photos. all=all photos in the event, mine=photos owned by the requester, shared_by_me=photos shared by the requester
+        - name: guestIds
+          in: query
+          required: false
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              type: string
+          description: Optional guest userIds to filter by (must be participants of the event). Can be provided as repeated query params (guestIds=a&guestIds=b)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventPhotosListPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /v1/events/{id}/invitees:
     post:
       operationId: inviteEventGuests
@@ -521,6 +613,81 @@ components:
         status:
           type: string
           enum: [owner, invited, accepted, rejected]
+
+    GuestV2:
+      type: object
+      required: [email, role, status]
+      properties:
+        userId:
+          type: string
+          nullable: true
+          description: User id if the guest has accepted and is linked to an authenticated user (or the event owner)
+        email:
+          type: string
+          format: email
+          nullable: true
+        displayName:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [owner, guest]
+        status:
+          type: string
+          enum: [owner, invited, accepted, rejected]
+
+    EventPhotosListPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventPhotoListItem'
+        nextToken:
+          type: string
+          nullable: true
+          description: Pagination cursor (opaque). Null when there are no more results.
+
+    EventPhotoListItem:
+      type: object
+      required: [photoId, createdAt, status, shared]
+      properties:
+        photoId:
+          type: string
+        guestId:
+          type: string
+          nullable: true
+          description: Owner userId for non-shared photos
+        createdAt:
+          type: string
+          format: date-time
+        uploadedAt:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+        originalUrl:
+          type: string
+          nullable: true
+        mediumUrl:
+          type: string
+          nullable: true
+        smallUrl:
+          type: string
+          nullable: true
+        shared:
+          type: boolean
+        ownerName:
+          type: string
+          nullable: true
+        sharedByUserId:
+          type: string
+          nullable: true
+        sharedByName:
+          type: string
+          nullable: true
 
     InviteEventGuestsRequest:
       type: object

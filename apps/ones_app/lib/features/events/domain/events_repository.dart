@@ -7,6 +7,8 @@ abstract interface class EventsRepository {
 
   Future<List<EventGuest>> listEventGuests(String eventId);
 
+  Future<List<EventGuest>> listEventGuestsV2(String eventId);
+
   Future<List<EventGuest>> inviteEventGuests(
       String eventId, List<String> inviteeEmails);
 
@@ -23,12 +25,14 @@ abstract interface class EventsRepository {
 }
 
 class EventGuest {
+  final String? userId;
   final String? email;
   final String? displayName;
   final String role;
   final String status;
 
   const EventGuest({
+    required this.userId,
     required this.email,
     required this.displayName,
     required this.role,

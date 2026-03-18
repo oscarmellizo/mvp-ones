@@ -25,6 +25,7 @@ import com.ones.api.application.events.ListEventsUseCase;
 import com.ones.api.application.invitations.ports.InvitationsRepository;
 import com.ones.api.application.users.ports.UsersRepository;
 import com.ones.api.domain.events.Event;
+import com.ones.api.domain.invitations.Invitation;
 
 @RestController
 @RequestMapping("/v1/events")
@@ -109,6 +110,38 @@ public class EventsController {
                 .toList();
     }
 
+    @GetMapping("/{id}/guests/v2")
+    public List<GuestV2Response> guestsV2(Authentication authentication, @PathVariable("id") String id) {
+        String requesterUserId = authentication.getName();
+        String email = AuthClaims.requireEmail(authentication);
+        Event event = getEventUseCase.execute(requesterUserId, email, id);
+
+        List<GuestResponse> legacy = guests(authentication, id);
+
+        List<Invitation> invitations = invitationsRepository.listByEventId(event.getEventId(), 500);
+
+        return legacy.stream().map(g -> {
+            String userId = null;
+            if ("owner".equals(g.role()) && "owner".equals(g.status())) {
+                userId = event.getOwnerId();
+            } else {
+                for (Invitation inv : invitations) {
+                    if (inv.getInviteeEmail() != null
+                            && g.email() != null
+                            && inv.getInviteeEmail().trim().equalsIgnoreCase(g.email().trim())) {
+                        if (inv.getStatus() == Invitation.Status.accepted
+                                && inv.getInviteeUserId() != null
+                                && !inv.getInviteeUserId().isBlank()) {
+                            userId = inv.getInviteeUserId().trim();
+                        }
+                        break;
+                    }
+                }
+            }
+            return new GuestV2Response(userId, g.email(), g.displayName(), g.role(), g.status());
+        }).toList();
+    }
+
     @PostMapping("/{id}/invitees")
     public List<GuestResponse> invitees(
             Authentication authentication,
@@ -132,6 +165,9 @@ public class EventsController {
     }
 
     public record GuestResponse(String email, String displayName, String role, String status) {
+    }
+
+    public record GuestV2Response(String userId, String email, String displayName, String role, String status) {
     }
 
     private static EventResponse toResponse(Event e) {

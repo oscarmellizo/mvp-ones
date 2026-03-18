@@ -33,6 +33,11 @@ class _FakeEventsRepository implements EventsRepository {
   }
 
   @override
+  Future<List<EventGuest>> listEventGuestsV2(String eventId) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<List<EventGuest>> inviteEventGuests(
       String eventId, List<String> inviteeEmails) {
     throw UnimplementedError();
