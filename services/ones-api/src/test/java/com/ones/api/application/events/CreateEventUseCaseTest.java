@@ -52,6 +52,14 @@ class CreateEventUseCaseTest {
         }
 
         @Override
+        public List<Event> findByIds(List<String> eventIds) {
+            if (eventIds == null || eventIds.isEmpty() || last == null) {
+                return List.of();
+            }
+            return eventIds.stream().anyMatch(id -> id != null && id.equals(last.getEventId())) ? List.of(last) : List.of();
+        }
+
+        @Override
         public java.util.List<Event> listByOwnerId(String ownerId, int limit) {
             return last != null && last.getOwnerId().equals(ownerId) ? java.util.List.of(last) : java.util.List.of();
         }

@@ -392,6 +392,18 @@ class EventCoversServiceTest {
         }
 
         @Override
+        public java.util.List<Event> findByIds(java.util.List<String> eventIds) {
+            if (eventIds == null || eventIds.isEmpty()) {
+                return java.util.List.of();
+            }
+            return eventIds.stream()
+                    .filter(id -> id != null && !id.isBlank())
+                    .map(items::get)
+                    .filter(e -> e != null)
+                    .toList();
+        }
+
+        @Override
         public java.util.List<Event> listByOwnerId(String ownerId, int limit) {
             return items.values().stream().filter(e -> ownerId.equals(e.getOwnerId())).limit(limit).toList();
         }

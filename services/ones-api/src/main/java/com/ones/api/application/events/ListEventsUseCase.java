@@ -1,8 +1,8 @@
 package com.ones.api.application.events;
 
 import java.time.Clock;
-import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.HashSet;
 import java.util.Set;
@@ -30,24 +30,27 @@ public class ListEventsUseCase {
         List<Event> combined = new ArrayList<>(owned);
 
         if (email != null && !email.isBlank()) {
-            Instant now = Instant.now(clock);
             List<Invitation> accepted = invitationsRepository.listAcceptedByInviteeEmail(email.trim().toLowerCase(), 100);
-            for (Invitation inv : accepted) {
-                if (now.isAfter(inv.getEventEndAt())) {
-                    continue;
-                }
-                if (seen.contains(inv.getEventId())) {
-                    continue;
-                }
-                repository.findById(inv.getEventId()).ifPresent(e -> {
-                    if (!seen.contains(e.getEventId())) {
-                        seen.add(e.getEventId());
+            List<String> inviteEventIds = accepted.stream()
+                    .map(Invitation::getEventId)
+                    .filter(id -> id != null && !id.isBlank())
+                    .map(String::trim)
+                    .filter(id -> !seen.contains(id))
+                    .distinct()
+                    .toList();
+
+            if (!inviteEventIds.isEmpty()) {
+                for (Event e : repository.findByIds(inviteEventIds)) {
+                    if (e == null) continue;
+                    if (e.getEventId() == null || e.getEventId().isBlank()) continue;
+                    if (seen.add(e.getEventId())) {
                         combined.add(e);
                     }
-                });
+                }
             }
         }
 
+        Collections.sort(combined, (a, b) -> b.getStartAt().compareTo(a.getStartAt()));
         return combined;
     }
 }

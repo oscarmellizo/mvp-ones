@@ -1,8 +1,11 @@
 package com.ones.api.adapters.outbound.dynamodb;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
@@ -14,6 +17,8 @@ import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbIndex;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
+import software.amazon.awssdk.enhanced.dynamodb.model.BatchGetItemEnhancedRequest;
+import software.amazon.awssdk.enhanced.dynamodb.model.ReadBatch;
 import software.amazon.awssdk.enhanced.dynamodb.model.PageIterable;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
@@ -25,11 +30,13 @@ public class DynamoDbEventsRepository implements EventsRepository {
     private static final String GSI1_NAME = "gsi1";
 
     private final DynamoDbTable<DynamoEventItem> table;
+    private final DynamoDbEnhancedClient enhancedClient;
 
     public DynamoDbEventsRepository(
             DynamoDbEnhancedClient enhancedClient,
             @Value("${ones.dynamodb.table-name:ones-events}") String tableName
     ) {
+        this.enhancedClient = enhancedClient;
         this.table = enhancedClient.table(tableName, TableSchema.fromBean(DynamoEventItem.class));
     }
 
@@ -44,6 +51,42 @@ public class DynamoDbEventsRepository implements EventsRepository {
     public Optional<Event> findById(String eventId) {
         DynamoEventItem item = table.getItem(Key.builder().partitionValue(eventId).build());
         return Optional.ofNullable(item).map(DynamoDbEventsRepository::toDomain);
+    }
+
+    @Override
+    public List<Event> findByIds(List<String> eventIds) {
+        if (eventIds == null || eventIds.isEmpty()) {
+            return List.of();
+        }
+
+        Set<String> seen = new HashSet<>();
+        List<Key> keys = new ArrayList<>(eventIds.size());
+        for (String raw : eventIds) {
+            if (raw == null || raw.isBlank()) continue;
+            String id = raw.trim();
+            if (seen.add(id)) {
+                keys.add(Key.builder().partitionValue(id).build());
+            }
+        }
+        if (keys.isEmpty()) {
+            return List.of();
+        }
+
+        ReadBatch.Builder<DynamoEventItem> read = ReadBatch.builder(DynamoEventItem.class)
+                .mappedTableResource(table);
+        for (Key k : keys) {
+            read.addGetItem(k);
+        }
+
+        BatchGetItemEnhancedRequest request = BatchGetItemEnhancedRequest.builder()
+                .readBatches(read.build())
+                .build();
+
+        List<Event> out = new ArrayList<>();
+        enhancedClient.batchGetItem(request)
+                .resultsForTable(table)
+                .forEach(item -> out.add(toDomain(item)));
+        return out;
     }
 
     @Override
