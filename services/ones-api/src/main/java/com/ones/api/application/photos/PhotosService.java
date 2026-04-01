@@ -197,6 +197,10 @@ public class PhotosService {
             for (Photo p : page.items()) {
                 boolean isShared = isShared(p);
 
+                if (!isShared && (p.getGuestId() == null || !p.getGuestId().equals(requesterUserId))) {
+                    continue;
+                }
+
                 if (sharedOnly && !isShared) {
                     continue;
                 }
@@ -337,6 +341,12 @@ public class PhotosService {
             List<Photo> selected = new ArrayList<>(remaining);
 
             for (Photo p : page.items()) {
+                boolean isShared = isShared(p);
+
+                if (!isShared && (p.getGuestId() == null || !p.getGuestId().equals(requesterUserId))) {
+                    continue;
+                }
+
                 if (mineOnly) {
                     if (p.getGuestId() == null || !p.getGuestId().equals(requesterUserId)) {
                         continue;
