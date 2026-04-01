@@ -51,11 +51,8 @@ class _GalleriesPageState extends State<GalleriesPage> {
     final q = _searchController.text.trim().toLowerCase();
 
     final now = DateTime.now();
-    final todayStart = DateTime(now.year, now.month, now.day);
-    final pastEvents = controller.events.where((e) {
+    final filteredEvents = controller.events.where((e) {
       final localStart = e.startAt.toLocal();
-      final isPast = localStart.isBefore(todayStart);
-      if (!isPast) return false;
       if (!_filter.accepts(eventStartLocal: localStart, nowLocal: now)) {
         return false;
       }
@@ -65,7 +62,7 @@ class _GalleriesPageState extends State<GalleriesPage> {
       ..sort((a, b) => b.startAt.toLocal().compareTo(a.startAt.toLocal()));
 
     final groups = <DateTime, List<Event>>{};
-    for (final e in pastEvents) {
+    for (final e in filteredEvents) {
       final localStart = e.startAt.toLocal();
       final dayKey =
           DateTime(localStart.year, localStart.month, localStart.day);
