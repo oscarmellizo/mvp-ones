@@ -5,6 +5,7 @@ import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/widgets/ones_card.dart';
 import '../../../../core/ui/widgets/ones_text_field.dart';
 import '../../../auth/presentation/auth_controller.dart';
+import '../../../admin/presentation/pages/admin_home_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -206,6 +207,40 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ],
                 ),
+                if (auth.isAdmin) ...[
+                  const SizedBox(height: 14),
+                  _Card(
+                    title: 'Admin',
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: OnesColors.purpleMid,
+                            foregroundColor: OnesColors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.zero,
+                            ),
+                          ),
+                          onPressed: auth.isLoading
+                              ? null
+                              : () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => const AdminHomePage(),
+                                    ),
+                                  );
+                                },
+                          child: const Text(
+                            'Open Admin',
+                            style: TextStyle(fontWeight: FontWeight.w900),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
               const Spacer(),
               SizedBox(

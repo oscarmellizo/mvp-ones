@@ -7,6 +7,7 @@ import '../application/sign_out_use_case.dart';
 import '../domain/auth_user.dart';
 import '../../users/application/ensure_user_use_case.dart';
 import '../../users/domain/users_repository.dart';
+import '../../admin/application/get_admin_me_use_case.dart';
 
 class AuthController extends ChangeNotifier {
   final SignInWithGoogleUseCase signInWithGoogle;
@@ -16,10 +17,12 @@ class AuthController extends ChangeNotifier {
   final GetPreferredNameUseCase getPreferredName;
   final UpdatePreferredNameUseCase updatePreferredName;
   final LookupUserByEmailUseCase lookupUserByEmailUseCase;
+  final GetAdminMeUseCase getAdminMe;
 
   AuthUser? _user;
   String? _idToken;
   String? _preferredName;
+  bool _isAdmin = false;
   bool _isLoading = false;
   Object? _error;
 
@@ -31,11 +34,13 @@ class AuthController extends ChangeNotifier {
     required this.getPreferredName,
     required this.updatePreferredName,
     required this.lookupUserByEmailUseCase,
+    required this.getAdminMe,
   });
 
   AuthUser? get user => _user;
   String? get idToken => _idToken;
   String? get preferredName => _preferredName;
+  bool get isAdmin => _isAdmin;
   bool get isSignedIn => _user != null;
   bool get isLoading => _isLoading;
   Object? get error => _error;
@@ -70,6 +75,7 @@ class AuthController extends ChangeNotifier {
         try {
           await ensureUser.execute(token);
           _preferredName = await getPreferredName.execute(token);
+          _isAdmin = await _safeLoadIsAdmin(token);
         } catch (_) {
           // Intentionally ignored: user should still be signed in even if persistence fails.
         }
@@ -79,6 +85,7 @@ class AuthController extends ChangeNotifier {
       _user = null;
       _idToken = null;
       _preferredName = null;
+      _isAdmin = false;
     } finally {
       _setLoading(false);
     }
@@ -111,6 +118,7 @@ class AuthController extends ChangeNotifier {
       final token = await getIdToken.execute();
       if (token != null && token.isNotEmpty) {
         _idToken = token;
+        _isAdmin = await _safeLoadIsAdmin(token);
         notifyListeners();
         return token;
       }
@@ -128,10 +136,19 @@ class AuthController extends ChangeNotifier {
       _user = null;
       _idToken = null;
       _preferredName = null;
+      _isAdmin = false;
     } catch (e) {
       _error = e;
     } finally {
       _setLoading(false);
+    }
+  }
+
+  Future<bool> _safeLoadIsAdmin(String token) async {
+    try {
+      return await getAdminMe.execute(token);
+    } catch (_) {
+      return false;
     }
   }
 

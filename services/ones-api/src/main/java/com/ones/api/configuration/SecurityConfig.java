@@ -10,6 +10,7 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
@@ -18,12 +19,17 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.authorization.AuthorizationManager;
+import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.config.http.SessionCreationPolicy;
+
+import com.ones.api.application.admin.AdminAccessService;
 
 @Configuration
 @EnableWebSecurity
@@ -100,7 +106,19 @@ public class SecurityConfig {
 
     @Bean
     @Order(3)
-    SecurityFilterChain securityFilterChain(HttpSecurity http, JwtDecoder jwtDecoder, JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
+    SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            JwtDecoder jwtDecoder,
+            JwtAuthenticationConverter jwtAuthenticationConverter,
+            AdminAccessService adminAccessService
+    ) throws Exception {
+
+        AuthorizationManager<RequestAuthorizationContext> adminOnly = (authentication, context) -> {
+            Authentication auth = authentication != null ? authentication.get() : null;
+            boolean allowed = auth != null && adminAccessService.isAdmin(auth);
+            return new AuthorizationDecision(allowed);
+        };
+
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
@@ -112,6 +130,8 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
+                        .requestMatchers("/v1/admin/me").authenticated()
+                        .requestMatchers("/v1/admin/**").access(adminOnly)
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2

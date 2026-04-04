@@ -10,6 +10,8 @@ import 'features/auth/application/get_id_token_use_case.dart';
 import 'features/auth/application/sign_in_with_google_use_case.dart';
 import 'features/auth/application/sign_out_use_case.dart';
 import 'features/auth/presentation/auth_controller.dart';
+import 'features/admin/adapters/api/admin_api_repository.dart';
+import 'features/admin/application/get_admin_me_use_case.dart';
 import 'features/events/adapters/api/events_api_repository.dart';
 import 'features/events/adapters/api/event_covers_api_repository.dart';
 import 'features/events/adapters/api/event_cover_urls_api_repository.dart';
@@ -59,6 +61,9 @@ class OnesApp extends StatelessWidget {
     final updatePreferredName = UpdatePreferredNameUseCase(usersRepository);
     final lookupUserByEmail = LookupUserByEmailUseCase(usersRepository);
 
+    final adminRepository = AdminApiRepository(apiFactory);
+    final getAdminMe = GetAdminMeUseCase(adminRepository);
+
     final eventsRepository = EventsApiRepository(apiFactory);
     final listEvents = ListEventsUseCase(eventsRepository);
     final getEvent = GetEventUseCase(eventsRepository);
@@ -87,6 +92,7 @@ class OnesApp extends StatelessWidget {
             getPreferredName: getPreferredName,
             updatePreferredName: updatePreferredName,
             lookupUserByEmailUseCase: lookupUserByEmail,
+            getAdminMe: getAdminMe,
           ),
         ),
         ChangeNotifierProxyProvider<AuthController, EventsController>(
