@@ -90,6 +90,8 @@ Outputs:
     Value: !GetAtt AllStack.Outputs.PhotosTableName
   PreferredNamesCacheTableName:
     Value: !GetAtt AllStack.Outputs.PreferredNamesCacheTableName
+  AdminsTableName:
+    Value: !GetAtt AllStack.Outputs.AdminsTableName
   EventsCoversTempBucketName:
     Value: !GetAtt AllStack.Outputs.EventsCoversTempBucketName
   EventsAssetsBucketName:
