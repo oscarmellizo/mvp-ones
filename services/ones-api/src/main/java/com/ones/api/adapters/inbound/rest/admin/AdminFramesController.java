@@ -66,14 +66,16 @@ public class AdminFramesController {
             @RequestBody PresignFrameAssetRequest request
     ) {
         String contentType = request != null ? request.contentType() : null;
-        return service.presignPutAsset(authentication, frameId, contentType);
+        String variant = request != null ? request.variant() : null;
+        return service.presignPutAsset(authentication, frameId, contentType, variant);
     }
 
     @GetMapping("/{frameId}/asset-url")
     public FramesManagementService.PresignedGetAssetResult getAssetUrl(
-            @PathVariable("frameId") String frameId
+            @PathVariable("frameId") String frameId,
+            @RequestParam(value = "variant", required = false) String variant
     ) {
-        return service.presignGetAsset(frameId);
+        return service.presignGetAsset(frameId, variant);
     }
 
     private static Frame.Status parseStatus(String raw) {
@@ -92,7 +94,8 @@ public class AdminFramesController {
                 f.getName(),
                 f.getStatus() != null ? f.getStatus().name() : null,
                 f.getSortOrder(),
-                f.getAssetKey(),
+                f.getVerticalAssetKey(),
+                f.getHorizontalAssetKey(),
                 f.getCreatedAt(),
                 f.getUpdatedAt(),
                 f.getCreatedBy(),
@@ -105,7 +108,8 @@ public class AdminFramesController {
             String name,
             String status,
             Integer sortOrder,
-            String assetKey,
+            String verticalAssetKey,
+            String horizontalAssetKey,
             Instant createdAt,
             Instant updatedAt,
             String createdBy,
@@ -119,6 +123,6 @@ public class AdminFramesController {
     public record UpsertFrameRequest(String frameId, String name, String status, Integer sortOrder) {
     }
 
-    public record PresignFrameAssetRequest(String contentType) {
+    public record PresignFrameAssetRequest(String contentType, String variant) {
     }
 }

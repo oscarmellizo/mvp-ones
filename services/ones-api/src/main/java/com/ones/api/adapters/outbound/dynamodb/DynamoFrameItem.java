@@ -16,6 +16,8 @@ public class DynamoFrameItem {
     private Integer sortOrder;
 
     private String assetKey;
+    private String verticalAssetKey;
+    private String horizontalAssetKey;
 
     private String createdAt;
     private String updatedAt;
@@ -69,6 +71,24 @@ public class DynamoFrameItem {
 
     public void setAssetKey(String assetKey) {
         this.assetKey = assetKey;
+    }
+
+    @DynamoDbAttribute("verticalAssetKey")
+    public String getVerticalAssetKey() {
+        return verticalAssetKey;
+    }
+
+    public void setVerticalAssetKey(String verticalAssetKey) {
+        this.verticalAssetKey = verticalAssetKey;
+    }
+
+    @DynamoDbAttribute("horizontalAssetKey")
+    public String getHorizontalAssetKey() {
+        return horizontalAssetKey;
+    }
+
+    public void setHorizontalAssetKey(String horizontalAssetKey) {
+        this.horizontalAssetKey = horizontalAssetKey;
     }
 
     @DynamoDbAttribute("createdAt")

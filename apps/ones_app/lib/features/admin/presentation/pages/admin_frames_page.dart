@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/ui/ones_colors.dart';
 import '../admin_frames_controller.dart';
 import '../widgets/admin_gate.dart';
+import 'admin_frame_edit_page.dart';
 
 class AdminFramesPage extends StatefulWidget {
   const AdminFramesPage({super.key});
@@ -98,16 +98,15 @@ class _AdminFramesPageState extends State<AdminFramesPage> {
                           f.name,
                           style: const TextStyle(fontWeight: FontWeight.w900),
                         ),
-                        subtitle: Text('id=${f.frameId}'),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
                               onPressed: ctrl.loading
                                   ? null
-                                  : () => _uploadAsset(context, f.frameId),
-                              icon: const Icon(Icons.upload),
-                              tooltip: 'Upload asset',
+                                  : () => _navigateToEdit(context, f.frameId),
+                              icon: const Icon(Icons.edit),
+                              tooltip: 'Editar frame',
                             ),
                             Switch(
                               value: isActive,
@@ -142,52 +141,12 @@ class _AdminFramesPageState extends State<AdminFramesPage> {
     );
   }
 
-  Future<void> _uploadAsset(BuildContext context, String frameId) async {
-    final ctrl = context.read<AdminFramesController>();
-    final repo = ctrl.repository;
-
-    final picked = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['png', 'jpg', 'jpeg'],
-      withData: true,
+  void _navigateToEdit(BuildContext context, String frameId) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AdminFrameEditPage(frameId: frameId),
+      ),
     );
-    if (!context.mounted) return;
-    if (picked == null || picked.files.isEmpty) return;
-
-    final file = picked.files.first;
-    final bytes = file.bytes;
-    if (bytes == null || bytes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No bytes available for selected file')),
-      );
-      return;
-    }
-
-    final ext = (file.extension ?? '').toLowerCase();
-    final contentType = ext == 'png' ? 'image/png' : 'image/jpeg';
-
-    try {
-      final presign = await repo.presignPutAsset(
-        frameId: frameId,
-        contentType: contentType,
-      );
-      await repo.uploadBytesToPresignedUrl(
-        putUrl: presign.putUrl,
-        bytes: bytes,
-        contentType: contentType,
-      );
-      await ctrl.load();
-
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Asset uploaded')),
-      );
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Upload failed: $e')),
-      );
-    }
   }
 
   Future<String?> _promptForName(BuildContext context) async {

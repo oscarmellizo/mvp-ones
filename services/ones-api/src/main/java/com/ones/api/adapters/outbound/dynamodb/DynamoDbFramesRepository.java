@@ -158,7 +158,10 @@ public class DynamoDbFramesRepository implements FramesRepository {
         item.setName(f.getName());
         item.setStatus(f.getStatus() != null ? f.getStatus().name() : null);
         item.setSortOrder(f.getSortOrder());
-        item.setAssetKey(f.getAssetKey());
+        String legacy = f.getAssetKey();
+        item.setAssetKey(legacy);
+        item.setVerticalAssetKey(f.getVerticalAssetKey());
+        item.setHorizontalAssetKey(f.getHorizontalAssetKey());
         item.setCreatedAt(f.getCreatedAt() != null ? f.getCreatedAt().toString() : null);
         item.setUpdatedAt(f.getUpdatedAt() != null ? f.getUpdatedAt().toString() : null);
         item.setCreatedBy(f.getCreatedBy());
@@ -190,12 +193,19 @@ public class DynamoDbFramesRepository implements FramesRepository {
                 ? Instant.parse(item.getUpdatedAt())
                 : createdAt;
 
+        String vert = item.getVerticalAssetKey();
+        String horiz = item.getHorizontalAssetKey();
+        if ((vert == null || vert.isBlank()) && item.getAssetKey() != null && !item.getAssetKey().isBlank()) {
+            vert = item.getAssetKey();
+        }
+
         return new Frame(
                 item.getFrameId(),
                 item.getName(),
                 status,
                 item.getSortOrder(),
-                item.getAssetKey(),
+                vert,
+                horiz,
                 createdAt,
                 updatedAt,
                 item.getCreatedBy(),

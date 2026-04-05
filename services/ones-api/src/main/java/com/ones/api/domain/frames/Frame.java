@@ -13,7 +13,8 @@ public class Frame {
     private final String name;
     private final Status status;
     private final Integer sortOrder;
-    private final String assetKey;
+    private final String verticalAssetKey;
+    private final String horizontalAssetKey;
     private final Instant createdAt;
     private final Instant updatedAt;
     private final String createdBy;
@@ -24,7 +25,8 @@ public class Frame {
             String name,
             Status status,
             Integer sortOrder,
-            String assetKey,
+            String verticalAssetKey,
+            String horizontalAssetKey,
             Instant createdAt,
             Instant updatedAt,
             String createdBy,
@@ -34,7 +36,8 @@ public class Frame {
         this.name = name;
         this.status = status;
         this.sortOrder = sortOrder;
-        this.assetKey = assetKey;
+        this.verticalAssetKey = verticalAssetKey;
+        this.horizontalAssetKey = horizontalAssetKey;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.createdBy = createdBy;
@@ -57,8 +60,16 @@ public class Frame {
         return sortOrder;
     }
 
+    public String getVerticalAssetKey() {
+        return verticalAssetKey;
+    }
+
+    public String getHorizontalAssetKey() {
+        return horizontalAssetKey;
+    }
+
     public String getAssetKey() {
-        return assetKey;
+        return verticalAssetKey;
     }
 
     public Instant getCreatedAt() {

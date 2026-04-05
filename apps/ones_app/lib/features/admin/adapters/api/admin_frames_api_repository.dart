@@ -84,11 +84,13 @@ class AdminFramesApiRepository {
   Future<PresignPutResponse> presignPutAsset({
     required String frameId,
     required String contentType,
+    String? variant,
   }) async {
     final res = await _dio().post(
       '/v1/admin/frames/$frameId/asset/presign',
       data: {
         'contentType': contentType,
+        if (variant != null && variant.isNotEmpty) 'variant': variant,
       },
     );
 
@@ -113,9 +115,15 @@ class AdminFramesApiRepository {
     );
   }
 
-  Future<String> getAssetUrl({required String frameId}) async {
+  Future<String> getAssetUrl({
+    required String frameId,
+    String? variant,
+  }) async {
     final res = await _dio().get(
       '/v1/admin/frames/$frameId/asset-url',
+      queryParameters: {
+        if (variant != null && variant.isNotEmpty) 'variant': variant,
+      },
     );
 
     final data = res.data;
@@ -182,14 +190,16 @@ class FrameDto {
   final String name;
   final String status;
   final int? sortOrder;
-  final String? assetKey;
+  final String? verticalAssetKey;
+  final String? horizontalAssetKey;
 
   const FrameDto({
     required this.frameId,
     required this.name,
     required this.status,
     required this.sortOrder,
-    required this.assetKey,
+    this.verticalAssetKey,
+    this.horizontalAssetKey,
   });
 
   factory FrameDto.fromJson(Map<String, dynamic> json) {
@@ -212,7 +222,8 @@ class FrameDto {
       name: name,
       status: status,
       sortOrder: json['sortOrder'] as int?,
-      assetKey: json['assetKey'] as String?,
+      verticalAssetKey: json['verticalAssetKey'] as String?,
+      horizontalAssetKey: json['horizontalAssetKey'] as String?,
     );
   }
 }

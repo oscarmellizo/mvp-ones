@@ -58,14 +58,16 @@ public class FramesManagementService {
         Frame existing = repository.findById(id).orElse(null);
         Instant createdAt = existing != null && existing.getCreatedAt() != null ? existing.getCreatedAt() : now;
         String createdBy = existing != null ? existing.getCreatedBy() : actor;
-        String assetKey = existing != null ? existing.getAssetKey() : null;
+        String verticalAssetKey = existing != null ? existing.getVerticalAssetKey() : null;
+        String horizontalAssetKey = existing != null ? existing.getHorizontalAssetKey() : null;
 
         Frame toSave = new Frame(
                 id,
                 name.trim(),
                 status != null ? status : Frame.Status.inactive,
                 sortOrder,
-                assetKey,
+                verticalAssetKey,
+                horizontalAssetKey,
                 createdAt,
                 now,
                 createdBy,
@@ -79,7 +81,7 @@ public class FramesManagementService {
         repository.deleteById(frameId);
     }
 
-    public PresignPutAssetResult presignPutAsset(Authentication authentication, String frameId, String contentType) {
+    public PresignPutAssetResult presignPutAsset(Authentication authentication, String frameId, String contentType, String variant) {
         if (frameId == null || frameId.isBlank()) {
             throw new IllegalArgumentException("frameId is required");
         }
@@ -91,7 +93,7 @@ public class FramesManagementService {
 
         String ct = (contentType == null || contentType.isBlank()) ? "image/png" : contentType.trim();
         String ext = extensionForContentType(ct);
-        String key = assetKey(existing.getFrameId(), ext);
+        String key = assetKey(existing.getFrameId(), variant, ext);
 
         String putUrl = presigner.presignPut(
                 assetsBucket,
@@ -105,7 +107,8 @@ public class FramesManagementService {
                 existing.getName(),
                 existing.getStatus(),
                 existing.getSortOrder(),
-                key,
+                "vertical".equalsIgnoreCase(variant) ? key : existing.getVerticalAssetKey(),
+                "horizontal".equalsIgnoreCase(variant) ? key : existing.getHorizontalAssetKey(),
                 existing.getCreatedAt(),
                 now,
                 existing.getCreatedBy(),
@@ -117,20 +120,26 @@ public class FramesManagementService {
         return new PresignPutAssetResult(putUrl, key, expiresAt);
     }
 
-    public PresignedGetAssetResult presignGetAsset(String frameId) {
+    public PresignedGetAssetResult presignGetAsset(String frameId, String variant) {
         if (frameId == null || frameId.isBlank()) {
             throw new IllegalArgumentException("frameId is required");
         }
 
         Frame existing = repository.findById(frameId.trim()).orElseThrow(() -> new FrameNotFoundException(frameId));
-        if (existing.getAssetKey() == null || existing.getAssetKey().isBlank()) {
+        String assetKey = null;
+        if ("vertical".equalsIgnoreCase(variant)) {
+            assetKey = existing.getVerticalAssetKey();
+        } else if ("horizontal".equalsIgnoreCase(variant)) {
+            assetKey = existing.getHorizontalAssetKey();
+        }
+        if (assetKey == null || assetKey.isBlank()) {
             throw new FrameAssetNotFoundException(frameId);
         }
 
         Instant now = Instant.now(clock);
         String url = presigner.presignGet(
                 assetsBucket,
-                existing.getAssetKey(),
+                assetKey,
                 Duration.ofMinutes(getPresignTtlMinutes)
         ).toString();
 
@@ -138,9 +147,10 @@ public class FramesManagementService {
         return new PresignedGetAssetResult(url, expiresAt);
     }
 
-    private static String assetKey(String frameId, String extension) {
+    private static String assetKey(String frameId, String variant, String extension) {
         String ext = (extension == null || extension.isBlank()) ? "png" : extension.trim().toLowerCase();
-        return "frames/" + frameId + "/asset." + ext;
+        String v = (variant == null || variant.isBlank()) ? "vertical" : variant.trim().toLowerCase();
+        return "frames/" + frameId + "/" + v + "." + ext;
     }
 
     private static String extensionForContentType(String contentType) {
