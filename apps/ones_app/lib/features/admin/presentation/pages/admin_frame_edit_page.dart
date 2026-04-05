@@ -19,6 +19,7 @@ class _AdminFrameEditPageState extends State<AdminFrameEditPage> {
   String? _verticalUrl;
   String? _horizontalUrl;
   String? _error;
+  String? _frameName;
 
   @override
   void didChangeDependencies() {
@@ -29,9 +30,11 @@ class _AdminFrameEditPageState extends State<AdminFrameEditPage> {
   Future<void> _loadPreviewUrls() async {
     final ctrl = context.read<AdminFramesController>();
     final repo = ctrl.repository;
+    final frame = ctrl.items.firstWhere((f) => f.frameId == widget.frameId);
     setState(() {
       _error = null;
       _loading = true;
+      _frameName = frame.name;
     });
     try {
       final vertical =
@@ -112,7 +115,7 @@ class _AdminFrameEditPageState extends State<AdminFrameEditPage> {
     return Scaffold(
       backgroundColor: OnesColors.background,
       appBar: AppBar(
-        title: Text('Editar frame: ${widget.frameId}'),
+        title: Text('Editar frame: ${_frameName ?? widget.frameId}'),
       ),
       body: AdminGate(
         child: SafeArea(
@@ -130,24 +133,51 @@ class _AdminFrameEditPageState extends State<AdminFrameEditPage> {
                 if (_loading) const LinearProgressIndicator(),
                 const SizedBox(height: 12),
                 Expanded(
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _AssetSection(
-                          title: 'Vertical',
-                          url: _verticalUrl,
-                          onTap: () => _pickAndUpload('vertical'),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _AssetSection(
-                          title: 'Horizontal',
-                          url: _horizontalUrl,
-                          onTap: () => _pickAndUpload('horizontal'),
-                        ),
-                      ),
-                    ],
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      // Use Row on wide screens, Column on narrow screens
+                      if (constraints.maxWidth > 600) {
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: _AssetSection(
+                                title: 'Vertical',
+                                url: _verticalUrl,
+                                onTap: () => _pickAndUpload('vertical'),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _AssetSection(
+                                title: 'Horizontal',
+                                url: _horizontalUrl,
+                                onTap: () => _pickAndUpload('horizontal'),
+                              ),
+                            ),
+                          ],
+                        );
+                      } else {
+                        return Column(
+                          children: [
+                            Expanded(
+                              child: _AssetSection(
+                                title: 'Vertical',
+                                url: _verticalUrl,
+                                onTap: () => _pickAndUpload('vertical'),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Expanded(
+                              child: _AssetSection(
+                                title: 'Horizontal',
+                                url: _horizontalUrl,
+                                onTap: () => _pickAndUpload('horizontal'),
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+                    },
                   ),
                 ),
               ],
