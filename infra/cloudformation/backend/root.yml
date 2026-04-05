@@ -94,6 +94,8 @@ Outputs:
     Value: !GetAtt AllStack.Outputs.AdminsTableName
   FramesTableName:
     Value: !GetAtt AllStack.Outputs.FramesTableName
+  EventTemplatesTableName:
+    Value: !GetAtt AllStack.Outputs.EventTemplatesTableName
   EventsCoversTempBucketName:
     Value: !GetAtt AllStack.Outputs.EventsCoversTempBucketName
   EventsAssetsBucketName:
