@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../admin_event_templates_controller.dart';
 import '../widgets/admin_gate.dart';
+import 'admin_event_template_edit_page.dart';
 
 class AdminEventTemplatesPage extends StatefulWidget {
   const AdminEventTemplatesPage({super.key});
@@ -177,28 +178,6 @@ class _AdminEventTemplatesPageState extends State<AdminEventTemplatesPage> {
           ],
         );
       },
-    );
-  }
-}
-
-// Placeholder for edit page (will be implemented with frame selector)
-class AdminEventTemplateEditPage extends StatelessWidget {
-  final String? eventTemplateId;
-
-  const AdminEventTemplateEditPage({super.key, this.eventTemplateId});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(eventTemplateId != null
-            ? 'Edit Event Template'
-            : 'Create Event Template'),
-      ),
-      body: const Center(
-        child:
-            Text('Event template edit form with frame selector coming soon...'),
-      ),
     );
   }
 }
