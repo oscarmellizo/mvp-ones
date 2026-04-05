@@ -92,6 +92,8 @@ Outputs:
     Value: !GetAtt AllStack.Outputs.PreferredNamesCacheTableName
   AdminsTableName:
     Value: !GetAtt AllStack.Outputs.AdminsTableName
+  FramesTableName:
+    Value: !GetAtt AllStack.Outputs.FramesTableName
   EventsCoversTempBucketName:
     Value: !GetAtt AllStack.Outputs.EventsCoversTempBucketName
   EventsAssetsBucketName:

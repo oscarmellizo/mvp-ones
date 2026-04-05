@@ -224,6 +224,34 @@ Resources:
         - AttributeName: email
           KeyType: HASH
 
+  FramesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-frames
+      BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      AttributeDefinitions:
+        - AttributeName: frameId
+          AttributeType: S
+        - AttributeName: gsi1pk
+          AttributeType: S
+        - AttributeName: gsi1sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: frameId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: gsi1
+          KeySchema:
+            - AttributeName: gsi1pk
+              KeyType: HASH
+            - AttributeName: gsi1sk
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
   EventsCoversTempBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -267,6 +295,7 @@ Resources:
             AllowedMethods:
               - GET
               - HEAD
+              - PUT
             AllowedHeaders:
               - '*'
             ExposedHeaders:
@@ -717,6 +746,8 @@ Resources:
                   - !Sub ${PhotosTable.Arn}/index/*
                   - !GetAtt PreferredNamesCacheTable.Arn
                   - !GetAtt AdminsTable.Arn
+                  - !GetAtt FramesTable.Arn
+                  - !Sub ${FramesTable.Arn}/index/*
         - PolicyName: ones-s3
           PolicyDocument:
             Version: '2012-10-17'
@@ -839,6 +870,8 @@ Resources:
               Value: !Ref PreferredNamesCacheTable
             - Name: ONES_ADMINS_TABLE
               Value: !Ref AdminsTable
+            - Name: ONES_FRAMES_TABLE
+              Value: !Ref FramesTable
             - Name: ONES_EVENTS_COVERS_TEMP_BUCKET
               Value: !Ref EventsCoversTempBucket
             - Name: ONES_EVENTS_ASSETS_BUCKET
@@ -1146,6 +1179,8 @@ Outputs:
     Value: !Ref PreferredNamesCacheTable
   AdminsTableName:
     Value: !Ref AdminsTable
+  FramesTableName:
+    Value: !Ref FramesTable
   EventsCoversTempBucketName:
     Value: !Ref EventsCoversTempBucket
   EventsAssetsBucketName:

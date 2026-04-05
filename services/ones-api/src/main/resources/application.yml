@@ -220,6 +220,7 @@ ones:
     photos-table-name: ${ONES_PHOTOS_TABLE:ones-photos}
     preferred-names-cache-table-name: ${ONES_PREFERRED_NAMES_CACHE_TABLE:ones-preferred-names-cache}
     admins-table-name: ${ONES_ADMINS_TABLE:ones-admins}
+    frames-table-name: ${ONES_FRAMES_TABLE:ones-frames}
     endpoint: ${DYNAMODB_ENDPOINT:}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000,http://localhost:8080,http://localhost:5000,http://localhost:4000,http://localhost:1234,http://localhost:7357,http://localhost:56321,http://localhost:49234,http://localhost:40233}

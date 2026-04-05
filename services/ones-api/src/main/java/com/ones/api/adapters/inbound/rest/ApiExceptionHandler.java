@@ -23,6 +23,8 @@ import com.ones.api.application.events.AiImageGenerationException;
 import com.ones.api.application.events.EventCoverNotFoundException;
 import com.ones.api.application.events.EventForbiddenException;
 import com.ones.api.application.events.EventNotFoundException;
+import com.ones.api.application.frames.FrameAssetNotFoundException;
+import com.ones.api.application.frames.FrameNotFoundException;
 import com.ones.api.application.invitations.InvitationClosedException;
 import com.ones.api.application.invitations.InvitationNotFoundException;
 
@@ -47,6 +49,14 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler({CoverPreviewNotFoundException.class, CoverReservationNotFoundException.class, EventCoverNotFoundException.class})
     public ResponseEntity<Map<String, Object>> notFound(RuntimeException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "error", "not_found",
+                "message", ex.getMessage()
+        ));
+    }
+
+    @ExceptionHandler({FrameNotFoundException.class, FrameAssetNotFoundException.class})
+    public ResponseEntity<Map<String, Object>> frameNotFound(RuntimeException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
                 "error", "not_found",
                 "message", ex.getMessage()
@@ -98,6 +108,14 @@ public class ApiExceptionHandler {
         body.put("message", "Validation failed");
         body.put("details", details);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, Object>> illegalArgument(IllegalArgumentException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                "error", "bad_request",
+                "message", ex.getMessage()
+        ));
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
