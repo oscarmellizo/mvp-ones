@@ -11,7 +11,9 @@ import 'features/auth/application/sign_in_with_google_use_case.dart';
 import 'features/auth/application/sign_out_use_case.dart';
 import 'features/auth/presentation/auth_controller.dart';
 import 'features/admin/adapters/api/admin_api_repository.dart';
+import 'features/admin/adapters/api/admin_admins_api_repository.dart';
 import 'features/admin/application/get_admin_me_use_case.dart';
+import 'features/admin/presentation/admin_admins_controller.dart';
 import 'features/events/adapters/api/events_api_repository.dart';
 import 'features/events/adapters/api/event_covers_api_repository.dart';
 import 'features/events/adapters/api/event_cover_urls_api_repository.dart';
@@ -64,6 +66,8 @@ class OnesApp extends StatelessWidget {
     final adminRepository = AdminApiRepository(apiFactory);
     final getAdminMe = GetAdminMeUseCase(adminRepository);
 
+    final adminAdminsRepository = AdminAdminsApiRepository(apiFactory);
+
     final eventsRepository = EventsApiRepository(apiFactory);
     final listEvents = ListEventsUseCase(eventsRepository);
     final getEvent = GetEventUseCase(eventsRepository);
@@ -110,6 +114,19 @@ class OnesApp extends StatelessWidget {
                   createEvent: createEvent,
                 );
             eventsRepository.setIdToken(auth.idToken);
+            controller.setIdToken(auth.idToken);
+            return controller;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthController, AdminAdminsController>(
+          create: (_) => AdminAdminsController(
+            repository: adminAdminsRepository,
+          ),
+          update: (_, auth, ctrl) {
+            final controller = ctrl ??
+                AdminAdminsController(
+                  repository: adminAdminsRepository,
+                );
             controller.setIdToken(auth.idToken);
             return controller;
           },
