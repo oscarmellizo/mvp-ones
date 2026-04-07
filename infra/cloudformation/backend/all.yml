@@ -252,6 +252,34 @@ Resources:
           Projection:
             ProjectionType: ALL
 
+  EventTemplatesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-event-templates
+      BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      AttributeDefinitions:
+        - AttributeName: eventTemplateId
+          AttributeType: S
+        - AttributeName: gsi1pk
+          AttributeType: S
+        - AttributeName: gsi1sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: eventTemplateId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: gsi1
+          KeySchema:
+            - AttributeName: gsi1pk
+              KeyType: HASH
+            - AttributeName: gsi1sk
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
   EventsCoversTempBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -748,6 +776,8 @@ Resources:
                   - !GetAtt AdminsTable.Arn
                   - !GetAtt FramesTable.Arn
                   - !Sub ${FramesTable.Arn}/index/*
+                  - !GetAtt EventTemplatesTable.Arn
+                  - !Sub ${EventTemplatesTable.Arn}/index/*
         - PolicyName: ones-s3
           PolicyDocument:
             Version: '2012-10-17'
@@ -872,6 +902,8 @@ Resources:
               Value: !Ref AdminsTable
             - Name: ONES_FRAMES_TABLE
               Value: !Ref FramesTable
+            - Name: ONES_EVENT_TEMPLATES_TABLE
+              Value: !Ref EventTemplatesTable
             - Name: ONES_EVENTS_COVERS_TEMP_BUCKET
               Value: !Ref EventsCoversTempBucket
             - Name: ONES_EVENTS_ASSETS_BUCKET
@@ -1181,6 +1213,8 @@ Outputs:
     Value: !Ref AdminsTable
   FramesTableName:
     Value: !Ref FramesTable
+  EventTemplatesTableName:
+    Value: !Ref EventTemplatesTable
   EventsCoversTempBucketName:
     Value: !Ref EventsCoversTempBucket
   EventsAssetsBucketName:
