@@ -10,6 +10,10 @@ class AdminEventTemplatesController extends ChangeNotifier {
 
   AdminEventTemplatesController({required this.repository});
 
+  void setIdToken(String? token) {
+    repository.setIdToken(token);
+  }
+
   List<EventTemplateDto> get items => List.unmodifiable(_items);
   bool get loading => _loading;
   String? get lastError => _lastError;
