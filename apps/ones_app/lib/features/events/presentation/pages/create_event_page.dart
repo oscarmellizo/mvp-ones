@@ -24,6 +24,7 @@ class CreateEventPage extends StatefulWidget {
   final TimeOfDay? initialStartTime;
   final DateTime? initialEndDate;
   final TimeOfDay? initialEndTime;
+  final List<String>? initialFrameIds;
 
   const CreateEventPage({
     super.key,
@@ -34,6 +35,7 @@ class CreateEventPage extends StatefulWidget {
     this.initialStartTime,
     this.initialEndDate,
     this.initialEndTime,
+    this.initialFrameIds,
   });
 
   @override
@@ -65,6 +67,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
 
   bool _allowGuestInvites = true;
 
+  List<String> _frameIds = const [];
+
   @override
   void initState() {
     super.initState();
@@ -94,6 +98,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
     _startTime = widget.initialStartTime ?? _startTime;
     _endDate = widget.initialEndDate ?? _endDate;
     _endTime = widget.initialEndTime ?? _endTime;
+
+    _frameIds = List<String>.from(widget.initialFrameIds ?? const <String>[]);
   }
 
   @override
@@ -621,6 +627,19 @@ class _CreateEventPageState extends State<CreateEventPage> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 14),
+                CreateEventFormSection(
+                  title: 'Frames',
+                  child: Text(
+                    _frameIds.isEmpty
+                        ? 'No frames selected for this event.'
+                        : 'This event will use ${_frameIds.length} frame${_frameIds.length == 1 ? '' : 's'}.',
+                    style: TextStyle(
+                      color: OnesColors.black.withOpacity(0.7),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
                 if (!isKeyboardOpen) ...[
                   const SizedBox(height: 20),
                   SizedBox(
@@ -717,6 +736,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
         _coverReservationId,
         _invitees.map((i) => i.email).toList(growable: false),
         _allowGuestInvites,
+        _frameIds,
       );
       if (context.mounted) Navigator.of(context).pop();
     } on DioException catch (e) {

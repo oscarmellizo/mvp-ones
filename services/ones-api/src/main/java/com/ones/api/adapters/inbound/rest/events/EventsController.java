@@ -86,7 +86,8 @@ public class EventsController {
                 request.endAt(),
                 request.coverReservationId(),
                 request.inviteeEmails(),
-                allowGuestInvites
+                allowGuestInvites,
+                request.frameIds()
         );
         return ResponseEntity.created(URI.create("/v1/events/" + created.getEventId())).body(toResponse(created));
     }
@@ -210,7 +211,8 @@ public class EventsController {
                 e.getStartAt(),
                 e.getEndAt(),
                 e.getCoverKey(),
-                e.isAllowGuestInvites()
+                e.isAllowGuestInvites(),
+                e.getFrameIds()
         );
     }
 }

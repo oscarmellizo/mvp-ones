@@ -1,6 +1,7 @@
 package com.ones.api.adapters.inbound.rest.events;
 
 import java.time.Instant;
+import java.util.List;
 
 public record EventResponse(
         String id,
@@ -12,6 +13,7 @@ public record EventResponse(
         Instant startAt,
         Instant endAt,
         String coverKey,
-        boolean allowGuestInvites
+        boolean allowGuestInvites,
+        List<String> frameIds
 ) {
 }

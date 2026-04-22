@@ -15,6 +15,7 @@ class CreateEventUseCase {
     String? coverReservationId,
     List<String> inviteeEmails,
     bool allowGuestInvites,
+    List<String> frameIds,
   ) {
     return repository.createEvent(
       title,
@@ -25,6 +26,7 @@ class CreateEventUseCase {
       coverReservationId,
       inviteeEmails,
       allowGuestInvites,
+      frameIds,
     );
   }
 }

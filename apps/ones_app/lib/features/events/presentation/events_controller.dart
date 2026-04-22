@@ -65,6 +65,7 @@ class EventsController extends ChangeNotifier {
     String? coverReservationId,
     List<String> inviteeEmails,
     bool allowGuestInvites,
+    List<String> frameIds,
   ) async {
     _setLoading(true);
     try {
@@ -78,6 +79,7 @@ class EventsController extends ChangeNotifier {
         coverReservationId,
         inviteeEmails,
         allowGuestInvites,
+        frameIds,
       );
       _events = [created, ..._events];
     } catch (e) {

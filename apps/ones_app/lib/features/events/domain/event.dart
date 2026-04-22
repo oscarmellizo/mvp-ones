@@ -9,6 +9,7 @@ class Event {
   final DateTime endAt;
   final String? coverKey;
   final bool allowGuestInvites;
+  final List<String> frameIds;
 
   const Event({
     required this.id,
@@ -21,5 +22,6 @@ class Event {
     required this.endAt,
     required this.coverKey,
     required this.allowGuestInvites,
+    this.frameIds = const [],
   });
 }

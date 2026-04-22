@@ -135,23 +135,43 @@ class EventsApiRepository implements EventsRepository {
     String? coverReservationId,
     List<String> inviteeEmails,
     bool allowGuestInvites,
+    List<String> frameIds,
   ) async {
-    final req = api.CreateEventRequest((b) => b
-      ..title = title
-      ..objective = objective
-      ..location = location
-      ..startAt = startAt
-      ..endAt = endAt
-      ..coverReservationId = coverReservationId
-      ..inviteeEmails.replace(inviteeEmails)
-      ..allowGuestInvites = allowGuestInvites);
-    final response =
-        await _defaultApi(_idToken).createEvent(createEventRequest: req);
-    final api.Event? e = response.data;
-    if (e == null) {
-      throw StateError('Missing event in response');
+    final dio = _apiFactory.create(idToken: _idToken).dio;
+    final payload = <String, dynamic>{
+      'title': title,
+      'objective': objective,
+      'location': location,
+      'startAt': startAt.toUtc().toIso8601String(),
+      'endAt': endAt.toUtc().toIso8601String(),
+      'coverReservationId': coverReservationId,
+      'inviteeEmails': inviteeEmails,
+      'allowGuestInvites': allowGuestInvites,
+      'frameIds': frameIds,
+    };
+
+    final response = await dio.post('/v1/events', data: payload);
+    final data = response.data;
+    if (data is! Map<String, dynamic>) {
+      throw StateError('Invalid create event response');
     }
-    return _mapEvent(e);
+
+    return Event(
+      id: data['id'] as String,
+      ownerId: data['ownerId'] as String,
+      createdAt: DateTime.parse(data['createdAt'] as String),
+      title: data['title'] as String,
+      objective: data['objective'] as String,
+      location: data['location'] as String,
+      startAt: DateTime.parse(data['startAt'] as String),
+      endAt: DateTime.parse(data['endAt'] as String),
+      coverKey: data['coverKey'] as String?,
+      allowGuestInvites: (data['allowGuestInvites'] as bool?) ?? true,
+      frameIds: (data['frameIds'] as List?)
+              ?.map((e) => e.toString())
+              .toList(growable: false) ??
+          const <String>[],
+    );
   }
 
   static Event _mapEvent(api.Event e) {
@@ -166,6 +186,7 @@ class EventsApiRepository implements EventsRepository {
       endAt: e.endAt,
       coverKey: e.coverKey,
       allowGuestInvites: e.allowGuestInvites ?? true,
+      frameIds: const <String>[],
     );
   }
 }

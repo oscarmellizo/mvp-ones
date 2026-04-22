@@ -22,6 +22,8 @@ public class DynamoEventItem {
 
     private Boolean allowGuestInvites;
 
+    private java.util.List<String> frameIds;
+
     private String gsi1pk;
     private String gsi1sk;
 
@@ -114,6 +116,15 @@ public class DynamoEventItem {
 
     public void setAllowGuestInvites(Boolean allowGuestInvites) {
         this.allowGuestInvites = allowGuestInvites;
+    }
+
+    @DynamoDbAttribute("frameIds")
+    public java.util.List<String> getFrameIds() {
+        return frameIds;
+    }
+
+    public void setFrameIds(java.util.List<String> frameIds) {
+        this.frameIds = frameIds;
     }
 
     @DynamoDbSecondaryPartitionKey(indexNames = "gsi1")

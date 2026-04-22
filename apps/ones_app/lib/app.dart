@@ -22,6 +22,7 @@ import 'features/events/adapters/api/events_api_repository.dart';
 import 'features/events/adapters/api/event_covers_api_repository.dart';
 import 'features/events/adapters/api/event_cover_urls_api_repository.dart';
 import 'features/events/adapters/api/events_metadata_api_repository.dart';
+import 'features/events/adapters/api/event_templates_api_repository.dart';
 import 'features/events/application/create_event_use_case.dart';
 import 'features/events/application/get_event_use_case.dart';
 import 'features/events/application/list_events_use_case.dart';
@@ -30,6 +31,7 @@ import 'features/events/presentation/events_controller.dart';
 import 'features/events/presentation/event_covers_controller.dart';
 import 'features/events/presentation/event_cover_urls_controller.dart';
 import 'features/events/presentation/events_metadata_controller.dart';
+import 'features/events/presentation/discover_templates_controller.dart';
 import 'features/invitations/adapters/api/invitations_api_repository.dart';
 import 'features/invitations/presentation/invitations_controller.dart';
 import 'features/photos/adapters/api/event_photos_api.dart';
@@ -85,6 +87,8 @@ class OnesApp extends StatelessWidget {
     final eventCoverUrlsRepository = EventCoverUrlsApiRepository(apiFactory);
     final invitationsRepository = InvitationsApiRepository(apiFactory);
 
+    final eventTemplatesRepository = EventTemplatesApiRepository(apiFactory);
+
     final eventPhotosApi = EventPhotosApi(apiFactory);
     final eventPhotosGalleryApi = EventPhotosApi(apiFactory);
     final photoUploadDb = PhotoUploadDb();
@@ -121,6 +125,20 @@ class OnesApp extends StatelessWidget {
                   createEvent: createEvent,
                 );
             eventsRepository.setIdToken(auth.idToken);
+            controller.setIdToken(auth.idToken);
+            return controller;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthController,
+            DiscoverTemplatesController>(
+          create: (_) => DiscoverTemplatesController(
+            repository: eventTemplatesRepository,
+          ),
+          update: (_, auth, ctrl) {
+            final controller = ctrl ??
+                DiscoverTemplatesController(
+                  repository: eventTemplatesRepository,
+                );
             controller.setIdToken(auth.idToken);
             return controller;
           },

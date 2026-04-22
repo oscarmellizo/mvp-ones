@@ -21,6 +21,7 @@ abstract interface class EventsRepository {
     String? coverReservationId,
     List<String> inviteeEmails,
     bool allowGuestInvites,
+    List<String> frameIds,
   );
 }
 

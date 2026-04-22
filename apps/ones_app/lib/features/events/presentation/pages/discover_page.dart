@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/widgets/ones_card.dart';
 import '../../../../core/ui/widgets/ones_search_field.dart';
+import '../../adapters/api/event_templates_api_repository.dart';
+import '../discover_templates_controller.dart';
 import 'create_event_page.dart';
 
 class DiscoverPage extends StatefulWidget {
@@ -15,12 +18,16 @@ class DiscoverPage extends StatefulWidget {
 class _DiscoverPageState extends State<DiscoverPage> {
   final _searchController = TextEditingController();
 
-  late final List<_EventTemplate> _templates;
-
   @override
   void initState() {
     super.initState();
-    _templates = _buildTemplates();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final ctrl = context.read<DiscoverTemplatesController>();
+      if (ctrl.templates.isEmpty && !ctrl.loading) {
+        ctrl.load();
+      }
+    });
     _searchController.addListener(_onSearchChanged);
   }
 
@@ -35,12 +42,12 @@ class _DiscoverPageState extends State<DiscoverPage> {
 
   @override
   Widget build(BuildContext context) {
+    final ctrl = context.watch<DiscoverTemplatesController>();
     final q = _searchController.text.trim().toLowerCase();
-    final filtered = _templates.where((t) {
+    final items = ctrl.templates;
+    final filtered = items.where((t) {
       if (q.isEmpty) return true;
-      return t.title.toLowerCase().contains(q) ||
-          t.eventType.toLowerCase().contains(q) ||
-          t.location.toLowerCase().contains(q);
+      return t.name.toLowerCase().contains(q);
     }).toList(growable: false);
 
     return Scaffold(
@@ -54,66 +61,43 @@ class _DiscoverPageState extends State<DiscoverPage> {
               hintText: 'Search templates (concert, movie, football...)',
             ),
             const SizedBox(height: 14),
-            if (filtered.isEmpty)
+            if (ctrl.loading && items.isEmpty)
+              const Center(child: CircularProgressIndicator())
+            else if (ctrl.error != null && items.isEmpty)
               OnesCard(
                 child: Text(
-                  'No templates found for "$q".',
-                  style: TextStyle(color: OnesColors.black.withOpacity(0.6)),
-                ),
-              )
-            else
-              ...filtered.map(
-                (t) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _TemplateCard(
-                    template: t,
-                    onTap: () => _openTemplate(context, t),
+                  'Failed to load templates. Please try again.',
+                  style: TextStyle(
+                    color: OnesColors.black.withOpacity(0.6),
                   ),
                 ),
-              ),
+              )
+            else ...[
+              if (filtered.isEmpty)
+                OnesCard(
+                  child: Text(
+                    'No templates found for "$q".',
+                    style: TextStyle(color: OnesColors.black.withOpacity(0.6)),
+                  ),
+                )
+              else
+                ...filtered.map(
+                  (t) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _TemplateCard(
+                      template: t,
+                      onTap: () => _openTemplate(context, t),
+                    ),
+                  ),
+                ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  List<_EventTemplate> _buildTemplates() {
-    final now = DateTime.now();
-    return [
-      _EventTemplate(
-        id: 't_concert',
-        title: 'Live Concert',
-        eventType: 'Concert',
-        location: 'NYC',
-        start: DateTime(now.year, now.month, now.day + 2, 20, 0),
-        end: DateTime(now.year, now.month, now.day + 2, 23, 0),
-        coverAsset: 'assets/auth/concierto.png',
-        framesHint: 'Neon stage frames',
-      ),
-      _EventTemplate(
-        id: 't_movie',
-        title: 'Movie Night',
-        eventType: 'Movie',
-        location: 'Brooklyn',
-        start: DateTime(now.year, now.month, now.day + 5, 19, 30),
-        end: DateTime(now.year, now.month, now.day + 5, 22, 0),
-        coverAsset: 'assets/auth/amigos.png',
-        framesHint: 'Cinema frames',
-      ),
-      _EventTemplate(
-        id: 't_football',
-        title: 'Football Match',
-        eventType: 'Sports',
-        location: 'Queens',
-        start: DateTime(now.year, now.month, now.day + 8, 16, 0),
-        end: DateTime(now.year, now.month, now.day + 8, 18, 0),
-        coverAsset: 'assets/auth/amigos.png',
-        framesHint: 'Team color frames',
-      ),
-    ];
-  }
-
-  Future<void> _openTemplate(BuildContext context, _EventTemplate template) {
+  Future<void> _openTemplate(BuildContext context, EventTemplate template) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -126,21 +110,13 @@ class _DiscoverPageState extends State<DiscoverPage> {
             Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => CreateEventPage(
-                  initialTitle: template.title,
-                  initialEventType: template.eventType,
-                  initialLocation: template.location,
-                  initialStartDate: DateTime(
-                    template.start.year,
-                    template.start.month,
-                    template.start.day,
-                  ),
-                  initialStartTime: TimeOfDay.fromDateTime(template.start),
-                  initialEndDate: DateTime(
-                    template.end.year,
-                    template.end.month,
-                    template.end.day,
-                  ),
-                  initialEndTime: TimeOfDay.fromDateTime(template.end),
+                  initialTitle: template.name,
+                  initialLocation: null,
+                  initialStartDate: null,
+                  initialStartTime: null,
+                  initialEndDate: null,
+                  initialEndTime: null,
+                  initialFrameIds: template.frameIds,
                 ),
               ),
             );
@@ -152,7 +128,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
 }
 
 class _TemplateCard extends StatelessWidget {
-  final _EventTemplate template;
+  final EventTemplate template;
   final VoidCallback onTap;
 
   const _TemplateCard({required this.template, required this.onTap});
@@ -172,11 +148,11 @@ class _TemplateCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.zero,
-              child: Image.asset(
-                template.coverAsset,
+              child: Container(
                 width: 56,
                 height: 56,
-                fit: BoxFit.cover,
+                color: OnesColors.yellowLight,
+                child: const Icon(Icons.event, color: OnesColors.purpleDark),
               ),
             ),
             const SizedBox(width: 12),
@@ -185,7 +161,7 @@ class _TemplateCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    template.title,
+                    template.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -215,7 +191,7 @@ class _TemplateCard extends StatelessWidget {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          '${template.eventType} • ${template.location}',
+                          '${template.status} • ${template.frameIds.length} frame${template.frameIds.length == 1 ? '' : 's'}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -238,7 +214,7 @@ class _TemplateCard extends StatelessWidget {
 }
 
 class _TemplateDetailsSheet extends StatelessWidget {
-  final _EventTemplate template;
+  final EventTemplate template;
   final VoidCallback onUseTemplate;
 
   const _TemplateDetailsSheet({
@@ -275,26 +251,30 @@ class _TemplateDetailsSheet extends StatelessWidget {
               const SizedBox(height: 14),
               ClipRRect(
                 borderRadius: BorderRadius.zero,
-                child: Image.asset(
-                  template.coverAsset,
+                child: Container(
                   height: 160,
-                  fit: BoxFit.cover,
+                  color: OnesColors.yellow,
+                  child: const Icon(
+                    Icons.event,
+                    size: 80,
+                    color: OnesColors.purpleDark,
+                  ),
                 ),
               ),
               const SizedBox(height: 14),
               Text(
-                template.title,
+                template.name,
                 style: const TextStyle(
                   fontWeight: FontWeight.w900,
                   fontSize: 20,
                 ),
               ),
               const SizedBox(height: 10),
-              _InfoRow(label: 'Type', value: template.eventType),
-              _InfoRow(label: 'Location', value: template.location),
-              _InfoRow(label: 'Starts', value: _formatDateTime(template.start)),
-              _InfoRow(label: 'Ends', value: _formatDateTime(template.end)),
-              _InfoRow(label: 'Frames', value: template.framesHint),
+              _InfoRow(label: 'Status', value: template.status),
+              _InfoRow(
+                  label: 'Frames',
+                  value:
+                      '${template.frameIds.length} frame${template.frameIds.length == 1 ? '' : 's'}'),
               const SizedBox(height: 16),
               const Text(
                 'Use this event template?',
@@ -341,14 +321,6 @@ class _TemplateDetailsSheet extends StatelessWidget {
       },
     );
   }
-
-  static String _formatDateTime(DateTime dt) {
-    final mm = dt.month.toString().padLeft(2, '0');
-    final dd = dt.day.toString().padLeft(2, '0');
-    final hh = dt.hour.toString().padLeft(2, '0');
-    final min = dt.minute.toString().padLeft(2, '0');
-    return '$mm/$dd/${dt.year} $hh:$min';
-  }
 }
 
 class _InfoRow extends StatelessWidget {
@@ -384,26 +356,4 @@ class _InfoRow extends StatelessWidget {
       ),
     );
   }
-}
-
-class _EventTemplate {
-  final String id;
-  final String title;
-  final String eventType;
-  final String location;
-  final DateTime start;
-  final DateTime end;
-  final String coverAsset;
-  final String framesHint;
-
-  const _EventTemplate({
-    required this.id,
-    required this.title,
-    required this.eventType,
-    required this.location,
-    required this.start,
-    required this.end,
-    required this.coverAsset,
-    required this.framesHint,
-  });
 }

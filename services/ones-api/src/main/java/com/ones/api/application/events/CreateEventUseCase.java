@@ -49,7 +49,8 @@ public class CreateEventUseCase {
             String coverReservationId
             ,
             List<String> inviteeEmails,
-            boolean allowGuestInvites
+            boolean allowGuestInvites,
+            List<String> frameIds
     ) {
         String eventId = UUID.randomUUID().toString();
         Instant createdAt = Instant.now(clock);
@@ -62,7 +63,7 @@ public class CreateEventUseCase {
             coverKey = coversService.consumeReservationAndCopyToEvent(ownerId, coverReservationId.trim(), eventId);
         }
 
-        Event event = new Event(eventId, ownerId, createdAt, title, objective, location, startAt, endAt, coverKey, allowGuestInvites);
+        Event event = new Event(eventId, ownerId, createdAt, title, objective, location, startAt, endAt, coverKey, allowGuestInvites, frameIds);
         Event saved = repository.save(event);
 
         if (inviteeEmails != null && !inviteeEmails.isEmpty()) {

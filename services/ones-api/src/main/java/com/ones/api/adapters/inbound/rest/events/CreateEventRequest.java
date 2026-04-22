@@ -14,6 +14,7 @@ public record CreateEventRequest(
         @NotNull Instant endAt,
         String coverReservationId,
         List<String> inviteeEmails,
-        Boolean allowGuestInvites
+        Boolean allowGuestInvites,
+        List<String> frameIds
 ) {
 }

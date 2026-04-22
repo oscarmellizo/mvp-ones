@@ -1,6 +1,7 @@
 package com.ones.api.domain.events;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
 
 public class Event {
@@ -15,6 +16,7 @@ public class Event {
     private final Instant endAt;
     private final String coverKey;
     private final boolean allowGuestInvites;
+    private final List<String> frameIds;
 
     public Event(
             String eventId,
@@ -26,7 +28,8 @@ public class Event {
             Instant startAt,
             Instant endAt,
             String coverKey,
-            boolean allowGuestInvites
+            boolean allowGuestInvites,
+            List<String> frameIds
     ) {
         this.eventId = Objects.requireNonNull(eventId);
         this.ownerId = Objects.requireNonNull(ownerId);
@@ -38,6 +41,7 @@ public class Event {
         this.endAt = Objects.requireNonNull(endAt);
         this.coverKey = coverKey;
         this.allowGuestInvites = allowGuestInvites;
+        this.frameIds = frameIds == null ? List.of() : List.copyOf(frameIds);
     }
 
     public String getEventId() {
@@ -78,5 +82,9 @@ public class Event {
 
     public boolean isAllowGuestInvites() {
         return allowGuestInvites;
+    }
+
+    public List<String> getFrameIds() {
+        return frameIds;
     }
 }
