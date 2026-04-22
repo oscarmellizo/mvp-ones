@@ -1,11 +1,49 @@
 import '../../../../core/http/ones_api_factory.dart';
 
+class TemplateFrame {
+  final String frameId;
+  final String? name;
+  final String verticalUrl;
+  final String horizontalUrl;
+
+  const TemplateFrame({
+    required this.frameId,
+    required this.name,
+    required this.verticalUrl,
+    required this.horizontalUrl,
+  });
+
+  factory TemplateFrame.fromJson(Map<String, dynamic> json) {
+    final frameId = json['frameId'];
+    final verticalUrl = json['verticalUrl'];
+    final horizontalUrl = json['horizontalUrl'];
+
+    if (frameId is! String || frameId.isEmpty) {
+      throw StateError('Missing frameId');
+    }
+    if (verticalUrl is! String || verticalUrl.isEmpty) {
+      throw StateError('Missing verticalUrl');
+    }
+    if (horizontalUrl is! String || horizontalUrl.isEmpty) {
+      throw StateError('Missing horizontalUrl');
+    }
+
+    return TemplateFrame(
+      frameId: frameId,
+      name: json['name'] as String?,
+      verticalUrl: verticalUrl,
+      horizontalUrl: horizontalUrl,
+    );
+  }
+}
+
 class EventTemplate {
   final String id;
   final String name;
   final String status;
   final int? sortOrder;
   final List<String> frameIds;
+  final List<TemplateFrame> frames;
 
   const EventTemplate({
     required this.id,
@@ -13,6 +51,7 @@ class EventTemplate {
     required this.status,
     required this.sortOrder,
     required this.frameIds,
+    required this.frames,
   });
 
   factory EventTemplate.fromJson(Map<String, dynamic> json) {
@@ -21,6 +60,13 @@ class EventTemplate {
     final status = json['status'];
     final frameIds =
         (json['frameIds'] as List?)?.map((e) => e.toString()).toList() ?? [];
+    final framesRaw = json['frames'];
+    final frames = framesRaw is List
+        ? framesRaw
+            .whereType<Map>()
+            .map((m) => TemplateFrame.fromJson(m.cast<String, dynamic>()))
+            .toList(growable: false)
+        : const <TemplateFrame>[];
 
     if (id is! String || id.isEmpty) {
       throw StateError('Missing eventTemplateId');
@@ -38,6 +84,7 @@ class EventTemplate {
       status: status,
       sortOrder: json['sortOrder'] as int?,
       frameIds: frameIds,
+      frames: frames,
     );
   }
 }

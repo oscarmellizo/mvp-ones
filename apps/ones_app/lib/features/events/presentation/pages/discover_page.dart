@@ -274,7 +274,60 @@ class _TemplateDetailsSheet extends StatelessWidget {
               _InfoRow(
                   label: 'Frames',
                   value:
-                      '${template.frameIds.length} frame${template.frameIds.length == 1 ? '' : 's'}'),
+                      '${template.frames.length} frame${template.frames.length == 1 ? '' : 's'}'),
+              const SizedBox(height: 12),
+              if (template.frames.isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: template.frames.map((f) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (f.name != null && f.name!.isNotEmpty) ...[
+                            Text(
+                              f.name!,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                          ],
+                          Row(
+                            children: [
+                              Expanded(
+                                child: AspectRatio(
+                                  aspectRatio: 9 / 16,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.zero,
+                                    child: Image.network(
+                                      f.verticalUrl,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: AspectRatio(
+                                  aspectRatio: 16 / 9,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.zero,
+                                    child: Image.network(
+                                      f.horizontalUrl,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
               const SizedBox(height: 16),
               const Text(
                 'Use this event template?',
