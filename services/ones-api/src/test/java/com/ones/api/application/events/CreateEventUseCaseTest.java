@@ -24,7 +24,7 @@ class CreateEventUseCaseTest {
         CreateEventUseCase useCase = new CreateEventUseCase(repo, null, null, clock, null);
         Instant startAt = Instant.parse("2025-01-01T18:00:00Z");
         Instant endAt = Instant.parse("2025-01-01T22:00:00Z");
-        Event created = useCase.execute("user-123", "Hello", "birthday", "San Jose, CR", startAt, endAt, null, List.of(), true);
+        Event created = useCase.execute("user-123", "Hello", "birthday", "San Jose, CR", startAt, endAt, null, List.of(), true, List.of());
 
         assertNotNull(created.getEventId());
         assertEquals("user-123", created.getOwnerId());
