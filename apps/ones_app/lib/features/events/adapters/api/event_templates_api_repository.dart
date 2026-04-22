@@ -3,8 +3,8 @@ import '../../../../core/http/ones_api_factory.dart';
 class TemplateFrame {
   final String frameId;
   final String? name;
-  final String verticalUrl;
-  final String horizontalUrl;
+  final String? verticalUrl;
+  final String? horizontalUrl;
 
   const TemplateFrame({
     required this.frameId,
@@ -21,18 +21,15 @@ class TemplateFrame {
     if (frameId is! String || frameId.isEmpty) {
       throw StateError('Missing frameId');
     }
-    if (verticalUrl is! String || verticalUrl.isEmpty) {
-      throw StateError('Missing verticalUrl');
-    }
-    if (horizontalUrl is! String || horizontalUrl.isEmpty) {
-      throw StateError('Missing horizontalUrl');
-    }
 
     return TemplateFrame(
       frameId: frameId,
       name: json['name'] as String?,
-      verticalUrl: verticalUrl,
-      horizontalUrl: horizontalUrl,
+      verticalUrl:
+          verticalUrl is String && verticalUrl.isNotEmpty ? verticalUrl : null,
+      horizontalUrl: horizontalUrl is String && horizontalUrl.isNotEmpty
+          ? horizontalUrl
+          : null,
     );
   }
 }

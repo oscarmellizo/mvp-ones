@@ -274,12 +274,19 @@ class _TemplateDetailsSheet extends StatelessWidget {
               _InfoRow(
                   label: 'Frames',
                   value:
-                      '${template.frames.length} frame${template.frames.length == 1 ? '' : 's'}'),
+                      '${template.frameIds.length} frame${template.frameIds.length == 1 ? '' : 's'}'),
               const SizedBox(height: 12),
               if (template.frames.isNotEmpty)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: template.frames.map((f) {
+                    final hasVertical =
+                        f.verticalUrl != null && f.verticalUrl!.isNotEmpty;
+                    final hasHorizontal =
+                        f.horizontalUrl != null && f.horizontalUrl!.isNotEmpty;
+                    if (!hasVertical && !hasHorizontal) {
+                      return const SizedBox.shrink();
+                    }
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Column(
@@ -296,31 +303,34 @@ class _TemplateDetailsSheet extends StatelessWidget {
                           ],
                           Row(
                             children: [
-                              Expanded(
-                                child: AspectRatio(
-                                  aspectRatio: 9 / 16,
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.zero,
-                                    child: Image.network(
-                                      f.verticalUrl,
-                                      fit: BoxFit.cover,
+                              if (hasVertical)
+                                Expanded(
+                                  child: AspectRatio(
+                                    aspectRatio: 9 / 16,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.zero,
+                                      child: Image.network(
+                                        f.verticalUrl!,
+                                        fit: BoxFit.cover,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: AspectRatio(
-                                  aspectRatio: 16 / 9,
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.zero,
-                                    child: Image.network(
-                                      f.horizontalUrl,
-                                      fit: BoxFit.cover,
+                              if (hasVertical && hasHorizontal)
+                                const SizedBox(width: 8),
+                              if (hasHorizontal)
+                                Expanded(
+                                  child: AspectRatio(
+                                    aspectRatio: 16 / 9,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.zero,
+                                      child: Image.network(
+                                        f.horizontalUrl!,
+                                        fit: BoxFit.cover,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
                             ],
                           ),
                         ],

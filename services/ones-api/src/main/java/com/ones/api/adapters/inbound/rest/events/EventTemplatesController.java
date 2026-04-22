@@ -66,16 +66,36 @@ public class EventTemplatesController {
             Frame frame = framesRepository.findById(frameId)
                     .orElseThrow(() -> new FrameNotFoundException(frameId));
 
-            FramesManagementService.PresignedGetAssetResult vertical = framesService.presignGetAsset(frameId, "vertical");
-            FramesManagementService.PresignedGetAssetResult horizontal = framesService.presignGetAsset(frameId, "horizontal");
+            String verticalUrl = null;
+            String horizontalUrl = null;
+
+            try {
+                FramesManagementService.PresignedGetAssetResult vertical =
+                        framesService.presignGetAsset(frameId, "vertical");
+                verticalUrl = vertical.url();
+            } catch (FrameAssetNotFoundException ignored) {
+                // ignore missing vertical asset
+            }
+
+            try {
+                FramesManagementService.PresignedGetAssetResult horizontal =
+                        framesService.presignGetAsset(frameId, "horizontal");
+                horizontalUrl = horizontal.url();
+            } catch (FrameAssetNotFoundException ignored) {
+                // ignore missing horizontal asset
+            }
+
+            if (verticalUrl == null && horizontalUrl == null) {
+                return null;
+            }
 
             return new TemplateFrameResponse(
                     frame.getFrameId(),
                     frame.getName(),
-                    vertical.url(),
-                    horizontal.url()
+                    verticalUrl,
+                    horizontalUrl
             );
-        } catch (FrameNotFoundException | FrameAssetNotFoundException ex) {
+        } catch (FrameNotFoundException ex) {
             return null;
         }
     }
