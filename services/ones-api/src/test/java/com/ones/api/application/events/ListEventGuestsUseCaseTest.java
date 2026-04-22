@@ -35,7 +35,8 @@ class ListEventGuestsUseCaseTest {
                 now,
                 now.plusSeconds(3600),
                 null,
-                true
+                true,
+                java.util.List.of()
         );
 
         users.upsert(new User(
