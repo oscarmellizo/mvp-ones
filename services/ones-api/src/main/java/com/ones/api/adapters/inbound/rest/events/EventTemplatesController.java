@@ -37,7 +37,7 @@ public class EventTemplatesController {
     @GetMapping
     public List<EventTemplateResponse> list() {
         List<EventTemplate> items = service.list(EventTemplate.Status.active);
-        return items.stream().map(EventTemplatesController::toResponse).toList();
+        return items.stream().map(this::toResponse).toList();
     }
 
     private EventTemplateResponse toResponse(EventTemplate et) {
