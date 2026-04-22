@@ -5,7 +5,8 @@ import java.util.List;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttribute;
-import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSortKey;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSecondaryPartitionKey;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSecondarySortKey;
 
 @DynamoDbBean
 public class DynamoEventTemplateItem {
@@ -105,6 +106,7 @@ public class DynamoEventTemplateItem {
 
     // GSI1
     @DynamoDbAttribute("gsi1pk")
+    @DynamoDbSecondaryPartitionKey(indexNames = {"gsi1"})
     public String getGsi1pk() {
         return gsi1pk;
     }
@@ -114,6 +116,7 @@ public class DynamoEventTemplateItem {
     }
 
     @DynamoDbAttribute("gsi1sk")
+    @DynamoDbSecondarySortKey(indexNames = {"gsi1"})
     public String getGsi1sk() {
         return gsi1sk;
     }
