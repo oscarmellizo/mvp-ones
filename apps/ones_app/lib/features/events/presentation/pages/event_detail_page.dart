@@ -66,7 +66,10 @@ class _EventDetailPageState extends State<EventDetailPage> {
             : () async {
                 await Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => PhotoCapturePage(eventId: event.id),
+                    builder: (_) => PhotoCapturePage(
+                      eventId: event.id,
+                      frameIds: event.frameIds,
+                    ),
                   ),
                 );
                 if (!context.mounted) return;

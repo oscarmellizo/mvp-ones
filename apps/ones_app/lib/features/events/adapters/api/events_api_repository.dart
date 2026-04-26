@@ -35,19 +35,28 @@ class EventsApiRepository implements EventsRepository {
 
   @override
   Future<List<Event>> listEvents() async {
-    final response = await _defaultApi(_idToken).listEvents();
-    final BuiltList<api.Event>? items = response.data;
-    return (items?.toList() ?? const <api.Event>[]).map(_mapEvent).toList();
+    final dio = _apiFactory.create(idToken: _idToken).dio;
+    final res = await dio.get('/v1/events');
+    final data = res.data;
+    if (data is! List) {
+      throw StateError('Invalid list events response');
+    }
+
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(_mapEventJson)
+        .toList(growable: false);
   }
 
   @override
   Future<Event> getEvent(String id) async {
-    final response = await _defaultApi(_idToken).getEvent(id: id);
-    final api.Event? e = response.data;
-    if (e == null) {
-      throw StateError('Missing event in response');
+    final dio = _apiFactory.create(idToken: _idToken).dio;
+    final res = await dio.get('/v1/events/$id');
+    final data = res.data;
+    if (data is! Map<String, dynamic>) {
+      throw StateError('Invalid get event response');
     }
-    return _mapEvent(e);
+    return _mapEventJson(data);
   }
 
   @override
@@ -174,19 +183,22 @@ class EventsApiRepository implements EventsRepository {
     );
   }
 
-  static Event _mapEvent(api.Event e) {
+  static Event _mapEventJson(Map<String, dynamic> data) {
     return Event(
-      id: e.id,
-      ownerId: e.ownerId,
-      createdAt: e.createdAt,
-      title: e.title,
-      objective: e.objective,
-      location: e.location,
-      startAt: e.startAt,
-      endAt: e.endAt,
-      coverKey: e.coverKey,
-      allowGuestInvites: e.allowGuestInvites ?? true,
-      frameIds: const <String>[],
+      id: data['id'] as String,
+      ownerId: data['ownerId'] as String,
+      createdAt: DateTime.parse(data['createdAt'] as String),
+      title: data['title'] as String,
+      objective: data['objective'] as String,
+      location: data['location'] as String,
+      startAt: DateTime.parse(data['startAt'] as String),
+      endAt: DateTime.parse(data['endAt'] as String),
+      coverKey: data['coverKey'] as String?,
+      allowGuestInvites: (data['allowGuestInvites'] as bool?) ?? true,
+      frameIds: (data['frameIds'] as List?)
+              ?.map((e) => e.toString())
+              .toList(growable: false) ??
+          const <String>[],
     );
   }
 }

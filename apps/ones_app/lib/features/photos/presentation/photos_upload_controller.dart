@@ -41,6 +41,9 @@ class PhotosUploadController extends ChangeNotifier {
     required String photoId,
     required File capturedFile,
     required DateTime createdAt,
+    String? frameId,
+    String? orientation,
+    String? cameraType,
   }) async {
     final created = createdAt.toUtc().toIso8601String();
     final saved = await storage.saveJpeg(
@@ -55,6 +58,9 @@ class PhotosUploadController extends ChangeNotifier {
       localPath: saved.path,
       contentType: 'image/jpeg',
       createdAt: created,
+      frameId: frameId,
+      orientation: orientation,
+      cameraType: cameraType,
     );
 
     unawaited(trigger());

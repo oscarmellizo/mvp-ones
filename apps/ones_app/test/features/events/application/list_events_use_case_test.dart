@@ -18,7 +18,8 @@ class _FakeEventsRepository implements EventsRepository {
     String? coverReservationId,
     List<String> inviteeEmails,
     bool allowGuestInvites,
-  ) {
+    List<String> frameIds,
+  ) async {
     throw UnimplementedError();
   }
 

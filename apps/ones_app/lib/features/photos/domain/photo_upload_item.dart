@@ -7,6 +7,9 @@ class PhotoUploadItem {
   final String status;
   final String createdAt;
   final String? s3KeyOriginal;
+  final String? frameId;
+  final String? orientation;
+  final String? cameraType;
   final int attempts;
   final String? lastError;
 
@@ -19,6 +22,9 @@ class PhotoUploadItem {
     required this.status,
     required this.createdAt,
     required this.s3KeyOriginal,
+    required this.frameId,
+    required this.orientation,
+    required this.cameraType,
     required this.attempts,
     required this.lastError,
   });

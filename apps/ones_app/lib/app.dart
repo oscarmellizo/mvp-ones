@@ -110,6 +110,12 @@ class OnesApp extends StatelessWidget {
             getAdminMe: getAdminMe,
           ),
         ),
+        ProxyProvider<AuthController, EventTemplatesApiRepository>(
+          update: (_, auth, __) {
+            eventTemplatesRepository.setIdToken(auth.idToken);
+            return eventTemplatesRepository;
+          },
+        ),
         ChangeNotifierProxyProvider<AuthController, EventsController>(
           create: (_) => EventsController(
             listEvents: listEvents,

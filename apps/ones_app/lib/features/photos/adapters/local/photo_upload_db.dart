@@ -6,7 +6,7 @@ import '../../domain/photo_upload_item.dart';
 
 class PhotoUploadDb {
   static const _dbName = 'ones_photos.db';
-  static const _dbVersion = 1;
+  static const _dbVersion = 2;
   static const _table = 'photo_upload_queue';
 
   Database? _db;
@@ -32,6 +32,9 @@ CREATE TABLE $_table (
   status TEXT NOT NULL,
   createdAt TEXT NOT NULL,
   s3KeyOriginal TEXT,
+  frameId TEXT,
+  orientation TEXT,
+  cameraType TEXT,
   attempts INTEGER NOT NULL,
   lastError TEXT,
   updatedAt TEXT NOT NULL
@@ -41,6 +44,13 @@ CREATE TABLE $_table (
             'CREATE INDEX idx_photo_upload_queue_status ON $_table(status, updatedAt)');
         await db.execute(
             'CREATE UNIQUE INDEX idx_photo_upload_queue_photoId ON $_table(photoId)');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('ALTER TABLE $_table ADD COLUMN frameId TEXT');
+          await db.execute('ALTER TABLE $_table ADD COLUMN orientation TEXT');
+          await db.execute('ALTER TABLE $_table ADD COLUMN cameraType TEXT');
+        }
       },
     );
 
@@ -54,6 +64,9 @@ CREATE TABLE $_table (
     required String localPath,
     required String contentType,
     required String createdAt,
+    String? frameId,
+    String? orientation,
+    String? cameraType,
   }) async {
     final db = await _open();
     final now = DateTime.now().toUtc().toIso8601String();
@@ -68,6 +81,9 @@ CREATE TABLE $_table (
         'status': 'pending',
         'createdAt': createdAt,
         's3KeyOriginal': null,
+        'frameId': frameId,
+        'orientation': orientation,
+        'cameraType': cameraType,
         'attempts': 0,
         'lastError': null,
         'updatedAt': now,
@@ -165,6 +181,9 @@ CREATE TABLE $_table (
       status: row['status'] as String,
       createdAt: row['createdAt'] as String,
       s3KeyOriginal: row['s3KeyOriginal'] as String?,
+      frameId: row['frameId'] as String?,
+      orientation: row['orientation'] as String?,
+      cameraType: row['cameraType'] as String?,
       attempts: (row['attempts'] as int?) ?? 0,
       lastError: row['lastError'] as String?,
     );
