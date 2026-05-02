@@ -1,4 +1,5 @@
 import '../../../../core/http/ones_api_factory.dart';
+import 'package:dio/dio.dart';
 
 class FrameCatalogItem {
   final String frameId;
@@ -58,6 +59,17 @@ class FramesApiRepository {
     final dio = _apiFactory.create(idToken: _idToken).dio;
     final res = await dio.get(
       '/v1/frames',
+      options: Options(
+        extra: {
+          'secure': [
+            {
+              'type': 'http',
+              'scheme': 'bearer',
+              'name': 'bearerAuth',
+            }
+          ],
+        },
+      ),
       queryParameters: {
         'limit': limit,
         if (nextToken != null && nextToken.isNotEmpty) 'nextToken': nextToken,
