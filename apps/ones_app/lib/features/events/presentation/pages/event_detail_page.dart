@@ -483,20 +483,12 @@ class _GalleryTabState extends State<_GalleryTab> {
                               return;
                             }
 
-                            final isSharedByMe = item.shared &&
-                                widget.currentUserId != null &&
-                                item.sharedByUserId != null &&
-                                item.sharedByUserId == widget.currentUserId;
-
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => PhotoViewerPage(
-                                  imageUrl: viewerUrl,
-                                  sharedByName:
-                                      isSharedByMe ? item.sharedByName : null,
-                                  ownerName: (!isSharedByMe && item.shared)
-                                      ? item.ownerName
-                                      : null,
+                                  eventId: widget.eventId,
+                                  initialIndex: index,
+                                  currentUserId: widget.currentUserId,
                                 ),
                               ),
                             );
