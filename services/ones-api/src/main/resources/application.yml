@@ -218,6 +218,7 @@ ones:
     cover-previews-table-name: ${ONES_COVER_PREVIEWS_TABLE:ones-cover-previews}
     cover-reservations-table-name: ${ONES_COVER_RESERVATIONS_TABLE:ones-cover-reservations}
     photos-table-name: ${ONES_PHOTOS_TABLE:ones-photos}
+    photo-likes-table-name: ${ONES_DYNAMODB_PHOTO_LIKES_TABLE_NAME:ones-photo-likes}
     preferred-names-cache-table-name: ${ONES_PREFERRED_NAMES_CACHE_TABLE:ones-preferred-names-cache}
     admins-table-name: ${ONES_ADMINS_TABLE:ones-admins}
     frames-table-name: ${ONES_FRAMES_TABLE:ones-frames}
