@@ -13,6 +13,7 @@ import '../widgets/create_event_form_widgets.dart';
 import '../widgets/create_event_cover_widgets.dart';
 import '../widgets/create_event_datetime_widgets.dart';
 import '../widgets/create_event_invite_widgets.dart';
+import '../widgets/frame_picker_sheet.dart';
 
 class CreateEventPage extends StatefulWidget {
   static const routeName = '/events/create';
@@ -381,6 +382,18 @@ class _CreateEventPageState extends State<CreateEventPage> {
     });
   }
 
+  Future<void> _pickFrames(BuildContext context) async {
+    if (!mounted) return;
+    final selected = await FramePickerSheet.open(
+      context,
+      initialSelectedFrameIds: _frameIds,
+    );
+    if (!mounted || selected == null) return;
+    setState(() {
+      _frameIds = List<String>.unmodifiable(selected);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<EventsController>();
@@ -630,14 +643,29 @@ class _CreateEventPageState extends State<CreateEventPage> {
                 const SizedBox(height: 14),
                 CreateEventFormSection(
                   title: 'Frames',
-                  child: Text(
-                    _frameIds.isEmpty
-                        ? 'No frames selected for this event.'
-                        : 'This event will use ${_frameIds.length} frame${_frameIds.length == 1 ? '' : 's'}.',
-                    style: TextStyle(
-                      color: OnesColors.black.withOpacity(0.7),
-                      fontWeight: FontWeight.w700,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _frameIds.isEmpty
+                            ? 'No frames selected for this event.'
+                            : 'This event will use ${_frameIds.length} frame${_frameIds.length == 1 ? '' : 's'}.',
+                        style: TextStyle(
+                          color: OnesColors.black.withOpacity(0.7),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: controller.loading
+                              ? null
+                              : () => _pickFrames(context),
+                          child: const Text('Seleccionar marcos'),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 if (!isKeyboardOpen) ...[

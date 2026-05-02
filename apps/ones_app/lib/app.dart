@@ -18,11 +18,12 @@ import 'features/admin/application/get_admin_me_use_case.dart';
 import 'features/admin/presentation/admin_admins_controller.dart';
 import 'features/admin/presentation/admin_frames_controller.dart';
 import 'features/admin/presentation/admin_event_templates_controller.dart';
-import 'features/events/adapters/api/events_api_repository.dart';
 import 'features/events/adapters/api/event_covers_api_repository.dart';
 import 'features/events/adapters/api/event_cover_urls_api_repository.dart';
-import 'features/events/adapters/api/events_metadata_api_repository.dart';
 import 'features/events/adapters/api/event_templates_api_repository.dart';
+import 'features/events/adapters/api/frames_api_repository.dart';
+import 'features/events/adapters/api/events_api_repository.dart';
+import 'features/events/adapters/api/events_metadata_api_repository.dart';
 import 'features/events/application/create_event_use_case.dart';
 import 'features/events/application/get_event_use_case.dart';
 import 'features/events/application/list_events_use_case.dart';
@@ -88,6 +89,7 @@ class OnesApp extends StatelessWidget {
     final invitationsRepository = InvitationsApiRepository(apiFactory);
 
     final eventTemplatesRepository = EventTemplatesApiRepository(apiFactory);
+    final framesRepository = FramesApiRepository(apiFactory);
 
     final eventPhotosApi = EventPhotosApi(apiFactory);
     final eventPhotosGalleryApi = EventPhotosApi(apiFactory);
@@ -114,6 +116,12 @@ class OnesApp extends StatelessWidget {
           update: (_, auth, __) {
             eventTemplatesRepository.setIdToken(auth.idToken);
             return eventTemplatesRepository;
+          },
+        ),
+        ProxyProvider<AuthController, FramesApiRepository>(
+          update: (_, auth, __) {
+            framesRepository.setIdToken(auth.idToken);
+            return framesRepository;
           },
         ),
         ChangeNotifierProxyProvider<AuthController, EventsController>(
