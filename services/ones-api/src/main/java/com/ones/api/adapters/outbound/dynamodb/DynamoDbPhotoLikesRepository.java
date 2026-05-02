@@ -7,6 +7,9 @@ import java.util.Set;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.ones.api.application.photos.ports.PhotoLikesRepository;
 
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
@@ -18,6 +21,8 @@ import software.amazon.awssdk.enhanced.dynamodb.model.ReadBatch;
 
 @Repository
 public class DynamoDbPhotoLikesRepository implements PhotoLikesRepository {
+
+    private static final Logger log = LoggerFactory.getLogger(DynamoDbPhotoLikesRepository.class);
 
     private final DynamoDbEnhancedClient enhancedClient;
     private final DynamoDbTable<DynamoPhotoLikeItem> table;
@@ -39,6 +44,20 @@ public class DynamoDbPhotoLikesRepository implements PhotoLikesRepository {
         if (photoIds == null || photoIds.isEmpty()) {
             return out;
         }
+
+        try {
+            return likedPhotoIdsInternal(userId, photoIds);
+        } catch (Exception e) {
+            log.warn("[DynamoDbPhotoLikesRepository.likedPhotoIds] failed userId={} photoIdsCount={} err={}",
+                    userId,
+                    photoIds.size(),
+                    e.toString());
+            return out;
+        }
+    }
+
+    private Set<String> likedPhotoIdsInternal(String userId, Set<String> photoIds) {
+        Set<String> out = new HashSet<>();
 
         ReadBatch.Builder<DynamoPhotoLikeItem> read = ReadBatch.builder(DynamoPhotoLikeItem.class)
                 .mappedTableResource(table);
@@ -90,7 +109,15 @@ public class DynamoDbPhotoLikesRepository implements PhotoLikesRepository {
         item.setGsi1pk("user#" + userId.trim());
         item.setGsi1sk(ts.toString() + "#" + photoId.trim());
 
-        table.putItem(item);
+        try {
+            table.putItem(item);
+        } catch (Exception e) {
+            log.warn("[DynamoDbPhotoLikesRepository.like] failed eventId={} photoId={} userId={} err={}",
+                    eventId,
+                    photoId,
+                    userId,
+                    e.toString());
+        }
     }
 
     @Override
@@ -98,6 +125,13 @@ public class DynamoDbPhotoLikesRepository implements PhotoLikesRepository {
         if (photoId == null || photoId.isBlank()) return;
         if (userId == null || userId.isBlank()) return;
 
-        table.deleteItem(Key.builder().partitionValue(photoId.trim()).sortValue(userId.trim()).build());
+        try {
+            table.deleteItem(Key.builder().partitionValue(photoId.trim()).sortValue(userId.trim()).build());
+        } catch (Exception e) {
+            log.warn("[DynamoDbPhotoLikesRepository.unlike] failed photoId={} userId={} err={}",
+                    photoId,
+                    userId,
+                    e.toString());
+        }
     }
 }
