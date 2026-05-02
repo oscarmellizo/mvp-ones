@@ -88,6 +88,8 @@ Outputs:
     Value: !GetAtt AllStack.Outputs.CoverReservationsTableName
   PhotosTableName:
     Value: !GetAtt AllStack.Outputs.PhotosTableName
+  PhotoLikesTableName:
+    Value: !GetAtt AllStack.Outputs.PhotoLikesTableName
   PreferredNamesCacheTableName:
     Value: !GetAtt AllStack.Outputs.PreferredNamesCacheTableName
   AdminsTableName:
