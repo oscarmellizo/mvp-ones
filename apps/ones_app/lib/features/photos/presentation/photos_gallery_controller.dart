@@ -37,6 +37,65 @@ class PhotosGalleryController extends ChangeNotifier {
     api.setIdToken(token);
   }
 
+  Future<void> setLike({
+    required String eventId,
+    required String photoId,
+    required bool liked,
+  }) async {
+    final token = _idToken;
+    if (token == null || token.isEmpty) {
+      _error = StateError('Missing idToken');
+      notifyListeners();
+      return;
+    }
+
+    final idx = _items.indexWhere((p) => p.photoId == photoId);
+    if (idx < 0) return;
+
+    final before = _items[idx];
+    if (before.likedByMe == liked) return;
+
+    final updated = EventPhoto(
+      photoId: before.photoId,
+      guestId: before.guestId,
+      createdAt: before.createdAt,
+      uploadedAt: before.uploadedAt,
+      status: before.status,
+      originalUrl: before.originalUrl,
+      mediumUrl: before.mediumUrl,
+      smallUrl: before.smallUrl,
+      shared: before.shared,
+      ownerName: before.ownerName,
+      sharedByUserId: before.sharedByUserId,
+      sharedByName: before.sharedByName,
+      likedByMe: liked,
+    );
+
+    final list = [..._items];
+    list[idx] = updated;
+    _items = list;
+    notifyListeners();
+
+    try {
+      _error = null;
+      if (liked) {
+        await api.like(eventId: eventId, photoId: photoId);
+      } else {
+        await api.unlike(eventId: eventId, photoId: photoId);
+      }
+    } catch (e) {
+      _error = e;
+      final reverted = [..._items];
+      final ridx = reverted.indexWhere((p) => p.photoId == photoId);
+      if (ridx >= 0) {
+        reverted[ridx] = before;
+        _items = reverted;
+      }
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   Future<void> sharePhotos({
     required String eventId,
     required List<String> photoIds,

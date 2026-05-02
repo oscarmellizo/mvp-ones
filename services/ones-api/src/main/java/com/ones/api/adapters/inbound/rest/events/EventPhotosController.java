@@ -7,15 +7,18 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.ones.api.adapters.inbound.rest.AuthClaims;
+import com.ones.api.application.photos.PhotoLikesService;
 import com.ones.api.application.photos.PhotosService;
 import com.ones.api.domain.photos.Photo;
 
@@ -24,9 +27,11 @@ import com.ones.api.domain.photos.Photo;
 public class EventPhotosController {
 
     private final PhotosService photosService;
+    private final PhotoLikesService likesService;
 
-    public EventPhotosController(PhotosService photosService) {
+    public EventPhotosController(PhotosService photosService, PhotoLikesService likesService) {
         this.photosService = photosService;
+        this.likesService = likesService;
     }
 
     @PostMapping("/{eventId}/photos/presign")
@@ -110,6 +115,33 @@ public class EventPhotosController {
         String email = AuthClaims.requireEmail(authentication);
         return photosService.sharePhotos(userId, email, eventId, request.photoIds());
     }
+
+    @PutMapping("/{eventId}/photos/{photoId}/like")
+    public LikeResponse like(
+            Authentication authentication,
+            @PathVariable("eventId") String eventId,
+            @PathVariable("photoId") String photoId
+    ) {
+        String userId = authentication.getName();
+        String email = AuthClaims.requireEmail(authentication);
+        boolean ok = likesService.like(userId, email, eventId, photoId);
+        return new LikeResponse(ok);
+    }
+
+    @DeleteMapping("/{eventId}/photos/{photoId}/like")
+    public LikeResponse unlike(
+            Authentication authentication,
+            @PathVariable("eventId") String eventId,
+            @PathVariable("photoId") String photoId
+    ) {
+        String userId = authentication.getName();
+        String email = AuthClaims.requireEmail(authentication);
+        likesService.unlike(userId, email, eventId, photoId);
+        return new LikeResponse(false);
+    }
+}
+
+record LikeResponse(boolean liked) {
 }
 
 record PresignPhotoRequest(

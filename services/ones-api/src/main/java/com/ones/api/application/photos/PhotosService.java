@@ -20,6 +20,7 @@ import com.ones.api.application.events.ports.EventsRepository;
 import com.ones.api.application.events.ports.ObjectStorage;
 import com.ones.api.application.events.ports.ObjectStoragePresigner;
 import com.ones.api.application.photos.ports.PhotosRepository;
+import com.ones.api.application.photos.ports.PhotoLikesRepository;
 import com.ones.api.application.users.ports.PreferredNamesCacheRepository;
 import com.ones.api.application.users.GetUserByIdUseCase;
 import com.ones.api.domain.events.Event;
@@ -33,6 +34,7 @@ public class PhotosService {
     private static final Logger log = LoggerFactory.getLogger(PhotosService.class);
 
     private final PhotosRepository photosRepository;
+    private final PhotoLikesRepository photoLikesRepository;
     private final GetEventUseCase getEventUseCase;
     private final EventsRepository eventsRepository;
     private final com.ones.api.application.invitations.ports.InvitationsRepository invitationsRepository;
@@ -49,6 +51,7 @@ public class PhotosService {
 
     public PhotosService(
             PhotosRepository photosRepository,
+            PhotoLikesRepository photoLikesRepository,
             GetEventUseCase getEventUseCase,
             EventsRepository eventsRepository,
             com.ones.api.application.invitations.ports.InvitationsRepository invitationsRepository,
@@ -63,6 +66,7 @@ public class PhotosService {
             @Value("${ones.photos.debug-list:false}") boolean debugList
     ) {
         this.photosRepository = photosRepository;
+        this.photoLikesRepository = photoLikesRepository;
         this.getEventUseCase = getEventUseCase;
         this.eventsRepository = eventsRepository;
         this.invitationsRepository = invitationsRepository;
@@ -228,6 +232,13 @@ public class PhotosService {
 
             if (!selected.isEmpty()) {
                 Map<String, String> resolvedNames = resolvePreferredNames(nameUserIds);
+                Set<String> selectedPhotoIds = new HashSet<>();
+                for (Photo p : selected) {
+                    if (p != null && p.getPhotoId() != null && !p.getPhotoId().isBlank()) {
+                        selectedPhotoIds.add(p.getPhotoId().trim());
+                    }
+                }
+                Set<String> likedByMe = photoLikesRepository.likedPhotoIds(requesterUserId, selectedPhotoIds);
                 for (Photo p : selected) {
                     boolean isShared = isShared(p);
 
@@ -294,7 +305,8 @@ public class PhotosService {
                             isShared,
                             ownerName,
                             p.getSharedByUserId(),
-                            sharedByName
+                            sharedByName,
+                            likedByMe.contains(p.getPhotoId() != null ? p.getPhotoId().trim() : "")
                     ));
                 }
             }
@@ -379,6 +391,13 @@ public class PhotosService {
 
             if (!selected.isEmpty()) {
                 Map<String, String> resolvedNames = resolvePreferredNames(nameUserIds);
+                Set<String> selectedPhotoIds = new HashSet<>();
+                for (Photo p : selected) {
+                    if (p != null && p.getPhotoId() != null && !p.getPhotoId().isBlank()) {
+                        selectedPhotoIds.add(p.getPhotoId().trim());
+                    }
+                }
+                Set<String> likedByMe = photoLikesRepository.likedPhotoIds(requesterUserId, selectedPhotoIds);
                 for (Photo p : selected) {
                     boolean isShared = isShared(p);
 
@@ -446,14 +465,10 @@ public class PhotosService {
                             isShared,
                             ownerName,
                             p.getSharedByUserId(),
-                            sharedByName
+                            sharedByName,
+                            likedByMe.contains(p.getPhotoId() != null ? p.getPhotoId().trim() : "")
                     ));
                 }
-            }
-
-            if (page.nextToken() == null || page.nextToken().isBlank()) {
-                outNextToken = null;
-                break;
             }
 
             cursor = page.nextToken();
@@ -906,7 +921,8 @@ public class PhotosService {
             boolean shared,
             String ownerName,
             String sharedByUserId,
-            String sharedByName
+            String sharedByName,
+            boolean likedByMe
     ) {
     }
 }

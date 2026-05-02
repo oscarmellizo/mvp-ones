@@ -23,6 +23,7 @@ class PhotoViewerPage extends StatefulWidget {
 class _PhotoViewerPageState extends State<PhotoViewerPage> {
   late final PageController _pageController;
   int _currentIndex = 0;
+  bool _likeBusy = false;
 
   @override
   void initState() {
@@ -96,7 +97,9 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
       });
     }
 
-    final label = items.isEmpty ? null : _labelFor(items[_currentIndex]);
+    final currentItem = items.isEmpty ? null : items[_currentIndex];
+    final label = currentItem == null ? null : _labelFor(currentItem);
+    final likedByMe = currentItem?.likedByMe ?? false;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -179,7 +182,7 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
               Positioned(
                 left: 12,
                 right: 12,
-                bottom: 18,
+                bottom: 78,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -197,6 +200,58 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
                   ),
                 ),
               ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                height: 64,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                color: Colors.black.withOpacity(0.55),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    IconButton(
+                      onPressed: (currentItem == null || _likeBusy)
+                          ? null
+                          : () async {
+                              setState(() {
+                                _likeBusy = true;
+                              });
+                              final next = !likedByMe;
+                              try {
+                                await gallery.setLike(
+                                  eventId: widget.eventId,
+                                  photoId: currentItem.photoId,
+                                  liked: next,
+                                );
+                              } catch (e) {
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context)
+                                  ..clearSnackBars()
+                                  ..showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          'No se pudo actualizar el like: $e'),
+                                    ),
+                                  );
+                              } finally {
+                                if (mounted) {
+                                  setState(() {
+                                    _likeBusy = false;
+                                  });
+                                }
+                              }
+                            },
+                      icon: Icon(
+                        likedByMe ? Icons.favorite : Icons.favorite_border,
+                        color: likedByMe ? Colors.red : Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),

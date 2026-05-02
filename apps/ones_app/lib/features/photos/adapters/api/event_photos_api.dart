@@ -23,6 +23,58 @@ class EventPhotosApi {
     _idToken = token;
   }
 
+  Future<bool> like({
+    required String eventId,
+    required String photoId,
+  }) async {
+    final res = await _dioFactory(_idToken).put(
+      '/v1/events/$eventId/photos/$photoId/like',
+      options: Options(
+        extra: {
+          'secure': [
+            {
+              'type': 'http',
+              'scheme': 'bearer',
+              'name': 'bearerAuth',
+            }
+          ],
+        },
+      ),
+    );
+
+    final data = res.data;
+    if (data is! Map) {
+      throw StateError('Invalid like response');
+    }
+    return (data['liked'] as bool?) ?? true;
+  }
+
+  Future<bool> unlike({
+    required String eventId,
+    required String photoId,
+  }) async {
+    final res = await _dioFactory(_idToken).delete(
+      '/v1/events/$eventId/photos/$photoId/like',
+      options: Options(
+        extra: {
+          'secure': [
+            {
+              'type': 'http',
+              'scheme': 'bearer',
+              'name': 'bearerAuth',
+            }
+          ],
+        },
+      ),
+    );
+
+    final data = res.data;
+    if (data is! Map) {
+      throw StateError('Invalid unlike response');
+    }
+    return (data['liked'] as bool?) ?? false;
+  }
+
   Future<PresignPutResponse> presignPut({
     required String eventId,
     required String photoId,
@@ -225,6 +277,7 @@ class EventPhotosApi {
       ownerName: row['ownerName'] as String?,
       sharedByUserId: row['sharedByUserId'] as String?,
       sharedByName: row['sharedByName'] as String?,
+      likedByMe: (row['likedByMe'] as bool?) ?? false,
     );
   }
 }

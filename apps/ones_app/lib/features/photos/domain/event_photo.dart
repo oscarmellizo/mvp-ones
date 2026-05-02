@@ -11,6 +11,7 @@ class EventPhoto {
   final String? ownerName;
   final String? sharedByUserId;
   final String? sharedByName;
+  final bool likedByMe;
 
   const EventPhoto({
     required this.photoId,
@@ -25,5 +26,6 @@ class EventPhoto {
     required this.ownerName,
     required this.sharedByUserId,
     required this.sharedByName,
+    required this.likedByMe,
   });
 }
