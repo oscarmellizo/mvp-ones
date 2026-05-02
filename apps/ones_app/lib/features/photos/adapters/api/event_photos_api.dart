@@ -43,10 +43,11 @@ class EventPhotosApi {
     );
 
     final data = res.data;
-    if (data is! Map) {
-      throw StateError('Invalid like response');
+    if (data is Map) {
+      final v = data['liked'];
+      if (v is bool) return v;
     }
-    return (data['liked'] as bool?) ?? true;
+    return true;
   }
 
   Future<bool> unlike({
@@ -69,10 +70,11 @@ class EventPhotosApi {
     );
 
     final data = res.data;
-    if (data is! Map) {
-      throw StateError('Invalid unlike response');
+    if (data is Map) {
+      final v = data['liked'];
+      if (v is bool) return v;
     }
-    return (data['liked'] as bool?) ?? false;
+    return false;
   }
 
   Future<PresignPutResponse> presignPut({
