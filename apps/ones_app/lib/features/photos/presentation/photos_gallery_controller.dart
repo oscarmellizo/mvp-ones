@@ -161,7 +161,18 @@ class PhotosGalleryController extends ChangeNotifier {
             : null,
       );
 
-      _items = res.items;
+      final merged = <String, EventPhoto>{
+        for (final it in res.items) it.photoId: it,
+      };
+
+      final list = merged.values.toList(growable: false);
+      list.sort((a, b) {
+        final ad = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bd = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return bd.compareTo(ad);
+      });
+
+      _items = list;
       _nextToken = res.nextToken;
       _hasMore = _nextToken != null && _nextToken!.isNotEmpty;
     } catch (e) {

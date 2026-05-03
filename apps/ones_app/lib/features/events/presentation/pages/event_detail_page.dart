@@ -423,8 +423,16 @@ class _GalleryTabState extends State<_GalleryTab> {
                   color: OnesColors.background,
                   child: NotificationListener<ScrollNotification>(
                     onNotification: (n) {
-                      if (n.metrics.pixels >= n.metrics.maxScrollExtent - 400) {
-                        controller.loadMore(eventId: widget.eventId);
+                      if (n is ScrollUpdateNotification) {
+                        final m = n.metrics;
+                        final nearBottom = m.pixels >= m.maxScrollExtent - 400;
+                        final canScroll = m.maxScrollExtent > 0;
+                        if (canScroll &&
+                            nearBottom &&
+                            !controller.loading &&
+                            controller.hasMore) {
+                          controller.loadMore(eventId: widget.eventId);
+                        }
                       }
                       return false;
                     },

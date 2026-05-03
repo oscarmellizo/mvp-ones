@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../photos_gallery_controller.dart';
 import '../../domain/event_photo.dart';
@@ -24,6 +28,7 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
   late final PageController _pageController;
   int _currentIndex = 0;
   bool _likeBusy = false;
+  bool _shareBusy = false;
 
   @override
   void initState() {
@@ -78,6 +83,123 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
       return owner;
     }
     return null;
+  }
+
+  Future<XFile?> _downloadToTempXFile(String url,
+      {required String name}) async {
+    final http = HttpClient();
+    final req = await http.getUrl(Uri.parse(url));
+    final res = await req.close();
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('HTTP ${res.statusCode}');
+    }
+
+    final bytes =
+        await res.fold<List<int>>(<int>[], (prev, el) => prev..addAll(el));
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/$name');
+    await file.writeAsBytes(bytes, flush: true);
+    return XFile(file.path);
+  }
+
+  Future<void> _shareCurrentPhoto(
+      BuildContext context, EventPhoto currentItem) async {
+    final url = currentItem.originalUrl ??
+        currentItem.mediumUrl ??
+        currentItem.smallUrl;
+    if (url == null || url.trim().isEmpty) {
+      throw Exception('La foto aún se está procesando');
+    }
+
+    final safePhotoId =
+        currentItem.photoId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    final fileName = 'ones_$safePhotoId.jpg';
+    final xf = await _downloadToTempXFile(url.trim(), name: fileName);
+    if (xf == null) return;
+    await Share.shareXFiles(
+      [xf],
+      text: url.trim(),
+    );
+  }
+
+  Future<void> _shareCurrentLink(
+      BuildContext context, EventPhoto currentItem) async {
+    final url = currentItem.originalUrl ??
+        currentItem.mediumUrl ??
+        currentItem.smallUrl;
+    if (url == null || url.trim().isEmpty) {
+      throw Exception('La foto aún se está procesando');
+    }
+    await Share.share(url.trim());
+  }
+
+  Future<void> _openShareMenu(
+      BuildContext context, EventPhoto currentItem) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.black,
+      builder: (sheetContext) {
+        Future<void> run(String label) async {
+          Navigator.of(sheetContext).pop();
+          if (_shareBusy) return;
+          setState(() {
+            _shareBusy = true;
+          });
+          try {
+            if (label == 'Link de Ones') {
+              await _shareCurrentLink(context, currentItem);
+            } else {
+              await _shareCurrentPhoto(context, currentItem);
+            }
+          } catch (e) {
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context)
+              ..clearSnackBars()
+              ..showSnackBar(
+                SnackBar(content: Text('No se pudo compartir ($label): $e')),
+              );
+          } finally {
+            if (mounted) {
+              setState(() {
+                _shareBusy = false;
+              });
+            }
+          }
+        }
+
+        Widget item(String label, IconData icon) {
+          return ListTile(
+            leading: Icon(icon, color: Colors.white),
+            title: Text(label, style: const TextStyle(color: Colors.white)),
+            onTap: () => run(label),
+          );
+        }
+
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 48,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              const SizedBox(height: 10),
+              item('Whatsapp', Icons.chat_bubble_outline),
+              item('Instagram', Icons.camera_alt_outlined),
+              item('Tiktok', Icons.play_circle_outline),
+              item('Facebook', Icons.facebook),
+              item('Link de Ones', Icons.link),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -246,6 +368,17 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
                       icon: Icon(
                         likedByMe ? Icons.favorite : Icons.favorite_border,
                         color: likedByMe ? Colors.red : Colors.white,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: (currentItem == null || _shareBusy)
+                          ? null
+                          : () async {
+                              await _openShareMenu(context, currentItem);
+                            },
+                      icon: const Icon(
+                        Icons.share_outlined,
+                        color: Colors.white,
                       ),
                     ),
                   ],

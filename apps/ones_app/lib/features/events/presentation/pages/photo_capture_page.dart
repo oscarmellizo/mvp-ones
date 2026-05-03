@@ -35,7 +35,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
   bool _switchingCamera = false;
   bool _capturing = false;
 
-  bool _framesEnabled = true;
+  bool _framesEnabled = false;
   List<TemplateFrame> _framePairs = const [];
   int _currentFrameIndex = 0;
   bool _loadingFrames = false;
