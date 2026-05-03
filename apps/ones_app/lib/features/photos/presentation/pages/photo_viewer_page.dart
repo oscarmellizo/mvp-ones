@@ -122,86 +122,6 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
     );
   }
 
-  Future<void> _shareCurrentLink(
-      BuildContext context, EventPhoto currentItem) async {
-    final url = currentItem.originalUrl ??
-        currentItem.mediumUrl ??
-        currentItem.smallUrl;
-    if (url == null || url.trim().isEmpty) {
-      throw Exception('La foto aún se está procesando');
-    }
-    await Share.share(url.trim());
-  }
-
-  Future<void> _openShareMenu(
-      BuildContext context, EventPhoto currentItem) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.black,
-      builder: (sheetContext) {
-        Future<void> run(String label) async {
-          Navigator.of(sheetContext).pop();
-          if (_shareBusy) return;
-          setState(() {
-            _shareBusy = true;
-          });
-          try {
-            if (label == 'Link de Ones') {
-              await _shareCurrentLink(context, currentItem);
-            } else {
-              await _shareCurrentPhoto(context, currentItem);
-            }
-          } catch (e) {
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context)
-              ..clearSnackBars()
-              ..showSnackBar(
-                SnackBar(content: Text('No se pudo compartir ($label): $e')),
-              );
-          } finally {
-            if (mounted) {
-              setState(() {
-                _shareBusy = false;
-              });
-            }
-          }
-        }
-
-        Widget item(String label, IconData icon) {
-          return ListTile(
-            leading: Icon(icon, color: Colors.white),
-            title: Text(label, style: const TextStyle(color: Colors.white)),
-            onTap: () => run(label),
-          );
-        }
-
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 8),
-              Container(
-                width: 48,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              const SizedBox(height: 10),
-              item('Whatsapp', Icons.chat_bubble_outline),
-              item('Instagram', Icons.camera_alt_outlined),
-              item('Tiktok', Icons.play_circle_outline),
-              item('Facebook', Icons.facebook),
-              item('Link de Ones', Icons.link),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final gallery = context.watch<PhotosGalleryController>();
@@ -374,7 +294,28 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
                       onPressed: (currentItem == null || _shareBusy)
                           ? null
                           : () async {
-                              await _openShareMenu(context, currentItem);
+                              setState(() {
+                                _shareBusy = true;
+                              });
+                              try {
+                                await _shareCurrentPhoto(context, currentItem);
+                              } catch (e) {
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context)
+                                  ..clearSnackBars()
+                                  ..showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          'No se pudo compartir la foto: $e'),
+                                    ),
+                                  );
+                              } finally {
+                                if (mounted) {
+                                  setState(() {
+                                    _shareBusy = false;
+                                  });
+                                }
+                              }
                             },
                       icon: const Icon(
                         Icons.share_outlined,
