@@ -104,6 +104,21 @@ CREATE TABLE $_table (
     return rows.map(_map).toList(growable: false);
   }
 
+  Future<List<PhotoUploadItem>> listActiveByEvent({
+    required String eventId,
+    int limit = 100,
+  }) async {
+    final db = await _open();
+    final rows = await db.query(
+      _table,
+      where: "eventId = ? AND status IN ('pending','uploading','uploaded')",
+      whereArgs: [eventId],
+      orderBy: 'createdAt DESC',
+      limit: limit,
+    );
+    return rows.map(_map).toList(growable: false);
+  }
+
   Future<void> markUploading(int id) async {
     final db = await _open();
     await db.update(
@@ -161,7 +176,7 @@ CREATE TABLE $_table (
     await db.update(
       _table,
       {
-        'status': 'failed',
+        'status': 'pending',
         'attempts': attempts + 1,
         'lastError': error,
         'updatedAt': DateTime.now().toUtc().toIso8601String(),

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -8,6 +10,8 @@ import '../../../../core/ui/widgets/ones_text_field.dart';
 import '../../../auth/presentation/auth_controller.dart';
 import '../../../photos/presentation/pages/photo_viewer_page.dart';
 import '../../../photos/presentation/photos_gallery_controller.dart';
+import '../../../photos/presentation/photos_upload_controller.dart';
+import '../../../photos/domain/event_photo.dart';
 import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
 import '../widgets/event_detail_details_widgets.dart';
@@ -216,8 +220,47 @@ class _GalleryTabState extends State<_GalleryTab> {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<PhotosGalleryController>();
+    final uploader = context.watch<PhotosUploadController>();
 
-    if (controller.loading && controller.items.isEmpty) {
+    final remoteItems = controller.items;
+    final remoteById = <String, EventPhoto>{
+      for (final it in remoteItems) it.photoId: it,
+    };
+
+    DateTime parseIso(String s) {
+      try {
+        return DateTime.parse(s).toUtc();
+      } catch (_) {
+        return DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+      }
+    }
+
+    final localActive = uploader.activeByEvent(widget.eventId);
+    final localPathById = <String, String>{};
+    final localCreatedAtById = <String, DateTime>{};
+    for (final it in localActive) {
+      if (it.photoId.isEmpty) continue;
+      if (it.localPath.isEmpty) continue;
+      localPathById[it.photoId] = it.localPath;
+      localCreatedAtById[it.photoId] = parseIso(it.createdAt);
+    }
+
+    final allPhotoIds = <String>{
+      ...remoteById.keys,
+      ...localPathById.keys,
+    };
+
+    final mergedIds = allPhotoIds.toList(growable: false);
+    mergedIds.sort((a, b) {
+      final da = remoteById[a]?.createdAt ?? localCreatedAtById[a];
+      final db = remoteById[b]?.createdAt ?? localCreatedAtById[b];
+
+      final safeA = da ?? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+      final safeB = db ?? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+      return safeB.compareTo(safeA);
+    });
+
+    if (controller.loading && remoteItems.isEmpty && localPathById.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
@@ -445,31 +488,41 @@ class _GalleryTabState extends State<_GalleryTab> {
                         crossAxisSpacing: 1,
                         childAspectRatio: 1,
                       ),
-                      itemCount: controller.items.length,
+                      itemCount: mergedIds.length,
                       itemBuilder: (context, index) {
-                        final item = controller.items[index];
-                        final small = item.smallUrl;
-                        final medium = item.mediumUrl;
+                        final photoId = mergedIds[index];
+                        final localPath = localPathById[photoId];
+                        final isLocalPending = localPath != null &&
+                            localPath.isNotEmpty &&
+                            !remoteById.containsKey(photoId);
+
+                        final item =
+                            !isLocalPending ? remoteById[photoId] : null;
+
+                        final small = item?.smallUrl;
+                        final medium = item?.mediumUrl;
                         final thumbUrl =
                             (small != null && small.isNotEmpty) ? small : null;
                         final viewerUrl = (medium != null && medium.isNotEmpty)
                             ? medium
                             : null;
 
-                        final canSelect = _canSelect(item.guestId);
-                        final isSelected = _selectedIds.contains(item.photoId);
+                        final canSelect = (!isLocalPending && item != null)
+                            ? _canSelect(item.guestId)
+                            : false;
+                        final isSelected = _selectedIds.contains(photoId);
 
                         void toggleSelected() {
                           if (!canSelect) return;
                           setState(() {
                             _selecting = true;
                             if (isSelected) {
-                              _selectedIds.remove(item.photoId);
+                              _selectedIds.remove(photoId);
                               if (_selectedIds.isEmpty) {
                                 _selecting = false;
                               }
                             } else {
-                              _selectedIds.add(item.photoId);
+                              _selectedIds.add(photoId);
                             }
                           });
                         }
@@ -479,6 +532,10 @@ class _GalleryTabState extends State<_GalleryTab> {
                           onTap: () {
                             if (_selecting) {
                               toggleSelected();
+                              return;
+                            }
+
+                            if (isLocalPending) {
                               return;
                             }
                             if (viewerUrl == null || viewerUrl.isEmpty) {
@@ -491,11 +548,17 @@ class _GalleryTabState extends State<_GalleryTab> {
                               return;
                             }
 
+                            final remoteIndex = remoteItems
+                                .indexWhere((it) => it.photoId == photoId);
+                            if (remoteIndex < 0) {
+                              return;
+                            }
+
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => PhotoViewerPage(
                                   eventId: widget.eventId,
-                                  initialIndex: index,
+                                  initialIndex: remoteIndex,
                                   currentUserId: widget.currentUserId,
                                 ),
                               ),
@@ -507,25 +570,49 @@ class _GalleryTabState extends State<_GalleryTab> {
                             children: [
                               Ink(
                                 color: Colors.black12,
-                                child: (thumbUrl == null || thumbUrl.isEmpty)
-                                    ? const Center(
-                                        child: Text(
-                                          'Procesando',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w900,
-                                          ),
-                                        ),
-                                      )
-                                    : Image.network(
-                                        thumbUrl,
+                                child: isLocalPending
+                                    ? Image.file(
+                                        File(localPath),
                                         fit: BoxFit.cover,
                                         errorBuilder: (context, error, stack) {
                                           return const SizedBox.expand();
                                         },
-                                      ),
+                                      )
+                                    : (thumbUrl == null || thumbUrl.isEmpty)
+                                        ? const Center(
+                                            child: Text(
+                                              'Procesando',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w900,
+                                              ),
+                                            ),
+                                          )
+                                        : Image.network(
+                                            thumbUrl,
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (context, error, stack) {
+                                              return const SizedBox.expand();
+                                            },
+                                          ),
                               ),
+                              if (isLocalPending)
+                                Container(
+                                  color: Colors.black.withOpacity(0.35),
+                                  child: const Center(
+                                    child: SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.2,
+                                        valueColor: AlwaysStoppedAnimation(
+                                            Colors.white),
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               if (_selecting)
                                 Positioned(
                                   left: 6,
@@ -537,7 +624,11 @@ class _GalleryTabState extends State<_GalleryTab> {
                                       color: isSelected
                                           ? OnesColors.purpleMid
                                           : Colors.black.withOpacity(0.35),
-                                      borderRadius: BorderRadius.zero,
+                                      borderRadius: BorderRadius.circular(99),
+                                      border: Border.all(
+                                        color: Colors.white.withOpacity(0.85),
+                                        width: 2,
+                                      ),
                                     ),
                                     child: isSelected
                                         ? const Icon(
@@ -548,37 +639,10 @@ class _GalleryTabState extends State<_GalleryTab> {
                                         : const SizedBox.shrink(),
                                   ),
                                 ),
-                              if (item.shared &&
-                                  widget.currentUserId != null &&
-                                  item.sharedByUserId != null &&
-                                  item.sharedByUserId == widget.currentUserId)
-                                Positioned(
-                                  left: 0,
-                                  right: 0,
-                                  bottom: 0,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 4,
-                                    ),
-                                    color: Colors.black.withOpacity(0.45),
-                                    child: const Text(
-                                      'Shared',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w900,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                ),
-                              if (item.shared &&
+                              if (item?.shared == true &&
                                   (widget.currentUserId == null ||
-                                      item.sharedByUserId == null ||
-                                      item.sharedByUserId !=
+                                      item?.sharedByUserId == null ||
+                                      item?.sharedByUserId !=
                                           widget.currentUserId))
                                 Positioned(
                                   left: 0,
@@ -591,8 +655,8 @@ class _GalleryTabState extends State<_GalleryTab> {
                                     ),
                                     color: Colors.black.withOpacity(0.45),
                                     child: Text(
-                                      (item.ownerName != null &&
-                                              item.ownerName!.isNotEmpty)
+                                      (item?.ownerName != null &&
+                                              item!.ownerName!.isNotEmpty)
                                           ? '${item.ownerName}'
                                           : 'Invitado',
                                       style: const TextStyle(

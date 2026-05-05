@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import '../adapters/api/event_photos_api.dart';
 import '../adapters/local/photo_storage.dart';
 import '../adapters/local/photo_upload_db.dart';
+import '../domain/photo_upload_item.dart';
 
 class PhotosUploadController extends ChangeNotifier {
   final EventPhotosApi api;
@@ -16,6 +17,8 @@ class PhotosUploadController extends ChangeNotifier {
   String? _idToken;
   bool _running = false;
   Object? _lastError;
+
+  final Map<String, List<PhotoUploadItem>> _activeByEvent = {};
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
@@ -30,6 +33,11 @@ class PhotosUploadController extends ChangeNotifier {
 
   bool get running => _running;
   Object? get lastError => _lastError;
+
+  List<PhotoUploadItem> activeByEvent(String eventId) {
+    if (eventId.isEmpty) return const [];
+    return _activeByEvent[eventId] ?? const [];
+  }
 
   void setIdToken(String? token) {
     _idToken = token;
@@ -63,7 +71,16 @@ class PhotosUploadController extends ChangeNotifier {
       cameraType: cameraType,
     );
 
+    await _refreshActiveForEvent(eventId);
+    notifyListeners();
+
     unawaited(trigger());
+  }
+
+  Future<void> _refreshActiveForEvent(String eventId) async {
+    if (eventId.isEmpty) return;
+    final items = await db.listActiveByEvent(eventId: eventId);
+    _activeByEvent[eventId] = items;
   }
 
   Future<void> trigger() async {
@@ -72,9 +89,6 @@ class PhotosUploadController extends ChangeNotifier {
     final token = _idToken;
     if (token == null || token.isEmpty) return;
 
-    final connectivity = await Connectivity().checkConnectivity();
-    if (connectivity.contains(ConnectivityResult.none)) return;
-
     _running = true;
     notifyListeners();
 
@@ -82,6 +96,11 @@ class PhotosUploadController extends ChangeNotifier {
       _lastError = null;
 
       while (true) {
+        final connectivity = await Connectivity().checkConnectivity();
+        if (connectivity.contains(ConnectivityResult.none)) {
+          break;
+        }
+
         final next = await db.listPending(limit: 1);
         if (next.isEmpty) break;
 
@@ -89,6 +108,8 @@ class PhotosUploadController extends ChangeNotifier {
 
         try {
           await db.markUploading(item.id);
+          await _refreshActiveForEvent(item.eventId);
+          notifyListeners();
 
           final presign = await api.presignPut(
             eventId: item.eventId,
@@ -97,6 +118,8 @@ class PhotosUploadController extends ChangeNotifier {
           );
 
           await db.markPresigned(item.id, s3KeyOriginal: presign.s3KeyOriginal);
+          await _refreshActiveForEvent(item.eventId);
+          notifyListeners();
 
           final file = File(item.localPath);
           await api.uploadToPresignedUrl(
@@ -113,10 +136,16 @@ class PhotosUploadController extends ChangeNotifier {
           );
 
           await db.markUploaded(item.id);
+          await _refreshActiveForEvent(item.eventId);
+          notifyListeners();
         } catch (e) {
           await db.markFailed(item.id, error: e.toString());
           _lastError = e;
-          break;
+
+          await _refreshActiveForEvent(item.eventId);
+          notifyListeners();
+
+          await Future<void>.delayed(const Duration(seconds: 2));
         }
       }
     } finally {
