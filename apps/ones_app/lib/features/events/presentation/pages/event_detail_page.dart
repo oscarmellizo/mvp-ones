@@ -660,7 +660,11 @@ class _GalleryTabState extends State<_GalleryTab> {
                                         : const SizedBox.shrink(),
                                   ),
                                 ),
-                              if (item?.shared == true)
+                              if (item?.shared == true &&
+                                  !(widget.currentUserId == null ||
+                                      item?.sharedByUserId == null ||
+                                      item?.sharedByUserId !=
+                                          widget.currentUserId))
                                 Positioned(
                                   left: 0,
                                   right: 0,
