@@ -40,8 +40,18 @@ class PhotosUploadController extends ChangeNotifier {
   }
 
   void setIdToken(String? token) {
+    if (_idToken == token) {
+      api.setIdToken(token);
+      return;
+    }
+
     _idToken = token;
     api.setIdToken(token);
+
+    _running = false;
+    _lastError = null;
+    _activeByEvent.clear();
+    notifyListeners();
   }
 
   Future<void> enqueueCapturedJpeg({

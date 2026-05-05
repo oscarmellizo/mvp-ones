@@ -198,6 +198,27 @@ class _GalleryTabState extends State<_GalleryTab> {
   }
 
   @override
+  void didUpdateWidget(covariant _GalleryTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    final eventChanged = oldWidget.eventId != widget.eventId;
+    final userChanged = oldWidget.currentUserId != widget.currentUserId;
+    if (!eventChanged && !userChanged) return;
+
+    _exitSelectionMode();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
+
+      setState(() {
+        _guestsFuture =
+            context.read<EventsRepository>().listEventGuestsV2(widget.eventId);
+      });
+    });
+  }
+
+  @override
   void dispose() {
     super.dispose();
   }

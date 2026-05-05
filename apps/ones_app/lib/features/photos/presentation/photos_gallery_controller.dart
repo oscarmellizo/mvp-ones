@@ -35,8 +35,21 @@ class PhotosGalleryController extends ChangeNotifier {
   bool get hasMore => _hasMore;
 
   void setIdToken(String? token) {
+    if (_idToken == token) {
+      api.setIdToken(token);
+      return;
+    }
+
     _idToken = token;
     api.setIdToken(token);
+
+    _loading = false;
+    _error = null;
+    _items = const [];
+    _nextToken = null;
+    _hasMore = true;
+    _currentEventId = null;
+    notifyListeners();
   }
 
   Future<void> setLike({
