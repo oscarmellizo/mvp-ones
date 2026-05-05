@@ -111,7 +111,7 @@ CREATE TABLE $_table (
     final db = await _open();
     final rows = await db.query(
       _table,
-      where: "eventId = ? AND status IN ('pending','uploading','uploaded')",
+      where: "eventId = ? AND status IN ('pending','uploading')",
       whereArgs: [eventId],
       orderBy: 'createdAt DESC',
       limit: limit,
