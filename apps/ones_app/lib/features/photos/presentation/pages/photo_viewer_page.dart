@@ -127,6 +127,10 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
     final gallery = context.watch<PhotosGalleryController>();
     final items = gallery.items;
 
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    const floatingBarHeight = 52.0;
+    final floatingBarBottom = 12.0 + bottomInset;
+
     final maxIndex = items.isEmpty ? 0 : (items.length - 1);
     final clampedIndex = _currentIndex.clamp(0, maxIndex);
     if (clampedIndex != _currentIndex) {
@@ -224,7 +228,7 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
               Positioned(
                 left: 12,
                 right: 12,
-                bottom: 78,
+                bottom: floatingBarBottom + floatingBarHeight + 12,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -246,83 +250,101 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
               left: 0,
               right: 0,
               bottom: 0,
-              child: Container(
-                height: 64,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                color: Colors.black.withOpacity(0.55),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    IconButton(
-                      onPressed: (currentItem == null || _likeBusy)
-                          ? null
-                          : () async {
-                              setState(() {
-                                _likeBusy = true;
-                              });
-                              final next = !likedByMe;
-                              try {
-                                await gallery.setLike(
-                                  eventId: widget.eventId,
-                                  photoId: currentItem.photoId,
-                                  liked: next,
-                                );
-                              } catch (e) {
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context)
-                                  ..clearSnackBars()
-                                  ..showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                          'No se pudo actualizar el like: $e'),
-                                    ),
-                                  );
-                              } finally {
-                                if (mounted) {
-                                  setState(() {
-                                    _likeBusy = false;
-                                  });
-                                }
-                              }
-                            },
-                      icon: Icon(
-                        likedByMe ? Icons.favorite : Icons.favorite_border,
-                        color: likedByMe ? Colors.red : Colors.white,
+              child: IgnorePointer(
+                ignoring: currentItem == null,
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: EdgeInsets.only(bottom: floatingBarBottom),
+                    child: Material(
+                      color: Colors.black.withOpacity(0.55),
+                      borderRadius: BorderRadius.circular(999),
+                      child: SizedBox(
+                        height: floatingBarHeight,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                onPressed: (currentItem == null || _likeBusy)
+                                    ? null
+                                    : () async {
+                                        setState(() {
+                                          _likeBusy = true;
+                                        });
+                                        final next = !likedByMe;
+                                        try {
+                                          await gallery.setLike(
+                                            eventId: widget.eventId,
+                                            photoId: currentItem.photoId,
+                                            liked: next,
+                                          );
+                                        } catch (e) {
+                                          if (!context.mounted) return;
+                                          ScaffoldMessenger.of(context)
+                                            ..clearSnackBars()
+                                            ..showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                    'No se pudo actualizar el like: $e'),
+                                              ),
+                                            );
+                                        } finally {
+                                          if (mounted) {
+                                            setState(() {
+                                              _likeBusy = false;
+                                            });
+                                          }
+                                        }
+                                      },
+                                icon: Icon(
+                                  likedByMe
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  color: likedByMe ? Colors.red : Colors.white,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              IconButton(
+                                onPressed: (currentItem == null || _shareBusy)
+                                    ? null
+                                    : () async {
+                                        setState(() {
+                                          _shareBusy = true;
+                                        });
+                                        try {
+                                          await _shareCurrentPhoto(
+                                              context, currentItem);
+                                        } catch (e) {
+                                          if (!context.mounted) return;
+                                          ScaffoldMessenger.of(context)
+                                            ..clearSnackBars()
+                                            ..showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                    'No se pudo compartir la foto: $e'),
+                                              ),
+                                            );
+                                        } finally {
+                                          if (mounted) {
+                                            setState(() {
+                                              _shareBusy = false;
+                                            });
+                                          }
+                                        }
+                                      },
+                                icon: const Icon(
+                                  Icons.share_outlined,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                    IconButton(
-                      onPressed: (currentItem == null || _shareBusy)
-                          ? null
-                          : () async {
-                              setState(() {
-                                _shareBusy = true;
-                              });
-                              try {
-                                await _shareCurrentPhoto(context, currentItem);
-                              } catch (e) {
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context)
-                                  ..clearSnackBars()
-                                  ..showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                          'No se pudo compartir la foto: $e'),
-                                    ),
-                                  );
-                              } finally {
-                                if (mounted) {
-                                  setState(() {
-                                    _shareBusy = false;
-                                  });
-                                }
-                              }
-                            },
-                      icon: const Icon(
-                        Icons.share_outlined,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
