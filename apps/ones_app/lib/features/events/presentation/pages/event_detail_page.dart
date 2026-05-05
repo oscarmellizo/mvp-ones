@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -175,9 +176,54 @@ class _GalleryTabState extends State<_GalleryTab> {
 
   Future<List<EventGuest>>? _guestsFuture;
 
+  late final List<Color> _badgePalette;
+  final Map<String, Color> _badgeColorByIdentity = {};
+  int _nextBadgeColorIndex = 0;
+
+  Color _badgeColorForIdentity(String identity) {
+    final trimmed = identity.trim();
+    if (trimmed.isEmpty) {
+      return _badgePalette.isEmpty ? OnesColors.purpleMid : _badgePalette.first;
+    }
+
+    final existing = _badgeColorByIdentity[trimmed];
+    if (existing != null) return existing;
+
+    final palette = _badgePalette;
+    if (palette.isEmpty) return OnesColors.purpleMid;
+
+    final idx = _nextBadgeColorIndex % palette.length;
+    _nextBadgeColorIndex++;
+    final c = palette[idx];
+    _badgeColorByIdentity[trimmed] = c;
+    return c;
+  }
+
+  Color _badgeTextColor(Color bg) {
+    return bg.computeLuminance() > 0.55 ? Colors.black : Colors.white;
+  }
+
   @override
   void initState() {
     super.initState();
+
+    final palette = <Color>[
+      Colors.blue,
+      Colors.indigo,
+      Colors.deepPurple,
+      Colors.purple,
+      Colors.pink,
+      Colors.red,
+      Colors.deepOrange,
+      Colors.orange,
+      Colors.teal,
+      Colors.green,
+      Colors.lightGreen,
+      Colors.cyan,
+    ];
+
+    palette.shuffle(Random());
+    _badgePalette = palette;
   }
 
   @override
@@ -206,6 +252,9 @@ class _GalleryTabState extends State<_GalleryTab> {
     if (!eventChanged && !userChanged) return;
 
     _exitSelectionMode();
+
+    _badgeColorByIdentity.clear();
+    _nextBadgeColorIndex = 0;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -674,11 +723,11 @@ class _GalleryTabState extends State<_GalleryTab> {
                                       horizontal: 6,
                                       vertical: 4,
                                     ),
-                                    color: Colors.black.withOpacity(0.45),
+                                    color: OnesColors.yellow.withOpacity(0.72),
                                     child: const Text(
                                       'Shared',
                                       style: TextStyle(
-                                        color: Colors.white,
+                                        color: OnesColors.black,
                                         fontSize: 11,
                                         fontWeight: FontWeight.w900,
                                       ),
@@ -702,14 +751,27 @@ class _GalleryTabState extends State<_GalleryTab> {
                                       horizontal: 6,
                                       vertical: 4,
                                     ),
-                                    color: Colors.black.withOpacity(0.45),
+                                    color: _badgeColorForIdentity(
+                                      (item!.guestId.isNotEmpty)
+                                          ? item.guestId
+                                          : ((item.ownerName ?? 'Invitado')
+                                              .trim()),
+                                    ).withOpacity(0.62),
                                     child: Text(
-                                      (item?.ownerName != null &&
-                                              item!.ownerName!.isNotEmpty)
+                                      (item.ownerName != null &&
+                                              item.ownerName!.isNotEmpty)
                                           ? '${item.ownerName}'
                                           : 'Invitado',
-                                      style: const TextStyle(
-                                        color: Colors.white,
+                                      style: TextStyle(
+                                        color: _badgeTextColor(
+                                          _badgeColorForIdentity(
+                                            (item.guestId.isNotEmpty)
+                                                ? item.guestId
+                                                : ((item.ownerName ??
+                                                        'Invitado')
+                                                    .trim()),
+                                          ),
+                                        ),
                                         fontSize: 11,
                                         fontWeight: FontWeight.w900,
                                       ),
