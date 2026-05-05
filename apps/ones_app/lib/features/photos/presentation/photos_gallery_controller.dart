@@ -96,6 +96,31 @@ class PhotosGalleryController extends ChangeNotifier {
     }
   }
 
+  Future<void> unsharePhotos({
+    required String eventId,
+    required List<String> photoIds,
+  }) async {
+    final token = _idToken;
+    if (token == null || token.isEmpty) {
+      _error = StateError('Missing idToken');
+      notifyListeners();
+      return;
+    }
+    if (photoIds.isEmpty) return;
+
+    _setLoading(true);
+    try {
+      _error = null;
+      await api.unsharePhotos(eventId: eventId, photoIds: photoIds);
+      await refresh(eventId: eventId);
+    } catch (e) {
+      _error = e;
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<void> sharePhotos({
     required String eventId,
     required List<String> photoIds,

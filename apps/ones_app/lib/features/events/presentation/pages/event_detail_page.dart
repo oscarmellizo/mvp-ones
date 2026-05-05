@@ -647,18 +647,82 @@ class _GalleryTabState extends State<_GalleryTab> {
                       onPressed: (controller.loading || _selectedIds.isEmpty)
                           ? null
                           : () async {
+                              final messenger = ScaffoldMessenger.of(context);
                               final ids = _selectedIds.toList(growable: false);
-                              await context
-                                  .read<PhotosGalleryController>()
-                                  .sharePhotos(
-                                    eventId: widget.eventId,
-                                    photoIds: ids,
+
+                              final selected = controller.items
+                                  .where(
+                                      (it) => _selectedIds.contains(it.photoId))
+                                  .toList(growable: false);
+                              final anyShared = selected.any((it) => it.shared);
+                              final anyNotShared =
+                                  selected.any((it) => !it.shared);
+
+                              if (anyShared && anyNotShared) {
+                                messenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'No puedes mezclar fotos compartidas y privadas.',
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              try {
+                                if (anyShared) {
+                                  await context
+                                      .read<PhotosGalleryController>()
+                                      .unsharePhotos(
+                                        eventId: widget.eventId,
+                                        photoIds: ids,
+                                      );
+                                  if (!mounted) return;
+                                  messenger.showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Fotos descompartidas.'),
+                                    ),
                                   );
-                              if (!mounted) return;
-                              _exitSelectionMode();
+                                } else {
+                                  await context
+                                      .read<PhotosGalleryController>()
+                                      .sharePhotos(
+                                        eventId: widget.eventId,
+                                        photoIds: ids,
+                                      );
+                                  if (!mounted) return;
+                                  messenger.showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Fotos compartidas.'),
+                                    ),
+                                  );
+                                }
+
+                                _exitSelectionMode();
+                              } catch (e) {
+                                if (!mounted) return;
+                                messenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'No se pudo actualizar: $e',
+                                    ),
+                                  ),
+                                );
+                              }
                             },
                       child: Text(
-                        'Share (${_selectedIds.length})',
+                        (() {
+                          final selected = controller.items
+                              .where((it) => _selectedIds.contains(it.photoId))
+                              .toList(growable: false);
+                          final anyShared = selected.any((it) => it.shared);
+                          final anyNotShared = selected.any((it) => !it.shared);
+
+                          if (anyShared && !anyNotShared) {
+                            return 'Unshare (${_selectedIds.length})';
+                          }
+                          return 'Share (${_selectedIds.length})';
+                        })(),
                         style: const TextStyle(fontWeight: FontWeight.w900),
                       ),
                     ),

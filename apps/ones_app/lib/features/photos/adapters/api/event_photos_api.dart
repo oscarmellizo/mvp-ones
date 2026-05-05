@@ -146,6 +146,29 @@ class EventPhotosApi {
     );
   }
 
+  Future<void> unsharePhotos({
+    required String eventId,
+    required List<String> photoIds,
+  }) async {
+    await _dioFactory(_idToken).post(
+      '/v1/events/$eventId/photos/unshare',
+      data: {
+        'photoIds': photoIds,
+      },
+      options: Options(
+        extra: {
+          'secure': [
+            {
+              'type': 'http',
+              'scheme': 'bearer',
+              'name': 'bearerAuth',
+            }
+          ],
+        },
+      ),
+    );
+  }
+
   Future<void> uploadToPresignedUrl({
     required String putUrl,
     required File file,

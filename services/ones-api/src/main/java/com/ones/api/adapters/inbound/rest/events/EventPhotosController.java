@@ -116,6 +116,17 @@ public class EventPhotosController {
         return photosService.sharePhotos(userId, email, eventId, request.photoIds());
     }
 
+    @PostMapping("/{eventId}/photos/unshare")
+    public List<Photo> unshare(
+            Authentication authentication,
+            @PathVariable("eventId") String eventId,
+            @Valid @RequestBody SharePhotosRequest request
+    ) {
+        String userId = authentication.getName();
+        String email = AuthClaims.requireEmail(authentication);
+        return photosService.unsharePhotos(userId, email, eventId, request.photoIds());
+    }
+
     @PutMapping("/{eventId}/photos/{photoId}/like")
     public LikeResponse like(
             Authentication authentication,

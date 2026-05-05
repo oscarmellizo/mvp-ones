@@ -661,6 +661,122 @@ public class PhotosService {
         return updated;
     }
 
+    public List<Photo> unsharePhotos(
+            String requesterUserId,
+            String requesterEmail,
+            String eventId,
+            List<String> photoIds
+    ) {
+        require(eventId, "eventId");
+        getEventUseCase.execute(requesterUserId, requesterEmail, eventId);
+
+        if (photoIds == null || photoIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<Photo> updated = new ArrayList<>(photoIds.size());
+        for (String rawId : photoIds) {
+            if (rawId == null || rawId.isBlank()) {
+                continue;
+            }
+            String photoId = rawId.trim();
+
+            Photo existing = photosRepository.findById(photoId).orElse(null);
+            if (existing == null) {
+                continue;
+            }
+
+            if (existing.getEventId() == null || !existing.getEventId().equals(eventId)) {
+                continue;
+            }
+
+            Event event = eventsRepository.findById(eventId.trim()).orElse(null);
+            if (event == null) {
+                continue;
+            }
+
+            boolean isOwner = requesterUserId != null && requesterUserId.equals(event.getOwnerId());
+            boolean isPhotoOwner = requesterUserId != null && requesterUserId.equals(existing.getGuestId());
+            if (!isOwner && !isPhotoOwner) {
+                continue;
+            }
+
+            if (!isShared(existing)) {
+                if (existing.getSharedByUserId() != null || existing.getSharedByName() != null) {
+                    Photo next = new Photo(
+                            existing.getPhotoId(),
+                            existing.getEventId(),
+                            existing.getGuestId(),
+                            existing.getCreatedAt(),
+                            existing.getUploadedAt(),
+                            existing.getStatus(),
+                            existing.getS3KeyOriginal(),
+                            existing.getS3KeyMedium(),
+                            existing.getS3KeySmall(),
+                            existing.getOwnerName(),
+                            null,
+                            null
+                    );
+                    updated.add(photosRepository.upsert(next));
+                } else {
+                    updated.add(existing);
+                }
+                continue;
+            }
+
+            String guestId = existing.getGuestId();
+            if (guestId == null || guestId.isBlank()) {
+                continue;
+            }
+
+            String ownerName = existing.getOwnerName();
+            if (ownerName == null || ownerName.isBlank()) {
+                ownerName = resolvePreferredName(guestId, null);
+            }
+
+            String destOriginal = originalKey(eventId, guestId, photoId);
+            String destMedium = variantKeyFromOriginal(destOriginal, "_m");
+            String destSmall = variantKeyFromOriginal(destOriginal, "_s");
+
+            String sourceOriginal = existing.getS3KeyOriginal();
+            String sourceMedium = existing.getS3KeyMedium();
+            String sourceSmall = existing.getS3KeySmall();
+
+            if ((sourceOriginal == null || sourceOriginal.isBlank()) || !isSharedKey(sourceOriginal)) {
+                sourceOriginal = sharedKey(eventId, photoId, "");
+            }
+            if ((sourceMedium == null || sourceMedium.isBlank()) || !isSharedKey(sourceMedium)) {
+                sourceMedium = sharedKey(eventId, photoId, "_m");
+            }
+            if ((sourceSmall == null || sourceSmall.isBlank()) || !isSharedKey(sourceSmall)) {
+                sourceSmall = sharedKey(eventId, photoId, "_s");
+            }
+
+            moveIfPresent(sourceOriginal, destOriginal);
+            moveIfPresent(sourceMedium, destMedium);
+            moveIfPresent(sourceSmall, destSmall);
+
+            Photo next = new Photo(
+                    existing.getPhotoId(),
+                    existing.getEventId(),
+                    existing.getGuestId(),
+                    existing.getCreatedAt(),
+                    existing.getUploadedAt(),
+                    existing.getStatus(),
+                    destOriginal,
+                    destMedium,
+                    destSmall,
+                    ownerName,
+                    null,
+                    null
+            );
+
+            updated.add(photosRepository.upsert(next));
+        }
+
+        return updated;
+    }
+
     public Photo markReady(
             String requesterUserId,
             String requesterEmail,
