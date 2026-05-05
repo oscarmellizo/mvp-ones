@@ -22,6 +22,8 @@ class PhotosGalleryController extends ChangeNotifier {
   String? _nextToken;
   bool _hasMore = true;
 
+  String? _currentEventId;
+
   PhotosGalleryController({required this.api});
 
   bool get loading => _loading;
@@ -166,6 +168,15 @@ class PhotosGalleryController extends ChangeNotifier {
       return;
     }
 
+    final trimmedEventId = eventId.trim();
+    if (_currentEventId != trimmedEventId) {
+      _currentEventId = trimmedEventId;
+      _items = const [];
+      _nextToken = null;
+      _hasMore = true;
+      notifyListeners();
+    }
+
     _setLoading(true);
     try {
       _error = null;
@@ -174,7 +185,7 @@ class PhotosGalleryController extends ChangeNotifier {
       _hasMore = true;
 
       final res = await api.list(
-        eventId: eventId,
+        eventId: trimmedEventId,
         limit: 50,
         filter: switch (_filter) {
           PhotosGalleryFilter.all => 'all',
@@ -211,6 +222,11 @@ class PhotosGalleryController extends ChangeNotifier {
     if (_loading) return;
     if (!_hasMore) return;
 
+    final trimmedEventId = eventId.trim();
+    if (_currentEventId == null || _currentEventId != trimmedEventId) {
+      return;
+    }
+
     final token = _idToken;
     if (token == null || token.isEmpty) {
       _error = StateError('Missing idToken');
@@ -229,7 +245,7 @@ class PhotosGalleryController extends ChangeNotifier {
     try {
       _error = null;
       final res = await api.list(
-        eventId: eventId,
+        eventId: trimmedEventId,
         limit: 50,
         nextToken: cursor,
         filter: switch (_filter) {

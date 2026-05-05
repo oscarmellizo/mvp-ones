@@ -639,6 +639,30 @@ class _GalleryTabState extends State<_GalleryTab> {
                                         : const SizedBox.shrink(),
                                   ),
                                 ),
+                              if (item?.shared == true)
+                                Positioned(
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 4,
+                                    ),
+                                    color: Colors.black.withOpacity(0.45),
+                                    child: const Text(
+                                      'Shared',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
                               if (item?.shared == true &&
                                   (widget.currentUserId == null ||
                                       item?.sharedByUserId == null ||
