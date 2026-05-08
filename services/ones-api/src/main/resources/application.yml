@@ -17,6 +17,16 @@ ones:
     basic:
       username: ${ONES_ACTUATOR_BASIC_USERNAME:}
       password: ${ONES_ACTUATOR_BASIC_PASSWORD:}
+  cdn:
+    photos:
+      enabled: ${ONES_CDN_PHOTOS_ENABLED:false}
+      base-url: ${ONES_CDN_PHOTOS_BASE_URL:}
+      signing:
+        key-pair-id: ${ONES_CDN_PHOTOS_KEY_PAIR_ID:}
+        private-key-secret-name: ${ONES_CDN_PHOTOS_PRIVATE_KEY_SECRET_NAME:}
+      url-ttl-minutes: ${ONES_CDN_PHOTOS_URL_TTL_MINUTES:120}
+      url-rounding-seconds: ${ONES_CDN_PHOTOS_URL_ROUNDING_SECONDS:300}
+      social-share-ttl-days: ${ONES_CDN_PHOTOS_SOCIAL_SHARE_TTL_DAYS:7}
   internal:
     basic:
       username: ${ONES_INTERNAL_BASIC_USERNAME:}

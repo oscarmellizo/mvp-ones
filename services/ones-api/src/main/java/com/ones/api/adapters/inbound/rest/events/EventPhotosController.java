@@ -150,6 +150,19 @@ public class EventPhotosController {
         likesService.unlike(userId, email, eventId, photoId);
         return new LikeResponse(false);
     }
+
+    @PostMapping("/{eventId}/photos/{photoId}/social-share")
+    public PhotosService.SocialShareLink socialShare(
+            Authentication authentication,
+            @PathVariable("eventId") String eventId,
+            @PathVariable("photoId") String photoId,
+            @Valid @RequestBody SocialShareRequest request
+    ) {
+        String userId = authentication.getName();
+        String email = AuthClaims.requireEmail(authentication);
+
+        return photosService.createSocialShareLink(userId, email, eventId, photoId, request.variant());
+    }
 }
 
 record LikeResponse(boolean liked) {
@@ -176,5 +189,10 @@ record MarkReadyRequest(
 
 record SharePhotosRequest(
         List<String> photoIds
+) {
+}
+
+record SocialShareRequest(
+        String variant
 ) {
 }

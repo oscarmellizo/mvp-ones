@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -662,11 +663,12 @@ class _GalleryTabState extends State<_GalleryTab> {
                                               ),
                                             ),
                                           )
-                                        : Image.network(
-                                            thumbUrl,
+                                        : CachedNetworkImage(
+                                            imageUrl: thumbUrl,
                                             fit: BoxFit.cover,
-                                            errorBuilder:
-                                                (context, error, stack) {
+                                            memCacheWidth: 300,
+                                            memCacheHeight: 300,
+                                            errorWidget: (context, url, error) {
                                               return const SizedBox.expand();
                                             },
                                           ),

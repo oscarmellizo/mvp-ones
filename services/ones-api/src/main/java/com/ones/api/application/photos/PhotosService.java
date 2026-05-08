@@ -42,11 +42,11 @@ public class PhotosService {
     private final PreferredNamesCacheRepository preferredNamesCacheRepository;
     private final ObjectStoragePresigner objectStoragePresigner;
     private final ObjectStorage objectStorage;
+    private final CloudFrontSignedUrlService cloudFrontSignedUrlService;
     private final Clock clock;
 
     private final String photosBucket;
     private final long putPresignTtlMinutes;
-    private final long getPresignTtlMinutes;
     private final boolean debugList;
 
     public PhotosService(
@@ -59,10 +59,10 @@ public class PhotosService {
             PreferredNamesCacheRepository preferredNamesCacheRepository,
             ObjectStoragePresigner objectStoragePresigner,
             ObjectStorage objectStorage,
+            CloudFrontSignedUrlService cloudFrontSignedUrlService,
             Clock clock,
             @Value("${ones.s3.events.photos.bucket}") String photosBucket,
             @Value("${ones.s3.events.photos.put-presign-ttl-minutes:15}") long putPresignTtlMinutes,
-            @Value("${ones.s3.events.photos.get-presign-ttl-minutes:15}") long getPresignTtlMinutes,
             @Value("${ones.photos.debug-list:false}") boolean debugList
     ) {
         this.photosRepository = photosRepository;
@@ -74,10 +74,10 @@ public class PhotosService {
         this.preferredNamesCacheRepository = preferredNamesCacheRepository;
         this.objectStoragePresigner = objectStoragePresigner;
         this.objectStorage = objectStorage;
+        this.cloudFrontSignedUrlService = cloudFrontSignedUrlService;
         this.clock = clock;
         this.photosBucket = photosBucket;
         this.putPresignTtlMinutes = putPresignTtlMinutes;
-        this.getPresignTtlMinutes = getPresignTtlMinutes;
         this.debugList = debugList;
     }
 
@@ -261,9 +261,9 @@ public class PhotosService {
                         smallKey = variantKeyFromOriginal(originalKey, "_s");
                     }
 
-                    String originalUrl = presignGetIfAny(originalKey);
-                    String mediumUrl = presignGetIfAny(mediumKey);
-                    String smallUrl = presignGetIfAny(smallKey);
+                    String originalUrl = signedCdnUrlIfAny(originalKey);
+                    String mediumUrl = signedCdnUrlIfAny(mediumKey);
+                    String smallUrl = signedCdnUrlIfAny(smallKey);
 
                     if (debugList) {
                         log.info(
@@ -420,9 +420,9 @@ public class PhotosService {
                         smallKey = variantKeyFromOriginal(originalKey, "_s");
                     }
 
-                    String originalUrl = presignGetIfAny(originalKey);
-                    String mediumUrl = presignGetIfAny(mediumKey);
-                    String smallUrl = presignGetIfAny(smallKey);
+                    String originalUrl = signedCdnUrlIfAny(originalKey);
+                    String mediumUrl = signedCdnUrlIfAny(mediumKey);
+                    String smallUrl = signedCdnUrlIfAny(smallKey);
 
                     if (debugList) {
                         log.info(
@@ -834,6 +834,57 @@ public class PhotosService {
         return photosRepository.upsert(updated);
     }
 
+    public SocialShareLink createSocialShareLink(
+            String requesterUserId,
+            String requesterEmail,
+            String eventId,
+            String photoId,
+            String variant
+    ) {
+        require(eventId, "eventId");
+        require(photoId, "photoId");
+
+        getEventUseCase.execute(requesterUserId, requesterEmail, eventId);
+
+        Photo p = photosRepository.findById(photoId.trim()).orElse(null);
+        if (p == null || p.getEventId() == null || !p.getEventId().equals(eventId)) {
+            throw new IllegalArgumentException("Missing photo");
+        }
+
+        String originalKey = p.getS3KeyOriginal();
+        if ((originalKey == null || originalKey.isBlank())
+                && p.getEventId() != null && !p.getEventId().isBlank()
+                && p.getGuestId() != null && !p.getGuestId().isBlank()
+                && p.getPhotoId() != null && !p.getPhotoId().isBlank()
+                && !isShared(p)) {
+            originalKey = originalKey(p.getEventId(), p.getGuestId(), p.getPhotoId());
+        }
+
+        String mediumKey = p.getS3KeyMedium();
+        if ((mediumKey == null || mediumKey.isBlank()) && originalKey != null && !originalKey.isBlank()) {
+            mediumKey = variantKeyFromOriginal(originalKey, "_m");
+        }
+
+        String smallKey = p.getS3KeySmall();
+        if ((smallKey == null || smallKey.isBlank()) && originalKey != null && !originalKey.isBlank()) {
+            smallKey = variantKeyFromOriginal(originalKey, "_s");
+        }
+
+        String resolvedVariant = (variant == null || variant.isBlank()) ? "medium" : variant.trim().toLowerCase();
+        String key = switch (resolvedVariant) {
+            case "small" -> smallKey;
+            case "original" -> originalKey;
+            case "medium" -> mediumKey;
+            default -> mediumKey;
+        };
+
+        CloudFrontSignedUrlService.SignedUrlResult res = cloudFrontSignedUrlService.signForSocialShare(key);
+        if (res.url() == null || res.url().isBlank() || res.expiresAt() == null) {
+            throw new IllegalStateException("CDN is not enabled");
+        }
+        return new SocialShareLink(res.url(), res.expiresAt());
+    }
+
     public Photo markReadyInternal(String eventId, String photoId, String s3KeyMedium, String s3KeySmall) {
         require(eventId, "eventId");
         require(photoId, "photoId");
@@ -887,13 +938,15 @@ public class PhotosService {
         return photosRepository.upsert(updated);
     }
 
-    private String presignGetIfAny(String key) {
+    private String signedCdnUrlIfAny(String key) {
         if (key == null || key.isBlank()) {
             return null;
         }
-        return objectStoragePresigner
-                .presignGet(photosBucket, key.trim(), Duration.ofMinutes(getPresignTtlMinutes))
-                .toString();
+        CloudFrontSignedUrlService.SignedUrlResult res = cloudFrontSignedUrlService.signForParticipants(key.trim());
+        return res.url();
+    }
+
+    public record SocialShareLink(String url, Instant expiresAt) {
     }
 
     private static String originalKey(String eventId, String guestId, String photoId) {

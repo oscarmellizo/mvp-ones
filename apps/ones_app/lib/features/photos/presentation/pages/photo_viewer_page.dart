@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -54,7 +55,7 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
       final it = items[i];
       final url = it.mediumUrl;
       if (url == null || url.trim().isEmpty) continue;
-      precacheImage(NetworkImage(url), context);
+      precacheImage(CachedNetworkImageProvider(url), context);
     }
   }
 
@@ -187,29 +188,26 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
 
                         return InteractiveViewer(
                           child: Center(
-                            child: Image.network(
-                              url,
+                            child: CachedNetworkImage(
+                              imageUrl: url,
                               fit: BoxFit.contain,
-                              loadingBuilder: (context, child, progress) {
-                                if (progress == null) return child;
-                                return const Center(
-                                  child: CircularProgressIndicator(),
-                                );
-                              },
-                              errorBuilder: (context, error, stack) {
-                                return Center(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(24),
-                                    child: Text(
-                                      'Error cargando imagen: $error',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                      ),
-                                      textAlign: TextAlign.center,
+                              memCacheWidth: 1920,
+                              memCacheHeight: 1920,
+                              placeholder: (context, url) => const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                              errorWidget: (context, url, error) => Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: Text(
+                                    'Error cargando imagen: $error',
+                                    style: const TextStyle(
+                                      color: Colors.white,
                                     ),
+                                    textAlign: TextAlign.center,
                                   ),
-                                );
-                              },
+                                ),
+                              ),
                             ),
                           ),
                         );
