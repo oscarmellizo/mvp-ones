@@ -22,6 +22,7 @@ import 'photo_capture_page.dart';
 import 'edit_event_page.dart';
 import '../../../invitations/presentation/widgets/invitations_sheet.dart';
 import '../../domain/events_repository.dart';
+import '../../adapters/api/frames_api_repository.dart';
 
 class EventDetailPage extends StatefulWidget {
   static const routeName = '/events/detail';
@@ -946,6 +947,7 @@ class _DetailsTabState extends State<_DetailsTab> {
   final _emailController = TextEditingController();
 
   Future<List<EventGuest>>? _guestsFuture;
+  Future<Map<String, String>>? _frameNamesFuture;
 
   String? _inviteError;
 
@@ -953,6 +955,46 @@ class _DetailsTabState extends State<_DetailsTab> {
   void initState() {
     super.initState();
     _refreshGuests();
+    _refreshFrameNames();
+  }
+
+  void _refreshFrameNames() {
+    final ids = widget.frameIds;
+    if (ids.isEmpty) {
+      setState(() {
+        _frameNamesFuture = Future.value(const <String, String>{});
+      });
+      return;
+    }
+
+    setState(() {
+      _frameNamesFuture = _loadFrameNames(ids);
+    });
+  }
+
+  Future<Map<String, String>> _loadFrameNames(List<String> frameIds) async {
+    final wanted = frameIds.toSet();
+    final resolved = <String, String>{};
+
+    final repo = context.read<FramesApiRepository>();
+    String? nextToken;
+
+    for (int guard = 0; guard < 50; guard++) {
+      final res = await repo.listFrames(limit: 50, nextToken: nextToken);
+      for (final it in res.items) {
+        if (!wanted.contains(it.frameId)) continue;
+        final name = (it.name != null && it.name!.trim().isNotEmpty)
+            ? it.name!.trim()
+            : it.frameId;
+        resolved[it.frameId] = name;
+      }
+
+      if (resolved.length >= wanted.length) break;
+      nextToken = res.nextToken;
+      if (nextToken == null || nextToken.isEmpty) break;
+    }
+
+    return resolved;
   }
 
   void _refreshGuests() {
@@ -1027,35 +1069,6 @@ class _DetailsTabState extends State<_DetailsTab> {
 
     return ListView(
       children: [
-        if (widget.isOwner)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(0, 0, 0, 14),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton.tonal(
-                onPressed: () async {
-                  final current = events.selected;
-                  if (current == null) return;
-
-                  final saved = await Navigator.of(context).push<bool>(
-                    MaterialPageRoute(
-                      builder: (_) => EditEventPage(initial: current),
-                    ),
-                  );
-                  if (!context.mounted) return;
-                  if (saved == true) {
-                    await context
-                        .read<EventsController>()
-                        .select(widget.eventId);
-                  }
-                },
-                child: const Text(
-                  'Editar',
-                  style: TextStyle(fontWeight: FontWeight.w900),
-                ),
-              ),
-            ),
-          ),
         if (widget.coverKey != null && widget.coverKey!.trim().isNotEmpty) ...[
           FutureBuilder<String?>(
             future: coverUrls.getUrlIfAny(
@@ -1082,6 +1095,33 @@ class _DetailsTabState extends State<_DetailsTab> {
         ],
         EventDetailSectionCard(
           title: 'Event Details',
+          trailing: widget.isOwner
+              ? IconButton(
+                  tooltip: 'Editar',
+                  onPressed: () async {
+                    final current = events.selected;
+                    if (current == null) return;
+
+                    final saved = await Navigator.of(context).push<bool>(
+                      MaterialPageRoute(
+                        builder: (_) => EditEventPage(initial: current),
+                      ),
+                    );
+                    if (!context.mounted) return;
+                    if (saved == true) {
+                      await context
+                          .read<EventsController>()
+                          .select(widget.eventId);
+                      if (!context.mounted) return;
+                      _refreshFrameNames();
+                    }
+                  },
+                  icon: const Icon(
+                    Icons.edit,
+                    color: OnesColors.purpleDeep,
+                  ),
+                )
+              : null,
           children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1135,11 +1175,63 @@ class _DetailsTabState extends State<_DetailsTab> {
         EventDetailSectionCard(
           title: 'Frames',
           children: [
-            ReadOnlyField(
-              label: 'Selected frames',
-              value: widget.frameIds.isEmpty ? '-' : widget.frameIds.join(', '),
-              maxLines: null,
-              overflow: null,
+            FutureBuilder<Map<String, String>>(
+              future: _frameNamesFuture,
+              builder: (context, snapshot) {
+                if (widget.frameIds.isEmpty) {
+                  return const ReadOnlyField(
+                    label: 'Selected frames',
+                    value: '-',
+                  );
+                }
+
+                final resolved = snapshot.data ?? const <String, String>{};
+                final lines = widget.frameIds
+                    .map((id) => resolved[id] ?? id)
+                    .toList(growable: false);
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Selected frames',
+                      style: TextStyle(
+                        color: OnesColors.black.withOpacity(0.55),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    ...lines.map(
+                      (name) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '• ',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                color: OnesColors.black.withOpacity(0.75),
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 14,
+                                  color: OnesColors.black,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ],
         ),
@@ -1258,39 +1350,51 @@ class _DetailsTabState extends State<_DetailsTab> {
                             _ => OnesColors.yellowSoft,
                           };
 
-                    final statusFg =
-                        isOwner ? OnesColors.white : OnesColors.black;
-
-                    return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(
-                        title,
-                        style: const TextStyle(fontWeight: FontWeight.w900),
-                      ),
-                      subtitle: subtitle.isEmpty
-                          ? null
-                          : Text(
-                              subtitle,
-                              style: TextStyle(
-                                color: OnesColors.black.withOpacity(0.6),
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                ),
                               ),
-                            ),
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: statusBg,
-                          borderRadius: BorderRadius.zero,
-                        ),
-                        child: Text(
-                          statusText,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 12,
-                            color: statusFg,
+                              if (subtitle.isNotEmpty)
+                                Text(
+                                  subtitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: OnesColors.black.withOpacity(0.55),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
-                      ),
+                        const SizedBox(width: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: statusBg,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            statusText,
+                            style: const TextStyle(
+                              color: OnesColors.white,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ],
                     );
                   },
                 );
