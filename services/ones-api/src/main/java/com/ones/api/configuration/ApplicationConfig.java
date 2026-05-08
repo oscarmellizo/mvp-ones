@@ -13,6 +13,7 @@ import com.ones.api.application.events.GetEventUseCase;
 import com.ones.api.application.events.InviteEventGuestsUseCase;
 import com.ones.api.application.events.ListEventGuestsUseCase;
 import com.ones.api.application.events.ListEventsUseCase;
+import com.ones.api.application.events.UpdateEventUseCase;
 import com.ones.api.application.events.ports.EventsRepository;
 import com.ones.api.application.users.EnsureUserUseCase;
 import com.ones.api.application.users.GetUserByIdUseCase;
@@ -38,6 +39,14 @@ public class ApplicationConfig {
             EventCoversService coversService
     ) {
         return new CreateEventUseCase(repository, invitationsRepository, usersRepository, clock, coversService);
+    }
+
+    @Bean
+    UpdateEventUseCase updateEventUseCase(
+            EventsRepository repository,
+            EventCoversService coversService
+    ) {
+        return new UpdateEventUseCase(repository, coversService);
     }
 
     @Bean

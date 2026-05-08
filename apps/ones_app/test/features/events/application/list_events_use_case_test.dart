@@ -48,6 +48,21 @@ class _FakeEventsRepository implements EventsRepository {
   Future<List<Event>> listEvents() async {
     return events;
   }
+
+  @override
+  Future<Event> updateEvent({
+    required String eventId,
+    required String title,
+    required String objective,
+    required String location,
+    required DateTime startAt,
+    required DateTime endAt,
+    required bool allowGuestInvites,
+    required List<String> frameIds,
+    String? coverReservationId,
+  }) {
+    throw UnimplementedError();
+  }
 }
 
 void main() {

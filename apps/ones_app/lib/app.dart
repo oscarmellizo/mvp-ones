@@ -27,6 +27,7 @@ import 'features/events/adapters/api/events_metadata_api_repository.dart';
 import 'features/events/application/create_event_use_case.dart';
 import 'features/events/application/get_event_use_case.dart';
 import 'features/events/application/list_events_use_case.dart';
+import 'features/events/application/update_event_use_case.dart';
 import 'features/events/domain/events_repository.dart';
 import 'features/events/presentation/events_controller.dart';
 import 'features/events/presentation/event_covers_controller.dart';
@@ -82,6 +83,7 @@ class OnesApp extends StatelessWidget {
     final listEvents = ListEventsUseCase(eventsRepository);
     final getEvent = GetEventUseCase(eventsRepository);
     final createEvent = CreateEventUseCase(eventsRepository);
+    final updateEvent = UpdateEventUseCase(eventsRepository);
 
     final eventsMetadataRepository = EventsMetadataApiRepository(apiFactory);
     final eventCoversRepository = EventCoversApiRepository(apiFactory);
@@ -129,6 +131,7 @@ class OnesApp extends StatelessWidget {
             listEvents: listEvents,
             getEvent: getEvent,
             createEvent: createEvent,
+            updateEventUseCase: updateEvent,
           ),
           update: (_, auth, events) {
             apiFactory.setTokenRefresher(auth.refreshIdToken);
@@ -137,6 +140,7 @@ class OnesApp extends StatelessWidget {
                   listEvents: listEvents,
                   getEvent: getEvent,
                   createEvent: createEvent,
+                  updateEventUseCase: updateEvent,
                 );
             eventsRepository.setIdToken(auth.idToken);
             controller.setIdToken(auth.idToken);

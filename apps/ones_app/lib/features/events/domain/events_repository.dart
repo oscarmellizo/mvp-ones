@@ -23,6 +23,18 @@ abstract interface class EventsRepository {
     bool allowGuestInvites,
     List<String> frameIds,
   );
+
+  Future<Event> updateEvent({
+    required String eventId,
+    required String title,
+    required String objective,
+    required String location,
+    required DateTime startAt,
+    required DateTime endAt,
+    required bool allowGuestInvites,
+    required List<String> frameIds,
+    String? coverReservationId,
+  });
 }
 
 class EventGuest {

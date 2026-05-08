@@ -10,6 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,6 +23,7 @@ import com.ones.api.application.events.GetEventUseCase;
 import com.ones.api.application.events.InviteEventGuestsUseCase;
 import com.ones.api.application.events.ListEventGuestsUseCase;
 import com.ones.api.application.events.ListEventsUseCase;
+import com.ones.api.application.events.UpdateEventUseCase;
 import com.ones.api.application.invitations.ports.InvitationsRepository;
 import com.ones.api.application.users.ports.UsersRepository;
 import com.ones.api.domain.events.Event;
@@ -40,6 +42,7 @@ public class EventsController {
     private final UsersRepository usersRepository;
     private final InviteEventGuestsUseCase inviteEventGuestsUseCase;
     private final ListEventGuestsUseCase listEventGuestsUseCase;
+    private final UpdateEventUseCase updateEventUseCase;
 
     public EventsController(
             CreateEventUseCase createEventUseCase,
@@ -49,7 +52,8 @@ public class EventsController {
             InvitationsRepository invitationsRepository,
             UsersRepository usersRepository,
             InviteEventGuestsUseCase inviteEventGuestsUseCase,
-            ListEventGuestsUseCase listEventGuestsUseCase
+            ListEventGuestsUseCase listEventGuestsUseCase,
+            UpdateEventUseCase updateEventUseCase
     ) {
         this.createEventUseCase = createEventUseCase;
         this.listEventsUseCase = listEventsUseCase;
@@ -59,6 +63,7 @@ public class EventsController {
         this.usersRepository = usersRepository;
         this.inviteEventGuestsUseCase = inviteEventGuestsUseCase;
         this.listEventGuestsUseCase = listEventGuestsUseCase;
+        this.updateEventUseCase = updateEventUseCase;
     }
 
     @GetMapping
@@ -98,6 +103,31 @@ public class EventsController {
         String email = resolveEmail(authentication);
         Event event = getEventUseCase.execute(ownerId, email, id);
         return toResponse(event);
+    }
+
+    @PutMapping("/{id}")
+    public EventResponse update(
+            Authentication authentication,
+            @PathVariable("id") String id,
+            @Valid @RequestBody UpdateEventRequest request
+    ) {
+        String requesterUserId = authentication.getName();
+
+        boolean allowGuestInvites = request.allowGuestInvites() == null ? null : request.allowGuestInvites();
+
+        Event updated = updateEventUseCase.execute(
+                requesterUserId,
+                id,
+                request.title(),
+                request.objective(),
+                request.location(),
+                request.startAt(),
+                request.endAt(),
+                request.coverReservationId(),
+                allowGuestInvites,
+                request.frameIds()
+        );
+        return toResponse(updated);
     }
 
     @GetMapping("/{id}/guests")

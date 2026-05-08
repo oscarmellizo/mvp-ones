@@ -35,16 +35,10 @@ class EventsApiRepository implements EventsRepository {
 
   @override
   Future<List<Event>> listEvents() async {
-    final dio = _apiFactory.create(idToken: _idToken).dio;
-    final res = await dio.get('/v1/events');
-    final data = res.data;
-    if (data is! List) {
-      throw StateError('Invalid list events response');
-    }
-
-    return data
-        .whereType<Map<String, dynamic>>()
-        .map(_mapEventJson)
+    final response = await _defaultApi(_idToken).listEvents();
+    final BuiltList<api.Event>? items = response.data;
+    return (items?.toList() ?? const <api.Event>[])
+        .map(_mapEventApi)
         .toList(growable: false);
   }
 
@@ -183,6 +177,38 @@ class EventsApiRepository implements EventsRepository {
     );
   }
 
+  @override
+  Future<Event> updateEvent({
+    required String eventId,
+    required String title,
+    required String objective,
+    required String location,
+    required DateTime startAt,
+    required DateTime endAt,
+    required bool allowGuestInvites,
+    required List<String> frameIds,
+    String? coverReservationId,
+  }) async {
+    final dio = _apiFactory.create(idToken: _idToken).dio;
+    final payload = <String, dynamic>{
+      'title': title,
+      'objective': objective,
+      'location': location,
+      'startAt': startAt.toUtc().toIso8601String(),
+      'endAt': endAt.toUtc().toIso8601String(),
+      'coverReservationId': coverReservationId,
+      'allowGuestInvites': allowGuestInvites,
+      'frameIds': frameIds,
+    };
+
+    final response = await dio.put('/v1/events/$eventId', data: payload);
+    final data = response.data;
+    if (data is! Map<String, dynamic>) {
+      throw StateError('Invalid update event response');
+    }
+    return _mapEventJson(data);
+  }
+
   static Event _mapEventJson(Map<String, dynamic> data) {
     return Event(
       id: data['id'] as String,
@@ -199,6 +225,22 @@ class EventsApiRepository implements EventsRepository {
               ?.map((e) => e.toString())
               .toList(growable: false) ??
           const <String>[],
+    );
+  }
+
+  static Event _mapEventApi(api.Event e) {
+    return Event(
+      id: e.id,
+      ownerId: e.ownerId,
+      createdAt: e.createdAt,
+      title: e.title,
+      objective: e.objective,
+      location: e.location,
+      startAt: e.startAt,
+      endAt: e.endAt,
+      coverKey: e.coverKey,
+      allowGuestInvites: e.allowGuestInvites ?? true,
+      frameIds: const <String>[],
     );
   }
 }

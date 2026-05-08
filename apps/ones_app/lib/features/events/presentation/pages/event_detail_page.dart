@@ -19,6 +19,7 @@ import '../widgets/event_detail_details_widgets.dart';
 import '../widgets/event_detail_header.dart';
 import '../widgets/event_detail_tabs.dart';
 import 'photo_capture_page.dart';
+import 'edit_event_page.dart';
 import '../../../invitations/presentation/widgets/invitations_sheet.dart';
 import '../../domain/events_repository.dart';
 
@@ -134,6 +135,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                                   startAt: event.startAt,
                                   endAt: event.endAt,
                                   location: event.location,
+                                  frameIds: event.frameIds,
                                   isOwner: auth.user?.userId == event.ownerId,
                                   allowGuestInvites: event.allowGuestInvites,
                                 ),
@@ -919,6 +921,7 @@ class _DetailsTab extends StatefulWidget {
   final DateTime startAt;
   final DateTime endAt;
   final String location;
+  final List<String> frameIds;
   final bool isOwner;
   final bool allowGuestInvites;
 
@@ -930,6 +933,7 @@ class _DetailsTab extends StatefulWidget {
     required this.startAt,
     required this.endAt,
     required this.location,
+    required this.frameIds,
     required this.isOwner,
     required this.allowGuestInvites,
   });
@@ -1011,6 +1015,7 @@ class _DetailsTabState extends State<_DetailsTab> {
   @override
   Widget build(BuildContext context) {
     final coverUrls = context.watch<EventCoverUrlsController>();
+    final events = context.watch<EventsController>();
 
     final start = widget.startAt.toLocal();
     final end = widget.endAt.toLocal();
@@ -1022,6 +1027,35 @@ class _DetailsTabState extends State<_DetailsTab> {
 
     return ListView(
       children: [
+        if (widget.isOwner)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(0, 0, 0, 14),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton.tonal(
+                onPressed: () async {
+                  final current = events.selected;
+                  if (current == null) return;
+
+                  final saved = await Navigator.of(context).push<bool>(
+                    MaterialPageRoute(
+                      builder: (_) => EditEventPage(initial: current),
+                    ),
+                  );
+                  if (!context.mounted) return;
+                  if (saved == true) {
+                    await context
+                        .read<EventsController>()
+                        .select(widget.eventId);
+                  }
+                },
+                child: const Text(
+                  'Editar',
+                  style: TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
+            ),
+          ),
         if (widget.coverKey != null && widget.coverKey!.trim().isNotEmpty) ...[
           FutureBuilder<String?>(
             future: coverUrls.getUrlIfAny(
@@ -1092,6 +1126,18 @@ class _DetailsTabState extends State<_DetailsTab> {
             ReadOnlyField(
               label: 'Description',
               value: description,
+              maxLines: null,
+              overflow: null,
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        EventDetailSectionCard(
+          title: 'Frames',
+          children: [
+            ReadOnlyField(
+              label: 'Selected frames',
+              value: widget.frameIds.isEmpty ? '-' : widget.frameIds.join(', '),
               maxLines: null,
               overflow: null,
             ),

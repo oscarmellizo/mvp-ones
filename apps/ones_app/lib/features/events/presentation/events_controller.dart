@@ -3,12 +3,14 @@ import 'package:flutter/foundation.dart';
 import '../application/create_event_use_case.dart';
 import '../application/get_event_use_case.dart';
 import '../application/list_events_use_case.dart';
+import '../application/update_event_use_case.dart';
 import '../domain/event.dart';
 
 class EventsController extends ChangeNotifier {
   final ListEventsUseCase listEvents;
   final GetEventUseCase getEvent;
   final CreateEventUseCase createEvent;
+  final UpdateEventUseCase updateEventUseCase;
 
   bool _loading = false;
   Object? _error;
@@ -20,6 +22,7 @@ class EventsController extends ChangeNotifier {
     required this.listEvents,
     required this.getEvent,
     required this.createEvent,
+    required this.updateEventUseCase,
   });
 
   bool get loading => _loading;
@@ -38,6 +41,49 @@ class EventsController extends ChangeNotifier {
       _events = await listEvents.execute();
     } catch (e) {
       _error = e;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> updateEvent({
+    required String eventId,
+    required String title,
+    required String objective,
+    required String location,
+    required DateTime startAt,
+    required DateTime endAt,
+    required bool allowGuestInvites,
+    required List<String> frameIds,
+    String? coverReservationId,
+  }) async {
+    _setLoading(true);
+    try {
+      _error = null;
+      final updated = await updateEventUseCase.execute(
+        eventId: eventId,
+        title: title,
+        objective: objective,
+        location: location,
+        startAt: startAt,
+        endAt: endAt,
+        allowGuestInvites: allowGuestInvites,
+        frameIds: frameIds,
+        coverReservationId: coverReservationId,
+      );
+
+      final list = [..._events];
+      final idx = list.indexWhere((e) => e.id == updated.id);
+      if (idx >= 0) {
+        list[idx] = updated;
+        _events = list;
+      }
+      if (_selected?.id == updated.id) {
+        _selected = updated;
+      }
+    } catch (e) {
+      _error = e;
+      rethrow;
     } finally {
       _setLoading(false);
     }
