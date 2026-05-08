@@ -943,7 +943,11 @@ public class PhotosService {
             return null;
         }
         CloudFrontSignedUrlService.SignedUrlResult res = cloudFrontSignedUrlService.signForParticipants(key.trim());
-        return res.url();
+        if (res.url() != null && !res.url().isBlank()) {
+            return res.url();
+        }
+        // Fallback to S3 presigned URL if CDN is not enabled or fails
+        return objectStoragePresigner.presignGet(photosBucket, key.trim(), Duration.ofMinutes(120)).toString();
     }
 
     public record SocialShareLink(String url, Instant expiresAt) {
