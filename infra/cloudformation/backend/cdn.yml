@@ -1,0 +1,99 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Ones MVP - Backend CDN for photos (CloudFront)
+
+Parameters:
+  StackPrefix:
+    Type: String
+    Default: ones
+
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - stage
+      - prod
+
+  PhotosBucketName:
+    Type: String
+
+  PhotosBucketArn:
+    Type: String
+
+  PhotosBucketRegionalDomainName:
+    Type: String
+
+  CloudFrontPrivateKeySecretName:
+    Type: String
+    Description: Name of the secret containing CloudFront private key (from backend stack)
+
+Resources:
+  PhotosOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub ${StackPrefix}-${Environment}-photos-oac
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  PhotosDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        HttpVersion: http2and3
+        DefaultCacheBehavior:
+          TargetOriginId: photosorigin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          ForwardedValues:
+            QueryString: true
+            Cookies:
+              Forward: none
+          MinTTL: 0
+          DefaultTTL: 86400
+          MaxTTL: 31536000
+        Origins:
+          - Id: photosorigin
+            DomainName: !Ref PhotosBucketRegionalDomainName
+            S3OriginConfig: {}
+            OriginAccessControlId: !Ref PhotosOriginAccessControl
+
+  PhotosBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref PhotosBucketName
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudFrontRead
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action:
+              - s3:GetObject
+            Resource: !Sub ${PhotosBucketArn}/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${PhotosDistribution}
+
+Outputs:
+  CloudFrontDomainName:
+    Value: !GetAtt PhotosDistribution.DomainName
+    Description: CloudFront distribution domain name for photos
+
+  CloudFrontDistributionId:
+    Value: !Ref PhotosDistribution
+    Description: CloudFront distribution ID
+
+  CloudFrontPrivateKeySecretName:
+    Value: !Ref CloudFrontPrivateKeySecretName
+    Description: Name of the secret containing CloudFront private key (from backend stack)
