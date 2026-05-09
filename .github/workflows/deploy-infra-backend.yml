@@ -59,6 +59,11 @@ jobs:
         run: |
           stackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
 
+          cdnPublicKeyPem=""
+          if [ -n "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" ]; then
+            cdnPublicKeyPem="$(echo "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" | base64 -d)"
+          fi
+
           packageBucket="${CFN_PACKAGE_BUCKET_PREFIX}-${{ inputs.environment }}"
           if ! aws s3api head-bucket --bucket "${packageBucket}" >/dev/null 2>&1; then
             aws s3api create-bucket --bucket "${packageBucket}" --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
@@ -98,7 +103,7 @@ jobs:
               BackendDesiredCount="${{ inputs.backendDesiredCount }}" \
               UsePhotoThumbnailsImage="false" \
               CdnPhotosEnabled="${CDN_PHOTOS_ENABLED:-false}" \
-              CdnPhotosSigningPublicKeyPem="${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" \
+              CdnPhotosSigningPublicKeyPem="${cdnPublicKeyPem}" \
               LambdaArtifactsBucket="${packageBucket}" \
               CleanupFunctionS3Key="${cleanupKey}" \
               PhotoThumbnailsZipS3Key="${thumbnailsKey}"
@@ -130,6 +135,11 @@ jobs:
         if: ${{ inputs.usePhotoThumbnailsImage == 'true' }}
         run: |
           stackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
+
+          cdnPublicKeyPem=""
+          if [ -n "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" ]; then
+            cdnPublicKeyPem="$(echo "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" | base64 -d)"
+          fi
 
           packageBucket="${CFN_PACKAGE_BUCKET_PREFIX}-${{ inputs.environment }}"
           if ! aws s3api head-bucket --bucket "${packageBucket}" >/dev/null 2>&1; then
@@ -186,7 +196,7 @@ jobs:
               BackendDesiredCount="${{ inputs.backendDesiredCount }}" \
               UsePhotoThumbnailsImage="true" \
               CdnPhotosEnabled="${CDN_PHOTOS_ENABLED:-false}" \
-              CdnPhotosSigningPublicKeyPem="${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" \
+              CdnPhotosSigningPublicKeyPem="${cdnPublicKeyPem}" \
               LambdaArtifactsBucket="${packageBucket}" \
               CleanupFunctionS3Key="${cleanupKey}" \
               PhotoThumbnailsZipS3Key="${thumbnailsKey}"
