@@ -40,6 +40,8 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ONES_ACTUATOR_BASIC_USERNAME: ${{ secrets.ONES_ACTUATOR_BASIC_USERNAME }}
       ONES_ACTUATOR_BASIC_PASSWORD: ${{ secrets.ONES_ACTUATOR_BASIC_PASSWORD }}
+      CDN_PHOTOS_ENABLED: ${{ vars.CDN_PHOTOS_ENABLED }}
+      CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64: ${{ secrets.CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64 }}
 
     steps:
       - name: Checkout
@@ -95,6 +97,8 @@ jobs:
               GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}" \
               BackendDesiredCount="${{ inputs.backendDesiredCount }}" \
               UsePhotoThumbnailsImage="false" \
+              CdnPhotosEnabled="${CDN_PHOTOS_ENABLED:-false}" \
+              CdnPhotosSigningPublicKeyPem="${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" \
               LambdaArtifactsBucket="${packageBucket}" \
               CleanupFunctionS3Key="${cleanupKey}" \
               PhotoThumbnailsZipS3Key="${thumbnailsKey}"
@@ -181,6 +185,8 @@ jobs:
               GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}" \
               BackendDesiredCount="${{ inputs.backendDesiredCount }}" \
               UsePhotoThumbnailsImage="true" \
+              CdnPhotosEnabled="${CDN_PHOTOS_ENABLED:-false}" \
+              CdnPhotosSigningPublicKeyPem="${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" \
               LambdaArtifactsBucket="${packageBucket}" \
               CleanupFunctionS3Key="${cleanupKey}" \
               PhotoThumbnailsZipS3Key="${thumbnailsKey}"
