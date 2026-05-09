@@ -33,6 +33,18 @@ Parameters:
     Type: Number
     Default: 1
 
+  # CDN Configuration
+  CdnPhotosEnabled:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  CdnPhotosSigningPublicKeyPem:
+    Type: String
+    Default: ''
+
   LambdaArtifactsBucket:
     Type: String
     Default: ''
@@ -57,6 +69,8 @@ Resources:
         BackendDesiredCount: !Ref BackendDesiredCount
         UsePhotoThumbnailsImage: !Ref UsePhotoThumbnailsImage
         GrafanaDesiredCount: !Ref GrafanaDesiredCount
+        CdnPhotosEnabled: !Ref CdnPhotosEnabled
+        CdnPhotosSigningPublicKeyPem: !Ref CdnPhotosSigningPublicKeyPem
         LambdaArtifactsBucket: !Ref LambdaArtifactsBucket
         CleanupFunctionS3Key: !Ref CleanupFunctionS3Key
         PhotoThumbnailsZipS3Key: !Ref PhotoThumbnailsZipS3Key
