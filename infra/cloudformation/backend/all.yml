@@ -38,11 +38,7 @@ Parameters:
       - 'true'
       - 'false'
 
-  CdnPhotosBaseUrl:
-    Type: String
-    Default: ''
-
-  CdnPhotosSigningKeyPairId:
+  CdnPhotosSigningPublicKeyPem:
     Type: String
     Default: ''
 
@@ -73,6 +69,9 @@ Parameters:
 Conditions:
   UsePhotoThumbnailsImageCond: !Equals [!Ref UsePhotoThumbnailsImage, 'true']
   UsePhotoThumbnailsZipCond: !Not [!Equals [!Ref UsePhotoThumbnailsImage, 'true']]
+  EnablePhotosCdnCond: !And
+    - !Equals [!Ref CdnPhotosEnabled, 'true']
+    - !Not [!Equals [!Ref CdnPhotosSigningPublicKeyPem, '']]
 
 Resources:
   EventsTable:
@@ -421,6 +420,88 @@ Resources:
               - UsePhotoThumbnailsImageCond
               - !GetAtt PhotoThumbnailsFunctionImage.Arn
               - !GetAtt PhotoThumbnailsFunctionZip.Arn
+
+  PhotosOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Condition: EnablePhotosCdnCond
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub ${StackPrefix}-${Environment}-photos-oac
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  PhotosCdnPublicKey:
+    Type: AWS::CloudFront::PublicKey
+    Condition: EnablePhotosCdnCond
+    Properties:
+      PublicKeyConfig:
+        CallerReference: !Sub ${AWS::StackName}-${AWS::Region}-photos-public-key
+        Name: !Sub ${AWS::StackName}-photos-public-key
+        EncodedKey: !Ref CdnPhotosSigningPublicKeyPem
+        Comment: !Sub ${StackPrefix}-${Environment} photos CDN signed URLs public key
+
+  PhotosCdnKeyGroup:
+    Type: AWS::CloudFront::KeyGroup
+    Condition: EnablePhotosCdnCond
+    Properties:
+      KeyGroupConfig:
+        Name: !Sub ${AWS::StackName}-photos-key-group
+        Comment: !Sub ${StackPrefix}-${Environment} photos CDN key group
+        Items:
+          - !Ref PhotosCdnPublicKey
+
+  PhotosDistribution:
+    Type: AWS::CloudFront::Distribution
+    Condition: EnablePhotosCdnCond
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        HttpVersion: http2and3
+        Origins:
+          - Id: photosorigin
+            DomainName: !GetAtt EventsPhotosBucket.RegionalDomainName
+            S3OriginConfig: {}
+            OriginAccessControlId: !Ref PhotosOriginAccessControl
+        DefaultCacheBehavior:
+          TargetOriginId: photosorigin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          TrustedKeyGroups:
+            - !Ref PhotosCdnKeyGroup
+          ForwardedValues:
+            QueryString: true
+            Cookies:
+              Forward: none
+          MinTTL: 0
+          DefaultTTL: 86400
+          MaxTTL: 31536000
+
+  EventsPhotosBucketPolicyForCdn:
+    Type: AWS::S3::BucketPolicy
+    Condition: EnablePhotosCdnCond
+    Properties:
+      Bucket: !Ref EventsPhotosBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudFrontRead
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action:
+              - s3:GetObject
+            Resource: !Sub ${EventsPhotosBucket.Arn}/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${PhotosDistribution}
 
   OpenAiApiKeySecret:
     Type: AWS::SecretsManager::Secret
@@ -994,11 +1075,11 @@ Resources:
               Value: '*'
             # CDN Configuration
             - Name: ONES_CDN_PHOTOS_ENABLED
-              Value: !Ref CdnPhotosEnabled
+              Value: !If [EnablePhotosCdnCond, 'true', 'false']
             - Name: ONES_CDN_PHOTOS_BASE_URL
-              Value: !Ref CdnPhotosBaseUrl
+              Value: !If [EnablePhotosCdnCond, !Sub 'https://${PhotosDistribution.DomainName}', '']
             - Name: ONES_CDN_PHOTOS_SIGNING_KEY_PAIR_ID
-              Value: !Ref CdnPhotosSigningKeyPairId
+              Value: !If [EnablePhotosCdnCond, !Ref PhotosCdnPublicKey, '']
             - Name: ONES_CDN_PHOTOS_SIGNING_PRIVATE_KEY_SECRET_NAME
               Value: !Ref CloudFrontPrivateKeySecret
             - Name: ONES_CDN_PHOTOS_URL_TTL_MINUTES
