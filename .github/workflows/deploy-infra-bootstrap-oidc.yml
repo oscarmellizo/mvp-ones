@@ -40,6 +40,7 @@ jobs:
           aws-region: ${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}
 
       - name: Deploy stack (bootstrap OIDC)
+        id: deploy_cfn
         run: |
           stackName="${STACK_PREFIX}-bootstrap-oidc-${{ inputs.environment }}"
 
@@ -60,6 +61,29 @@ jobs:
               GitHubBranch=${{ vars.ONES_GH_BRANCH }} \
               RoleName=${{ vars.ONES_GITHUB_ACTIONS_ROLE_NAME }} \
             --no-cli-pager
+
+      - name: Debug CloudFormation (on failure)
+        if: ${{ steps.deploy_cfn.outcome != 'success' }}
+        run: |
+          stackName="${STACK_PREFIX}-bootstrap-oidc-${{ inputs.environment }}"
+
+          echo "--- Stack events (latest) ---"
+          aws cloudformation describe-stack-events \
+            --stack-name "${stackName}" \
+            --max-items 30 \
+            --query "StackEvents[0:30].[Timestamp,LogicalResourceId,ResourceType,ResourceStatus,ResourceStatusReason]" \
+            --output table || true
+
+          echo "--- Stack resources (if any) ---"
+          aws cloudformation describe-stack-resources \
+            --stack-name "${stackName}" \
+            --output table || true
+
+      - name: Fail if CloudFormation deploy failed
+        if: ${{ steps.deploy_cfn.outcome != 'success' }}
+        run: |
+          echo "CloudFormation deploy failed. See debug output above."
+          exit 1
 
       - name: Show outputs
         run: |
