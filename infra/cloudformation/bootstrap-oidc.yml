@@ -123,6 +123,18 @@ Resources:
                   - cloudfront:CreateInvalidation
                   - cloudfront:GetInvalidation
                   - cloudfront:ListInvalidations
+                  - cloudfront:CreatePublicKey
+                  - cloudfront:UpdatePublicKey
+                  - cloudfront:DeletePublicKey
+                  - cloudfront:GetPublicKey
+                  - cloudfront:GetPublicKeyConfig
+                  - cloudfront:ListPublicKeys
+                  - cloudfront:CreateKeyGroup
+                  - cloudfront:UpdateKeyGroup
+                  - cloudfront:DeleteKeyGroup
+                  - cloudfront:GetKeyGroup
+                  - cloudfront:GetKeyGroupConfig
+                  - cloudfront:ListKeyGroups
                   - cloudfront:CreateOriginAccessControl
                   - cloudfront:DeleteOriginAccessControl
                   - cloudfront:GetOriginAccessControl
