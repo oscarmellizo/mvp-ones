@@ -36,7 +36,7 @@ jobs:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_GITHUB_OIDC_ROLE_ARN }}
+          role-to-assume: arn:aws:iam::743338489837:role/ones-github-actions-deploy-role-dev
           aws-region: ${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}
 
       - name: Deploy stack (bootstrap OIDC)
@@ -59,7 +59,6 @@ jobs:
               GitHubOrg=${{ vars.ONES_GH_ORG }} \
               GitHubRepo=${{ vars.ONES_GH_REPO }} \
               GitHubBranch=${{ vars.ONES_GH_BRANCH }} \
-              RoleName=${{ vars.ONES_GITHUB_ACTIONS_ROLE_NAME }} \
             --no-cli-pager
 
       - name: Debug CloudFormation (on failure)
