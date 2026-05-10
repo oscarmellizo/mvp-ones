@@ -125,23 +125,6 @@ jobs:
             --stack-name "${stackName}" \
             --output table || true
 
-          echo "--- Nested stack events: AllStack (latest) ---"
-          nestedStackId=$(aws cloudformation describe-stack-resource \
-            --stack-name "${stackName}" \
-            --logical-resource-id AllStack \
-            --query "StackResourceDetail.PhysicalResourceId" \
-            --output text 2>/dev/null || true)
-
-          if [ -n "${nestedStackId}" ] && [ "${nestedStackId}" != "None" ]; then
-            aws cloudformation describe-stack-events \
-              --stack-name "${nestedStackId}" \
-              --max-items 50 \
-              --query "StackEvents[0:50].[Timestamp,LogicalResourceId,ResourceType,ResourceStatus,ResourceStatusReason]" \
-              --output table || true
-          else
-            echo "Could not resolve AllStack physical id."
-          fi
-
       - name: Fail if CloudFormation deploy failed
         if: ${{ steps.deploy_cfn.outcome != 'success' }}
         run: |

@@ -21,7 +21,7 @@ Parameters:
       - prod
   RoleName:
     Type: String
-    Default: ones-github-actions-deploy-role-v2
+    Default: ones-github-actions-deploy-role
 
   ExistingOidcProviderArn:
     Type: String

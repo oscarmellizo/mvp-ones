@@ -946,7 +946,6 @@ public class PhotosService {
         if (res.url() != null && !res.url().isBlank()) {
             return res.url();
         }
-        // Fallback to S3 presigned URL if CDN is not enabled or fails
         return objectStoragePresigner.presignGet(photosBucket, key.trim(), Duration.ofMinutes(120)).toString();
     }
 
