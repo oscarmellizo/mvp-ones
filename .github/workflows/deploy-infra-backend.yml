@@ -103,6 +103,11 @@ jobs:
             --output-template-file packaged-backend.yml
 
           echo "Using CdnPhotosSigningPublicKeyVersion=${GITHUB_SHA}"
+          echo "CdnPhotosSigningPublicKeyPemForCfn length: $(printf '%s' "${cdnPublicKeyPemForCfn}" | wc -c)"
+          if printf '%s' "${cdnPublicKeyPemForCfn}" | grep -q $'\n'; then
+            echo "ERROR: cdnPublicKeyPemForCfn still contains a newline (should be single-line)."
+            exit 1
+          fi
 
           aws cloudformation deploy \
             --stack-name "${stackName}" \
@@ -253,6 +258,12 @@ jobs:
             --output-template-file packaged-backend.yml
 
           echo "Using CdnPhotosSigningPublicKeyVersion=${GITHUB_SHA}"
+          echo "CdnPhotosSigningPublicKeyPemForCfn length: $(printf '%s' "${cdnPublicKeyPemForCfn}" | wc -c)"
+          echo "CdnPhotosSigningPublicKeyPemForCfn prefix: $(printf '%s' "${cdnPublicKeyPemForCfn}" | head -c 40)"
+          if printf '%s' "${cdnPublicKeyPemForCfn}" | grep -q $'\n'; then
+            echo "ERROR: cdnPublicKeyPemForCfn still contains a newline (should be single-line)."
+            exit 1
+          fi
 
           aws cloudformation deploy \
             --stack-name "${stackName}" \
