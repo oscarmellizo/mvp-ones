@@ -43,7 +43,7 @@ public class CloudFrontSignedUrlService {
             @Value("${ones.cdn.photos.base-url:}") String baseUrl,
             @Value("${ones.cdn.photos.signing.key-pair-id:}") String keyPairId,
             @Value("${ones.cdn.photos.signing.private-key-secret-name:}") String privateKeySecretName,
-            @Value("${ones.cdn.photos.signing.algorithm:SHA256withRSA}") String signingAlgorithm,
+            @Value("${ones.cdn.photos.signing.algorithm:SHA1withRSA}") String signingAlgorithm,
             @Value("${ones.cdn.photos.url-ttl-minutes:120}") long participantUrlTtlMinutes,
             @Value("${ones.cdn.photos.url-rounding-seconds:300}") long participantUrlRoundingSeconds,
             @Value("${ones.cdn.photos.social-share-ttl-days:7}") long socialShareTtlDays
@@ -122,13 +122,13 @@ public class CloudFrontSignedUrlService {
     private String signCannedPolicy(String resourceUrl, long expiresEpochSeconds) {
         // Canned policy signature:
         // StringToSign = resourceUrl + "\n" + expires
-        // Signature = RSA-SHA256(StringToSign) (configurable)
+        // Signature = RSA-SHA1(StringToSign) (configurable)
         // Then make URL-safe base64 (CloudFront style).
         String toSign = resourceUrl + "\n" + expiresEpochSeconds;
 
         try {
             String algo = (signingAlgorithm == null || signingAlgorithm.isBlank())
-                    ? "SHA256withRSA"
+                    ? "SHA1withRSA"
                     : signingAlgorithm.trim();
             Signature sig = Signature.getInstance(algo);
             sig.initSign(loadPrivateKey());
