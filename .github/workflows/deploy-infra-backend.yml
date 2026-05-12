@@ -61,10 +61,19 @@ jobs:
 
           cdnPublicKeyPem=""
           if [ -n "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" ]; then
-            cdnPublicKeyPem="$(printf '%s' "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" | base64 -d | tr -d '\r')"
+            cdnPublicKeyPem="$(printf '%s' "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" | base64 -d | python3 -c "import sys; d=sys.stdin.read(); d=d.lstrip('\\ufeff'); d=d.replace('\\r\\n','\\n').replace('\\r','\\n'); sys.stdout.write(d)")"
 
             if ! printf '%s' "${cdnPublicKeyPem}" | grep -q "BEGIN PUBLIC KEY"; then
-              echo "ERROR: CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64 did not decode to a valid PEM public key."
+              echo "ERROR: CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64 did not decode to a PEM with 'BEGIN PUBLIC KEY'."
+              echo "Decoded first line:"
+              printf '%s' "${cdnPublicKeyPem}" | head -n 1
+              exit 1
+            fi
+
+            if ! openssl pkey -pubin -inform PEM -in <(printf '%s' "${cdnPublicKeyPem}") -noout >/dev/null 2>&1; then
+              echo "ERROR: Decoded CDN public key is not parseable by openssl as a PEM public key."
+              echo "Decoded first 3 lines:"
+              printf '%s' "${cdnPublicKeyPem}" | head -n 3
               exit 1
             fi
           fi
@@ -76,16 +85,7 @@ jobs:
 
           cleanupZip="cleanup.zip"
           thumbnailsZip="photo-thumbnails-zip.zip"
-          python - <<'PY'
-          import zipfile
-
-          def make_zip(out_name, src_path, arc_name='index.py'):
-              with zipfile.ZipFile(out_name, 'w', compression=zipfile.ZIP_DEFLATED) as z:
-                  z.write(src_path, arc_name)
-
-          make_zip('cleanup.zip', 'infra/lambda/cleanup/index.py')
-          make_zip('photo-thumbnails-zip.zip', 'infra/lambda/photo-thumbnails-zip/index.py')
-          PY
+          python3 -c "import zipfile; z=zipfile.ZipFile('cleanup.zip','w',compression=zipfile.ZIP_DEFLATED); z.write('infra/lambda/cleanup/index.py','index.py'); z.close(); z=zipfile.ZipFile('photo-thumbnails-zip.zip','w',compression=zipfile.ZIP_DEFLATED); z.write('infra/lambda/photo-thumbnails-zip/index.py','index.py'); z.close()"
 
           cleanupKey="lambda/cleanup/${GITHUB_SHA}.zip"
           thumbnailsKey="lambda/photo-thumbnails-zip/${GITHUB_SHA}.zip"
@@ -143,10 +143,19 @@ jobs:
 
           cdnPublicKeyPem=""
           if [ -n "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" ]; then
-            cdnPublicKeyPem="$(printf '%s' "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" | base64 -d | tr -d '\r')"
+            cdnPublicKeyPem="$(printf '%s' "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" | base64 -d | python3 -c "import sys; d=sys.stdin.read(); d=d.lstrip('\\ufeff'); d=d.replace('\\r\\n','\\n').replace('\\r','\\n'); sys.stdout.write(d)")"
 
             if ! printf '%s' "${cdnPublicKeyPem}" | grep -q "BEGIN PUBLIC KEY"; then
-              echo "ERROR: CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64 did not decode to a valid PEM public key."
+              echo "ERROR: CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64 did not decode to a PEM with 'BEGIN PUBLIC KEY'."
+              echo "Decoded first line:"
+              printf '%s' "${cdnPublicKeyPem}" | head -n 1
+              exit 1
+            fi
+
+            if ! openssl pkey -pubin -inform PEM -in <(printf '%s' "${cdnPublicKeyPem}") -noout >/dev/null 2>&1; then
+              echo "ERROR: Decoded CDN public key is not parseable by openssl as a PEM public key."
+              echo "Decoded first 3 lines:"
+              printf '%s' "${cdnPublicKeyPem}" | head -n 3
               exit 1
             fi
           fi
@@ -158,16 +167,7 @@ jobs:
 
           cleanupZip="cleanup.zip"
           thumbnailsZip="photo-thumbnails-zip.zip"
-          python - <<'PY'
-          import zipfile
-
-          def make_zip(out_name, src_path, arc_name='index.py'):
-              with zipfile.ZipFile(out_name, 'w', compression=zipfile.ZIP_DEFLATED) as z:
-                  z.write(src_path, arc_name)
-
-          make_zip('cleanup.zip', 'infra/lambda/cleanup/index.py')
-          make_zip('photo-thumbnails-zip.zip', 'infra/lambda/photo-thumbnails-zip/index.py')
-          PY
+          python3 -c "import zipfile; z=zipfile.ZipFile('cleanup.zip','w',compression=zipfile.ZIP_DEFLATED); z.write('infra/lambda/cleanup/index.py','index.py'); z.close(); z=zipfile.ZipFile('photo-thumbnails-zip.zip','w',compression=zipfile.ZIP_DEFLATED); z.write('infra/lambda/photo-thumbnails-zip/index.py','index.py'); z.close()"
 
           cleanupKey="lambda/cleanup/${GITHUB_SHA}.zip"
           thumbnailsKey="lambda/photo-thumbnails-zip/${GITHUB_SHA}.zip"
