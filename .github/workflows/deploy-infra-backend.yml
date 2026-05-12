@@ -61,7 +61,7 @@ jobs:
 
           cdnPublicKeyPem=""
           if [ -n "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" ]; then
-            cdnPublicKeyPem="$(printf '%s' "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" | base64 -d | python3 -c "import sys; d=sys.stdin.read(); d=d.lstrip('\\ufeff'); d=d.replace('\\r\\n','\\n').replace('\\r','\\n'); sys.stdout.write(d)")"
+            cdnPublicKeyPem="$(printf '%s' "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" | base64 -d | python3 -c "import sys; d=sys.stdin.read(); d=d.lstrip('\\ufeff'); d=d.replace('\\r\\n','\\n').replace('\\r','\\n'); d=d.strip(); sys.stdout.write(d)")"
 
             if ! printf '%s' "${cdnPublicKeyPem}" | grep -q "BEGIN PUBLIC KEY"; then
               echo "ERROR: CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64 did not decode to a PEM with 'BEGIN PUBLIC KEY'."
@@ -166,7 +166,7 @@ jobs:
 
           cdnPublicKeyPem=""
           if [ -n "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" ]; then
-            cdnPublicKeyPem="$(printf '%s' "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" | base64 -d | python3 -c "import sys; d=sys.stdin.read(); d=d.lstrip('\\ufeff'); d=d.replace('\\r\\n','\\n').replace('\\r','\\n'); sys.stdout.write(d)")"
+            cdnPublicKeyPem="$(printf '%s' "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" | base64 -d | python3 -c "import sys; d=sys.stdin.read(); d=d.lstrip('\\ufeff'); d=d.replace('\\r\\n','\\n').replace('\\r','\\n'); d=d.strip(); sys.stdout.write(d)")"
 
             if ! printf '%s' "${cdnPublicKeyPem}" | grep -q "BEGIN PUBLIC KEY"; then
               echo "ERROR: CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64 did not decode to a PEM with 'BEGIN PUBLIC KEY'."
