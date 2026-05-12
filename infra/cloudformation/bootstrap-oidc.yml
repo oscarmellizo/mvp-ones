@@ -121,6 +121,12 @@ Resources:
                   - cloudfront:CreateInvalidation
                   - cloudfront:GetInvalidation
                   - cloudfront:ListInvalidations
+                  - cloudfront:CreateResponseHeadersPolicy
+                  - cloudfront:UpdateResponseHeadersPolicy
+                  - cloudfront:DeleteResponseHeadersPolicy
+                  - cloudfront:GetResponseHeadersPolicy
+                  - cloudfront:GetResponseHeadersPolicyConfig
+                  - cloudfront:ListResponseHeadersPolicies
                   - cloudfront:CreatePublicKey
                   - cloudfront:UpdatePublicKey
                   - cloudfront:DeletePublicKey
