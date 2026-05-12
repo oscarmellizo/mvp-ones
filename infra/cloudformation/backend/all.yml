@@ -451,6 +451,28 @@ Resources:
         Items:
           - !Ref PhotosCdnPublicKey
 
+  PhotosCdnResponseHeadersPolicy:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Condition: EnablePhotosCdnCond
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub ${AWS::StackName}-photos-cors
+        Comment: !Sub ${StackPrefix}-${Environment} photos CDN CORS policy
+        CorsConfig:
+          AccessControlAllowCredentials: false
+          AccessControlAllowHeaders:
+            Items:
+              - '*'
+          AccessControlAllowMethods:
+            Items:
+              - GET
+              - HEAD
+              - OPTIONS
+          AccessControlAllowOrigins:
+            Items:
+              - https://appdev.ones.events
+          OriginOverride: true
+
   PhotosDistribution:
     Type: AWS::CloudFront::Distribution
     Condition: EnablePhotosCdnCond
@@ -476,6 +498,7 @@ Resources:
           Compress: true
           TrustedKeyGroups:
             - !Ref PhotosCdnKeyGroup
+          ResponseHeadersPolicyId: !Ref PhotosCdnResponseHeadersPolicy
           ForwardedValues:
             QueryString: true
             Cookies:
