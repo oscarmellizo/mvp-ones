@@ -190,13 +190,15 @@ jobs:
             --output table || true
 
       - name: Fail if CloudFormation deploy failed
-        if: ${{ steps.deploy_cfn.outcome != 'success' }}
+        if: ${{ steps.deploy_cfn.outcome != 'success' && inputs.usePhotoThumbnailsImage != 'true' }}
         run: |
           echo "CloudFormation deploy failed. See debug output above."
           exit 1
 
       - name: Configure PhotoThumbnails Lambda (container image)
         if: ${{ inputs.usePhotoThumbnailsImage == 'true' }}
+        id: deploy_cfn_image
+        continue-on-error: true
         run: |
           stackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
 
@@ -281,6 +283,12 @@ jobs:
               LambdaArtifactsBucket="${packageBucket}" \
               CleanupFunctionS3Key="${cleanupKey}" \
               PhotoThumbnailsZipS3Key="${thumbnailsKey}"
+
+      - name: Fail if CloudFormation deploy failed (final)
+        if: ${{ steps.deploy_cfn.outcome != 'success' && (inputs.usePhotoThumbnailsImage != 'true' || steps.deploy_cfn_image.outcome != 'success') }}
+        run: |
+          echo "CloudFormation deploy failed. See debug output above."
+          exit 1
 
       - name: Set OpenAI API key in Secrets Manager
         if: ${{ env.OPENAI_API_KEY != '' }}
