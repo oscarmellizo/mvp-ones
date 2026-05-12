@@ -126,6 +126,9 @@ jobs:
         run: |
           stackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
 
+          echo "=== Debug CloudFormation (on failure) ==="
+          echo "StackName=${stackName}"
+
           echo "--- Stack events (latest) ---"
           aws cloudformation describe-stack-events \
             --stack-name "${stackName}" \
@@ -133,11 +136,17 @@ jobs:
             --query "StackEvents[0:30].[Timestamp,LogicalResourceId,ResourceType,ResourceStatus,ResourceStatusReason]" \
             --output table || true
 
-          echo "--- Stack parameters ---"
+          echo "--- Stack parameters (json) ---"
           aws cloudformation describe-stacks \
             --stack-name "${stackName}" \
             --query "Stacks[0].Parameters" \
-            --output table || true
+            --output json || true
+
+          echo "--- AllStack resource lookup (json) ---"
+          aws cloudformation describe-stack-resource \
+            --stack-name "${stackName}" \
+            --logical-resource-id AllStack \
+            --output json || true
 
           nestedStackId=$(aws cloudformation describe-stack-resource \
             --stack-name "${stackName}" \
@@ -145,7 +154,10 @@ jobs:
             --query "StackResourceDetail.PhysicalResourceId" \
             --output text 2>/dev/null || true)
 
+          echo "NestedStackId(AllStack)=${nestedStackId}"
+
           if [ -n "${nestedStackId}" ] && [ "${nestedStackId}" != "None" ]; then
+            echo "=== Nested stack debug (AllStack) ==="
             echo "--- Nested stack events (AllStack) ---"
             aws cloudformation describe-stack-events \
               --stack-name "${nestedStackId}" \
@@ -153,11 +165,11 @@ jobs:
               --query "StackEvents[0:50].[Timestamp,LogicalResourceId,ResourceType,ResourceStatus,ResourceStatusReason]" \
               --output table || true
 
-            echo "--- Nested stack parameters (AllStack) ---"
+            echo "--- Nested stack parameters (AllStack, json) ---"
             aws cloudformation describe-stacks \
               --stack-name "${nestedStackId}" \
               --query "Stacks[0].Parameters" \
-              --output table || true
+              --output json || true
 
             echo "--- Nested stack resources (AllStack) ---"
             aws cloudformation describe-stack-resources \
