@@ -125,6 +125,28 @@ jobs:
             --query "StackEvents[0:30].[Timestamp,LogicalResourceId,ResourceType,ResourceStatus,ResourceStatusReason]" \
             --output table || true
 
+          nestedStackId=$(aws cloudformation describe-stack-resource \
+            --stack-name "${stackName}" \
+            --logical-resource-id AllStack \
+            --query "StackResourceDetail.PhysicalResourceId" \
+            --output text 2>/dev/null || true)
+
+          if [ -n "${nestedStackId}" ] && [ "${nestedStackId}" != "None" ]; then
+            echo "--- Nested stack events (AllStack) ---"
+            aws cloudformation describe-stack-events \
+              --stack-name "${nestedStackId}" \
+              --max-items 50 \
+              --query "StackEvents[0:50].[Timestamp,LogicalResourceId,ResourceType,ResourceStatus,ResourceStatusReason]" \
+              --output table || true
+
+            echo "--- Nested stack resources (AllStack) ---"
+            aws cloudformation describe-stack-resources \
+              --stack-name "${nestedStackId}" \
+              --output table || true
+          else
+            echo "INFO: Could not resolve nested stack PhysicalResourceId for logical id AllStack."
+          fi
+
           echo "--- Stack resources (if any) ---"
           aws cloudformation describe-stack-resources \
             --stack-name "${stackName}" \
