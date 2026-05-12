@@ -45,6 +45,10 @@ Parameters:
     Type: String
     Default: ''
 
+  CdnPhotosSigningPublicKeyVersion:
+    Type: String
+    Default: v1
+
   LambdaArtifactsBucket:
     Type: String
     Default: ''
@@ -71,6 +75,7 @@ Resources:
         GrafanaDesiredCount: !Ref GrafanaDesiredCount
         CdnPhotosEnabled: !Ref CdnPhotosEnabled
         CdnPhotosSigningPublicKeyPem: !Ref CdnPhotosSigningPublicKeyPem
+        CdnPhotosSigningPublicKeyVersion: !Ref CdnPhotosSigningPublicKeyVersion
         LambdaArtifactsBucket: !Ref LambdaArtifactsBucket
         CleanupFunctionS3Key: !Ref CleanupFunctionS3Key
         PhotoThumbnailsZipS3Key: !Ref PhotoThumbnailsZipS3Key

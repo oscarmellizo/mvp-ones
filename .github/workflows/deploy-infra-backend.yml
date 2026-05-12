@@ -109,6 +109,7 @@ jobs:
               UsePhotoThumbnailsImage="false" \
               CdnPhotosEnabled="${CDN_PHOTOS_ENABLED:-false}" \
               CdnPhotosSigningPublicKeyPem="${cdnPublicKeyPem}" \
+              CdnPhotosSigningPublicKeyVersion="${GITHUB_SHA}" \
               LambdaArtifactsBucket="${packageBucket}" \
               CleanupFunctionS3Key="${cleanupKey}" \
               PhotoThumbnailsZipS3Key="${thumbnailsKey}"
@@ -229,6 +230,7 @@ jobs:
               UsePhotoThumbnailsImage="true" \
               CdnPhotosEnabled="${CDN_PHOTOS_ENABLED:-false}" \
               CdnPhotosSigningPublicKeyPem="${cdnPublicKeyPem}" \
+              CdnPhotosSigningPublicKeyVersion="${GITHUB_SHA}" \
               LambdaArtifactsBucket="${packageBucket}" \
               CleanupFunctionS3Key="${cleanupKey}" \
               PhotoThumbnailsZipS3Key="${thumbnailsKey}"

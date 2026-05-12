@@ -42,6 +42,10 @@ Parameters:
     Type: String
     Default: ''
 
+  CdnPhotosSigningPublicKeyVersion:
+    Type: String
+    Default: v1
+
   CdnPhotosUrlTtlMinutes:
     Type: Number
     Default: 120
@@ -436,8 +440,8 @@ Resources:
     Condition: EnablePhotosCdnCond
     Properties:
       PublicKeyConfig:
-        CallerReference: !Sub ${AWS::StackName}-${AWS::Region}-photos-public-key
-        Name: !Sub ${AWS::StackName}-photos-public-key
+        CallerReference: !Sub ${AWS::StackName}-${AWS::Region}-photos-public-key-${CdnPhotosSigningPublicKeyVersion}
+        Name: !Sub ${AWS::StackName}-photos-public-key-${CdnPhotosSigningPublicKeyVersion}
         EncodedKey: !Ref CdnPhotosSigningPublicKeyPem
         Comment: !Sub ${StackPrefix}-${Environment} photos CDN signed URLs public key
 
@@ -446,7 +450,7 @@ Resources:
     Condition: EnablePhotosCdnCond
     Properties:
       KeyGroupConfig:
-        Name: !Sub ${AWS::StackName}-photos-key-group
+        Name: !Sub ${AWS::StackName}-photos-key-group-${CdnPhotosSigningPublicKeyVersion}
         Comment: !Sub ${StackPrefix}-${Environment} photos CDN key group
         Items:
           - !Ref PhotosCdnPublicKey
