@@ -97,6 +97,8 @@ jobs:
             --s3-bucket "${packageBucket}" \
             --output-template-file packaged-backend.yml
 
+          echo "Using CdnPhotosSigningPublicKeyVersion=${GITHUB_SHA}"
+
           aws cloudformation deploy \
             --stack-name "${stackName}" \
             --template-file packaged-backend.yml \
@@ -126,6 +128,12 @@ jobs:
             --query "StackEvents[0:30].[Timestamp,LogicalResourceId,ResourceType,ResourceStatus,ResourceStatusReason]" \
             --output table || true
 
+          echo "--- Stack parameters ---"
+          aws cloudformation describe-stacks \
+            --stack-name "${stackName}" \
+            --query "Stacks[0].Parameters" \
+            --output table || true
+
           nestedStackId=$(aws cloudformation describe-stack-resource \
             --stack-name "${stackName}" \
             --logical-resource-id AllStack \
@@ -138,6 +146,12 @@ jobs:
               --stack-name "${nestedStackId}" \
               --max-items 50 \
               --query "StackEvents[0:50].[Timestamp,LogicalResourceId,ResourceType,ResourceStatus,ResourceStatusReason]" \
+              --output table || true
+
+            echo "--- Nested stack parameters (AllStack) ---"
+            aws cloudformation describe-stacks \
+              --stack-name "${nestedStackId}" \
+              --query "Stacks[0].Parameters" \
               --output table || true
 
             echo "--- Nested stack resources (AllStack) ---"
@@ -217,6 +231,8 @@ jobs:
             --template-file infra/cloudformation/backend/root.yml \
             --s3-bucket "${packageBucket}" \
             --output-template-file packaged-backend.yml
+
+          echo "Using CdnPhotosSigningPublicKeyVersion=${GITHUB_SHA}"
 
           aws cloudformation deploy \
             --stack-name "${stackName}" \
