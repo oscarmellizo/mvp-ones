@@ -80,7 +80,7 @@ jobs:
 
             # CloudFormation CLI parameter-overrides cannot safely handle multiline values.
             # CloudFront accepts the key without line breaks, so compact it for CFN.
-            cdnPublicKeyPemForCfn="$(printf '%s' "${cdnPublicKeyPem}" | tr -d '\n')"
+            cdnPublicKeyPemForCfn="$(printf '%s' "${cdnPublicKeyPem}" | tr -d '\r\n')"
           fi
 
           packageBucket="${CFN_PACKAGE_BUCKET_PREFIX}-${{ inputs.environment }}"
@@ -104,10 +104,12 @@ jobs:
 
           echo "Using CdnPhotosSigningPublicKeyVersion=${GITHUB_SHA}"
           echo "CdnPhotosSigningPublicKeyPemForCfn length: $(printf '%s' "${cdnPublicKeyPemForCfn}" | wc -c)"
-          if printf '%s' "${cdnPublicKeyPemForCfn}" | grep -q $'\n'; then
-            echo "ERROR: cdnPublicKeyPemForCfn still contains a newline (should be single-line)."
-            exit 1
-          fi
+          case "${cdnPublicKeyPemForCfn}" in
+            *$'\n'*|*$'\r'*)
+              echo "ERROR: cdnPublicKeyPemForCfn still contains a newline/CR (should be single-line)."
+              exit 1
+              ;;
+          esac
 
           aws cloudformation deploy \
             --stack-name "${stackName}" \
@@ -221,7 +223,7 @@ jobs:
               exit 1
             fi
 
-            cdnPublicKeyPemForCfn="$(printf '%s' "${cdnPublicKeyPem}" | tr -d '\n')"
+            cdnPublicKeyPemForCfn="$(printf '%s' "${cdnPublicKeyPem}" | tr -d '\r\n')"
           fi
 
           packageBucket="${CFN_PACKAGE_BUCKET_PREFIX}-${{ inputs.environment }}"
@@ -262,10 +264,12 @@ jobs:
           echo "Using CdnPhotosSigningPublicKeyVersion=${GITHUB_SHA}"
           echo "CdnPhotosSigningPublicKeyPemForCfn length: $(printf '%s' "${cdnPublicKeyPemForCfn}" | wc -c)"
           echo "CdnPhotosSigningPublicKeyPemForCfn prefix: $(printf '%s' "${cdnPublicKeyPemForCfn}" | head -c 40)"
-          if printf '%s' "${cdnPublicKeyPemForCfn}" | grep -q $'\n'; then
-            echo "ERROR: cdnPublicKeyPemForCfn still contains a newline (should be single-line)."
-            exit 1
-          fi
+          case "${cdnPublicKeyPemForCfn}" in
+            *$'\n'*|*$'\r'*)
+              echo "ERROR: cdnPublicKeyPemForCfn still contains a newline/CR (should be single-line)."
+              exit 1
+              ;;
+          esac
 
           aws cloudformation deploy \
             --stack-name "${stackName}" \
