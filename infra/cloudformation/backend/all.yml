@@ -464,7 +464,7 @@ Resources:
     Condition: EnablePhotosCdnCond
     Properties:
       ResponseHeadersPolicyConfig:
-        Name: !Sub ${StackPrefix}-${Environment}-photos-cors-${CdnPhotosSigningPublicKeyVersion}
+        Name: !Sub ${StackPrefix}-${Environment}-photos-cors
         Comment: !Sub ${StackPrefix}-${Environment} photos CDN CORS policy
         CorsConfig:
           AccessControlAllowCredentials: false
