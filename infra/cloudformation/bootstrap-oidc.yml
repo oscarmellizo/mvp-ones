@@ -197,6 +197,15 @@ Resources:
                   - logs:UntagResource
                 Resource: '*'
 
+              - Sid: SSM
+                Effect: Allow
+                Action:
+                  - ssm:PutParameter
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                  - ssm:DeleteParameter
+                Resource: '*'
+
               - Sid: ECSAndELB
                 Effect: Allow
                 Action:

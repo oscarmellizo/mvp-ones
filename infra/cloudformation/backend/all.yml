@@ -42,6 +42,10 @@ Parameters:
     Type: String
     Default: ''
 
+  CdnPhotosSigningPublicKeySsmParamName:
+    Type: String
+    Default: ''
+
   CdnPhotosSigningPublicKeyVersion:
     Type: String
     Default: v1
@@ -75,7 +79,7 @@ Conditions:
   UsePhotoThumbnailsZipCond: !Not [!Equals [!Ref UsePhotoThumbnailsImage, 'true']]
   EnablePhotosCdnCond: !And
     - !Equals [!Ref CdnPhotosEnabled, 'true']
-    - !Not [!Equals [!Ref CdnPhotosSigningPublicKeyPem, '']]
+    - !Not [!Equals [!Ref CdnPhotosSigningPublicKeySsmParamName, '']]
 
 Resources:
   EventsTable:
@@ -442,7 +446,7 @@ Resources:
       PublicKeyConfig:
         CallerReference: !Sub ${AWS::StackName}-${AWS::Region}-photos-public-key-${CdnPhotosSigningPublicKeyVersion}
         Name: !Sub ${AWS::StackName}-photos-public-key-${CdnPhotosSigningPublicKeyVersion}
-        EncodedKey: !Ref CdnPhotosSigningPublicKeyPem
+        EncodedKey: !Sub "{{resolve:ssm:${CdnPhotosSigningPublicKeySsmParamName}}}"
         Comment: !Sub ${StackPrefix}-${Environment} photos CDN signed URLs public key
 
   PhotosCdnKeyGroup:

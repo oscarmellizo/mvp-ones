@@ -60,7 +60,7 @@ jobs:
           stackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
 
           cdnPublicKeyPem=""
-          cdnPublicKeyPemForCfn=""
+          cdnPublicKeySsmParamName=""
           if [ -n "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" ]; then
             cdnPublicKeyPem="$(printf '%s' "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" | base64 -d | python3 -c "import sys; d=sys.stdin.read(); d=d.lstrip('\\ufeff'); d=d.replace('\\r\\n','\\n').replace('\\r','\\n'); d=d.strip(); sys.stdout.write(d)")"
 
@@ -78,9 +78,7 @@ jobs:
               exit 1
             fi
 
-            # CloudFormation CLI parameter-overrides cannot safely handle multiline values.
-            # CloudFront accepts the key without line breaks, so compact it for CFN.
-            cdnPublicKeyPemForCfn="$(printf '%s' "${cdnPublicKeyPem}" | tr -d '\r\n')"
+            cdnPublicKeySsmParamName="/${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}/${{ inputs.environment }}/cdn/photos/public-key-pem"
           fi
 
           packageBucket="${CFN_PACKAGE_BUCKET_PREFIX}-${{ inputs.environment }}"
@@ -103,13 +101,14 @@ jobs:
             --output-template-file packaged-backend.yml
 
           echo "Using CdnPhotosSigningPublicKeyVersion=${GITHUB_SHA}"
-          echo "CdnPhotosSigningPublicKeyPemForCfn length: $(printf '%s' "${cdnPublicKeyPemForCfn}" | wc -c)"
-          case "${cdnPublicKeyPemForCfn}" in
-            *$'\n'*|*$'\r'*)
-              echo "ERROR: cdnPublicKeyPemForCfn still contains a newline/CR (should be single-line)."
-              exit 1
-              ;;
-          esac
+
+          if [ -n "${cdnPublicKeySsmParamName}" ]; then
+            echo "Writing CDN public key PEM to SSM parameter: ${cdnPublicKeySsmParamName}"
+            export CDN_PUBLIC_KEY_SSM_PARAM_NAME="${cdnPublicKeySsmParamName}"
+            export CDN_PUBLIC_KEY_PEM="${cdnPublicKeyPem}"
+            python3 -c "import json,os; print(json.dumps({'Name':os.environ['CDN_PUBLIC_KEY_SSM_PARAM_NAME'],'Value':os.environ['CDN_PUBLIC_KEY_PEM'],'Type':'String','Overwrite':True}))" > ssm-put-publickey.json
+            aws ssm put-parameter --cli-input-json file://ssm-put-publickey.json >/dev/null
+          fi
 
           aws cloudformation deploy \
             --stack-name "${stackName}" \
@@ -122,7 +121,8 @@ jobs:
               BackendDesiredCount="${{ inputs.backendDesiredCount }}" \
               UsePhotoThumbnailsImage="false" \
               CdnPhotosEnabled="${CDN_PHOTOS_ENABLED:-false}" \
-              CdnPhotosSigningPublicKeyPem="${cdnPublicKeyPemForCfn}" \
+              CdnPhotosSigningPublicKeyPem="" \
+              CdnPhotosSigningPublicKeySsmParamName="${cdnPublicKeySsmParamName}" \
               CdnPhotosSigningPublicKeyVersion="${GITHUB_SHA}" \
               LambdaArtifactsBucket="${packageBucket}" \
               CleanupFunctionS3Key="${cleanupKey}" \
@@ -205,7 +205,7 @@ jobs:
           stackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
 
           cdnPublicKeyPem=""
-          cdnPublicKeyPemForCfn=""
+          cdnPublicKeySsmParamName=""
           if [ -n "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" ]; then
             cdnPublicKeyPem="$(printf '%s' "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" | base64 -d | python3 -c "import sys; d=sys.stdin.read(); d=d.lstrip('\\ufeff'); d=d.replace('\\r\\n','\\n').replace('\\r','\\n'); d=d.strip(); sys.stdout.write(d)")"
 
@@ -223,7 +223,7 @@ jobs:
               exit 1
             fi
 
-            cdnPublicKeyPemForCfn="$(printf '%s' "${cdnPublicKeyPem}" | tr -d '\r\n')"
+            cdnPublicKeySsmParamName="/${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}/${{ inputs.environment }}/cdn/photos/public-key-pem"
           fi
 
           packageBucket="${CFN_PACKAGE_BUCKET_PREFIX}-${{ inputs.environment }}"
@@ -262,14 +262,14 @@ jobs:
             --output-template-file packaged-backend.yml
 
           echo "Using CdnPhotosSigningPublicKeyVersion=${GITHUB_SHA}"
-          echo "CdnPhotosSigningPublicKeyPemForCfn length: $(printf '%s' "${cdnPublicKeyPemForCfn}" | wc -c)"
-          echo "CdnPhotosSigningPublicKeyPemForCfn prefix: $(printf '%s' "${cdnPublicKeyPemForCfn}" | head -c 40)"
-          case "${cdnPublicKeyPemForCfn}" in
-            *$'\n'*|*$'\r'*)
-              echo "ERROR: cdnPublicKeyPemForCfn still contains a newline/CR (should be single-line)."
-              exit 1
-              ;;
-          esac
+
+          if [ -n "${cdnPublicKeySsmParamName}" ]; then
+            echo "Writing CDN public key PEM to SSM parameter: ${cdnPublicKeySsmParamName}"
+            export CDN_PUBLIC_KEY_SSM_PARAM_NAME="${cdnPublicKeySsmParamName}"
+            export CDN_PUBLIC_KEY_PEM="${cdnPublicKeyPem}"
+            python3 -c "import json,os; print(json.dumps({'Name':os.environ['CDN_PUBLIC_KEY_SSM_PARAM_NAME'],'Value':os.environ['CDN_PUBLIC_KEY_PEM'],'Type':'String','Overwrite':True}))" > ssm-put-publickey.json
+            aws ssm put-parameter --cli-input-json file://ssm-put-publickey.json >/dev/null
+          fi
 
           aws cloudformation deploy \
             --stack-name "${stackName}" \
@@ -282,7 +282,8 @@ jobs:
               BackendDesiredCount="${{ inputs.backendDesiredCount }}" \
               UsePhotoThumbnailsImage="true" \
               CdnPhotosEnabled="${CDN_PHOTOS_ENABLED:-false}" \
-              CdnPhotosSigningPublicKeyPem="${cdnPublicKeyPemForCfn}" \
+              CdnPhotosSigningPublicKeyPem="" \
+              CdnPhotosSigningPublicKeySsmParamName="${cdnPublicKeySsmParamName}" \
               CdnPhotosSigningPublicKeyVersion="${GITHUB_SHA}" \
               LambdaArtifactsBucket="${packageBucket}" \
               CleanupFunctionS3Key="${cleanupKey}" \
