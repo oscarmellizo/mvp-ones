@@ -123,6 +123,16 @@ jobs:
               head -n 3 ssm-publickey.pem
               exit 1
             fi
+
+            keyInfo=$(openssl pkey -pubin -inform PEM -in ssm-publickey.pem -text -noout 2>/dev/null | head -n 2 || true)
+            echo "SSM public key info: ${keyInfo}"
+            if printf '%s' "${keyInfo}" | grep -q "Public-Key: ("; then
+              keyBits=$(printf '%s' "${keyInfo}" | sed -n "s/.*Public-Key: (\([0-9][0-9]*\) bit).*/\1/p")
+              if [ -n "${keyBits}" ] && [ "${keyBits}" != "2048" ]; then
+                echo "ERROR: CloudFront PublicKey requires RSA 2048-bit keys. Detected: ${keyBits} bits."
+                exit 1
+              fi
+            fi
           fi
 
           aws cloudformation deploy \
@@ -298,6 +308,16 @@ jobs:
               echo "SSM public key first 3 lines:"
               head -n 3 ssm-publickey.pem
               exit 1
+            fi
+
+            keyInfo=$(openssl pkey -pubin -inform PEM -in ssm-publickey.pem -text -noout 2>/dev/null | head -n 2 || true)
+            echo "SSM public key info: ${keyInfo}"
+            if printf '%s' "${keyInfo}" | grep -q "Public-Key: ("; then
+              keyBits=$(printf '%s' "${keyInfo}" | sed -n "s/.*Public-Key: (\([0-9][0-9]*\) bit).*/\1/p")
+              if [ -n "${keyBits}" ] && [ "${keyBits}" != "2048" ]; then
+                echo "ERROR: CloudFront PublicKey requires RSA 2048-bit keys. Detected: ${keyBits} bits."
+                exit 1
+              fi
             fi
           fi
 
