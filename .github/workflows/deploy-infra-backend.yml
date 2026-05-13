@@ -193,16 +193,38 @@ jobs:
             echo "--- Nested stack events (AllStack) ---"
             aws cloudformation describe-stack-events \
               --stack-name "${nestedStackId}" \
-              --max-items 50 \
-              --query "StackEvents[0:50].[Timestamp,LogicalResourceId,ResourceType,ResourceStatus,ResourceStatusReason]" \
+              --max-items 60 \
+              --query "StackEvents[0:60].[Timestamp,LogicalResourceId,ResourceType,ResourceStatus,ResourceStatusReason]" \
               --output table || true
 
-            echo "--- Nested stack parameters (AllStack, json) ---"
-            aws cloudformation describe-stacks \
-              --stack-name "${nestedStackId}" \
-              --query "Stacks[0].Parameters" \
-              --output json || true
-
+            echo "--- CloudFront PublicKey API diagnostics (from SSM) ---"
+            stackPrefix="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}"
+            ssmParamName="/${stackPrefix}/${{ inputs.environment }}/cdn/photos/public-key-pem"
+            if aws ssm get-parameter --name "${ssmParamName}" --query 'Parameter.Value' --output text > ssm-publickey.pem 2>/dev/null; then
+              if openssl pkey -pubin -inform PEM -in ssm-publickey.pem -noout >/dev/null 2>&1; then
+                diagCallerReference="diag-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA}"
+                diagNameRaw="diag-${stackName}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+                diagName=$(printf '%s' "${diagNameRaw}" | tr -cd 'A-Za-z0-9_-')
+                diagName=$(printf '%s' "${diagName}" | head -c 128)
+                python3 -c "import json; print(json.dumps({'PublicKeyConfig': {'CallerReference': '${diagCallerReference}', 'Name': '${diagName}', 'EncodedKey': open('ssm-publickey.pem','r',encoding='utf-8').read(), 'Comment': 'diag'}}))" > cf-publickey-diag.json
+                set +e
+                createOut=$(aws cloudfront create-public-key --cli-input-json file://cf-publickey-diag.json 2>&1)
+                createCode=$?
+                set -e
+                echo "cloudfront create-public-key exitCode=${createCode}"
+                echo "${createOut}"
+                if [ ${createCode} -eq 0 ]; then
+                  diagId=$(printf '%s' "${createOut}" | python3 -c "import sys,json; o=json.load(sys.stdin); print(o['PublicKey']['Id'])")
+                  diagEtag=$(printf '%s' "${createOut}" | python3 -c "import sys,json; o=json.load(sys.stdin); print(o['ETag'])")
+                  aws cloudfront delete-public-key --id "${diagId}" --if-match "${diagEtag}" >/dev/null 2>&1 || true
+                  echo "Diagnostic public key created and deleted: ${diagId}"
+                fi
+              else
+                echo "SSM public key is not parseable by openssl; skipping CloudFront diagnostics."
+              fi
+            else
+              echo "Could not read SSM parameter ${ssmParamName}; skipping CloudFront diagnostics."
+            fi
             echo "--- Nested stack resources (AllStack) ---"
             aws cloudformation describe-stack-resources \
               --stack-name "${nestedStackId}" \
