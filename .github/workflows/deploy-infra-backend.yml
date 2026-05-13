@@ -111,6 +111,18 @@ jobs:
             export CDN_PUBLIC_KEY_PEM="${cdnPublicKeyPem}"
             python3 -c "import json,os; print(json.dumps({'Name':os.environ['CDN_PUBLIC_KEY_SSM_PARAM_NAME'],'Value':os.environ['CDN_PUBLIC_KEY_PEM'],'Type':'String','Overwrite':True}))" > ssm-put-publickey.json
             aws ssm put-parameter --cli-input-json file://ssm-put-publickey.json >/dev/null
+
+            echo "Verifying CDN public key PEM from SSM..."
+            aws ssm get-parameter --name "${cdnPublicKeySsmParamName}" --query 'Parameter.Value' --output text > ssm-publickey.pem
+            echo "SSM public key line count: $(wc -l < ssm-publickey.pem | tr -d ' ')"
+            echo "SSM public key first line: $(head -n 1 ssm-publickey.pem)"
+            echo "SSM public key last line: $(tail -n 1 ssm-publickey.pem)"
+            if ! openssl pkey -pubin -inform PEM -in ssm-publickey.pem -noout >/dev/null 2>&1; then
+              echo "ERROR: SSM public key is not parseable by openssl as a PEM public key."
+              echo "SSM public key first 3 lines:"
+              head -n 3 ssm-publickey.pem
+              exit 1
+            fi
           fi
 
           aws cloudformation deploy \
@@ -275,6 +287,18 @@ jobs:
             export CDN_PUBLIC_KEY_PEM="${cdnPublicKeyPem}"
             python3 -c "import json,os; print(json.dumps({'Name':os.environ['CDN_PUBLIC_KEY_SSM_PARAM_NAME'],'Value':os.environ['CDN_PUBLIC_KEY_PEM'],'Type':'String','Overwrite':True}))" > ssm-put-publickey.json
             aws ssm put-parameter --cli-input-json file://ssm-put-publickey.json >/dev/null
+
+            echo "Verifying CDN public key PEM from SSM..."
+            aws ssm get-parameter --name "${cdnPublicKeySsmParamName}" --query 'Parameter.Value' --output text > ssm-publickey.pem
+            echo "SSM public key line count: $(wc -l < ssm-publickey.pem | tr -d ' ')"
+            echo "SSM public key first line: $(head -n 1 ssm-publickey.pem)"
+            echo "SSM public key last line: $(tail -n 1 ssm-publickey.pem)"
+            if ! openssl pkey -pubin -inform PEM -in ssm-publickey.pem -noout >/dev/null 2>&1; then
+              echo "ERROR: SSM public key is not parseable by openssl as a PEM public key."
+              echo "SSM public key first 3 lines:"
+              head -n 3 ssm-publickey.pem
+              exit 1
+            fi
           fi
 
           aws cloudformation deploy \
