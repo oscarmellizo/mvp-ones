@@ -78,6 +78,9 @@ jobs:
               exit 1
             fi
 
+            # Re-emit in canonical PEM format (guarantees proper newlines / wrapping)
+            cdnPublicKeyPem="$(openssl pkey -pubin -inform PEM -in <(printf '%s' "${cdnPublicKeyPem}") -pubout)"
+
             cdnPublicKeySsmParamName="/${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}/${{ inputs.environment }}/cdn/photos/public-key-pem"
           fi
 
@@ -222,6 +225,9 @@ jobs:
               printf '%s' "${cdnPublicKeyPem}" | head -n 3
               exit 1
             fi
+
+            # Re-emit in canonical PEM format (guarantees proper newlines / wrapping)
+            cdnPublicKeyPem="$(openssl pkey -pubin -inform PEM -in <(printf '%s' "${cdnPublicKeyPem}") -pubout)"
 
             cdnPublicKeySsmParamName="/${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}/${{ inputs.environment }}/cdn/photos/public-key-pem"
           fi
