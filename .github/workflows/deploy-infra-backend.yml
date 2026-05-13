@@ -103,7 +103,19 @@ jobs:
             --s3-bucket "${packageBucket}" \
             --output-template-file packaged-backend.yml
 
-          echo "Using CdnPhotosSigningPublicKeyVersion=${GITHUB_SHA}"
+          cdnPublicKeyVersion="${CDN_PUBLIC_KEY_VERSION:-}"
+          if [ -z "${cdnPublicKeyVersion}" ]; then
+            existingVersion=$(aws cloudformation describe-stacks \
+              --stack-name "${stackName}" \
+              --query "Stacks[0].Parameters[?ParameterKey=='CdnPhotosSigningPublicKeyVersion'].ParameterValue" \
+              --output text 2>/dev/null || true)
+            if [ -n "${existingVersion}" ] && [ "${existingVersion}" != "None" ]; then
+              cdnPublicKeyVersion="${existingVersion}"
+            else
+              cdnPublicKeyVersion="v1"
+            fi
+          fi
+          echo "Using CdnPhotosSigningPublicKeyVersion=${cdnPublicKeyVersion}"
 
           if [ -n "${cdnPublicKeySsmParamName}" ]; then
             echo "Writing CDN public key PEM to SSM parameter: ${cdnPublicKeySsmParamName}"
@@ -148,7 +160,7 @@ jobs:
               CdnPhotosEnabled="${CDN_PHOTOS_ENABLED:-false}" \
               CdnPhotosSigningPublicKeyPem="" \
               CdnPhotosSigningPublicKeySsmParamName="${cdnPublicKeySsmParamName}" \
-              CdnPhotosSigningPublicKeyVersion="${GITHUB_SHA}" \
+              CdnPhotosSigningPublicKeyVersion="${cdnPublicKeyVersion}" \
               LambdaArtifactsBucket="${packageBucket}" \
               CleanupFunctionS3Key="${cleanupKey}" \
               PhotoThumbnailsZipS3Key="${thumbnailsKey}"
@@ -311,7 +323,19 @@ jobs:
             --s3-bucket "${packageBucket}" \
             --output-template-file packaged-backend.yml
 
-          echo "Using CdnPhotosSigningPublicKeyVersion=${GITHUB_SHA}"
+          cdnPublicKeyVersion="${CDN_PUBLIC_KEY_VERSION:-}"
+          if [ -z "${cdnPublicKeyVersion}" ]; then
+            existingVersion=$(aws cloudformation describe-stacks \
+              --stack-name "${stackName}" \
+              --query "Stacks[0].Parameters[?ParameterKey=='CdnPhotosSigningPublicKeyVersion'].ParameterValue" \
+              --output text 2>/dev/null || true)
+            if [ -n "${existingVersion}" ] && [ "${existingVersion}" != "None" ]; then
+              cdnPublicKeyVersion="${existingVersion}"
+            else
+              cdnPublicKeyVersion="v1"
+            fi
+          fi
+          echo "Using CdnPhotosSigningPublicKeyVersion=${cdnPublicKeyVersion}"
 
           if [ -n "${cdnPublicKeySsmParamName}" ]; then
             echo "Writing CDN public key PEM to SSM parameter: ${cdnPublicKeySsmParamName}"
@@ -356,7 +380,7 @@ jobs:
               CdnPhotosEnabled="${CDN_PHOTOS_ENABLED:-false}" \
               CdnPhotosSigningPublicKeyPem="" \
               CdnPhotosSigningPublicKeySsmParamName="${cdnPublicKeySsmParamName}" \
-              CdnPhotosSigningPublicKeyVersion="${GITHUB_SHA}" \
+              CdnPhotosSigningPublicKeyVersion="${cdnPublicKeyVersion}" \
               LambdaArtifactsBucket="${packageBucket}" \
               CleanupFunctionS3Key="${cleanupKey}" \
               PhotoThumbnailsZipS3Key="${thumbnailsKey}"
