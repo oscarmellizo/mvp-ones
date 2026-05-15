@@ -38,7 +38,10 @@ jobs:
           aws-region: ${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}
 
       - name: Deploy web stack
+        id: deploy_cfn
         run: |
+          set -euo pipefail
+
           webStackName="${WEB_STACK_NAME_PREFIX}-${{ inputs.environment }}"
           backendStackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
           albDns=$(aws cloudformation describe-stacks \
@@ -76,6 +79,33 @@ jobs:
               BackendAlbDnsName="${albDns}" \
               WafEnabled="${wafEnabled}" \
               ShortLinksRateLimitPer5Min="${shortLinksRateLimit}"
+
+      - name: Debug CloudFormation (on failure)
+        if: ${{ steps.deploy_cfn.outcome != 'success' }}
+        run: |
+          webStackName="${WEB_STACK_NAME_PREFIX}-${{ inputs.environment }}"
+
+          echo "=== Debug CloudFormation (on failure) ==="
+          echo "StackName=${webStackName}"
+
+          echo "--- Stack events (latest) ---"
+          aws cloudformation describe-stack-events \
+            --stack-name "${webStackName}" \
+            --max-items 40 \
+            --query "StackEvents[0:40].[Timestamp,LogicalResourceId,ResourceType,ResourceStatus,ResourceStatusReason]" \
+            --output table || true
+
+          echo "--- Stack parameters (json) ---"
+          aws cloudformation describe-stacks \
+            --stack-name "${webStackName}" \
+            --query "Stacks[0].Parameters" \
+            --output json || true
+
+      - name: Fail if CloudFormation deploy failed
+        if: ${{ steps.deploy_cfn.outcome != 'success' }}
+        run: |
+          echo "CloudFormation deploy failed. See debug output above."
+          exit 1
 
       - name: Show outputs
         run: |
