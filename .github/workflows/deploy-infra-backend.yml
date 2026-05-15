@@ -54,6 +54,7 @@ jobs:
           aws-region: ${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}
 
       - name: Deploy backend stack
+        id: deploy_cfn
         env:
           AWS_DEFAULT_REGION: us-east-1
         run: |
