@@ -293,10 +293,24 @@ class OnesApp extends StatelessWidget {
           CreateEventPage.routeName: (_) => const CreateEventPage(),
         },
         onGenerateRoute: (settings) {
-          if (settings.name == EventDetailPage.routeName) {
-            final id = settings.arguments as String;
+          final name = settings.name;
+          if (name == null || name.isEmpty) return null;
+
+          final uri = Uri.parse(name);
+          if (uri.path == EventDetailPage.routeName) {
+            final eventId = (uri.queryParameters['eventId'] as String?) ??
+                (settings.arguments as String?);
+            if (eventId == null || eventId.isEmpty) {
+              return null;
+            }
+
+            final initialPhotoId = uri.queryParameters['photoId'];
             return MaterialPageRoute(
-                builder: (_) => EventDetailPage(eventId: id));
+              builder: (_) => EventDetailPage(
+                eventId: eventId,
+                initialPhotoId: initialPhotoId,
+              ),
+            );
           }
           return null;
         },

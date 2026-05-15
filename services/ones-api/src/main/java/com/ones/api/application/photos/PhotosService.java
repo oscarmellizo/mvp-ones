@@ -43,6 +43,7 @@ public class PhotosService {
     private final ObjectStoragePresigner objectStoragePresigner;
     private final ObjectStorage objectStorage;
     private final CloudFrontSignedUrlService cloudFrontSignedUrlService;
+    private final ShortPhotoShareLinkService shortPhotoShareLinkService;
     private final Clock clock;
 
     private final String photosBucket;
@@ -60,6 +61,7 @@ public class PhotosService {
             ObjectStoragePresigner objectStoragePresigner,
             ObjectStorage objectStorage,
             CloudFrontSignedUrlService cloudFrontSignedUrlService,
+            ShortPhotoShareLinkService shortPhotoShareLinkService,
             Clock clock,
             @Value("${ones.s3.events.photos.bucket}") String photosBucket,
             @Value("${ones.s3.events.photos.put-presign-ttl-minutes:15}") long putPresignTtlMinutes,
@@ -75,6 +77,7 @@ public class PhotosService {
         this.objectStoragePresigner = objectStoragePresigner;
         this.objectStorage = objectStorage;
         this.cloudFrontSignedUrlService = cloudFrontSignedUrlService;
+        this.shortPhotoShareLinkService = shortPhotoShareLinkService;
         this.clock = clock;
         this.photosBucket = photosBucket;
         this.putPresignTtlMinutes = putPresignTtlMinutes;
@@ -878,10 +881,9 @@ public class PhotosService {
             default -> mediumKey;
         };
 
-        CloudFrontSignedUrlService.SignedUrlResult res = cloudFrontSignedUrlService.signForSocialShare(key);
-        if (res.url() == null || res.url().isBlank() || res.expiresAt() == null) {
-            throw new IllegalStateException("CDN is not enabled");
-        }
+        // Persist a shortlink and return app-domain URL for sharing.
+        // The viewer will load the photo via APIs, so we don't expose long signed URLs.
+        ShortPhotoShareLinkService.SocialShareLink res = shortPhotoShareLinkService.create(eventId, photoId, resolvedVariant);
         return new SocialShareLink(res.url(), res.expiresAt());
     }
 

@@ -29,8 +29,13 @@ class EventDetailPage extends StatefulWidget {
   static const routeName = '/events/detail';
 
   final String eventId;
+  final String? initialPhotoId;
 
-  const EventDetailPage({super.key, required this.eventId});
+  const EventDetailPage({
+    super.key,
+    required this.eventId,
+    this.initialPhotoId,
+  });
 
   @override
   State<EventDetailPage> createState() => _EventDetailPageState();
@@ -39,10 +44,15 @@ class EventDetailPage extends StatefulWidget {
 class _EventDetailPageState extends State<EventDetailPage> {
   int _tabIndex = 0;
   final _searchController = TextEditingController();
+  bool _openedInitialPhoto = false;
 
   @override
   void initState() {
     super.initState();
+    if (widget.initialPhotoId != null &&
+        widget.initialPhotoId!.trim().isNotEmpty) {
+      _tabIndex = 0;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<EventsController>().select(widget.eventId);
     });
@@ -60,6 +70,8 @@ class _EventDetailPageState extends State<EventDetailPage> {
     final auth = context.watch<AuthController>();
     final event = controller.selected;
     final currentUserId = auth.user?.userId;
+
+    final deepLinkPhotoId = widget.initialPhotoId;
 
     final size = MediaQuery.sizeOf(context);
     final horizontalPadding = size.width >= 520 ? 28.0 : 16.0;
@@ -125,9 +137,16 @@ class _EventDetailPageState extends State<EventDetailPage> {
                               ? _GalleryTab(
                                   eventId: event.id,
                                   currentUserId: currentUserId,
-                                  isOwner: currentUserId != null &&
-                                      currentUserId == event.ownerId,
+                                  isOwner: auth.user?.userId == event.ownerId,
                                   searchController: _searchController,
+                                  initialPhotoId: deepLinkPhotoId,
+                                  openedInitialPhoto: _openedInitialPhoto,
+                                  onOpenedInitialPhoto: () {
+                                    if (_openedInitialPhoto) return;
+                                    setState(() {
+                                      _openedInitialPhoto = true;
+                                    });
+                                  },
                                 )
                               : _DetailsTab(
                                   eventId: event.id,
@@ -161,12 +180,18 @@ class _GalleryTab extends StatefulWidget {
   final String? currentUserId;
   final bool isOwner;
   final TextEditingController searchController;
+  final String? initialPhotoId;
+  final bool openedInitialPhoto;
+  final Function onOpenedInitialPhoto;
 
   const _GalleryTab({
     required this.eventId,
     required this.currentUserId,
     required this.isOwner,
     required this.searchController,
+    this.initialPhotoId,
+    required this.openedInitialPhoto,
+    required this.onOpenedInitialPhoto,
   });
 
   @override
@@ -297,6 +322,31 @@ class _GalleryTabState extends State<_GalleryTab> {
     final uploader = context.watch<PhotosUploadController>();
 
     final remoteItems = controller.items;
+
+    final deepLinkPhotoId = widget.initialPhotoId;
+    if (!widget.openedInitialPhoto &&
+        deepLinkPhotoId != null &&
+        deepLinkPhotoId.trim().isNotEmpty &&
+        remoteItems.isNotEmpty) {
+      final idx =
+          remoteItems.indexWhere((it) => it.photoId == deepLinkPhotoId.trim());
+      if (idx >= 0) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          if (widget.openedInitialPhoto) return;
+          widget.onOpenedInitialPhoto();
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => PhotoViewerPage(
+                eventId: widget.eventId,
+                initialIndex: idx,
+                currentUserId: widget.currentUserId,
+              ),
+            ),
+          );
+        });
+      }
+    }
     final remoteById = <String, EventPhoto>{
       for (final it in remoteItems) it.photoId: it,
     };

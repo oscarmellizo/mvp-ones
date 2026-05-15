@@ -12,6 +12,13 @@ class ListPhotosPage {
   const ListPhotosPage({required this.items, required this.nextToken});
 }
 
+class SocialShareLink {
+  final String shortUrl;
+  final String? expiresAt;
+
+  const SocialShareLink({required this.shortUrl, required this.expiresAt});
+}
+
 class EventPhotosApi {
   final Dio Function(String? idToken) _dioFactory;
   String? _idToken;
@@ -119,6 +126,45 @@ class EventPhotosApi {
       photoId: (data['photoId'] as String?) ?? photoId,
       putUrl: putUrl,
       s3KeyOriginal: s3KeyOriginal,
+      expiresAt: data['expiresAt'] as String?,
+    );
+  }
+
+  Future<SocialShareLink> createSocialShareLink({
+    required String eventId,
+    required String photoId,
+    String? variant,
+  }) async {
+    final res = await _dioFactory(_idToken).post(
+      '/v1/events/$eventId/photos/$photoId/social-share',
+      data: {
+        'variant': variant,
+      },
+      options: Options(
+        extra: {
+          'secure': [
+            {
+              'type': 'http',
+              'scheme': 'bearer',
+              'name': 'bearerAuth',
+            }
+          ],
+        },
+      ),
+    );
+
+    final data = res.data;
+    if (data is! Map) {
+      throw StateError('Invalid social share response');
+    }
+
+    final url = data['url'];
+    if (url is! String || url.trim().isEmpty) {
+      throw StateError('Missing url');
+    }
+
+    return SocialShareLink(
+      shortUrl: url.trim(),
       expiresAt: data['expiresAt'] as String?,
     );
   }

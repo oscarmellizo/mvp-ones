@@ -16,7 +16,11 @@ Parameters:
 
   GoogleClientId:
     Type: String
-    Default: CHANGE_ME
+    Default: ''
+
+  AppBaseUrl:
+    Type: String
+    Default: ''
 
   BackendDesiredCount:
     Type: Number
@@ -74,6 +78,7 @@ Resources:
         StackPrefix: !Ref StackPrefix
         Environment: !Ref Environment
         GoogleClientId: !Ref GoogleClientId
+        AppBaseUrl: !Ref AppBaseUrl
         BackendDesiredCount: !Ref BackendDesiredCount
         UsePhotoThumbnailsImage: !Ref UsePhotoThumbnailsImage
         GrafanaDesiredCount: !Ref GrafanaDesiredCount

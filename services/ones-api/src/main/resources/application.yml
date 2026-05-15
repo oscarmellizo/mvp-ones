@@ -13,6 +13,8 @@ spring:
 
 ones:
   env: ${ONES_ENV:dev}
+  app:
+    base-url: ${ONES_APP_BASE_URL:}
   actuator:
     basic:
       username: ${ONES_ACTUATOR_BASIC_USERNAME:}
@@ -229,11 +231,15 @@ ones:
     cover-reservations-table-name: ${ONES_COVER_RESERVATIONS_TABLE:ones-cover-reservations}
     photos-table-name: ${ONES_PHOTOS_TABLE:ones-photos}
     photo-likes-table-name: ${ONES_DYNAMODB_PHOTO_LIKES_TABLE_NAME:ones-photo-likes}
+    photo-shortlinks-table-name: ${ONES_DYNAMODB_PHOTO_SHORTLINKS_TABLE_NAME:ones-photo-shortlinks}
     preferred-names-cache-table-name: ${ONES_PREFERRED_NAMES_CACHE_TABLE:ones-preferred-names-cache}
     admins-table-name: ${ONES_ADMINS_TABLE:ones-admins}
     frames-table-name: ${ONES_FRAMES_TABLE:ones-frames}
     event-templates-table-name: ${ONES_EVENT_TEMPLATES_TABLE:ones-event-templates}
     endpoint: ${DYNAMODB_ENDPOINT:}
+
+  photos:
+    social-share-ttl-days: ${ONES_PHOTOS_SOCIAL_SHARE_TTL_DAYS:7}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000,http://localhost:8080,http://localhost:5000,http://localhost:4000,http://localhost:1234,http://localhost:7357,http://localhost:56321,http://localhost:49234,http://localhost:40233}
 

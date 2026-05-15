@@ -103,14 +103,20 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
     return XFile(file.path);
   }
 
-  Future<void> _shareCurrentPhoto(
-      BuildContext context, EventPhoto currentItem) async {
+  Future<void> _shareCurrentPhoto(BuildContext context,
+      PhotosGalleryController gallery, EventPhoto currentItem) async {
     final url = currentItem.originalUrl ??
         currentItem.mediumUrl ??
         currentItem.smallUrl;
     if (url == null || url.trim().isEmpty) {
       throw Exception('La foto aún se está procesando');
     }
+
+    final link = await gallery.api.createSocialShareLink(
+      eventId: widget.eventId,
+      photoId: currentItem.photoId,
+      variant: 'medium',
+    );
 
     final safePhotoId =
         currentItem.photoId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
@@ -119,7 +125,7 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
     if (xf == null) return;
     await Share.shareXFiles(
       [xf],
-      text: url.trim(),
+      text: link.shortUrl,
     );
   }
 
@@ -313,7 +319,7 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
                                         });
                                         try {
                                           await _shareCurrentPhoto(
-                                              context, currentItem);
+                                              context, gallery, currentItem);
                                         } catch (e) {
                                           if (!context.mounted) return;
                                           ScaffoldMessenger.of(context)

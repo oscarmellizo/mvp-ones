@@ -46,6 +46,16 @@ jobs:
             --query "Stacks[0].Outputs[?OutputKey=='AlbDnsName'].OutputValue" \
             --output text)
 
+          wafEnabled="${{ vars.WAF_ENABLED }}"
+          if [ -z "${wafEnabled}" ]; then
+            wafEnabled="true"
+          fi
+
+          shortLinksRateLimit="${{ vars.SHORTLINKS_RATE_LIMIT_PER_5MIN }}"
+          if [ -z "${shortLinksRateLimit}" ]; then
+            shortLinksRateLimit="2000"
+          fi
+
           packageBucket="${CFN_PACKAGE_BUCKET_PREFIX}-${{ inputs.environment }}"
           if ! aws s3api head-bucket --bucket "${packageBucket}" >/dev/null 2>&1; then
             aws s3api create-bucket --bucket "${packageBucket}" --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
@@ -63,7 +73,9 @@ jobs:
             --parameter-overrides \
               StackPrefix="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}" \
               Environment="${{ inputs.environment }}" \
-              BackendAlbDnsName="${albDns}"
+              BackendAlbDnsName="${albDns}" \
+              WafEnabled="${wafEnabled}" \
+              ShortLinksRateLimitPer5Min="${shortLinksRateLimit}"
 
       - name: Show outputs
         run: |

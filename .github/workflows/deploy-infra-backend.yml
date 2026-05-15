@@ -54,9 +54,20 @@ jobs:
           aws-region: ${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}
 
       - name: Deploy backend stack
-        id: deploy_cfn
-        continue-on-error: true
+        env:
+          AWS_DEFAULT_REGION: us-east-1
         run: |
+          set -euo pipefail
+
+          appBaseUrl=""
+          if [ "${{ inputs.environment }}" = "dev" ]; then
+            appBaseUrl="https://appdev.ones.events"
+          elif [ "${{ inputs.environment }}" = "stage" ]; then
+            appBaseUrl="${{ vars.APP_BASE_URL_STAGE }}"
+          elif [ "${{ inputs.environment }}" = "prod" ]; then
+            appBaseUrl="${{ vars.APP_BASE_URL_PROD }}"
+          fi
+
           stackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
 
           cdnPublicKeyPem=""
@@ -155,6 +166,7 @@ jobs:
               StackPrefix="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}" \
               Environment="${{ inputs.environment }}" \
               GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}" \
+              AppBaseUrl="${appBaseUrl}" \
               BackendDesiredCount="${{ inputs.backendDesiredCount }}" \
               UsePhotoThumbnailsImage="false" \
               CdnPhotosEnabled="${CDN_PHOTOS_ENABLED:-false}" \
@@ -251,7 +263,7 @@ jobs:
             --output table || true
 
       - name: Fail if CloudFormation deploy failed
-        if: ${{ steps.deploy_cfn.outcome != 'success' && inputs.usePhotoThumbnailsImage != 'true' }}
+        if: ${{ steps.deploy_cfn.outcome != 'success' }}
         run: |
           echo "CloudFormation deploy failed. See debug output above."
           exit 1
@@ -262,6 +274,15 @@ jobs:
         continue-on-error: true
         run: |
           stackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
+
+          appBaseUrl=""
+          if [ "${{ inputs.environment }}" = "dev" ]; then
+            appBaseUrl="https://appdev.ones.events"
+          elif [ "${{ inputs.environment }}" = "stage" ]; then
+            appBaseUrl="${{ vars.APP_BASE_URL_STAGE }}"
+          elif [ "${{ inputs.environment }}" = "prod" ]; then
+            appBaseUrl="${{ vars.APP_BASE_URL_PROD }}"
+          fi
 
           cdnPublicKeyPem=""
           cdnPublicKeySsmParamName=""
@@ -375,6 +396,7 @@ jobs:
               StackPrefix="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}" \
               Environment="${{ inputs.environment }}" \
               GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}" \
+              AppBaseUrl="${appBaseUrl}" \
               BackendDesiredCount="${{ inputs.backendDesiredCount }}" \
               UsePhotoThumbnailsImage="true" \
               CdnPhotosEnabled="${CDN_PHOTOS_ENABLED:-false}" \

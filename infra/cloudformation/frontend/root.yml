@@ -18,6 +18,17 @@ Parameters:
     Type: String
     Description: DNS name of the backend ALB (without protocol)
 
+  WafEnabled:
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  ShortLinksRateLimitPer5Min:
+    Type: Number
+    Default: 2000
+
 Resources:
   S3Stack:
     Type: AWS::CloudFormation::Stack
@@ -40,6 +51,8 @@ Resources:
         WebBucketName: !GetAtt S3Stack.Outputs.BucketName
         WebBucketArn: !GetAtt S3Stack.Outputs.BucketArn
         WebBucketRegionalDomainName: !GetAtt S3Stack.Outputs.BucketRegionalDomainName
+        WafEnabled: !Ref WafEnabled
+        ShortLinksRateLimitPer5Min: !Ref ShortLinksRateLimitPer5Min
 
 Outputs:
   CloudFrontUrl:

@@ -14,7 +14,10 @@ Parameters:
       - prod
   GoogleClientId:
     Type: String
-    Default: CHANGE_ME
+    Default: ''
+  AppBaseUrl:
+    Type: String
+    Default: ''
   BackendDesiredCount:
     Type: Number
     Default: 0
@@ -257,6 +260,24 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
+
+  PhotoShortLinksTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-photo-shortlinks
+      BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      AttributeDefinitions:
+        - AttributeName: code
+          AttributeType: S
+      KeySchema:
+        - AttributeName: code
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
 
   PreferredNamesCacheTable:
     Type: AWS::DynamoDB::Table
@@ -949,6 +970,7 @@ Resources:
                   - !GetAtt EventsTable.Arn
                   - !Sub ${EventsTable.Arn}/index/*
                   - !GetAtt UsersTable.Arn
+                  - !Sub ${UsersTable.Arn}/index/*
                   - !GetAtt InvitationsTable.Arn
                   - !Sub ${InvitationsTable.Arn}/index/*
                   - !GetAtt CoverPreviewsTable.Arn
@@ -957,12 +979,12 @@ Resources:
                   - !Sub ${PhotosTable.Arn}/index/*
                   - !GetAtt PhotoLikesTable.Arn
                   - !Sub ${PhotoLikesTable.Arn}/index/*
+                  - !GetAtt PhotoShortLinksTable.Arn
                   - !GetAtt PreferredNamesCacheTable.Arn
                   - !GetAtt AdminsTable.Arn
                   - !GetAtt FramesTable.Arn
                   - !Sub ${FramesTable.Arn}/index/*
                   - !GetAtt EventTemplatesTable.Arn
-                  - !Sub ${EventTemplatesTable.Arn}/index/*
         - PolicyName: ones-s3
           PolicyDocument:
             Version: '2012-10-17'
@@ -1068,6 +1090,8 @@ Resources:
               Value: !Ref AWS::Region
             - Name: ONES_ENV
               Value: !Ref Environment
+            - Name: ONES_APP_BASE_URL
+              Value: !Ref AppBaseUrl
             - Name: ONES_PHOTOS_DEBUG_LIST
               Value: 'false'
             - Name: ONES_EVENTS_TABLE
@@ -1084,6 +1108,8 @@ Resources:
               Value: !Ref PhotosTable
             - Name: ONES_DYNAMODB_PHOTO_LIKES_TABLE_NAME
               Value: !Ref PhotoLikesTable
+            - Name: ONES_DYNAMODB_PHOTO_SHORTLINKS_TABLE_NAME
+              Value: !Ref PhotoShortLinksTable
             - Name: ONES_PREFERRED_NAMES_CACHE_TABLE
               Value: !Ref PreferredNamesCacheTable
             - Name: ONES_ADMINS_TABLE

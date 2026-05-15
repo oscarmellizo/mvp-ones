@@ -35,10 +35,78 @@ Parameters:
   WebBucketRegionalDomainName:
     Type: String
 
+  WafEnabled:
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  ShortLinksRateLimitPer5Min:
+    Type: Number
+    Default: 2000
+
 Conditions:
   IsDev: !Equals [!Ref Environment, dev]
+  WafEnabledCond: !Equals [!Ref WafEnabled, 'true']
 
 Resources:
+  WebAcl:
+    Type: AWS::WAFv2::WebACL
+    Condition: WafEnabledCond
+    Properties:
+      Name: !Sub ${AWS::StackName}-web-acl
+      Scope: CLOUDFRONT
+      DefaultAction:
+        Allow: {}
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub ${AWS::StackName}-webacl
+      Rules:
+        - Name: AWSManagedCommonRuleSet
+          Priority: 10
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: awsManagedCommon
+
+        - Name: RateLimitShortLinks
+          Priority: 20
+          Action:
+            Block:
+              CustomResponse:
+                ResponseCode: 429
+                CustomResponseBodyKey: rateLimited
+          Statement:
+            RateBasedStatement:
+              Limit: !Ref ShortLinksRateLimitPer5Min
+              AggregateKeyType: IP
+              ScopeDownStatement:
+                ByteMatchStatement:
+                  FieldToMatch:
+                    UriPath: {}
+                  PositionalConstraint: STARTS_WITH
+                  SearchString: /p/
+                  TextTransformations:
+                    - Priority: 0
+                      Type: NONE
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: shortLinksRateLimit
+
+      CustomResponseBodies:
+        rateLimited:
+          ContentType: APPLICATION_JSON
+          Content: '{"error":"rate_limited"}'
+
   ApiPathRewriteFunction:
     Type: AWS::CloudFront::Function
     Properties:
@@ -74,6 +142,7 @@ Resources:
         Enabled: true
         DefaultRootObject: index.html
         HttpVersion: http2
+        WebACLId: !If [WafEnabledCond, !GetAtt WebAcl.Arn, !Ref AWS::NoValue]
         Aliases: !If
           - IsDev
           - - !Ref DevAppDomainName
@@ -144,6 +213,28 @@ Resources:
             FunctionAssociations:
               - EventType: viewer-request
                 FunctionARN: !GetAtt ApiPathRewriteFunction.FunctionARN
+
+          - PathPattern: /p/*
+            TargetOriginId: apiorigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            CachedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            Compress: true
+            MinTTL: 0
+            DefaultTTL: 0
+            MaxTTL: 0
+            ForwardedValues:
+              QueryString: true
+              Headers:
+                - Origin
+              Cookies:
+                Forward: none
         CustomErrorResponses:
           - ErrorCode: 403
             ResponseCode: 200
