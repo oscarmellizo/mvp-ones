@@ -10,6 +10,7 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.ones.api.application.events.ports.ObjectStoragePresigner;
 import com.ones.api.application.photos.ports.PhotoShortLinksRepository;
 import com.ones.api.application.photos.ports.PhotoShortLinksRepository.PhotoShortLink;
 import com.ones.api.application.photos.ports.PhotosRepository;
