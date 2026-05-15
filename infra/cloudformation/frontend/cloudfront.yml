@@ -183,7 +183,7 @@ Resources:
             Cookies:
               Forward: none
         CacheBehaviors:
-          - PathPattern: /api/*
+          - PathPattern: api/*
             TargetOriginId: apiorigin
             ViewerProtocolPolicy: redirect-to-https
             AllowedMethods:
@@ -214,7 +214,7 @@ Resources:
               - EventType: viewer-request
                 FunctionARN: !GetAtt ApiPathRewriteFunction.FunctionARN
 
-          - PathPattern: /p/*
+          - PathPattern: p/*
             TargetOriginId: apiorigin
             ViewerProtocolPolicy: redirect-to-https
             AllowedMethods:

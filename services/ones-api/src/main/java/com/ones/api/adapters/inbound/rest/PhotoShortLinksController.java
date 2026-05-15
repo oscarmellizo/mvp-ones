@@ -60,13 +60,13 @@ public class PhotoShortLinksController {
         try {
             if (code == null || code.isBlank() || !CODE_PATTERN.matcher(code.trim()).matches()) {
                 outcome = "invalid";
-                return ResponseEntity.notFound().build();
+                return ResponseEntity.badRequest().build();
             }
 
             var resolved = service.resolve(code.trim()).orElse(null);
             if (resolved == null) {
                 outcome = "not_found";
-                return ResponseEntity.notFound().build();
+                return ResponseEntity.status(HttpStatus.GONE).build();
             }
 
             String target = resolved.imageUrl();
