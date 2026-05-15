@@ -69,10 +69,7 @@ public class PhotoShortLinksController {
                 return ResponseEntity.notFound().build();
             }
 
-            String eventId = resolved.link().eventId();
-            String photoId = resolved.link().photoId();
-
-            String target = "/#/events/detail?eventId=" + urlEncode(eventId) + "&photoId=" + urlEncode(photoId);
+            String target = resolved.imageUrl();
 
             HttpHeaders headers = new HttpHeaders();
             headers.setLocation(URI.create(target));
