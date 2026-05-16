@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 
 import com.ones.api.application.invitations.InvitationsService;
 import com.ones.api.application.invitations.ports.InvitationsRepository;
+import com.ones.api.application.invitations.email.InvitationEmailService;
 import com.ones.api.application.events.CreateEventUseCase;
 import com.ones.api.application.events.EventCoversService;
 import com.ones.api.application.events.GetEventUseCase;
@@ -36,9 +37,10 @@ public class ApplicationConfig {
             InvitationsRepository invitationsRepository,
             UsersRepository usersRepository,
             Clock clock,
-            EventCoversService coversService
+            EventCoversService coversService,
+            InvitationEmailService invitationEmailService
     ) {
-        return new CreateEventUseCase(repository, invitationsRepository, usersRepository, clock, coversService);
+        return new CreateEventUseCase(repository, invitationsRepository, usersRepository, clock, coversService, invitationEmailService);
     }
 
     @Bean
@@ -64,9 +66,10 @@ public class ApplicationConfig {
             EventsRepository eventsRepository,
             InvitationsRepository invitationsRepository,
             UsersRepository usersRepository,
-            Clock clock
+            Clock clock,
+            InvitationEmailService invitationEmailService
     ) {
-        return new InviteEventGuestsUseCase(eventsRepository, invitationsRepository, usersRepository, clock);
+        return new InviteEventGuestsUseCase(eventsRepository, invitationsRepository, usersRepository, clock, invitationEmailService);
     }
 
     @Bean

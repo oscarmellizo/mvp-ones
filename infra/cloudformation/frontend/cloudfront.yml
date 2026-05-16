@@ -235,6 +235,28 @@ Resources:
                 - Origin
               Cookies:
                 Forward: none
+
+          - PathPattern: i/*
+            TargetOriginId: apiorigin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            CachedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            Compress: true
+            MinTTL: 0
+            DefaultTTL: 0
+            MaxTTL: 0
+            ForwardedValues:
+              QueryString: true
+              Headers:
+                - Origin
+              Cookies:
+                Forward: none
         CustomErrorResponses:
           - ErrorCode: 403
             ResponseCode: 200

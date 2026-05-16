@@ -22,6 +22,22 @@ Parameters:
     Type: String
     Default: ''
 
+  # Email invitations (SES)
+  EmailEnabled:
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  EmailFrom:
+    Type: String
+    Default: donotreply@ones.events
+
+  PublicBaseUrl:
+    Type: String
+    Default: ''
+
   BackendDesiredCount:
     Type: Number
     Default: 0
@@ -79,6 +95,9 @@ Resources:
         Environment: !Ref Environment
         GoogleClientId: !Ref GoogleClientId
         AppBaseUrl: !Ref AppBaseUrl
+        EmailEnabled: !Ref EmailEnabled
+        EmailFrom: !Ref EmailFrom
+        PublicBaseUrl: !Ref PublicBaseUrl
         BackendDesiredCount: !Ref BackendDesiredCount
         UsePhotoThumbnailsImage: !Ref UsePhotoThumbnailsImage
         GrafanaDesiredCount: !Ref GrafanaDesiredCount

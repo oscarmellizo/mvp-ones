@@ -36,6 +36,14 @@ public class InvitationsService {
         return respond(inviteeEmail, inviteeUserId, eventId, Invitation.Status.rejected);
     }
 
+    public Invitation acceptFromEmail(String inviteeEmail, String eventId) {
+        return respond(inviteeEmail, null, eventId, Invitation.Status.accepted);
+    }
+
+    public Invitation rejectFromEmail(String inviteeEmail, String eventId) {
+        return respond(inviteeEmail, null, eventId, Invitation.Status.rejected);
+    }
+
     private Invitation respond(String inviteeEmail, String inviteeUserId, String eventId, Invitation.Status status) {
         Invitation existing = repository.findByInviteeEmailAndEventId(inviteeEmail, eventId)
                 .orElseThrow(() -> new InvitationNotFoundException(eventId));
@@ -45,10 +53,14 @@ public class InvitationsService {
             throw new InvitationClosedException(eventId);
         }
 
+        if (existing.getStatus() == status) {
+            return existing;
+        }
+
         Invitation updated = new Invitation(
                 existing.getEventId(),
                 existing.getInviteeEmail(),
-                inviteeUserId,
+                inviteeUserId != null && !inviteeUserId.isBlank() ? inviteeUserId : existing.getInviteeUserId(),
                 existing.getEventOwnerId(),
                 status,
                 existing.getCreatedAt(),

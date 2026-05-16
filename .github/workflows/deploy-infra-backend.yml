@@ -168,6 +168,9 @@ jobs:
               Environment="${{ inputs.environment }}" \
               GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}" \
               AppBaseUrl="${appBaseUrl}" \
+              EmailEnabled="true" \
+              EmailFrom="donotreply@ones.events" \
+              PublicBaseUrl="${appBaseUrl}" \
               BackendDesiredCount="${{ inputs.backendDesiredCount }}" \
               UsePhotoThumbnailsImage="false" \
               CdnPhotosEnabled="${CDN_PHOTOS_ENABLED:-false}" \
@@ -398,6 +401,9 @@ jobs:
               Environment="${{ inputs.environment }}" \
               GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}" \
               AppBaseUrl="${appBaseUrl}" \
+              EmailEnabled="true" \
+              EmailFrom="donotreply@ones.events" \
+              PublicBaseUrl="${appBaseUrl}" \
               BackendDesiredCount="${{ inputs.backendDesiredCount }}" \
               UsePhotoThumbnailsImage="true" \
               CdnPhotosEnabled="${CDN_PHOTOS_ENABLED:-false}" \

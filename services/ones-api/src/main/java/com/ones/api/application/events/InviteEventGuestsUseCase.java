@@ -9,6 +9,7 @@ import java.util.UUID;
 
 import com.ones.api.application.events.ports.EventsRepository;
 import com.ones.api.application.invitations.ports.InvitationsRepository;
+import com.ones.api.application.invitations.email.InvitationEmailService;
 import com.ones.api.application.users.ports.UsersRepository;
 import com.ones.api.domain.events.Event;
 import com.ones.api.domain.invitations.Invitation;
@@ -20,17 +21,20 @@ public class InviteEventGuestsUseCase {
     private final InvitationsRepository invitationsRepository;
     private final UsersRepository usersRepository;
     private final Clock clock;
+    private final InvitationEmailService invitationEmailService;
 
     public InviteEventGuestsUseCase(
             EventsRepository eventsRepository,
             InvitationsRepository invitationsRepository,
             UsersRepository usersRepository,
-            Clock clock
+            Clock clock,
+            InvitationEmailService invitationEmailService
     ) {
         this.eventsRepository = eventsRepository;
         this.invitationsRepository = invitationsRepository;
         this.usersRepository = usersRepository;
         this.clock = clock;
+        this.invitationEmailService = invitationEmailService;
     }
 
     public void execute(String ownerId, String eventId, List<String> inviteeEmails) {
@@ -80,6 +84,9 @@ public class InviteEventGuestsUseCase {
                     event.getEndAt()
             );
             invitationsRepository.upsert(inv);
+            if (invitationEmailService != null) {
+                invitationEmailService.sendInvitation(inv);
+            }
         }
     }
 

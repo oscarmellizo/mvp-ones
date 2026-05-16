@@ -15,6 +15,23 @@ Parameters:
   GoogleClientId:
     Type: String
     Default: CHANGE_ME
+
+  # Email invitations (SES)
+  EmailEnabled:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  EmailFrom:
+    Type: String
+    Default: ''
+
+  PublicBaseUrl:
+    Type: String
+    Default: ''
+
   BackendDesiredCount:
     Type: Number
     Default: 0
@@ -25,10 +42,6 @@ Parameters:
     AllowedValues:
       - 'true'
       - 'false'
-
-  GrafanaDesiredCount:
-    Type: Number
-    Default: 1
 
   # CDN Configuration
   CdnPhotosEnabled:
@@ -432,6 +445,29 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
+  InvitationEmailActionTokenSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ${StackPrefix}-${Environment}-invitation-email-action-token
+      Description: HMAC secret used to sign invitation email accept/reject tokens
+      GenerateSecretString:
+        PasswordLength: 64
+        ExcludePunctuation: true
+        IncludeSpace: false
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  SesEmailIdentity:
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity: ones.events
+      DkimSigningAttributes:
+        NextSigningKeyLength: RSA_2048_BIT
+      MailFromAttributes:
+        MailFromDomain: !Sub bounce.ones.events
+        BehaviorOnMxFailure: USE_DEFAULT_VALUE
+
   PrometheusWorkspace:
     Type: AWS::APS::Workspace
     # Properties omitted to avoid null/empty map validation errors
@@ -827,6 +863,7 @@ Resources:
                   - !Ref InternalBasicAuthSecret
                   - !Ref GrafanaAdminSecret
                   - !Ref CloudFrontPrivateKeySecret
+                  - !Ref InvitationEmailActionTokenSecret
 
   TaskRole:
     Type: AWS::IAM::Role
@@ -897,6 +934,16 @@ Resources:
                   - !Ref OpenAiApiKeySecret
                   - !Ref ActuatorBasicAuthSecret
                   - !Ref CloudFrontPrivateKeySecret
+                  - !Ref InvitationEmailActionTokenSecret
+
+        - PolicyName: ones-ses
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ses:SendEmail
+                Resource: '*'
 
         - PolicyName: ones-amp-remote-write
           PolicyDocument:
@@ -979,6 +1026,14 @@ Resources:
               Value: !Ref Environment
             - Name: ONES_PHOTOS_DEBUG_LIST
               Value: 'false'
+            - Name: ONES_EMAIL_ENABLED
+              Value: !Ref EmailEnabled
+            - Name: ONES_EMAIL_FROM
+              Value: !Ref EmailFrom
+            - Name: ONES_PUBLIC_BASE_URL
+              Value: !Ref PublicBaseUrl
+            - Name: ONES_EMAIL_ACTION_TOKEN_SECRET_NAME
+              Value: !Ref InvitationEmailActionTokenSecret
             - Name: ONES_EVENTS_TABLE
               Value: !Ref EventsTable
             - Name: ONES_USERS_TABLE

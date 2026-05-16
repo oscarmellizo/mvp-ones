@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import com.ones.api.application.events.ports.EventsRepository;
 import com.ones.api.application.invitations.ports.InvitationsRepository;
+import com.ones.api.application.invitations.email.InvitationEmailService;
 import com.ones.api.application.users.ports.UsersRepository;
 import com.ones.api.domain.events.Event;
 import com.ones.api.domain.invitations.Invitation;
@@ -24,19 +25,22 @@ public class CreateEventUseCase {
     private final UsersRepository usersRepository;
     private final Clock clock;
     private final EventCoversService coversService;
+    private final InvitationEmailService invitationEmailService;
 
     public CreateEventUseCase(
             EventsRepository repository,
             InvitationsRepository invitationsRepository,
             UsersRepository usersRepository,
             Clock clock,
-            EventCoversService coversService
+            EventCoversService coversService,
+            InvitationEmailService invitationEmailService
     ) {
         this.repository = repository;
         this.invitationsRepository = invitationsRepository;
         this.usersRepository = usersRepository;
         this.clock = clock;
         this.coversService = coversService;
+        this.invitationEmailService = invitationEmailService;
     }
 
     public Event execute(
@@ -90,6 +94,9 @@ public class CreateEventUseCase {
                         endAt
                 );
                 invitationsRepository.upsert(inv);
+                if (invitationEmailService != null) {
+                    invitationEmailService.sendInvitation(inv);
+                }
             }
         }
 
