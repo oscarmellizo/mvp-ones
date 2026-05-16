@@ -290,6 +290,7 @@ Resources:
                 Effect: Allow
                 Action:
                   - secretsmanager:CreateSecret
+                  - secretsmanager:GetRandomPassword
                   - secretsmanager:UpdateSecret
                   - secretsmanager:PutSecretValue
                   - secretsmanager:DescribeSecret
