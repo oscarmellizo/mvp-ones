@@ -301,6 +301,21 @@ Resources:
                   - secretsmanager:ListSecrets
                 Resource: '*'
 
+              - Sid: SES
+                Effect: Allow
+                Action:
+                  - ses:CreateEmailIdentity
+                  - ses:DeleteEmailIdentity
+                  - ses:GetEmailIdentity
+                  - ses:ListEmailIdentities
+                  - ses:PutEmailIdentityDkimAttributes
+                  - ses:PutEmailIdentityMailFromAttributes
+                  - ses:PutEmailIdentityFeedbackAttributes
+                  - ses:TagResource
+                  - ses:UntagResource
+                  - ses:ListTagsForResource
+                Resource: '*'
+
               - Sid: AmazonManagedPrometheus
                 Effect: Allow
                 Action:
