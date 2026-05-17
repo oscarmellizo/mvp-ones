@@ -21,7 +21,7 @@ class CreateEventUseCaseTest {
         EventsRepository repo = new InMemoryEventsRepository();
         Clock clock = Clock.fixed(Instant.parse("2025-01-01T00:00:00Z"), ZoneOffset.UTC);
 
-        CreateEventUseCase useCase = new CreateEventUseCase(repo, null, null, clock, null);
+        CreateEventUseCase useCase = new CreateEventUseCase(repo, null, null, clock, null, null);
         Instant startAt = Instant.parse("2025-01-01T18:00:00Z");
         Instant endAt = Instant.parse("2025-01-01T22:00:00Z");
         Event created = useCase.execute("user-123", "Hello", "birthday", "San Jose, CR", startAt, endAt, null, List.of(), true, List.of());
