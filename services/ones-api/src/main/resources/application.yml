@@ -19,6 +19,7 @@ ones:
     enabled: ${ONES_EMAIL_ENABLED:false}
     from: ${ONES_EMAIL_FROM:}
     public-base-url: ${ONES_PUBLIC_BASE_URL:${ONES_APP_BASE_URL:}}
+    logo-url: ${ONES_EMAIL_LOGO_URL:}
     action-token:
       secret-name: ${ONES_EMAIL_ACTION_TOKEN_SECRET_NAME:}
       ttl-minutes: ${ONES_EMAIL_ACTION_TOKEN_TTL_MINUTES:10080}

@@ -87,6 +87,7 @@ flutter:
     - assets/splash/
     - assets/auth/
     - assets/config/
+    - assets/branding/
 
   fonts:
     - family: Airstrike

@@ -3,6 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:ones_api_client/ones_api_client.dart' as api;
 
 import '../../../../core/ui/ones_colors.dart';
+import '../../../../core/utils/datetime_formatters.dart';
+import '../../../events/domain/event.dart';
+import '../../../events/presentation/event_cover_urls_controller.dart';
+import '../../../events/presentation/events_controller.dart';
 import '../../../events/presentation/pages/event_detail_page.dart';
 import '../invitations_controller.dart';
 
@@ -62,7 +66,23 @@ class _InvitationLinkPageState extends State<InvitationLinkPage> {
       }
 
       if (!mounted) return;
-      await _showInvitationModal(inv);
+      Event? event;
+      String? coverUrl;
+      try {
+        event = await context
+            .read<EventsController>()
+            .getEvent
+            .execute(inv.eventId);
+        coverUrl = await context.read<EventCoverUrlsController>().getUrlIfAny(
+              eventId: event.id,
+              coverKey: event.coverKey,
+            );
+      } catch (_) {
+        // ignore
+      }
+
+      if (!mounted) return;
+      await _showInvitationModal(inv, event: event, coverUrl: coverUrl);
 
       if (!mounted) return;
       setState(() {
@@ -78,7 +98,11 @@ class _InvitationLinkPageState extends State<InvitationLinkPage> {
     }
   }
 
-  Future<void> _showInvitationModal(api.Invitation inv) async {
+  Future<void> _showInvitationModal(
+    api.Invitation inv, {
+    required Event? event,
+    required String? coverUrl,
+  }) async {
     final startAt = inv.eventStartAt.toLocal();
     final endAt = inv.eventEndAt.toLocal();
 
@@ -101,20 +125,82 @@ class _InvitationLinkPageState extends State<InvitationLinkPage> {
       context: context,
       barrierDismissible: true,
       builder: (context) {
+        final subtitle = (inv.eventLocation == null ||
+                inv.eventLocation!.trim().isEmpty)
+            ? formatMonthDayYear(startAt)
+            : '${formatMonthDayYear(startAt)} • ${inv.eventLocation!.trim()}';
+
+        final timeRange =
+            '${formatTimeOfDay(startAt)} - ${formatTimeOfDay(endAt)}';
+
+        final objective = event?.objective.trim() ?? '';
+
         return AlertDialog(
           backgroundColor: OnesColors.white,
-          title: Text(inv.eventTitle),
+          titlePadding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (coverUrl != null && coverUrl.trim().isNotEmpty) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: Image.network(
+                      coverUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: OnesColors.black.withOpacity(0.06),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              Text(
+                inv.eventTitle,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
+                  color: OnesColors.black,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: OnesColors.black.withOpacity(0.65),
+                ),
+              ),
+            ],
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (inv.eventLocation != null &&
-                  inv.eventLocation!.trim().isNotEmpty) ...[
-                Text(inv.eventLocation!),
-                const SizedBox(height: 8),
+              const SizedBox(height: 10),
+              Text(
+                timeRange,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14,
+                  color: OnesColors.black,
+                ),
+              ),
+              if (objective.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(
+                  objective,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: OnesColors.black.withOpacity(0.75),
+                  ),
+                ),
               ],
-              Text(startAt.toString()),
-              Text(endAt.toString()),
             ],
           ),
           actions: [
