@@ -26,7 +26,7 @@ public class InvitationsController {
 
     @GetMapping
     public List<InvitationResponse> list(Authentication authentication) {
-        String email = AuthClaims.requireEmail(authentication);
+        String email = AuthClaims.requireEmail(authentication).trim().toLowerCase();
         List<Invitation> items = service.listByInviteeEmail(email, 100);
         return items
                 .stream()
@@ -36,7 +36,7 @@ public class InvitationsController {
 
     @PostMapping("/{eventId}/accept")
     public ResponseEntity<InvitationResponse> accept(Authentication authentication, @PathVariable("eventId") String eventId) {
-        String email = AuthClaims.requireEmail(authentication);
+        String email = AuthClaims.requireEmail(authentication).trim().toLowerCase();
         String userId = authentication.getName();
         Invitation updated = service.accept(email, userId, eventId);
         return ResponseEntity.ok(toResponse(updated));
@@ -44,7 +44,7 @@ public class InvitationsController {
 
     @PostMapping("/{eventId}/reject")
     public ResponseEntity<InvitationResponse> reject(Authentication authentication, @PathVariable("eventId") String eventId) {
-        String email = AuthClaims.requireEmail(authentication);
+        String email = AuthClaims.requireEmail(authentication).trim().toLowerCase();
         String userId = authentication.getName();
         Invitation updated = service.reject(email, userId, eventId);
         return ResponseEntity.ok(toResponse(updated));

@@ -1,6 +1,7 @@
 package com.ones.api.adapters.outbound.dynamodb;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -175,7 +176,24 @@ public class DynamoDbInvitationsRepository implements InvitationsRepository {
         item.setEventLocation(inv.getEventLocation());
         item.setEventStartAt(inv.getEventStartAt().toString());
         item.setEventEndAt(inv.getEventEndAt().toString());
+        item.setExpiresAt(computeExpiresAt(inv));
         return item;
+    }
+
+    private static Long computeExpiresAt(Invitation inv) {
+        if (inv == null) return null;
+        try {
+            if (inv.getStatus() == Invitation.Status.invited) {
+                Instant end = inv.getEventEndAt();
+                if (end == null) return null;
+                return end.plus(7, ChronoUnit.DAYS).getEpochSecond();
+            }
+            Instant updated = inv.getUpdatedAt();
+            if (updated == null) return null;
+            return updated.getEpochSecond();
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private static Invitation toDomain(DynamoInvitationItem item) {

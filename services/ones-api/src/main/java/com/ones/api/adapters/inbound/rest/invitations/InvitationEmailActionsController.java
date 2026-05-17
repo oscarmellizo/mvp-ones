@@ -99,7 +99,7 @@ public class InvitationEmailActionsController {
             base = base.substring(0, base.length() - 1);
         }
 
-        String location = base + "/events/" + eventId + "?invitationStatus=" + status;
+        String location = base + "/events/detail?eventId=" + eventId + "&invitationStatus=" + status;
         HttpHeaders headers = new HttpHeaders();
         headers.setLocation(URI.create(location));
         return new ResponseEntity<>(headers, HttpStatus.FOUND);

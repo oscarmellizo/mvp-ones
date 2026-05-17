@@ -80,7 +80,7 @@ public class InvitationEmailService {
 
         String acceptUrl = normalizeBase(publicBaseUrl) + "/i/" + acceptToken + "/accept";
         String rejectUrl = normalizeBase(publicBaseUrl) + "/i/" + rejectToken + "/reject";
-        String viewUrl = normalizeBase(publicBaseUrl) + "/events/" + invitation.getEventId();
+        String viewUrl = normalizeBase(publicBaseUrl) + "/events/detail?eventId=" + invitation.getEventId();
 
         String subject = "Invitación: " + safe(invitation.getEventTitle());
 

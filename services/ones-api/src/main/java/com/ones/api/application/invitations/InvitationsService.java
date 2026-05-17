@@ -23,8 +23,13 @@ public class InvitationsService {
     }
 
     public List<Invitation> listByInviteeEmail(String inviteeEmail, int limit) {
-        List<Invitation> out = repository.listByInviteeEmail(inviteeEmail, limit);
-        log.info("List invitations for email={}, count={}", inviteeEmail, out.size());
+        Instant now = Instant.now(clock);
+        List<Invitation> out = repository.listByInviteeEmail(inviteeEmail, limit).stream()
+                .filter(i -> i != null)
+                .filter(i -> i.getStatus() == Invitation.Status.invited)
+                .filter(i -> i.getEventEndAt() != null && now.isBefore(i.getEventEndAt()))
+                .toList();
+        log.info("List actionable invitations for email={}, count={}", inviteeEmail, out.size());
         return out;
     }
 

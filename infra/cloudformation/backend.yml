@@ -155,6 +155,9 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
 
   CoverPreviewsTable:
     Type: AWS::DynamoDB::Table

@@ -94,10 +94,12 @@ class InvitationsController extends ChangeNotifier {
     _setLoading(true);
     try {
       _error = null;
-      final updated = await repository.accept(eventId);
-      _items = _items
-          .map((i) => i.eventId == eventId ? updated : i)
-          .toList(growable: false);
+      await repository.accept(eventId);
+      _items =
+          _items.where((i) => i.eventId != eventId).toList(growable: false);
+      if (_seenEventIds.contains(eventId)) {
+        _seenEventIds = {..._seenEventIds}..remove(eventId);
+      }
     } catch (e) {
       _error = e;
       rethrow;
@@ -110,10 +112,12 @@ class InvitationsController extends ChangeNotifier {
     _setLoading(true);
     try {
       _error = null;
-      final updated = await repository.reject(eventId);
-      _items = _items
-          .map((i) => i.eventId == eventId ? updated : i)
-          .toList(growable: false);
+      await repository.reject(eventId);
+      _items =
+          _items.where((i) => i.eventId != eventId).toList(growable: false);
+      if (_seenEventIds.contains(eventId)) {
+        _seenEventIds = {..._seenEventIds}..remove(eventId);
+      }
     } catch (e) {
       _error = e;
       rethrow;

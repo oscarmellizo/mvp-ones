@@ -25,6 +25,8 @@ public class DynamoInvitationItem {
     private String eventStartAt;
     private String eventEndAt;
 
+    private Long expiresAt;
+
     @DynamoDbPartitionKey
     @DynamoDbAttribute("inviteeEmail")
     @DynamoDbSecondarySortKey(indexNames = {"byEventId"})
@@ -126,5 +128,14 @@ public class DynamoInvitationItem {
 
     public void setEventEndAt(String eventEndAt) {
         this.eventEndAt = eventEndAt;
+    }
+
+    @DynamoDbAttribute("expiresAt")
+    public Long getExpiresAt() {
+        return expiresAt;
+    }
+
+    public void setExpiresAt(Long expiresAt) {
+        this.expiresAt = expiresAt;
     }
 }
