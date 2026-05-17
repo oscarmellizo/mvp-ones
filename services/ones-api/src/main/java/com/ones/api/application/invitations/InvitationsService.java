@@ -4,6 +4,8 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 
+import com.ones.api.application.invitations.email.InvitationActionTokenService;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,10 +18,12 @@ public class InvitationsService {
 
     private final InvitationsRepository repository;
     private final Clock clock;
+    private final InvitationActionTokenService tokenService;
 
-    public InvitationsService(InvitationsRepository repository, Clock clock) {
+    public InvitationsService(InvitationsRepository repository, Clock clock, InvitationActionTokenService tokenService) {
         this.repository = repository;
         this.clock = clock;
+        this.tokenService = tokenService;
     }
 
     public List<Invitation> listByInviteeEmail(String inviteeEmail, int limit) {
@@ -39,6 +43,29 @@ public class InvitationsService {
 
     public Invitation reject(String inviteeEmail, String inviteeUserId, String eventId) {
         return respond(inviteeEmail, inviteeUserId, eventId, Invitation.Status.rejected);
+    }
+
+    public Invitation resolveFromEmailLink(String authenticatedEmail, String token) {
+        if (authenticatedEmail == null || authenticatedEmail.isBlank()) {
+            throw new IllegalArgumentException("Missing authenticatedEmail");
+        }
+
+        InvitationActionTokenService.Decoded decoded = tokenService.decodeAndValidate(token);
+        if (!authenticatedEmail.trim().equalsIgnoreCase(decoded.inviteeEmail())) {
+            throw new IllegalArgumentException("Token does not belong to authenticated user");
+        }
+
+        Invitation inv = repository.findByInviteeEmailAndEventId(decoded.inviteeEmail(), decoded.eventId())
+                .orElseThrow(() -> new IllegalArgumentException("Invitation not found"));
+
+        Instant now = Instant.now(clock);
+        if (inv.getStatus() != Invitation.Status.invited) {
+            throw new IllegalArgumentException("Invitation is not actionable");
+        }
+        if (inv.getEventEndAt() == null || !now.isBefore(inv.getEventEndAt())) {
+            throw new IllegalArgumentException("Invitation has expired");
+        }
+        return inv;
     }
 
     public Invitation acceptFromEmail(String inviteeEmail, String eventId) {

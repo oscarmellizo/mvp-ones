@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 
 import com.ones.api.application.invitations.InvitationsService;
 import com.ones.api.application.invitations.ports.InvitationsRepository;
+import com.ones.api.application.invitations.email.InvitationActionTokenService;
 import com.ones.api.application.invitations.email.InvitationEmailService;
 import com.ones.api.application.events.CreateEventUseCase;
 import com.ones.api.application.events.EventCoversService;
@@ -102,7 +103,11 @@ public class ApplicationConfig {
     }
 
     @Bean
-    InvitationsService invitationsService(InvitationsRepository invitationsRepository, Clock clock) {
-        return new InvitationsService(invitationsRepository, clock);
+    InvitationsService invitationsService(
+            InvitationsRepository invitationsRepository,
+            Clock clock,
+            InvitationActionTokenService tokenService
+    ) {
+        return new InvitationsService(invitationsRepository, clock, tokenService);
     }
 }

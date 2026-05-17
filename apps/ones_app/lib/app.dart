@@ -48,6 +48,7 @@ import 'features/events/presentation/pages/home_shell_page.dart';
 import 'features/events/presentation/pages/events_list_page.dart';
 import 'features/events/presentation/pages/create_event_page.dart';
 import 'features/auth/presentation/pages/login_page.dart';
+import 'features/invitations/presentation/pages/invitation_link_page.dart';
 
 class OnesApp extends StatelessWidget {
   final AppConfig config;
@@ -297,8 +298,21 @@ class OnesApp extends StatelessWidget {
           if (name == null || name.isEmpty) return null;
 
           final uri = Uri.parse(name);
+          if (uri.path == InvitationLinkPage.routeName) {
+            final token = uri.queryParameters['token'];
+            if (token == null || token.trim().isEmpty) {
+              return null;
+            }
+            final action = uri.queryParameters['action'];
+            return MaterialPageRoute(
+              builder: (_) => InvitationLinkPage(
+                token: token,
+                action: action,
+              ),
+            );
+          }
           if (uri.path == EventDetailPage.routeName) {
-            final eventId = (uri.queryParameters['eventId'] as String?) ??
+            final eventId = uri.queryParameters['eventId'] ??
                 (settings.arguments as String?);
             if (eventId == null || eventId.isEmpty) {
               return null;
@@ -325,6 +339,15 @@ class _RootRouter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
+
+    final base = Uri.base;
+    if (auth.isSignedIn && base.path == InvitationLinkPage.routeName) {
+      final token = base.queryParameters['token'];
+      if (token != null && token.trim().isNotEmpty) {
+        final action = base.queryParameters['action'];
+        return InvitationLinkPage(token: token, action: action);
+      }
+    }
 
     if (auth.isLoading && !auth.isSignedIn) {
       return const SplashPage();

@@ -78,9 +78,9 @@ public class InvitationEmailService {
         String acceptToken = tokenService.create(invitation.getEventId(), invitation.getInviteeEmail(), InvitationActionTokenService.Action.accept);
         String rejectToken = tokenService.create(invitation.getEventId(), invitation.getInviteeEmail(), InvitationActionTokenService.Action.reject);
 
-        String acceptUrl = normalizeBase(publicBaseUrl) + "/i/" + acceptToken + "/accept";
-        String rejectUrl = normalizeBase(publicBaseUrl) + "/i/" + rejectToken + "/reject";
-        String viewUrl = normalizeBase(publicBaseUrl) + "/events/detail?eventId=" + invitation.getEventId();
+        String acceptUrl = normalizeBase(publicBaseUrl) + "/invitation?token=" + acceptToken + "&action=accept";
+        String rejectUrl = normalizeBase(publicBaseUrl) + "/invitation?token=" + rejectToken + "&action=reject";
+        String viewUrl = normalizeBase(publicBaseUrl) + "/invitation?token=" + acceptToken;
 
         String subject = "Invitación: " + safe(invitation.getEventTitle());
 

@@ -81,6 +81,30 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /v1/invitations/resolve:
+    get:
+      operationId: resolveInvitation
+      summary: Resolve an invitation token for authenticated user (returns invitation details for modal)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /v1/invitations/{eventId}/accept:
     post:
       operationId: acceptInvitation
