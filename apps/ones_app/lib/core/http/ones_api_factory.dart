@@ -10,18 +10,32 @@ class OnesApiFactory {
 
   OnesApiFactory(this.config);
 
-  void setTokenRefresher(Future<String?> Function()? refresher) {
-    _tokenRefresher = refresher;
-  }
-
-  OnesApiClient create({String? idToken}) {
+  String resolvedBasePath() {
     final rawBase = config.apiBaseUrl.trim();
     final resolvedBase =
         (rawBase.startsWith('http://') || rawBase.startsWith('https://'))
             ? '${rawBase.replaceFirst(RegExp(r"/+\$"), '')}/api'
             : rawBase;
+    return resolvedBase;
+  }
 
-    final client = OnesApiClient(basePathOverride: resolvedBase);
+  Dio createBaseDio() {
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: resolvedBasePath(),
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 60),
+      ),
+    );
+    return dio;
+  }
+
+  void setTokenRefresher(Future<String?> Function()? refresher) {
+    _tokenRefresher = refresher;
+  }
+
+  OnesApiClient create({String? idToken}) {
+    final client = OnesApiClient(basePathOverride: resolvedBasePath());
 
     client.dio.options = client.dio.options.copyWith(
       connectTimeout: const Duration(seconds: 15),

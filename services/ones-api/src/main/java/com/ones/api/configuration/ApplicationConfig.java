@@ -1,10 +1,19 @@
 package com.ones.api.configuration;
 
 import java.time.Clock;
+import java.time.Duration;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import io.micrometer.core.instrument.MeterRegistry;
 
+import com.ones.api.application.auth.AccessTokenService;
+import com.ones.api.application.auth.AuthService;
+import com.ones.api.application.auth.RefreshTokenService;
+import com.ones.api.application.auth.RefreshTokensRepository;
 import com.ones.api.application.invitations.InvitationsService;
 import com.ones.api.application.invitations.ports.InvitationsRepository;
 import com.ones.api.application.invitations.email.InvitationActionTokenService;
@@ -30,6 +39,42 @@ public class ApplicationConfig {
     @Bean
     Clock clock() {
         return Clock.systemUTC();
+    }
+
+    @Bean
+    AccessTokenService accessTokenService(JwtEncoder jwtEncoder, OnesJwtProperties jwtProperties, Clock clock) {
+        return new AccessTokenService(jwtEncoder, jwtProperties, clock);
+    }
+
+    @Bean
+    RefreshTokenService refreshTokenService(
+            Clock clock,
+            @Value("${ones.auth.refresh-ttl-days:365}") long refreshTtlDays
+    ) {
+        return new RefreshTokenService(clock, Duration.ofDays(refreshTtlDays));
+    }
+
+    @Bean
+    AuthService authService(
+            JwtDecoder googleIdTokenDecoder,
+            EnsureUserUseCase ensureUserUseCase,
+            AccessTokenService accessTokenService,
+            RefreshTokenService refreshTokenService,
+            RefreshTokensRepository refreshTokensRepository,
+            Clock clock,
+            @Value("${ones.auth.refresh-ttl-days:365}") long refreshTtlDays,
+            MeterRegistry meterRegistry
+    ) {
+        return new AuthService(
+                googleIdTokenDecoder,
+                ensureUserUseCase,
+                accessTokenService,
+                refreshTokenService,
+                refreshTokensRepository,
+                clock,
+                Duration.ofDays(refreshTtlDays),
+                meterRegistry
+        );
     }
 
     @Bean

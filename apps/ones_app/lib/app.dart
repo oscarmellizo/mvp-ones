@@ -49,6 +49,10 @@ import 'features/events/presentation/pages/events_list_page.dart';
 import 'features/events/presentation/pages/create_event_page.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/invitations/presentation/pages/invitation_link_page.dart';
+import 'features/auth/infrastructure/device_id_service.dart';
+import 'features/auth/infrastructure/ones_auth_api.dart';
+import 'features/auth/infrastructure/secure_storage.dart';
+import 'features/auth/infrastructure/session_storage.dart';
 
 class OnesApp extends StatelessWidget {
   final AppConfig config;
@@ -58,6 +62,11 @@ class OnesApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final apiFactory = OnesApiFactory(config);
+
+    final secureStorage = SecureStorage();
+    final deviceIdService = DeviceIdService(secureStorage);
+    final sessionStorage = SessionStorage(secureStorage);
+    final authApi = OnesAuthApi(apiFactory.createBaseDio());
 
     final authRepository =
         GoogleAuthRepository(webClientId: config.googleWebClientId);
@@ -104,16 +113,27 @@ class OnesApp extends StatelessWidget {
         Provider.value(value: config),
         Provider<EventsRepository>.value(value: eventsRepository),
         ChangeNotifierProvider(
-          create: (_) => AuthController(
-            signInWithGoogle: signInWithGoogle,
-            signOut: signOut,
-            getIdToken: getIdToken,
-            ensureUser: ensureUser,
-            getPreferredName: getPreferredName,
-            updatePreferredName: updatePreferredName,
-            lookupUserByEmailUseCase: lookupUserByEmail,
-            getAdminMe: getAdminMe,
-          ),
+          create: (_) {
+            final controller = AuthController(
+              signInWithGoogle: signInWithGoogle,
+              signOut: signOut,
+              getIdToken: getIdToken,
+              ensureUser: ensureUser,
+              getPreferredName: getPreferredName,
+              updatePreferredName: updatePreferredName,
+              lookupUserByEmailUseCase: lookupUserByEmail,
+              getAdminMe: getAdminMe,
+              onesAuthApi: authApi,
+              deviceIdService: deviceIdService,
+              sessionStorage: sessionStorage,
+            );
+
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              controller.loadFromStorage();
+            });
+
+            return controller;
+          },
         ),
         ProxyProvider<AuthController, EventTemplatesApiRepository>(
           update: (_, auth, __) {
@@ -334,12 +354,58 @@ class OnesApp extends StatelessWidget {
   }
 }
 
-class _RootRouter extends StatelessWidget {
+class _RootRouter extends StatefulWidget {
   const _RootRouter();
+
+  @override
+  State<_RootRouter> createState() => _RootRouterState();
+}
+
+class _RootRouterState extends State<_RootRouter> {
+  int _lastSessionExpiredSeq = 0;
+  bool _showingExpiredDialog = false;
+
+  Future<void> _handleSessionExpired(AuthController auth) async {
+    if (_showingExpiredDialog) return;
+    _showingExpiredDialog = true;
+
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Sesión expirada'),
+          content: const Text('Tu sesión expiró. Inicia sesión de nuevo.'),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await auth.logout();
+                if (!ctx.mounted) return;
+                Navigator.of(ctx).pop();
+              },
+              child: const Text('Iniciar sesión'),
+            ),
+          ],
+        );
+      },
+    );
+
+    _showingExpiredDialog = false;
+  }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
+
+    final seq = auth.sessionExpiredSeq;
+    if (seq != _lastSessionExpiredSeq) {
+      _lastSessionExpiredSeq = seq;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleSessionExpired(auth);
+      });
+    }
 
     final base = Uri.base;
     if (auth.isSignedIn && base.path == InvitationLinkPage.routeName) {
