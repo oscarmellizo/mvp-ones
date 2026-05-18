@@ -15,7 +15,13 @@ class OnesApiFactory {
   }
 
   OnesApiClient create({String? idToken}) {
-    final client = OnesApiClient(basePathOverride: config.apiBaseUrl);
+    final rawBase = config.apiBaseUrl.trim();
+    final resolvedBase =
+        (rawBase.startsWith('http://') || rawBase.startsWith('https://'))
+            ? '${rawBase.replaceFirst(RegExp(r"/+\$"), '')}/api'
+            : rawBase;
+
+    final client = OnesApiClient(basePathOverride: resolvedBase);
 
     client.dio.options = client.dio.options.copyWith(
       connectTimeout: const Duration(seconds: 15),
