@@ -24,6 +24,11 @@ class OnesTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: OnesColors.background,
       fontFamilyFallback: OnesTypography.bodyFallbacks,
+      dialogTheme: const DialogTheme(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.zero,
+        ),
+      ),
     );
 
     final textTheme = base.textTheme.copyWith(

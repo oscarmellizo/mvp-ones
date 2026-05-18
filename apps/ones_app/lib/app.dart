@@ -328,6 +328,7 @@ class OnesApp extends StatelessWidget {
           }
           return null;
         },
+        debugShowCheckedModeBanner: false,
       ),
     );
   }

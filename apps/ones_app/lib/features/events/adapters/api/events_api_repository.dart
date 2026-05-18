@@ -45,10 +45,35 @@ class EventsApiRepository implements EventsRepository {
   @override
   Future<Event> getEvent(String id) async {
     final dio = _apiFactory.create(idToken: _idToken).dio;
-    final res = await dio.get('/v1/events/$id');
+    final res = await dio.get(
+      '/v1/events/$id',
+      options: Options(
+        extra: {
+          'secure': [
+            {
+              'type': 'http',
+              'scheme': 'bearer',
+              'name': 'bearerAuth',
+            }
+          ],
+        },
+      ),
+    );
     final data = res.data;
     if (data is! Map<String, dynamic>) {
-      throw StateError('Invalid get event response');
+      final ct = res.headers.value('content-type');
+      final status = res.statusCode;
+      String preview = '';
+      if (data is String) {
+        preview = data.length > 280 ? data.substring(0, 280) : data;
+      } else if (data != null) {
+        preview = data.toString();
+        preview = preview.length > 280 ? preview.substring(0, 280) : preview;
+      }
+
+      throw StateError(
+        'Invalid get event response (status=$status content-type=$ct body=$preview)',
+      );
     }
     return _mapEventJson(data);
   }

@@ -140,8 +140,19 @@ public class InvitationEmailService {
         String where = inv.getEventLocation() != null ? escapeHtml(inv.getEventLocation()) : "";
 
         String logoBlock = "";
-        if (logoUrl != null && !logoUrl.isBlank()) {
-            logoBlock = "<div style=\"margin-bottom:10px\"><img src=\"" + escapeHtml(logoUrl.trim()) + "\" alt=\"Ones\" width=\"48\" height=\"48\" style=\"display:block;border-radius:12px;background:#FFFFFF\"/></div>";
+        String resolvedLogoUrl = (logoUrl != null && !logoUrl.isBlank()) ? logoUrl.trim() : null;
+        if (resolvedLogoUrl == null || resolvedLogoUrl.isBlank()) {
+            String base = publicBaseUrl != null ? publicBaseUrl.trim() : "";
+            if (!base.isBlank()) {
+                while (base.endsWith("/")) {
+                    base = base.substring(0, base.length() - 1);
+                }
+                resolvedLogoUrl = base + "/assets/assets/branding/ones-logo.png";
+            }
+        }
+
+        if (resolvedLogoUrl != null && !resolvedLogoUrl.isBlank()) {
+            logoBlock = "<div style=\"margin-bottom:10px\"><img src=\"" + escapeHtml(resolvedLogoUrl) + "\" alt=\"Ones\" width=\"48\" height=\"48\" style=\"display:block;border-radius:12px;background:#FFFFFF\"/></div>";
         }
 
         String whereBlock = where.isBlank() ? "" : ("<div style=\"margin-top:6px;color:#374151;font-size:14px\"><b>Dónde:</b> " + where + "</div>");
