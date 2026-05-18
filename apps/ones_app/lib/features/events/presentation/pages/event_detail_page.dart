@@ -652,6 +652,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                         }
 
                         return InkWell(
+                          key: ValueKey(photoId),
                           onLongPress: canSelect ? toggleSelected : null,
                           onTap: () {
                             if (_selecting) {

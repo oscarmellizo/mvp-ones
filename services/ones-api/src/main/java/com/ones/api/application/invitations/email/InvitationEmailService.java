@@ -54,6 +54,14 @@ public class InvitationEmailService {
         this.logoUrl = logoUrl;
         this.enabled = enabled;
 
+        log.info(
+                "[InvitationEmailService] enabled={} from='{}' publicBaseUrl='{}' logoUrl='{}'",
+                enabled,
+                fromAddress,
+                publicBaseUrl,
+                logoUrl
+        );
+
         this.sentCounter = Counter.builder("ones.email.invitation.sent").register(meterRegistry);
         this.failedCounter = Counter.builder("ones.email.invitation.failed").register(meterRegistry);
     }
@@ -139,7 +147,7 @@ public class InvitationEmailService {
         String whereBlock = where.isBlank() ? "" : ("<div style=\"margin-top:6px;color:#374151;font-size:14px\"><b>Dónde:</b> " + where + "</div>");
 
         return "<!doctype html>"
-                + "<html><head><meta charset=\"utf-8\"></head><body style=\"margin:0;padding:0;background:#FAB14E;font-family:Arial,sans-serif\">"
+                + "<html data-ones-template=\"invitation-v2\"><head><meta charset=\"utf-8\"></head><body style=\"margin:0;padding:0;background:#FAB14E;font-family:Arial,sans-serif\">"
                 + "<div style=\"max-width:600px;margin:0 auto;padding:24px\">"
                 + "<div style=\"background:#4A036E;color:#fff;padding:18px 20px;border-radius:12px\">"
                 + logoBlock

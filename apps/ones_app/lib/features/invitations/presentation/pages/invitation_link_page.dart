@@ -137,22 +137,22 @@ class _InvitationLinkPageState extends State<InvitationLinkPage> {
 
         return AlertDialog(
           backgroundColor: OnesColors.white,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.zero,
+          ),
           titlePadding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
           contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (coverUrl != null && coverUrl.trim().isNotEmpty) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: AspectRatio(
-                    aspectRatio: 16 / 9,
-                    child: Image.network(
-                      coverUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: OnesColors.black.withOpacity(0.06),
-                      ),
+                AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Image.network(
+                    coverUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: OnesColors.black.withOpacity(0.06),
                     ),
                   ),
                 ),
