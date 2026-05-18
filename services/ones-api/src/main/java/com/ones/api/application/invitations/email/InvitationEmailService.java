@@ -133,15 +133,15 @@ public class InvitationEmailService {
 
         String logoBlock = "";
         if (logoUrl != null && !logoUrl.isBlank()) {
-            logoBlock = "<div style=\"margin-bottom:10px\"><img src=\"" + escapeHtml(logoUrl.trim()) + "\" alt=\"Ones\" width=\"48\" height=\"48\" style=\"display:block;border-radius:12px\"/></div>";
+            logoBlock = "<div style=\"margin-bottom:10px\"><img src=\"" + escapeHtml(logoUrl.trim()) + "\" alt=\"Ones\" width=\"48\" height=\"48\" style=\"display:block;border-radius:12px;background:#FFFFFF\"/></div>";
         }
 
         String whereBlock = where.isBlank() ? "" : ("<div style=\"margin-top:6px;color:#374151;font-size:14px\"><b>Dónde:</b> " + where + "</div>");
 
         return "<!doctype html>"
-                + "<html><head><meta charset=\"utf-8\"></head><body style=\"margin:0;padding:0;background:#f3f4f6;font-family:Arial,sans-serif\">"
+                + "<html><head><meta charset=\"utf-8\"></head><body style=\"margin:0;padding:0;background:#FAB14E;font-family:Arial,sans-serif\">"
                 + "<div style=\"max-width:600px;margin:0 auto;padding:24px\">"
-                + "<div style=\"background:#111827;color:#fff;padding:18px 20px;border-radius:12px\">"
+                + "<div style=\"background:#4A036E;color:#fff;padding:18px 20px;border-radius:12px\">"
                 + logoBlock
                 + "<div style=\"font-size:14px;opacity:0.9\">Ones Events</div>"
                 + "<div style=\"font-size:20px;font-weight:700;margin-top:6px\">Invitación a: " + title + "</div>"
@@ -151,13 +151,13 @@ public class InvitationEmailService {
                 + "<div style=\"margin-top:10px;color:#374151;font-size:14px\"><b>Cuándo:</b> " + escapeHtml(when) + " UTC</div>"
                 + whereBlock
                 + "<div style=\"margin-top:16px\">"
-                + button("Ver evento", viewUrl, "#2563eb")
+                + button("Ver evento", viewUrl, "#5C036E")
                 + "</div>"
                 + "<div style=\"margin-top:14px\">"
-                + button("Aceptar", acceptUrl, "#16a34a")
+                + button("Aceptar", acceptUrl, "#4A036E")
                 + "</div>"
                 + "<div style=\"margin-top:10px\">"
-                + button("Rechazar", rejectUrl, "#dc2626")
+                + button("Rechazar", rejectUrl, "#E25555")
                 + "</div>"
                 + "<div style=\"margin-top:16px;color:#6b7280;font-size:12px\">Si no esperabas esta invitación, puedes ignorar este correo.</div>"
                 + "</div>"
