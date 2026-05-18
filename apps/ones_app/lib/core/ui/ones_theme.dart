@@ -24,7 +24,7 @@ class OnesTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: OnesColors.background,
       fontFamilyFallback: OnesTypography.bodyFallbacks,
-      dialogTheme: const DialogTheme(
+      dialogTheme: const DialogThemeData(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.zero,
         ),
