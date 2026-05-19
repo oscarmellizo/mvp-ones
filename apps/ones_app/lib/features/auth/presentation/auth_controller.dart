@@ -125,7 +125,21 @@ class AuthController extends ChangeNotifier {
         }
       }
     } catch (e) {
-      _error = e;
+      if (e is DioException) {
+        final status = e.response?.statusCode;
+        final data = e.response?.data;
+        if (data is Map) {
+          final code = data['code'];
+          final msg = data['message'];
+          _error = 'HTTP $status ${code ?? ''} ${msg ?? ''}'.trim();
+        } else if (data is String && data.trim().isNotEmpty) {
+          _error = 'HTTP $status ${data.trim()}'.trim();
+        } else {
+          _error = 'HTTP $status ${e.message ?? 'Request failed'}'.trim();
+        }
+      } else {
+        _error = e;
+      }
       _user = null;
       _idToken = null;
       _refreshToken = null;
