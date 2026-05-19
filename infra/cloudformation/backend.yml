@@ -163,33 +163,6 @@ Resources:
         AttributeName: expiresAt
         Enabled: true
 
-  RefreshTokensTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Sub ${StackPrefix}-${Environment}-refresh-tokens
-      BillingMode: PAY_PER_REQUEST
-      Tags:
-        - Key: Environment
-          Value: !Ref Environment
-      AttributeDefinitions:
-        - AttributeName: tokenHash
-          AttributeType: S
-        - AttributeName: userId
-          AttributeType: S
-      KeySchema:
-        - AttributeName: tokenHash
-          KeyType: HASH
-      GlobalSecondaryIndexes:
-        - IndexName: byUserId
-          KeySchema:
-            - AttributeName: userId
-              KeyType: HASH
-          Projection:
-            ProjectionType: ALL
-      TimeToLiveSpecification:
-        AttributeName: expiresAt
-        Enabled: true
-
   CoverPreviewsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -923,8 +896,6 @@ Resources:
                   - dynamodb:PutItem
                   - dynamodb:GetItem
                   - dynamodb:BatchGetItem
-                  - dynamodb:TransactWriteItems
-                  - dynamodb:UpdateItem
                   - dynamodb:Query
                   - dynamodb:Scan
                   - dynamodb:DescribeTable
@@ -935,7 +906,6 @@ Resources:
                   - !GetAtt UsersTable.Arn
                   - !GetAtt InvitationsTable.Arn
                   - !Sub ${InvitationsTable.Arn}/index/*
-                  - !GetAtt RefreshTokensTable.Arn
                   - !GetAtt CoverPreviewsTable.Arn
                   - !GetAtt CoverReservationsTable.Arn
                   - !GetAtt PhotosTable.Arn
@@ -1079,8 +1049,6 @@ Resources:
               Value: !Ref UsersTable
             - Name: ONES_INVITATIONS_TABLE
               Value: !Ref InvitationsTable
-            - Name: ONES_REFRESH_TOKENS_TABLE
-              Value: !Ref RefreshTokensTable
             - Name: ONES_COVER_PREVIEWS_TABLE
               Value: !Ref CoverPreviewsTable
             - Name: ONES_COVER_RESERVATIONS_TABLE

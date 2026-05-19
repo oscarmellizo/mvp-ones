@@ -49,8 +49,6 @@ dependencies:
   image: ^4.2.0
   share_plus: ^10.0.2
 
-  flutter_secure_storage: ^9.2.2
-
   ones_api_client:
     path: ../../packages/ones_api_client
 

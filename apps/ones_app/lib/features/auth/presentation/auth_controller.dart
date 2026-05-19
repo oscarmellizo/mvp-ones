@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
-import 'package:dio/dio.dart';
 
 import '../application/get_id_token_use_case.dart';
 import '../application/sign_in_with_google_use_case.dart';
@@ -9,9 +8,6 @@ import '../domain/auth_user.dart';
 import '../../users/application/ensure_user_use_case.dart';
 import '../../users/domain/users_repository.dart';
 import '../../admin/application/get_admin_me_use_case.dart';
-import '../infrastructure/device_id_service.dart';
-import '../infrastructure/ones_auth_api.dart';
-import '../infrastructure/session_storage.dart';
 
 class AuthController extends ChangeNotifier {
   final SignInWithGoogleUseCase signInWithGoogle;
@@ -23,21 +19,12 @@ class AuthController extends ChangeNotifier {
   final LookupUserByEmailUseCase lookupUserByEmailUseCase;
   final GetAdminMeUseCase getAdminMe;
 
-  final OnesAuthApi onesAuthApi;
-  final DeviceIdService deviceIdService;
-  final SessionStorage sessionStorage;
-
   AuthUser? _user;
   String? _idToken;
-  String? _refreshToken;
   String? _preferredName;
   bool _isAdmin = false;
   bool _isLoading = false;
   Object? _error;
-
-  Future<String?>? _refreshInFlight;
-
-  int _sessionExpiredSeq = 0;
 
   AuthController({
     required this.signInWithGoogle,
@@ -48,58 +35,27 @@ class AuthController extends ChangeNotifier {
     required this.updatePreferredName,
     required this.lookupUserByEmailUseCase,
     required this.getAdminMe,
-    required this.onesAuthApi,
-    required this.deviceIdService,
-    required this.sessionStorage,
   });
 
   AuthUser? get user => _user;
   String? get idToken => _idToken;
   String? get preferredName => _preferredName;
   bool get isAdmin => _isAdmin;
-  bool get isSignedIn => _idToken != null && _idToken!.isNotEmpty;
+  bool get isSignedIn => _user != null;
   bool get isLoading => _isLoading;
   Object? get error => _error;
-  int get sessionExpiredSeq => _sessionExpiredSeq;
-
-  Future<void> loadFromStorage() async {
-    final access = await sessionStorage.readAccessToken();
-    final refresh = await sessionStorage.readRefreshToken();
-
-    if (access != null && access.isNotEmpty) {
-      _idToken = access;
-      _refreshToken = refresh;
-      _isAdmin = await _safeLoadIsAdmin(access);
-      notifyListeners();
-    }
-  }
 
   Future<void> signIn() async {
     _setLoading(true);
     try {
       _error = null;
       _user = await signInWithGoogle.execute();
-      final googleIdToken = await getIdToken.execute();
+      _idToken = await getIdToken.execute();
 
-      if (googleIdToken == null || googleIdToken.isEmpty) {
-        throw StateError('Missing Google idToken');
-      }
-
-      final deviceId = await deviceIdService.getOrCreate();
-      final session = await onesAuthApi.createSession(
-        googleIdToken: googleIdToken,
-        deviceId: deviceId,
-      );
-
-      _idToken = session.accessToken;
-      _refreshToken = session.refreshToken;
-      await sessionStorage.writeTokens(
-        accessToken: session.accessToken,
-        refreshToken: session.refreshToken,
-      );
-
-      final tokenForClaims = googleIdToken;
-      if (_user != null && tokenForClaims.isNotEmpty) {
+      final tokenForClaims = _idToken;
+      if (_user != null &&
+          tokenForClaims != null &&
+          tokenForClaims.isNotEmpty) {
         final picture = _tryGetPictureFromIdToken(tokenForClaims);
         if ((_user?.pictureUrl == null || _user!.pictureUrl!.isEmpty) &&
             picture != null &&
@@ -142,7 +98,6 @@ class AuthController extends ChangeNotifier {
       }
       _user = null;
       _idToken = null;
-      _refreshToken = null;
       _preferredName = null;
       _isAdmin = false;
     } finally {
@@ -173,47 +128,16 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<String?> refreshIdToken() async {
-    final inFlight = _refreshInFlight;
-    if (inFlight != null) {
-      return inFlight;
-    }
-
-    _refreshInFlight = _refreshAccessToken();
     try {
-      return await _refreshInFlight;
-    } finally {
-      _refreshInFlight = null;
-    }
-  }
-
-  Future<String?> _refreshAccessToken() async {
-    try {
-      final refresh = _refreshToken ?? await sessionStorage.readRefreshToken();
-      if (refresh == null || refresh.isEmpty) {
-        return null;
-      }
-
-      final deviceId = await deviceIdService.getOrCreate();
-      final session = await onesAuthApi.refresh(
-        refreshToken: refresh,
-        deviceId: deviceId,
-      );
-
-      _idToken = session.accessToken;
-      _refreshToken = session.refreshToken;
-      await sessionStorage.writeTokens(
-        accessToken: session.accessToken,
-        refreshToken: session.refreshToken,
-      );
-
-      _isAdmin = await _safeLoadIsAdmin(session.accessToken);
-      notifyListeners();
-      return session.accessToken;
-    } catch (e) {
-      if (e is DioException && e.response?.statusCode == 401) {
-        _sessionExpiredSeq++;
+      final token = await getIdToken.execute();
+      if (token != null && token.isNotEmpty) {
+        _idToken = token;
+        _isAdmin = await _safeLoadIsAdmin(token);
         notifyListeners();
+        return token;
       }
+      return null;
+    } catch (_) {
       return null;
     }
   }
@@ -222,19 +146,9 @@ class AuthController extends ChangeNotifier {
     _setLoading(true);
     try {
       _error = null;
-      final refresh = _refreshToken ?? await sessionStorage.readRefreshToken();
-      if (refresh != null && refresh.isNotEmpty) {
-        try {
-          await onesAuthApi.logout(refreshToken: refresh);
-        } catch (_) {
-          // ignore
-        }
-      }
-      await sessionStorage.clear();
       await signOut.execute();
       _user = null;
       _idToken = null;
-      _refreshToken = null;
       _preferredName = null;
       _isAdmin = false;
     } catch (e) {

@@ -42,15 +42,8 @@ ones:
       username: ${ONES_INTERNAL_BASIC_USERNAME:}
       password: ${ONES_INTERNAL_BASIC_PASSWORD:}
   auth:
-    refresh-ttl-days: ${ONES_AUTH_REFRESH_TTL_DAYS:365}
     google:
       client-id: ${GOOGLE_CLIENT_ID:}
-    jwt:
-      issuer: ${ONES_AUTH_JWT_ISSUER:ones}
-      key-id: ${ONES_AUTH_JWT_KEY_ID:ones}
-      private-key-secret-name: ${ONES_AUTH_JWT_PRIVATE_KEY_SECRET_NAME:}
-      public-key-secret-name: ${ONES_AUTH_JWT_PUBLIC_KEY_SECRET_NAME:}
-      access-ttl-minutes: ${ONES_AUTH_JWT_ACCESS_TTL_MINUTES:60}
   ai:
     openai:
       api-key-secret-name: ${OPENAI_API_KEY_SECRET_NAME:ones/dev/openai-api-key}
@@ -242,7 +235,6 @@ ones:
     table-name: ${ONES_EVENTS_TABLE:ones-events}
     users-table-name: ${ONES_USERS_TABLE:ones-users}
     invitations-table-name: ${ONES_INVITATIONS_TABLE:ones-${ONES_ENV:dev}-event-invitations}
-    refresh-tokens-table-name: ${ONES_REFRESH_TOKENS_TABLE:ones-${ONES_ENV:dev}-refresh-tokens}
     cover-previews-table-name: ${ONES_COVER_PREVIEWS_TABLE:ones-cover-previews}
     cover-reservations-table-name: ${ONES_COVER_RESERVATIONS_TABLE:ones-cover-reservations}
     photos-table-name: ${ONES_PHOTOS_TABLE:ones-photos}

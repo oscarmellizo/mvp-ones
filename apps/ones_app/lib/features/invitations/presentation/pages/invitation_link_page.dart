@@ -69,14 +69,14 @@ class _InvitationLinkPageState extends State<InvitationLinkPage> {
       Event? event;
       String? coverUrl;
       try {
-        final events = context.read<EventsController>();
-        final covers = context.read<EventCoverUrlsController>();
-
-        event = await events.getEvent.execute(inv.eventId);
-        coverUrl = await covers.getUrlIfAny(
-          eventId: event.id,
-          coverKey: event.coverKey,
-        );
+        event = await context
+            .read<EventsController>()
+            .getEvent
+            .execute(inv.eventId);
+        coverUrl = await context.read<EventCoverUrlsController>().getUrlIfAny(
+              eventId: event.id,
+              coverKey: event.coverKey,
+            );
       } catch (_) {
         // ignore
       }

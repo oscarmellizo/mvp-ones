@@ -13,10 +13,12 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
@@ -106,7 +108,7 @@ public class SecurityConfig {
     @Order(3)
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            @Qualifier("onesJwtDecoder") JwtDecoder onesJwtDecoder,
+            JwtDecoder jwtDecoder,
             JwtAuthenticationConverter jwtAuthenticationConverter,
             AdminAccessService adminAccessService
     ) throws Exception {
@@ -128,7 +130,6 @@ public class SecurityConfig {
                                 "/actuator/info",
                                 "/p/**",
                                 "/i/**",
-                                "/v1/auth/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
@@ -139,12 +140,25 @@ public class SecurityConfig {
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt
-                                .decoder(onesJwtDecoder)
+                                .decoder(jwtDecoder)
                                 .jwtAuthenticationConverter(jwtAuthenticationConverter)
                         )
                 );
 
         return http.build();
+    }
+
+    @Bean
+    JwtDecoder jwtDecoder(
+            @Value("${ones.auth.google.client-id:}") String googleClientId
+    ) {
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri("https://www.googleapis.com/oauth2/v3/certs").build();
+
+        OAuth2TokenValidator<Jwt> issuerValidator = JwtValidators.createDefaultWithIssuer("https://accounts.google.com");
+        OAuth2TokenValidator<Jwt> audienceValidator = new GoogleAudienceValidator(googleClientId);
+
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidatorWithAll<>(issuerValidator, audienceValidator));
+        return decoder;
     }
 
     @Bean
