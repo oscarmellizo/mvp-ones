@@ -63,7 +63,7 @@ public class OnesJwtConfig {
         return new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(jwk)));
     }
 
-    @Bean
+    @Bean("onesJwtDecoder")
     JwtDecoder onesJwtDecoder(SecretsProvider secretsProvider, OnesJwtProperties props) {
         KeyPair pair = resolveKeyPair(secretsProvider, props);
         RSAPublicKey publicKey = (RSAPublicKey) pair.getPublic();

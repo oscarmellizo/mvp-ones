@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.beans.factory.annotation.Qualifier;
 import io.micrometer.core.instrument.MeterRegistry;
 
 import com.ones.api.application.auth.AccessTokenService;
@@ -56,7 +57,7 @@ public class ApplicationConfig {
 
     @Bean
     AuthService authService(
-            JwtDecoder googleIdTokenDecoder,
+            @Qualifier("googleIdTokenDecoder") JwtDecoder googleIdTokenDecoder,
             EnsureUserUseCase ensureUserUseCase,
             AccessTokenService accessTokenService,
             RefreshTokenService refreshTokenService,

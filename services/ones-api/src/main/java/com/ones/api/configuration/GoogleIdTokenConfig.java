@@ -12,7 +12,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 @Configuration
 public class GoogleIdTokenConfig {
 
-    @Bean
+    @Bean("googleIdTokenDecoder")
     JwtDecoder googleIdTokenDecoder(
             @Value("${ones.auth.google.client-id:}") String googleClientId
     ) {
