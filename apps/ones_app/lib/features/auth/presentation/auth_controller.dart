@@ -9,7 +9,6 @@ import '../domain/auth_user.dart';
 import '../../users/application/ensure_user_use_case.dart';
 import '../../users/domain/users_repository.dart';
 import '../../admin/application/get_admin_me_use_case.dart';
-import '../infrastructure/secure_storage.dart';
 import '../infrastructure/google_token_refresh_service.dart';
 
 class AuthController extends ChangeNotifier {
@@ -21,7 +20,6 @@ class AuthController extends ChangeNotifier {
   final UpdatePreferredNameUseCase updatePreferredName;
   final LookupUserByEmailUseCase lookupUserByEmailUseCase;
   final GetAdminMeUseCase getAdminMe;
-  final SecureStorage secureStorage;
   final GoogleTokenRefreshService tokenRefreshService;
 
   AuthUser? _user;
@@ -40,7 +38,6 @@ class AuthController extends ChangeNotifier {
     required this.updatePreferredName,
     required this.lookupUserByEmailUseCase,
     required this.getAdminMe,
-    required this.secureStorage,
     required this.tokenRefreshService,
   });
 
@@ -58,12 +55,6 @@ class AuthController extends ChangeNotifier {
       _error = null;
       _user = await signInWithGoogle.execute();
       _idToken = await getIdToken.execute();
-
-      // Save refresh token
-      final refreshToken = await tokenRefreshService.refreshIdToken();
-      if (refreshToken != null && refreshToken.isNotEmpty) {
-        await secureStorage.saveRefreshToken(refreshToken);
-      }
 
       final tokenForClaims = _idToken;
       if (_user != null &&
@@ -160,7 +151,6 @@ class AuthController extends ChangeNotifier {
     try {
       _error = null;
       await signOut.execute();
-      await secureStorage.deleteRefreshToken();
       _user = null;
       _idToken = null;
       _preferredName = null;

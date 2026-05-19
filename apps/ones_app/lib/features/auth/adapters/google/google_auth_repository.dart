@@ -15,7 +15,7 @@ class GoogleAuthRepository implements AuthRepository {
     return _googleSignIn ??= GoogleSignIn(
       clientId: kIsWeb ? webClientId : null,
       serverClientId: kIsWeb ? null : webClientId,
-      scopes: const ['email', 'profile', 'openid', 'offline_access'],
+      scopes: const ['email', 'profile', 'openid'],
     );
   }
 
@@ -73,15 +73,5 @@ class GoogleAuthRepository implements AuthRepository {
     }
     final auth = await account.authentication;
     return auth.idToken;
-  }
-
-  @override
-  Future<String?> getRefreshToken() async {
-    final account = _signIn.currentUser;
-    if (account == null) {
-      return null;
-    }
-    final auth = await account.authentication;
-    return auth.serverAuthCode;
   }
 }
