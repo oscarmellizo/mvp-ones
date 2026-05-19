@@ -124,6 +124,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/health",
+                                "/actuator/health",
+                                "/actuator/info",
                                 "/p/**",
                                 "/i/**",
                                 "/v1/auth/**",
