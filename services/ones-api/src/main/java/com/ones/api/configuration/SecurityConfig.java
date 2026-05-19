@@ -16,6 +16,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
@@ -105,7 +106,7 @@ public class SecurityConfig {
     @Order(3)
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            JwtDecoder onesJwtDecoder,
+            @Qualifier("onesJwtDecoder") JwtDecoder onesJwtDecoder,
             JwtAuthenticationConverter jwtAuthenticationConverter,
             AdminAccessService adminAccessService
     ) throws Exception {
