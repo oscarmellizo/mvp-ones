@@ -9,6 +9,8 @@ import 'features/auth/adapters/google/google_auth_repository.dart';
 import 'features/auth/application/get_id_token_use_case.dart';
 import 'features/auth/application/sign_in_with_google_use_case.dart';
 import 'features/auth/application/sign_out_use_case.dart';
+import 'features/auth/infrastructure/secure_storage.dart';
+import 'features/auth/infrastructure/google_token_refresh_service.dart';
 import 'features/auth/presentation/auth_controller.dart';
 import 'features/admin/adapters/api/admin_api_repository.dart';
 import 'features/admin/adapters/api/admin_admins_api_repository.dart';
@@ -62,6 +64,12 @@ class OnesApp extends StatelessWidget {
     final authRepository =
         GoogleAuthRepository(webClientId: config.googleWebClientId);
 
+    final secureStorage = SecureStorage();
+    final tokenRefreshService = GoogleTokenRefreshService(
+      webClientId: config.googleWebClientId,
+      secureStorage: secureStorage,
+    );
+
     final signInWithGoogle = SignInWithGoogleUseCase(authRepository);
     final signOut = SignOutUseCase(authRepository);
     final getIdToken = GetIdTokenUseCase(authRepository);
@@ -113,6 +121,8 @@ class OnesApp extends StatelessWidget {
             updatePreferredName: updatePreferredName,
             lookupUserByEmailUseCase: lookupUserByEmail,
             getAdminMe: getAdminMe,
+            secureStorage: secureStorage,
+            tokenRefreshService: tokenRefreshService,
           ),
         ),
         ProxyProvider<AuthController, EventTemplatesApiRepository>(

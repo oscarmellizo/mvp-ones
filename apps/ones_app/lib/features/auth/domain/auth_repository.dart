@@ -6,4 +6,6 @@ abstract interface class AuthRepository {
   Future<void> signOut();
 
   Future<String?> getIdToken();
+
+  Future<String?> getRefreshToken();
 }
