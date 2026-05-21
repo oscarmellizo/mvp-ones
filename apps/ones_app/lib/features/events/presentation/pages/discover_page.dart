@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:dio/dio.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/ui/ones_colors.dart';
@@ -17,6 +19,23 @@ class DiscoverPage extends StatefulWidget {
 
 class _DiscoverPageState extends State<DiscoverPage> {
   final _searchController = TextEditingController();
+
+  String _formatError(Object error) {
+    if (error is DioException) {
+      final status = error.response?.statusCode;
+      final data = error.response?.data;
+      if (data is Map) {
+        final code = data['code'] ?? data['error'];
+        final msg = data['message'];
+        return 'HTTP $status ${code ?? ''} ${msg ?? ''}'.trim();
+      }
+      if (data is String && data.trim().isNotEmpty) {
+        return 'HTTP $status ${data.trim()}'.trim();
+      }
+      return 'HTTP $status ${error.message ?? 'Request failed'}'.trim();
+    }
+    return error.toString();
+  }
 
   @override
   void initState() {
@@ -65,11 +84,28 @@ class _DiscoverPageState extends State<DiscoverPage> {
               const Center(child: CircularProgressIndicator())
             else if (ctrl.error != null && items.isEmpty)
               OnesCard(
-                child: Text(
-                  'Failed to load templates. Please try again.',
-                  style: TextStyle(
-                    color: OnesColors.black.withOpacity(0.6),
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Failed to load templates. Please try again.',
+                      style: TextStyle(
+                        color: OnesColors.black.withOpacity(0.6),
+                      ),
+                    ),
+                    if (kDebugMode) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        _formatError(ctrl.error!),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: OnesColors.danger,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               )
             else ...[

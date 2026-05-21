@@ -1,4 +1,5 @@
 import '../../../../core/http/ones_api_factory.dart';
+import 'package:dio/dio.dart';
 
 class TemplateFrame {
   final String frameId;
@@ -98,7 +99,20 @@ class EventTemplatesApiRepository {
 
   Future<List<EventTemplate>> listTemplates() async {
     final dio = _apiFactory.create(idToken: _idToken).dio;
-    final res = await dio.get('/v1/event-templates');
+    final res = await dio.get(
+      '/v1/event-templates',
+      options: Options(
+        extra: {
+          'secure': [
+            {
+              'type': 'http',
+              'scheme': 'bearer',
+              'name': 'bearerAuth',
+            }
+          ],
+        },
+      ),
+    );
     final data = res.data;
     if (data is! List) {
       throw StateError('Invalid event templates response');

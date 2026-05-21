@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:dio/dio.dart';
 import 'package:ones_api_client/ones_api_client.dart' as api;
 
 import '../adapters/api/event_covers_api_repository.dart';
@@ -19,6 +20,23 @@ class EventCoversController extends ChangeNotifier {
 
   api.GenerateEventCoverResponse? get preview => _preview;
   String? get reservationId => _reservationId;
+
+  Object _formatError(Object error) {
+    if (error is DioException) {
+      final status = error.response?.statusCode;
+      final data = error.response?.data;
+      if (data is Map) {
+        final code = data['code'] ?? data['error'];
+        final msg = data['message'];
+        return 'HTTP $status ${code ?? ''} ${msg ?? ''}'.trim();
+      }
+      if (data is String && data.trim().isNotEmpty) {
+        return 'HTTP $status ${data.trim()}'.trim();
+      }
+      return 'HTTP $status ${error.message ?? 'Request failed'}'.trim();
+    }
+    return error;
+  }
 
   void setIdToken(String? token) {
     repository.setIdToken(token);
@@ -42,7 +60,7 @@ class EventCoversController extends ChangeNotifier {
         size: size,
       );
     } catch (e) {
-      _error = e;
+      _error = _formatError(e);
       rethrow;
     } finally {
       _setLoading(false);
@@ -58,7 +76,7 @@ class EventCoversController extends ChangeNotifier {
       _error = null;
       _reservationId = await repository.accept(coverId);
     } catch (e) {
-      _error = e;
+      _error = _formatError(e);
       rethrow;
     } finally {
       _setLoading(false);
@@ -76,7 +94,7 @@ class EventCoversController extends ChangeNotifier {
       _preview = null;
       _reservationId = null;
     } catch (e) {
-      _error = e;
+      _error = _formatError(e);
       rethrow;
     } finally {
       _setLoading(false);
