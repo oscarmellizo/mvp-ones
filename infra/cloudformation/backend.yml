@@ -937,6 +937,7 @@ Resources:
                   - !GetAtt AdminsTable.Arn
                   - !GetAtt FramesTable.Arn
                   - !Sub ${FramesTable.Arn}/index/*
+                  - !GetAtt TranslationsTable.Arn
         - PolicyName: ones-s3
           PolicyDocument:
             Version: '2012-10-17'
