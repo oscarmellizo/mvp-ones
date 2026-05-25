@@ -202,30 +202,11 @@ class _ProfilePageState extends State<ProfilePage> {
                         DropdownMenuItem(value: 'en', child: Text('English')),
                         DropdownMenuItem(value: 'pt', child: Text('Português')),
                       ],
-                      onChanged: (value) async {
+                      onChanged: (value) {
                         if (value != null) {
                           setState(() {
                             _selectedLanguage = value;
                           });
-                          try {
-                            final prefs = await SharedPreferences.getInstance();
-                            await prefs.setString(
-                                'ones.language_preference', value);
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Language preference saved.'),
-                              ),
-                            );
-                          } catch (_) {
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content:
-                                    Text('Could not save language preference.'),
-                              ),
-                            );
-                          }
                         }
                       },
                     ),

@@ -6,6 +6,7 @@ import '../widgets/admin_gate.dart';
 import 'admin_admins_page.dart';
 import 'admin_event_templates_page.dart';
 import 'admin_frames_page.dart';
+import 'admin_translations_page.dart';
 
 class AdminHomePage extends StatelessWidget {
   const AdminHomePage({super.key});
@@ -108,7 +109,7 @@ class AdminHomePage extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Administrators',
+                        'Translations',
                         style: TextStyle(
                             fontWeight: FontWeight.w900, fontSize: 16),
                       ),
@@ -127,12 +128,12 @@ class AdminHomePage extends StatelessWidget {
                           onPressed: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => const AdminAdminsPage(),
+                                builder: (_) => const AdminTranslationsPage(),
                               ),
                             );
                           },
                           child: const Text(
-                            'Manage admins',
+                            'Manage translations',
                             style: TextStyle(fontWeight: FontWeight.w900),
                           ),
                         ),
