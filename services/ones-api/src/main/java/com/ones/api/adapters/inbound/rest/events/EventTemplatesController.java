@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -19,6 +21,8 @@ import com.ones.api.domain.frames.Frame;
 @RestController
 @RequestMapping("/v1/event-templates")
 public class EventTemplatesController {
+
+    private static final Logger log = LoggerFactory.getLogger(EventTemplatesController.class);
 
     private final EventTemplatesManagementService service;
     private final FramesManagementService framesService;
@@ -75,6 +79,8 @@ public class EventTemplatesController {
                 verticalUrl = vertical.url();
             } catch (FrameAssetNotFoundException ignored) {
                 // ignore missing vertical asset
+            } catch (Exception ex) {
+                log.warn("Failed to presign vertical frame asset for frameId={}", frameId, ex);
             }
 
             try {
@@ -83,6 +89,8 @@ public class EventTemplatesController {
                 horizontalUrl = horizontal.url();
             } catch (FrameAssetNotFoundException ignored) {
                 // ignore missing horizontal asset
+            } catch (Exception ex) {
+                log.warn("Failed to presign horizontal frame asset for frameId={}", frameId, ex);
             }
 
             if (verticalUrl == null && horizontalUrl == null) {
@@ -96,6 +104,9 @@ public class EventTemplatesController {
                     horizontalUrl
             );
         } catch (FrameNotFoundException ex) {
+            return null;
+        } catch (Exception ex) {
+            log.warn("Failed to map frameId={} for event templates response", frameId, ex);
             return null;
         }
     }
