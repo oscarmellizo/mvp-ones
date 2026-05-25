@@ -10,6 +10,8 @@ import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
 import 'event_detail_page.dart';
 
+const String _defaultEventCoverAsset = 'assets/branding/ones-logo.png';
+
 class GalleriesPage extends StatefulWidget {
   const GalleriesPage({super.key});
 
@@ -157,9 +159,6 @@ class _GalleriesPageState extends State<GalleriesPage> {
 
                       for (var i = 0; i < dayEvents.length; i++) {
                         final e = dayEvents[i];
-                        final cover = i.isEven
-                            ? 'assets/auth/amigos.png'
-                            : 'assets/auth/concierto.png';
                         final when = e.startAt.toLocal();
                         final end = e.endAt.toLocal();
 
@@ -181,7 +180,7 @@ class _GalleriesPageState extends State<GalleriesPage> {
                                     imageUrl: (url != null && url.isNotEmpty)
                                         ? url
                                         : null,
-                                    fallbackAsset: cover,
+                                    fallbackAsset: _defaultEventCoverAsset,
                                     dateText: null,
                                     timeText:
                                         '${_formatTimeOfDay(when)} - ${_formatTimeOfDay(end)}',
@@ -253,6 +252,20 @@ class _UpcomingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Widget buildFallback() {
+      return ColoredBox(
+        color: OnesColors.white,
+        child: Center(
+          child: Image.asset(
+            fallbackAsset,
+            width: 84,
+            height: 84,
+            fit: BoxFit.contain,
+          ),
+        ),
+      );
+    }
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.zero,
@@ -270,15 +283,9 @@ class _UpcomingCard extends StatelessWidget {
                     ? Image.network(
                         imageUrl!,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Image.asset(
-                          fallbackAsset,
-                          fit: BoxFit.cover,
-                        ),
+                        errorBuilder: (_, __, ___) => buildFallback(),
                       )
-                    : Image.asset(
-                        fallbackAsset,
-                        fit: BoxFit.cover,
-                      ),
+                    : buildFallback(),
               ),
             ),
             Container(

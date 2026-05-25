@@ -11,6 +11,8 @@ import 'event_detail_page.dart';
 import '../../../invitations/presentation/widgets/invitations_sheet.dart';
 import '../../../invitations/presentation/invitations_controller.dart';
 
+const String _defaultEventCoverAsset = 'assets/branding/ones-logo.png';
+
 class EventsListPage extends StatefulWidget {
   static const routeName = '/events';
 
@@ -129,9 +131,6 @@ class _EventsListPageState extends State<EventsListPage> {
                           final isLiveNow = (now.isAfter(start) ||
                                   now.isAtSameMomentAs(start)) &&
                               now.isBefore(end);
-                          final cover = index.isEven
-                              ? 'assets/auth/concierto.png'
-                              : 'assets/auth/amigos.png';
 
                           return FutureBuilder<String?>(
                             future: coverUrls.getUrlIfAny(
@@ -146,7 +145,7 @@ class _EventsListPageState extends State<EventsListPage> {
                                 imageUrl: (url != null && url.isNotEmpty)
                                     ? url
                                     : null,
-                                fallbackAsset: cover,
+                                fallbackAsset: _defaultEventCoverAsset,
                                 dateText: null,
                                 timeText:
                                     '${_formatTimeOfDay(displayStart)} - ${_formatTimeOfDay(displayEnd)}',
@@ -216,9 +215,6 @@ class _EventsListPageState extends State<EventsListPage> {
                         ),
                         itemBuilder: (context, i) {
                           final e = nextEvents[i];
-                          final cover = i.isEven
-                              ? 'assets/auth/amigos.png'
-                              : 'assets/auth/concierto.png';
                           final when = e.startAt.toLocal();
                           final end = e.endAt.toLocal();
 
@@ -235,7 +231,7 @@ class _EventsListPageState extends State<EventsListPage> {
                                 imageUrl: (url != null && url.isNotEmpty)
                                     ? url
                                     : null,
-                                fallbackAsset: cover,
+                                fallbackAsset: _defaultEventCoverAsset,
                                 dateText: _formatMonthDayYear(when),
                                 timeText:
                                     '${_formatTimeOfDay(when)} - ${_formatTimeOfDay(end)}',
@@ -381,6 +377,20 @@ class _UpcomingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Widget buildFallback() {
+      return ColoredBox(
+        color: OnesColors.white,
+        child: Center(
+          child: Image.asset(
+            fallbackAsset,
+            width: 84,
+            height: 84,
+            fit: BoxFit.contain,
+          ),
+        ),
+      );
+    }
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.zero,
@@ -398,15 +408,9 @@ class _UpcomingCard extends StatelessWidget {
                     ? Image.network(
                         imageUrl!,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Image.asset(
-                          fallbackAsset,
-                          fit: BoxFit.cover,
-                        ),
+                        errorBuilder: (_, __, ___) => buildFallback(),
                       )
-                    : Image.asset(
-                        fallbackAsset,
-                        fit: BoxFit.cover,
-                      ),
+                    : buildFallback(),
               ),
             ),
             Container(

@@ -125,6 +125,20 @@ class _InvitationLinkPageState extends State<InvitationLinkPage> {
       context: context,
       barrierDismissible: true,
       builder: (context) {
+        Widget buildCoverFallback() {
+          return ColoredBox(
+            color: OnesColors.white,
+            child: Center(
+              child: Image.asset(
+                'assets/branding/ones-logo.png',
+                width: 64,
+                height: 64,
+                fit: BoxFit.contain,
+              ),
+            ),
+          );
+        }
+
         final subtitle = (inv.eventLocation == null ||
                 inv.eventLocation!.trim().isEmpty)
             ? formatMonthDayYear(startAt)
@@ -145,19 +159,17 @@ class _InvitationLinkPageState extends State<InvitationLinkPage> {
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (coverUrl != null && coverUrl.trim().isNotEmpty) ...[
-                AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: Image.network(
-                    coverUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      color: OnesColors.black.withOpacity(0.06),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
+              AspectRatio(
+                aspectRatio: 16 / 9,
+                child: (coverUrl != null && coverUrl.trim().isNotEmpty)
+                    ? Image.network(
+                        coverUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => buildCoverFallback(),
+                      )
+                    : buildCoverFallback(),
+              ),
+              const SizedBox(height: 12),
               Text(
                 inv.eventTitle,
                 style: const TextStyle(

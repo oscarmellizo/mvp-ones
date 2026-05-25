@@ -25,6 +25,8 @@ import '../../../invitations/presentation/widgets/invitations_sheet.dart';
 import '../../domain/events_repository.dart';
 import '../../adapters/api/frames_api_repository.dart';
 
+const String _defaultEventCoverAsset = 'assets/branding/ones-logo.png';
+
 class EventDetailPage extends StatefulWidget {
   static const routeName = '/events/detail';
 
@@ -1112,6 +1114,20 @@ class _DetailsTabState extends State<_DetailsTab> {
     final coverUrls = context.watch<EventCoverUrlsController>();
     final events = context.watch<EventsController>();
 
+    Widget buildFallbackCover() {
+      return ColoredBox(
+        color: OnesColors.white,
+        child: Center(
+          child: Image.asset(
+            _defaultEventCoverAsset,
+            width: 84,
+            height: 84,
+            fit: BoxFit.contain,
+          ),
+        ),
+      );
+    }
+
     final start = widget.startAt.toLocal();
     final end = widget.endAt.toLocal();
     final canInvite = (widget.isOwner || widget.allowGuestInvites) &&
@@ -1122,30 +1138,31 @@ class _DetailsTabState extends State<_DetailsTab> {
 
     return ListView(
       children: [
-        if (widget.coverKey != null && widget.coverKey!.trim().isNotEmpty) ...[
-          FutureBuilder<String?>(
-            future: coverUrls.getUrlIfAny(
-              eventId: widget.eventId,
-              coverKey: widget.coverKey,
-            ),
-            builder: (context, snapshot) {
-              final url = snapshot.data;
-              if (url == null || url.isEmpty) {
-                return const SizedBox.shrink();
-              }
-
-              return ClipRRect(
-                borderRadius: BorderRadius.zero,
-                child: SizedBox(
-                  height: 160,
-                  width: double.infinity,
-                  child: Image.network(url, fit: BoxFit.cover),
-                ),
-              );
-            },
+        FutureBuilder<String?>(
+          future: coverUrls.getUrlIfAny(
+            eventId: widget.eventId,
+            coverKey: widget.coverKey,
           ),
-          const SizedBox(height: 14),
-        ],
+          builder: (context, snapshot) {
+            final url = snapshot.data;
+
+            return ClipRRect(
+              borderRadius: BorderRadius.zero,
+              child: SizedBox(
+                height: 160,
+                width: double.infinity,
+                child: (url != null && url.isNotEmpty)
+                    ? Image.network(
+                        url,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => buildFallbackCover(),
+                      )
+                    : buildFallbackCover(),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 14),
         EventDetailSectionCard(
           title: 'Event Details',
           trailing: widget.isOwner
