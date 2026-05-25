@@ -48,6 +48,7 @@ class ListEventGuestsUseCaseTest {
                 null,
                 "Owner",
                 "google",
+                null, // languagePreference
                 now,
                 now
         ));
@@ -75,6 +76,7 @@ class ListEventGuestsUseCaseTest {
                 null,
                 "Guest",
                 "google",
+                null, // languagePreference
                 now,
                 now
         ));
