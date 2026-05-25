@@ -1025,6 +1025,7 @@ Resources:
                   - !GetAtt FramesTable.Arn
                   - !Sub ${FramesTable.Arn}/index/*
                   - !GetAtt EventTemplatesTable.Arn
+                  - !Sub ${EventTemplatesTable.Arn}/index/*
         - PolicyName: ones-s3
           PolicyDocument:
             Version: '2012-10-17'
