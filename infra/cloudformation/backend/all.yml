@@ -887,7 +887,7 @@ Resources:
       Protocol: HTTP
       VpcId: !Ref Vpc
       TargetType: ip
-      HealthCheckPath: /actuator/health
+      HealthCheckPath: /health
       Matcher:
         HttpCode: 200
       Tags:

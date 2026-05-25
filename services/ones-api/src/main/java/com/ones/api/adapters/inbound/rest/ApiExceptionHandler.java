@@ -28,6 +28,8 @@ import com.ones.api.application.frames.FrameNotFoundException;
 import com.ones.api.application.invitations.InvitationClosedException;
 import com.ones.api.application.invitations.InvitationNotFoundException;
 
+import software.amazon.awssdk.services.dynamodb.model.DynamoDbException;
+
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
@@ -154,6 +156,14 @@ public class ApiExceptionHandler {
     public ResponseEntity<Map<String, Object>> unauthorized(IllegalStateException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
                 "error", "unauthorized",
+                "message", ex.getMessage()
+        ));
+    }
+
+    @ExceptionHandler(DynamoDbException.class)
+    public ResponseEntity<Map<String, Object>> dynamodb(DynamoDbException ex) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "error", "aws_dynamodb_error",
                 "message", ex.getMessage()
         ));
     }
