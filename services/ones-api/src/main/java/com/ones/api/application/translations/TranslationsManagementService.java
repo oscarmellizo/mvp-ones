@@ -80,8 +80,12 @@ public class TranslationsManagementService {
     }
 
     private String resolveActor(Authentication authentication) {
-        if (authentication != null && authentication.getPrincipal() instanceof AuthClaims claims) {
-            return claims.getName(); // Using getName() instead of email()
+        if (authentication != null) {
+            try {
+                return AuthClaims.requireEmail(authentication);
+            } catch (Exception e) {
+                // Fall back to system if email is not available
+            }
         }
         return "system";
     }
