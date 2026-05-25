@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:camera/camera.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -43,6 +44,23 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
   Object? _framesError;
 
   final Map<String, Uint8List> _frameBytesCache = {};
+
+  Object _formatError(Object error) {
+    if (error is DioException) {
+      final status = error.response?.statusCode;
+      final data = error.response?.data;
+      if (data is Map) {
+        final code = data['code'] ?? data['error'];
+        final msg = data['message'];
+        return 'HTTP $status ${code ?? ''} ${msg ?? ''}'.trim();
+      }
+      if (data is String && data.trim().isNotEmpty) {
+        return 'HTTP $status ${data.trim()}'.trim();
+      }
+      return 'HTTP $status ${error.message ?? 'Request failed'}'.trim();
+    }
+    return error;
+  }
 
   @override
   void initState() {
@@ -128,7 +146,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _framesError = e;
+        _framesError = _formatError(e);
       });
     } finally {
       if (mounted) {
