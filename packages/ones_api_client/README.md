@@ -75,9 +75,12 @@ Class | Method | HTTP request | Description
 [*DefaultApi*](doc/DefaultApi.md) | [**health**](doc/DefaultApi.md#health) | **GET** /health | Health check
 [*DefaultApi*](doc/DefaultApi.md) | [**inviteEventGuests**](doc/DefaultApi.md#inviteeventguests) | **POST** /v1/events/{id}/invitees | Invite new guests to an existing event (owner only)
 [*DefaultApi*](doc/DefaultApi.md) | [**listEventGuests**](doc/DefaultApi.md#listeventguests) | **GET** /v1/events/{id}/guests | List guests for an event (owner + invitees with invitation status)
+[*DefaultApi*](doc/DefaultApi.md) | [**listEventGuestsV2**](doc/DefaultApi.md#listeventguestsv2) | **GET** /v1/events/{id}/guests/v2 | List guests for an event including userId (when available)
+[*DefaultApi*](doc/DefaultApi.md) | [**listEventPhotos**](doc/DefaultApi.md#listeventphotos) | **GET** /v1/events/{eventId}/photos | List event photos (paginated) with optional server-side filtering
 [*DefaultApi*](doc/DefaultApi.md) | [**listEvents**](doc/DefaultApi.md#listevents) | **GET** /v1/events | List events for authenticated user
 [*DefaultApi*](doc/DefaultApi.md) | [**listInvitations**](doc/DefaultApi.md#listinvitations) | **GET** /v1/invitations | List invitations for authenticated user (by email claim)
 [*DefaultApi*](doc/DefaultApi.md) | [**rejectInvitation**](doc/DefaultApi.md#rejectinvitation) | **POST** /v1/invitations/{eventId}/reject | Reject an invitation for an event
+[*DefaultApi*](doc/DefaultApi.md) | [**resolveInvitation**](doc/DefaultApi.md#resolveinvitation) | **GET** /v1/invitations/resolve | Resolve an invitation token for authenticated user (returns invitation details for modal)
 
 
 ## Documentation For Models
@@ -86,9 +89,12 @@ Class | Method | HTTP request | Description
  - [CreateEventRequest](doc/CreateEventRequest.md)
  - [ErrorResponse](doc/ErrorResponse.md)
  - [Event](doc/Event.md)
+ - [EventPhotoListItem](doc/EventPhotoListItem.md)
+ - [EventPhotosListPage](doc/EventPhotosListPage.md)
  - [GenerateEventCoverRequest](doc/GenerateEventCoverRequest.md)
  - [GenerateEventCoverResponse](doc/GenerateEventCoverResponse.md)
  - [Guest](doc/Guest.md)
+ - [GuestV2](doc/GuestV2.md)
  - [HealthResponse](doc/HealthResponse.md)
  - [Invitation](doc/Invitation.md)
  - [InviteEventGuestsRequest](doc/InviteEventGuestsRequest.md)

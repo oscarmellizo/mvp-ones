@@ -11,16 +11,16 @@ part 'event.g.dart';
 /// Event
 ///
 /// Properties:
-/// * [id]
-/// * [ownerId]
-/// * [createdAt]
-/// * [title]
-/// * [objective]
-/// * [location]
-/// * [startAt]
-/// * [endAt]
-/// * [coverKey]
-/// * [allowGuestInvites]
+/// * [id] 
+/// * [ownerId] 
+/// * [createdAt] 
+/// * [title] 
+/// * [objective] 
+/// * [location] 
+/// * [startAt] 
+/// * [endAt] 
+/// * [coverKey] - S3 object key for the event cover (optional)
+/// * [allowGuestInvites] - Whether accepted guests (non-owner) are allowed to invite other guests.
 @BuiltValue()
 abstract class Event implements Built<Event, EventBuilder> {
   @BuiltValueField(wireName: r'id')
@@ -47,9 +47,11 @@ abstract class Event implements Built<Event, EventBuilder> {
   @BuiltValueField(wireName: r'endAt')
   DateTime get endAt;
 
+  /// S3 object key for the event cover (optional)
   @BuiltValueField(wireName: r'coverKey')
   String? get coverKey;
 
+  /// Whether accepted guests (non-owner) are allowed to invite other guests.
   @BuiltValueField(wireName: r'allowGuestInvites')
   bool? get allowGuestInvites;
 
@@ -58,7 +60,8 @@ abstract class Event implements Built<Event, EventBuilder> {
   factory Event([void updates(EventBuilder b)]) = _$Event;
 
   @BuiltValueHook(initializeBuilder: true)
-  static void _defaults(EventBuilder b) => b;
+  static void _defaults(EventBuilder b) => b
+      ..allowGuestInvites = true;
 
   @BuiltValueSerializer(custom: true)
   static Serializer<Event> get serializer => _$EventSerializer();
@@ -127,7 +130,7 @@ class _$EventSerializer implements PrimitiveSerializer<Event> {
       yield r'allowGuestInvites';
       yield serializers.serialize(
         object.allowGuestInvites,
-        specifiedType: const FullType.nullable(bool),
+        specifiedType: const FullType(bool),
       );
     }
   }
@@ -138,9 +141,7 @@ class _$EventSerializer implements PrimitiveSerializer<Event> {
     Event object, {
     FullType specifiedType = FullType.unspecified,
   }) {
-    return _serializeProperties(serializers, object,
-            specifiedType: specifiedType)
-        .toList();
+    return _serializeProperties(serializers, object, specifiedType: specifiedType).toList();
   }
 
   void _deserializeProperties(
@@ -222,9 +223,8 @@ class _$EventSerializer implements PrimitiveSerializer<Event> {
         case r'allowGuestInvites':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType.nullable(bool),
-          ) as bool?;
-          if (valueDes == null) continue;
+            specifiedType: const FullType(bool),
+          ) as bool;
           result.allowGuestInvites = valueDes;
           break;
         default:
@@ -255,3 +255,4 @@ class _$EventSerializer implements PrimitiveSerializer<Event> {
     return result.build();
   }
 }
+

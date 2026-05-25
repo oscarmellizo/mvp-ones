@@ -19,9 +19,12 @@ Method | HTTP request | Description
 [**health**](DefaultApi.md#health) | **GET** /health | Health check
 [**inviteEventGuests**](DefaultApi.md#inviteeventguests) | **POST** /v1/events/{id}/invitees | Invite new guests to an existing event (owner only)
 [**listEventGuests**](DefaultApi.md#listeventguests) | **GET** /v1/events/{id}/guests | List guests for an event (owner + invitees with invitation status)
+[**listEventGuestsV2**](DefaultApi.md#listeventguestsv2) | **GET** /v1/events/{id}/guests/v2 | List guests for an event including userId (when available)
+[**listEventPhotos**](DefaultApi.md#listeventphotos) | **GET** /v1/events/{eventId}/photos | List event photos (paginated) with optional server-side filtering
 [**listEvents**](DefaultApi.md#listevents) | **GET** /v1/events | List events for authenticated user
 [**listInvitations**](DefaultApi.md#listinvitations) | **GET** /v1/invitations | List invitations for authenticated user (by email claim)
 [**rejectInvitation**](DefaultApi.md#rejectinvitation) | **POST** /v1/invitations/{eventId}/reject | Reject an invitation for an event
+[**resolveInvitation**](DefaultApi.md#resolveinvitation) | **GET** /v1/invitations/resolve | Resolve an invitation token for authenticated user (returns invitation details for modal)
 
 
 # **acceptEventCover**
@@ -431,6 +434,98 @@ Name | Type | Description  | Notes
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **listEventGuestsV2**
+> BuiltList<GuestV2> listEventGuestsV2(id)
+
+List guests for an event including userId (when available)
+
+### Example
+```dart
+import 'package:ones_api_client/api.dart';
+
+final api = OnesApiClient().getDefaultApi();
+final String id = id_example; // String | 
+
+try {
+    final response = api.listEventGuestsV2(id);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling DefaultApi->listEventGuestsV2: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **id** | **String**|  | 
+
+### Return type
+
+[**BuiltList&lt;GuestV2&gt;**](GuestV2.md)
+
+### Authorization
+
+[bearerAuth](../README.md#bearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **listEventPhotos**
+> EventPhotosListPage listEventPhotos(eventId, limit, nextToken, scope, filter, guestIds)
+
+List event photos (paginated) with optional server-side filtering
+
+### Example
+```dart
+import 'package:ones_api_client/api.dart';
+
+final api = OnesApiClient().getDefaultApi();
+final String eventId = eventId_example; // String | 
+final int limit = 56; // int | 
+final String nextToken = nextToken_example; // String | Pagination cursor returned by a previous call (opaque)
+final String scope = scope_example; // String | Legacy scope parameter (kept for backward compatibility)
+final String filter = filter_example; // String | Filter photos. all=all photos in the event, mine=photos owned by the requester, shared_by_me=photos shared by the requester
+final BuiltList<String> guestIds = ; // BuiltList<String> | Optional guest userIds to filter by (must be participants of the event). Can be provided as repeated query params (guestIds=a&guestIds=b)
+
+try {
+    final response = api.listEventPhotos(eventId, limit, nextToken, scope, filter, guestIds);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling DefaultApi->listEventPhotos: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **eventId** | **String**|  | 
+ **limit** | **int**|  | [optional] [default to 10]
+ **nextToken** | **String**| Pagination cursor returned by a previous call (opaque) | [optional] 
+ **scope** | **String**| Legacy scope parameter (kept for backward compatibility) | [optional] 
+ **filter** | **String**| Filter photos. all=all photos in the event, mine=photos owned by the requester, shared_by_me=photos shared by the requester | [optional] 
+ **guestIds** | [**BuiltList&lt;String&gt;**](String.md)| Optional guest userIds to filter by (must be participants of the event). Can be provided as repeated query params (guestIds=a&guestIds=b) | [optional] 
+
+### Return type
+
+[**EventPhotosListPage**](EventPhotosListPage.md)
+
+### Authorization
+
+[bearerAuth](../README.md#bearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **listEvents**
 > BuiltList<Event> listEvents()
 
@@ -530,6 +625,47 @@ try {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **eventId** | **String**|  | 
+
+### Return type
+
+[**Invitation**](Invitation.md)
+
+### Authorization
+
+[bearerAuth](../README.md#bearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **resolveInvitation**
+> Invitation resolveInvitation(token)
+
+Resolve an invitation token for authenticated user (returns invitation details for modal)
+
+### Example
+```dart
+import 'package:ones_api_client/api.dart';
+
+final api = OnesApiClient().getDefaultApi();
+final String token = token_example; // String | 
+
+try {
+    final response = api.resolveInvitation(token);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling DefaultApi->resolveInvitation: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **token** | **String**|  | 
 
 ### Return type
 

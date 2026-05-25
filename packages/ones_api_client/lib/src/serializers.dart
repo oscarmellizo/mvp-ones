@@ -18,9 +18,12 @@ import 'package:ones_api_client/src/model/accept_event_cover_response.dart';
 import 'package:ones_api_client/src/model/create_event_request.dart';
 import 'package:ones_api_client/src/model/error_response.dart';
 import 'package:ones_api_client/src/model/event.dart';
+import 'package:ones_api_client/src/model/event_photo_list_item.dart';
+import 'package:ones_api_client/src/model/event_photos_list_page.dart';
 import 'package:ones_api_client/src/model/generate_event_cover_request.dart';
 import 'package:ones_api_client/src/model/generate_event_cover_response.dart';
 import 'package:ones_api_client/src/model/guest.dart';
+import 'package:ones_api_client/src/model/guest_v2.dart';
 import 'package:ones_api_client/src/model/health_response.dart';
 import 'package:ones_api_client/src/model/invitation.dart';
 import 'package:ones_api_client/src/model/invite_event_guests_request.dart';
@@ -33,9 +36,12 @@ part 'serializers.g.dart';
   CreateEventRequest,
   ErrorResponse,
   Event,
+  EventPhotoListItem,
+  EventPhotosListPage,
   GenerateEventCoverRequest,
   GenerateEventCoverResponse,
   Guest,
+  GuestV2,
   HealthResponse,
   Invitation,
   InviteEventGuestsRequest,
@@ -53,6 +59,14 @@ Serializers serializers = (_$serializers.toBuilder()
       ..addBuilderFactory(
         const FullType(BuiltList, [FullType(Guest)]),
         () => ListBuilder<Guest>(),
+      )
+      ..addBuilderFactory(
+        const FullType(BuiltList, [FullType(String)]),
+        () => ListBuilder<String>(),
+      )
+      ..addBuilderFactory(
+        const FullType(BuiltList, [FullType(GuestV2)]),
+        () => ListBuilder<GuestV2>(),
       )
       ..add(const OneOfSerializer())
       ..add(const AnyOfSerializer())

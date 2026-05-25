@@ -16,7 +16,8 @@ Name | Type | Description | Notes
 **location** | **String** |  | 
 **startAt** | [**DateTime**](DateTime.md) |  | 
 **endAt** | [**DateTime**](DateTime.md) |  | 
-**coverKey** | **String** |  | [optional] 
+**coverKey** | **String** | S3 object key for the event cover (optional) | [optional] 
+**allowGuestInvites** | **bool** | Whether accepted guests (non-owner) are allowed to invite other guests. | [optional] [default to true]
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

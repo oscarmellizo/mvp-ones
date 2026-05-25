@@ -12,17 +12,16 @@ part 'create_event_request.g.dart';
 /// CreateEventRequest
 ///
 /// Properties:
-/// * [title]
-/// * [objective]
-/// * [location]
-/// * [startAt]
-/// * [endAt]
+/// * [title] 
+/// * [objective] 
+/// * [location] 
+/// * [startAt] 
+/// * [endAt] 
 /// * [coverReservationId] - Reservation id obtained after accepting an AI-generated cover (optional)
 /// * [inviteeEmails] - Invitee emails (lowercased). For each email, an invitation is created with status 'invited'.
 /// * [allowGuestInvites] - Whether accepted guests (non-owner) are allowed to invite other guests.
 @BuiltValue()
-abstract class CreateEventRequest
-    implements Built<CreateEventRequest, CreateEventRequestBuilder> {
+abstract class CreateEventRequest implements Built<CreateEventRequest, CreateEventRequestBuilder> {
   @BuiltValueField(wireName: r'title')
   String get title;
 
@@ -52,19 +51,17 @@ abstract class CreateEventRequest
 
   CreateEventRequest._();
 
-  factory CreateEventRequest([void updates(CreateEventRequestBuilder b)]) =
-      _$CreateEventRequest;
+  factory CreateEventRequest([void updates(CreateEventRequestBuilder b)]) = _$CreateEventRequest;
 
   @BuiltValueHook(initializeBuilder: true)
-  static void _defaults(CreateEventRequestBuilder b) => b;
+  static void _defaults(CreateEventRequestBuilder b) => b
+      ..allowGuestInvites = true;
 
   @BuiltValueSerializer(custom: true)
-  static Serializer<CreateEventRequest> get serializer =>
-      _$CreateEventRequestSerializer();
+  static Serializer<CreateEventRequest> get serializer => _$CreateEventRequestSerializer();
 }
 
-class _$CreateEventRequestSerializer
-    implements PrimitiveSerializer<CreateEventRequest> {
+class _$CreateEventRequestSerializer implements PrimitiveSerializer<CreateEventRequest> {
   @override
   final Iterable<Type> types = const [CreateEventRequest, _$CreateEventRequest];
 
@@ -119,7 +116,7 @@ class _$CreateEventRequestSerializer
       yield r'allowGuestInvites';
       yield serializers.serialize(
         object.allowGuestInvites,
-        specifiedType: const FullType.nullable(bool),
+        specifiedType: const FullType(bool),
       );
     }
   }
@@ -130,9 +127,7 @@ class _$CreateEventRequestSerializer
     CreateEventRequest object, {
     FullType specifiedType = FullType.unspecified,
   }) {
-    return _serializeProperties(serializers, object,
-            specifiedType: specifiedType)
-        .toList();
+    return _serializeProperties(serializers, object, specifiedType: specifiedType).toList();
   }
 
   void _deserializeProperties(
@@ -200,9 +195,8 @@ class _$CreateEventRequestSerializer
         case r'allowGuestInvites':
           final valueDes = serializers.deserialize(
             value,
-            specifiedType: const FullType.nullable(bool),
-          ) as bool?;
-          if (valueDes == null) continue;
+            specifiedType: const FullType(bool),
+          ) as bool;
           result.allowGuestInvites = valueDes;
           break;
         default:
@@ -233,3 +227,4 @@ class _$CreateEventRequestSerializer
     return result.build();
   }
 }
+
