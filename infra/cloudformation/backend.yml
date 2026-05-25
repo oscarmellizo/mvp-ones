@@ -333,20 +333,11 @@ Resources:
           AttributeType: S
         - AttributeName: languageCode
           AttributeType: S
-        - AttributeName: gsi1pk
-          AttributeType: S
       KeySchema:
         - AttributeName: translationKey
           KeyType: HASH
         - AttributeName: languageCode
           KeyType: RANGE
-      GlobalSecondaryIndexes:
-        - IndexName: gsi1
-          KeySchema:
-            - AttributeName: gsi1pk
-              KeyType: HASH
-          Projection:
-            ProjectionType: ALL
 
   EventsCoversTempBucket:
     Type: AWS::S3::Bucket
