@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'dart:async';
 import 'dart:io';
@@ -157,6 +158,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
     required String overlayUrl,
     required bool mirrorHorizontally,
     required double targetAspectRatio,
+    required DeviceOrientation? deviceOrientation,
   }) async {
     final photoBytes = await photo.readAsBytes();
     final overlayBytes = await _downloadBytesCached(overlayUrl);
@@ -171,7 +173,11 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
     }
 
     img.Image composed = img.bakeOrientation(base);
-    composed = _rotateToMatchAspect(composed, targetAspectRatio);
+    composed = _rotateToMatchAspect(
+      composed,
+      targetAspectRatio,
+      deviceOrientation: deviceOrientation,
+    );
     if (mirrorHorizontally) {
       composed = img.flipHorizontal(composed);
     }
@@ -193,14 +199,24 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
     return out;
   }
 
-  static img.Image _rotateToMatchAspect(img.Image src, double targetAspect) {
+  static img.Image _rotateToMatchAspect(
+    img.Image src,
+    double targetAspect, {
+    required DeviceOrientation? deviceOrientation,
+  }) {
     if (targetAspect <= 0) return src;
 
     final isTargetLandscape = targetAspect >= 1;
     final isSrcLandscape = src.width >= src.height;
 
     if (isTargetLandscape == isSrcLandscape) return src;
-    return img.copyRotate(src, angle: 90);
+
+    final int angle = switch (deviceOrientation) {
+      DeviceOrientation.landscapeLeft => 270,
+      DeviceOrientation.landscapeRight => 90,
+      _ => 90,
+    };
+    return img.copyRotate(src, angle: angle);
   }
 
   static img.Image _centerCropToAspect(img.Image src, double aspectRatio) {
@@ -548,6 +564,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
     });
 
     try {
+      final deviceOrientation = cam.value.deviceOrientation;
       final file = await cam.takePicture();
       final photoId = const Uuid().v4();
 
@@ -568,13 +585,14 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
             overlayUrl: url,
             mirrorHorizontally: isFront,
             targetAspectRatio: targetAspectRatio,
+            deviceOrientation: deviceOrientation,
           );
         }
       }
 
       if (kDebugMode) {
         debugPrint(
-          'photo_capture: eventId=$widget.eventId photoId=$photoId frameId=${usedFrameId ?? '-'} orientation=${isPortrait ? 'portrait' : 'landscape'} camera=${isFront ? 'front' : 'back'}',
+          'photo_capture: eventId=$widget.eventId photoId=$photoId frameId=${usedFrameId ?? '-'} orientation=${isPortrait ? 'portrait' : 'landscape'} deviceOrientation=$deviceOrientation sensorOrientation=${cam.description.sensorOrientation} camera=${isFront ? 'front' : 'back'}',
         );
       }
 
