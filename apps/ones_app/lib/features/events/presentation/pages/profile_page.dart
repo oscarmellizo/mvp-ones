@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/widgets/ones_card.dart';
 import '../../../../core/ui/widgets/ones_text_field.dart';
 import '../../../auth/presentation/auth_controller.dart';
-import '../../../user/presentation/language_preference_service.dart';
 import '../../../admin/presentation/pages/admin_home_page.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -52,8 +52,8 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _loadLanguagePreference() async {
-    final langService = context.read<LanguagePreferenceService>();
-    final pref = await langService.getLanguagePreference();
+    final prefs = await SharedPreferences.getInstance();
+    final pref = prefs.getString('ones.language_preference');
     if (pref != null && mounted) {
       setState(() {
         _selectedLanguage = pref;
@@ -208,9 +208,9 @@ class _ProfilePageState extends State<ProfilePage> {
                             _selectedLanguage = value;
                           });
                           try {
-                            final langService =
-                                context.read<LanguagePreferenceService>();
-                            await langService.setLanguagePreference(value);
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.setString(
+                                'ones.language_preference', value);
                             if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
