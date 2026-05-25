@@ -14,16 +14,16 @@ spring:
 ones:
   env: ${ONES_ENV:dev}
   dynamodb:
-    table-name: ${ONES_EVENTS_TABLE:ones-${ONES_ENV:dev}-events}
-    users-table-name: ${ONES_USERS_TABLE:ones-${ONES_ENV:dev}-users}
-    invitations-table-name: ${ONES_INVITATIONS_TABLE:ones-${ONES_ENV:dev}-invitations}
-    cover-previews-table-name: ${ONES_COVER_PREVIEWS_TABLE:ones-${ONES_ENV:dev}-cover-previews}
-    cover-reservations-table-name: ${ONES_COVER_RESERVATIONS_TABLE:ones-${ONES_ENV:dev}-cover-reservations}
-    photos-table-name: ${ONES_PHOTOS_TABLE:ones-${ONES_ENV:dev}-photos}
-    preferred-names-cache-table-name: ${ONES_PREFERRED_NAMES_CACHE_TABLE:ones-${ONES_ENV:dev}-preferred-names-cache}
-    admins-table-name: ${ONES_ADMINS_TABLE:ones-${ONES_ENV:dev}-admins}
-    frames-table-name: ${ONES_FRAMES_TABLE:ones-${ONES_ENV:dev}-frames}
-    event-templates-table-name: ${ONES_EVENT_TEMPLATES_TABLE:ones-${ONES_ENV:dev}-event-templates}
+    table-name: ${ONES_EVENTS_TABLE:ones-${ones.env}-events}
+    users-table-name: ${ONES_USERS_TABLE:ones-${ones.env}-users}
+    invitations-table-name: ${ONES_INVITATIONS_TABLE:ones-${ones.env}-invitations}
+    cover-previews-table-name: ${ONES_COVER_PREVIEWS_TABLE:ones-${ones.env}-cover-previews}
+    cover-reservations-table-name: ${ONES_COVER_RESERVATIONS_TABLE:ones-${ones.env}-cover-reservations}
+    photos-table-name: ${ONES_PHOTOS_TABLE:ones-${ones.env}-photos}
+    preferred-names-cache-table-name: ${ONES_PREFERRED_NAMES_CACHE_TABLE:ones-${ones.env}-preferred-names-cache}
+    admins-table-name: ${ONES_ADMINS_TABLE:ones-${ones.env}-admins}
+    frames-table-name: ${ONES_FRAMES_TABLE:ones-${ones.env}-frames}
+    event-templates-table-name: ${ONES_EVENT_TEMPLATES_TABLE:ones-${ones.env}-event-templates}
   app:
     base-url: ${ONES_APP_BASE_URL:}
   email:
