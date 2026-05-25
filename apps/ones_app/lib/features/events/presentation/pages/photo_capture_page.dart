@@ -195,6 +195,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
       composed,
       targetAspectRatio,
       deviceOrientation: deviceOrientation,
+      invertLandscapeRotation: mirrorHorizontally,
     );
     if (mirrorHorizontally) {
       composed = img.flipHorizontal(composed);
@@ -221,6 +222,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
     img.Image src,
     double targetAspect, {
     required DeviceOrientation? deviceOrientation,
+    required bool invertLandscapeRotation,
   }) {
     if (targetAspect <= 0) return src;
 
@@ -230,8 +232,8 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
     if (isTargetLandscape == isSrcLandscape) return src;
 
     final int angle = switch (deviceOrientation) {
-      DeviceOrientation.landscapeLeft => 270,
-      DeviceOrientation.landscapeRight => 90,
+      DeviceOrientation.landscapeLeft => invertLandscapeRotation ? 90 : 270,
+      DeviceOrientation.landscapeRight => invertLandscapeRotation ? 270 : 90,
       _ => 90,
     };
     return img.copyRotate(src, angle: angle);
