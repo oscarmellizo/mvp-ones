@@ -50,7 +50,8 @@ public class UsersController {
                 AuthClaims.getClaim(authentication, "given_name"),
                 AuthClaims.getClaim(authentication, "family_name"),
                 AuthClaims.getClaim(authentication, "picture"),
-                "google"
+                "google",
+                null // languagePreference will default to "es" in EnsureUserUseCase
         );
 
         User ensured = ensureUserUseCase.execute(cmd);
@@ -89,6 +90,7 @@ public class UsersController {
     ) {
         String userId = authentication.getName();
         String preferredName = request != null ? request.preferredName() : null;
+        String languagePreference = request != null ? request.languagePreference() : null;
 
         if (preferredName == null || preferredName.trim().isEmpty()) {
             throw new IllegalArgumentException("preferredName is required");
@@ -96,7 +98,7 @@ public class UsersController {
 
         preferredName = preferredName.trim();
 
-        return updateUserPreferencesUseCase.execute(userId, preferredName)
+        return updateUserPreferencesUseCase.execute(userId, preferredName, languagePreference)
                 .map(updated -> ResponseEntity.ok(toResponse(updated)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
@@ -111,13 +113,14 @@ public class UsersController {
                 u.getPicture(),
                 u.getPreferredName(),
                 u.getProvider(),
+                u.getLanguagePreference(),
                 u.getCreatedAt(),
                 u.getUpdatedAt()
         );
     }
 }
 
-record UpdatePreferencesRequest(String preferredName) {
+record UpdatePreferencesRequest(String preferredName, String languagePreference) {
 }
 
 record UserLookupResponse(String email, String preferredName) {

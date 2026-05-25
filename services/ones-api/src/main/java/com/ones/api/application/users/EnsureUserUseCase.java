@@ -30,6 +30,7 @@ public class EnsureUserUseCase {
                             coalesce(command.picture(), existing.getPicture()),
                             existing.getPreferredName(),
                             existing.getProvider(),
+                            coalesce(command.languagePreference(), existing.getLanguagePreference()),
                             existing.getCreatedAt(),
                             now
                     );
@@ -45,6 +46,8 @@ public class EnsureUserUseCase {
                     String preferredName = existingByEmail != null && existingByEmail.getPreferredName() != null
                             ? existingByEmail.getPreferredName()
                             : defaultPreferredName(command.givenName(), command.name());
+                    String languagePref = command.languagePreference() != null ? command.languagePreference() : "es";
+                    String existingLanguagePref = existingByEmail != null ? existingByEmail.getLanguagePreference() : languagePref;
                     User created = new User(
                             command.userId(),
                             normalizedEmail,
@@ -54,6 +57,7 @@ public class EnsureUserUseCase {
                             coalesce(command.picture(), existingByEmail != null ? existingByEmail.getPicture() : null),
                             preferredName,
                             command.provider(),
+                            existingLanguagePref,
                             createdAt,
                             now
                     );

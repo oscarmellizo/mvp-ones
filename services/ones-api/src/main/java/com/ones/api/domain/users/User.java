@@ -13,6 +13,7 @@ public class User {
     private final String picture;
     private final String preferredName;
     private final String provider;
+    private final String languagePreference;
     private final Instant createdAt;
     private final Instant updatedAt;
 
@@ -25,6 +26,7 @@ public class User {
             String picture,
             String preferredName,
             String provider,
+            String languagePreference,
             Instant createdAt,
             Instant updatedAt
     ) {
@@ -36,6 +38,7 @@ public class User {
         this.picture = picture;
         this.preferredName = preferredName;
         this.provider = Objects.requireNonNull(provider);
+        this.languagePreference = languagePreference;
         this.createdAt = Objects.requireNonNull(createdAt);
         this.updatedAt = Objects.requireNonNull(updatedAt);
     }
@@ -70,6 +73,10 @@ public class User {
 
     public String getProvider() {
         return provider;
+    }
+
+    public String getLanguagePreference() {
+        return languagePreference;
     }
 
     public Instant getCreatedAt() {

@@ -25,7 +25,7 @@ public class UpdateUserPreferencesUseCase {
         this.clock = clock;
     }
 
-    public Optional<User> execute(String userId, String preferredName) {
+    public Optional<User> execute(String userId, String preferredName, String languagePreference) {
         return usersRepository.findById(userId)
                 .map(existing -> {
                     Instant now = Instant.now(clock);
@@ -38,6 +38,7 @@ public class UpdateUserPreferencesUseCase {
                             existing.getPicture(),
                             preferredName,
                             existing.getProvider(),
+                            languagePreference,
                             existing.getCreatedAt(),
                             now
                     );

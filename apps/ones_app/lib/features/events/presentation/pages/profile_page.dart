@@ -5,6 +5,7 @@ import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/widgets/ones_card.dart';
 import '../../../../core/ui/widgets/ones_text_field.dart';
 import '../../../auth/presentation/auth_controller.dart';
+import '../../../user/presentation/language_preference_service.dart';
 import '../../../admin/presentation/pages/admin_home_page.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -18,6 +19,13 @@ class _ProfilePageState extends State<ProfilePage> {
   final _preferredNameController = TextEditingController();
 
   String? _seedUserId;
+  String _selectedLanguage = 'es';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLanguagePreference();
+  }
 
   @override
   void dispose() {
@@ -41,6 +49,16 @@ class _ProfilePageState extends State<ProfilePage> {
     final parts = _splitDisplayName(user.displayName);
     final first = parts.$1;
     _preferredNameController.text = first.isNotEmpty ? first : 'Guest';
+  }
+
+  Future<void> _loadLanguagePreference() async {
+    final langService = context.read<LanguagePreferenceService>();
+    final pref = await langService.getLanguagePreference();
+    if (pref != null && mounted) {
+      setState(() {
+        _selectedLanguage = pref;
+      });
+    }
   }
 
   @override
@@ -158,6 +176,58 @@ class _ProfilePageState extends State<ProfilePage> {
                         fontWeight: FontWeight.w600,
                         fontSize: 12,
                       ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Language',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: _selectedLanguage,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: OnesColors.yellowLight.withOpacity(0.35),
+                        border: OutlineInputBorder(
+                          borderSide: BorderSide.none,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'es', child: Text('Español')),
+                        DropdownMenuItem(value: 'en', child: Text('English')),
+                        DropdownMenuItem(value: 'pt', child: Text('Português')),
+                      ],
+                      onChanged: (value) async {
+                        if (value != null) {
+                          setState(() {
+                            _selectedLanguage = value;
+                          });
+                          try {
+                            final langService =
+                                context.read<LanguagePreferenceService>();
+                            await langService.setLanguagePreference(value);
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Language preference saved.'),
+                              ),
+                            );
+                          } catch (_) {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content:
+                                    Text('Could not save language preference.'),
+                              ),
+                            );
+                          }
+                        }
+                      },
                     ),
                     const SizedBox(height: 12),
                     SizedBox(

@@ -11,6 +11,7 @@ public record EnsureUserResponse(
         String picture,
         String preferredName,
         String provider,
+        String languagePreference,
         Instant createdAt,
         Instant updatedAt
 ) {

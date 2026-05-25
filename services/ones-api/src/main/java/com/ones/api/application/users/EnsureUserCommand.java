@@ -7,6 +7,7 @@ public record EnsureUserCommand(
         String givenName,
         String familyName,
         String picture,
-        String provider
+        String provider,
+        String languagePreference
 ) {
 }
