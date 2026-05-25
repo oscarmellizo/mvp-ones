@@ -328,6 +328,8 @@ Resources:
       Tags:
         - Key: Environment
           Value: !Ref Environment
+        - Key: Resource
+          Value: Translations
       AttributeDefinitions:
         - AttributeName: translationKey
           AttributeType: S
