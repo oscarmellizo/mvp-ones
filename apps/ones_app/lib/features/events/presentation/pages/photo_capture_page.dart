@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:image/image.dart' as img;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../photos/presentation/photos_upload_controller.dart';
 import '../../adapters/api/event_templates_api_repository.dart';
@@ -27,7 +28,7 @@ class PhotoCapturePage extends StatefulWidget {
 }
 
 class _PhotoCapturePageState extends State<PhotoCapturePage>
-    with WidgetsBindingObserver {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   CameraController? _controller;
   List<CameraDescription> _cameras = const [];
   int _cameraIndex = 0;
@@ -44,6 +45,12 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
   Object? _framesError;
 
   final Map<String, Uint8List> _frameBytesCache = {};
+
+  late AnimationController _shutterAnimationController;
+  late Animation<double> _shutterOpacityAnimation;
+
+  bool _shutterSoundEnabled = true;
+  bool _shutterHapticEnabled = true;
 
   Object _formatError(Object error) {
     if (error is DioException) {
@@ -68,6 +75,18 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
     WidgetsBinding.instance.addObserver(this);
     _init();
     _loadFrames();
+    _loadShutterPreferences();
+
+    _shutterAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 180),
+      vsync: this,
+    );
+    _shutterOpacityAnimation = Tween<double>(begin: 0.0, end: 0.8).animate(
+      CurvedAnimation(
+        parent: _shutterAnimationController,
+        curve: Curves.easeInOut,
+      ),
+    );
   }
 
   Future<void> _init() async {
@@ -155,6 +174,96 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
         });
       }
     }
+  }
+
+  Future<void> _loadShutterPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!mounted) return;
+      setState(() {
+        _shutterSoundEnabled =
+            prefs.getBool('ones.camera.shutterSoundEnabled') ?? true;
+        _shutterHapticEnabled =
+            prefs.getBool('ones.camera.shutterHapticEnabled') ?? true;
+      });
+    } catch (_) {
+      // If SharedPreferences fails, keep defaults
+    }
+  }
+
+  Future<void> _saveShutterPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(
+          'ones.camera.shutterSoundEnabled', _shutterSoundEnabled);
+      await prefs.setBool(
+          'ones.camera.shutterHapticEnabled', _shutterHapticEnabled);
+    } catch (_) {
+      // If SharedPreferences fails, ignore
+    }
+  }
+
+  void _showShutterSettings() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.black87,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Ajustes de obturador',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SwitchListTile(
+                  title: const Text(
+                    'Sonido de obturador',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  subtitle: const Text(
+                    'Reproducir sonido al tomar foto',
+                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                  value: _shutterSoundEnabled,
+                  onChanged: (value) {
+                    setState(() {
+                      _shutterSoundEnabled = value;
+                    });
+                    _saveShutterPreferences();
+                  },
+                ),
+                SwitchListTile(
+                  title: const Text(
+                    'Vibración (haptic)',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  subtitle: const Text(
+                    'Vibración al tomar foto',
+                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                  value: _shutterHapticEnabled,
+                  onChanged: (value) {
+                    setState(() {
+                      _shutterHapticEnabled = value;
+                    });
+                    _saveShutterPreferences();
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<Uint8List> _downloadBytesCached(String url) async {
@@ -337,6 +446,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
     _disposed = true;
     WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
+    _shutterAnimationController.dispose();
     super.dispose();
   }
 
@@ -390,6 +500,17 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
                             },
                           ),
           ),
+          AnimatedBuilder(
+            animation: _shutterAnimationController,
+            builder: (context, child) {
+              return Opacity(
+                opacity: _shutterOpacityAnimation.value,
+                child: Container(
+                  color: Colors.black,
+                ),
+              );
+            },
+          ),
           if (_framePairs.isNotEmpty && _framesEnabled)
             Positioned.fill(
               child: IgnorePointer(
@@ -433,9 +554,19 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
           Positioned(
             right: 12,
             top: 12 + MediaQuery.paddingOf(context).top,
-            child: IconButton(
-              onPressed: _initializing ? null : _switchCamera,
-              icon: const Icon(Icons.cameraswitch, color: Colors.white),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  onPressed: _showShutterSettings,
+                  icon: const Icon(Icons.settings, color: Colors.white),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: _initializing ? null : _switchCamera,
+                  icon: const Icon(Icons.cameraswitch, color: Colors.white),
+                ),
+              ],
             ),
           ),
           if (widget.frameIds.isNotEmpty && _loadingFrames)
@@ -541,24 +672,70 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
                 ],
               ),
             ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 24 + MediaQuery.paddingOf(context).bottom,
-            child: Center(
-              child: IconButton(
-                onPressed: (_initializing || _capturing || _error != null)
-                    ? null
-                    : () => _captureAndEnqueue(context),
-                iconSize: 72,
-                icon: Icon(
-                  Icons.radio_button_checked,
-                  color: (_initializing || _capturing || _error != null)
-                      ? Colors.white54
-                      : Colors.white,
-                ),
-              ),
-            ),
+          Builder(
+            builder: (context) {
+              final isPortrait =
+                  MediaQuery.orientationOf(context) == Orientation.portrait;
+              final isDisabled = _initializing || _capturing || _error != null;
+
+              if (isPortrait) {
+                return Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 24 + MediaQuery.paddingOf(context).bottom,
+                  child: Center(
+                    child: IconButton(
+                      onPressed:
+                          isDisabled ? null : () => _captureAndEnqueue(context),
+                      iconSize: 72,
+                      icon: Icon(
+                        Icons.radio_button_checked,
+                        color: isDisabled ? Colors.white54 : Colors.white,
+                      ),
+                    ),
+                  ),
+                );
+              } else {
+                return Stack(
+                  children: [
+                    Positioned(
+                      left: 24,
+                      top: 0,
+                      bottom: 0,
+                      child: Center(
+                        child: IconButton(
+                          onPressed: isDisabled
+                              ? null
+                              : () => _captureAndEnqueue(context),
+                          iconSize: 72,
+                          icon: Icon(
+                            Icons.radio_button_checked,
+                            color: isDisabled ? Colors.white54 : Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: 24,
+                      top: 0,
+                      bottom: 0,
+                      child: Center(
+                        child: IconButton(
+                          onPressed: isDisabled
+                              ? null
+                              : () => _captureAndEnqueue(context),
+                          iconSize: 72,
+                          icon: Icon(
+                            Icons.radio_button_checked,
+                            color: isDisabled ? Colors.white54 : Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }
+            },
           ),
         ],
       ),
@@ -584,6 +761,15 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
     });
 
     try {
+      if (_shutterHapticEnabled) {
+        HapticFeedback.lightImpact();
+      }
+      if (_shutterSoundEnabled) {
+        SystemSound.play(SystemSoundType.click);
+      }
+      await _shutterAnimationController.forward();
+      await _shutterAnimationController.reverse();
+
       final deviceOrientation = cam.value.deviceOrientation;
       final file = await cam.takePicture();
       final photoId = const Uuid().v4();
@@ -624,11 +810,6 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
         frameId: usedFrameId,
         orientation: isPortrait ? 'portrait' : 'landscape',
         cameraType: isFront ? 'front' : 'back',
-      );
-
-      if (!mounted) return;
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Foto guardada y en cola para subir')),
       );
     } catch (e) {
       if (!mounted) return;
