@@ -81,7 +81,7 @@ public class TranslationsManagementService {
 
     private String resolveActor(Authentication authentication) {
         if (authentication != null && authentication.getPrincipal() instanceof AuthClaims claims) {
-            return claims.email();
+            return claims.getName(); // Using getName() instead of email()
         }
         return "system";
     }

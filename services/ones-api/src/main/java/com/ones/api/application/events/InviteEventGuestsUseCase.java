@@ -105,6 +105,7 @@ public class InviteEventGuestsUseCase {
                 null,
                 null,
                 "stub",
+                null, // languagePreference
                 now,
                 now
         );

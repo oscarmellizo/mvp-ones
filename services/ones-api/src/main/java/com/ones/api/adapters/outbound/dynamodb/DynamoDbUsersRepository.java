@@ -156,6 +156,7 @@ public class DynamoDbUsersRepository implements UsersRepository {
                 item.getPicture(),
                 item.getPreferredName(),
                 item.getProvider(),
+                null, // languagePreference - will be added to DynamoUserItem later
                 Instant.parse(item.getCreatedAt()),
                 Instant.parse(item.getUpdatedAt())
         );

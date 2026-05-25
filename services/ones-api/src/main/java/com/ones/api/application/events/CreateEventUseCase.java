@@ -118,6 +118,7 @@ public class CreateEventUseCase {
                 null,
                 null,
                 "stub",
+                null, // languagePreference
                 now,
                 now
         );
