@@ -13,17 +13,6 @@ spring:
 
 ones:
   env: ${ONES_ENV:dev}
-  dynamodb:
-    table-name: ${ONES_EVENTS_TABLE:ones-events}
-    users-table-name: ${ONES_USERS_TABLE:ones-users}
-    invitations-table-name: ${ONES_INVITATIONS_TABLE:ones-invitations}
-    cover-previews-table-name: ${ONES_COVER_PREVIEWS_TABLE:ones-cover-previews}
-    cover-reservations-table-name: ${ONES_COVER_RESERVATIONS_TABLE:ones-cover-reservations}
-    photos-table-name: ${ONES_PHOTOS_TABLE:ones-photos}
-    preferred-names-cache-table-name: ${ONES_PREFERRED_NAMES_CACHE_TABLE:ones-preferred-names-cache}
-    admins-table-name: ${ONES_ADMINS_TABLE:ones-admins}
-    frames-table-name: ${ONES_FRAMES_TABLE:ones-frames}
-    event-templates-table-name: ${ONES_EVENT_TEMPLATES_TABLE:ones-event-templates}
   app:
     base-url: ${ONES_APP_BASE_URL:}
   email:
@@ -245,7 +234,7 @@ ones:
     fail-on-scan-fallback: ${ONES_DYNAMODB_FAIL_ON_SCAN_FALLBACK:false}
     table-name: ${ONES_EVENTS_TABLE:ones-events}
     users-table-name: ${ONES_USERS_TABLE:ones-users}
-    invitations-table-name: ${ONES_INVITATIONS_TABLE:ones-${ONES_ENV:dev}-event-invitations}
+    invitations-table-name: ${ONES_INVITATIONS_TABLE:ones-invitations}
     cover-previews-table-name: ${ONES_COVER_PREVIEWS_TABLE:ones-cover-previews}
     cover-reservations-table-name: ${ONES_COVER_RESERVATIONS_TABLE:ones-cover-reservations}
     photos-table-name: ${ONES_PHOTOS_TABLE:ones-photos}
