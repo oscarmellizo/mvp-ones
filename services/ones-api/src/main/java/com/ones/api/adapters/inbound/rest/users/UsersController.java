@@ -90,6 +90,12 @@ public class UsersController {
         String userId = authentication.getName();
         String preferredName = request != null ? request.preferredName() : null;
 
+        if (preferredName == null || preferredName.trim().isEmpty()) {
+            throw new IllegalArgumentException("preferredName is required");
+        }
+
+        preferredName = preferredName.trim();
+
         return updateUserPreferencesUseCase.execute(userId, preferredName)
                 .map(updated -> ResponseEntity.ok(toResponse(updated)))
                 .orElseGet(() -> ResponseEntity.notFound().build());

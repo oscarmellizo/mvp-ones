@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/ui/ones_colors.dart';
 import '../auth_controller.dart';
+import 'register_page.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
@@ -82,7 +83,19 @@ class LoginPage extends StatelessWidget {
                     width: double.infinity,
                     height: 54,
                     child: ElevatedButton(
-                      onPressed: auth.isLoading ? null : () => auth.signIn(),
+                      onPressed: auth.isLoading
+                          ? null
+                          : () async {
+                              final step = await auth.signInExisting();
+                              if (!context.mounted) return;
+                              if (step == AuthNextStep.needsRegistration) {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const RegisterPage(),
+                                  ),
+                                );
+                              }
+                            },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: OnesColors.white,
                         foregroundColor: OnesColors.black,
@@ -101,9 +114,17 @@ class LoginPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   TextButton(
-                    onPressed: () {},
+                    onPressed: auth.isLoading
+                        ? null
+                        : () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const RegisterPage(),
+                              ),
+                            );
+                          },
                     child: const Text(
-                      'Create an account with Email',
+                      'Create an account',
                       style: TextStyle(
                         color: OnesColors.purpleDeep,
                         fontWeight: FontWeight.w700,

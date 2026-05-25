@@ -177,6 +177,15 @@ class _ProfilePageState extends State<ProfilePage> {
                                 final value =
                                     _preferredNameController.text.trim();
                                 FocusScope.of(context).unfocus();
+                                if (value.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content:
+                                          Text('Preferred name is required.'),
+                                    ),
+                                  );
+                                  return;
+                                }
                                 try {
                                   await auth.savePreferredName(value);
                                   if (!context.mounted) return;

@@ -348,7 +348,7 @@ class _RootRouter extends StatelessWidget {
     final auth = context.watch<AuthController>();
 
     final base = Uri.base;
-    if (auth.isSignedIn && base.path == InvitationLinkPage.routeName) {
+    if (auth.isRegistered && base.path == InvitationLinkPage.routeName) {
       final token = base.queryParameters['token'];
       if (token != null && token.trim().isNotEmpty) {
         final action = base.queryParameters['action'];
@@ -360,7 +360,7 @@ class _RootRouter extends StatelessWidget {
       return const SplashPage();
     }
 
-    if (!auth.isSignedIn) {
+    if (!auth.isRegistered) {
       return const LoginPage();
     }
 

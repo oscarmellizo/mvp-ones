@@ -11,6 +11,12 @@ import '../../users/domain/users_repository.dart';
 import '../../admin/application/get_admin_me_use_case.dart';
 import '../infrastructure/google_token_refresh_service.dart';
 
+enum AuthNextStep {
+  signedIn,
+  needsRegistration,
+  failed,
+}
+
 class AuthController extends ChangeNotifier {
   final SignInWithGoogleUseCase signInWithGoogle;
   final SignOutUseCase signOut;
@@ -26,6 +32,7 @@ class AuthController extends ChangeNotifier {
   String? _idToken;
   String? _preferredName;
   bool _isAdmin = false;
+  bool _isRegistered = false;
   bool _isLoading = false;
   Object? _error;
 
@@ -46,13 +53,20 @@ class AuthController extends ChangeNotifier {
   String? get preferredName => _preferredName;
   bool get isAdmin => _isAdmin;
   bool get isSignedIn => _user != null;
+  bool get isRegistered => _isRegistered;
   bool get isLoading => _isLoading;
   Object? get error => _error;
 
   Future<void> signIn() async {
+    await signInExisting();
+  }
+
+  Future<AuthNextStep> signInExisting() async {
     _setLoading(true);
     try {
       _error = null;
+      _isRegistered = false;
+
       _user = await signInWithGoogle.execute();
       _idToken = await getIdToken.execute();
 
@@ -75,35 +89,104 @@ class AuthController extends ChangeNotifier {
       }
 
       final token = _idToken;
-      if (token != null && token.isNotEmpty) {
-        try {
-          await ensureUser.execute(token);
-          _preferredName = await getPreferredName.execute(token);
-          _isAdmin = await _safeLoadIsAdmin(token);
-        } catch (_) {
-          // Intentionally ignored: user should still be signed in even if persistence fails.
+      if (token == null || token.isEmpty) {
+        throw StateError('Missing idToken');
+      }
+
+      try {
+        _preferredName = await getPreferredName.execute(token);
+        _isAdmin = await _safeLoadIsAdmin(token);
+        _isRegistered = true;
+        return AuthNextStep.signedIn;
+      } on DioException catch (e) {
+        if (e.response?.statusCode == 404) {
+          _preferredName = null;
+          _isAdmin = false;
+          _isRegistered = false;
+          return AuthNextStep.needsRegistration;
         }
+        rethrow;
       }
     } catch (e) {
-      if (e is DioException) {
-        final status = e.response?.statusCode;
-        final data = e.response?.data;
-        if (data is Map) {
-          final code = data['code'];
-          final msg = data['message'];
-          _error = 'HTTP $status ${code ?? ''} ${msg ?? ''}'.trim();
-        } else if (data is String && data.trim().isNotEmpty) {
-          _error = 'HTTP $status ${data.trim()}'.trim();
-        } else {
-          _error = 'HTTP $status ${e.message ?? 'Request failed'}'.trim();
-        }
-      } else {
-        _error = e;
-      }
+      _error = _formatDioOrRawError(e);
       _user = null;
       _idToken = null;
       _preferredName = null;
       _isAdmin = false;
+      _isRegistered = false;
+      return AuthNextStep.failed;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<AuthNextStep> beginRegistration() async {
+    _setLoading(true);
+    try {
+      _error = null;
+      _isRegistered = false;
+      _user = await signInWithGoogle.execute();
+      _idToken = await getIdToken.execute();
+
+      final tokenForClaims = _idToken;
+      if (_user != null &&
+          tokenForClaims != null &&
+          tokenForClaims.isNotEmpty) {
+        final picture = _tryGetPictureFromIdToken(tokenForClaims);
+        if ((_user?.pictureUrl == null || _user!.pictureUrl!.isEmpty) &&
+            picture != null &&
+            picture.isNotEmpty) {
+          final u = _user!;
+          _user = AuthUser(
+            userId: u.userId,
+            email: u.email,
+            displayName: u.displayName,
+            pictureUrl: picture,
+          );
+        }
+      }
+
+      final token = _idToken;
+      if (token == null || token.isEmpty) {
+        throw StateError('Missing idToken');
+      }
+
+      return AuthNextStep.needsRegistration;
+    } catch (e) {
+      _error = _formatDioOrRawError(e);
+      _user = null;
+      _idToken = null;
+      _preferredName = null;
+      _isAdmin = false;
+      _isRegistered = false;
+      return AuthNextStep.failed;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> completeRegistration(String preferredName) async {
+    final token = _idToken;
+    if (token == null || token.isEmpty) {
+      throw StateError('Missing idToken');
+    }
+
+    final trimmed = preferredName.trim();
+    if (trimmed.isEmpty) {
+      throw StateError('Preferred name is required');
+    }
+
+    _setLoading(true);
+    try {
+      _error = null;
+      await ensureUser.execute(token);
+      final updated = await updatePreferredName.execute(token, trimmed);
+      _preferredName = (updated ?? trimmed).trim();
+      _isAdmin = await _safeLoadIsAdmin(token);
+      _isRegistered = true;
+    } catch (e) {
+      _error = _formatDioOrRawError(e);
+      rethrow;
     } finally {
       _setLoading(false);
     }
@@ -112,6 +195,9 @@ class AuthController extends ChangeNotifier {
   Future<void> savePreferredName(String value) async {
     final token = _idToken;
     if (token == null || token.isEmpty) return;
+    if (value.trim().isEmpty) {
+      throw StateError('Preferred name is required');
+    }
     _setLoading(true);
     try {
       _error = null;
@@ -136,7 +222,9 @@ class AuthController extends ChangeNotifier {
       final token = await tokenRefreshService.refreshIdToken();
       if (token != null && token.isNotEmpty) {
         _idToken = token;
-        _isAdmin = await _safeLoadIsAdmin(token);
+        if (_isRegistered) {
+          _isAdmin = await _safeLoadIsAdmin(token);
+        }
         notifyListeners();
         return token;
       }
@@ -155,11 +243,29 @@ class AuthController extends ChangeNotifier {
       _idToken = null;
       _preferredName = null;
       _isAdmin = false;
+      _isRegistered = false;
     } catch (e) {
       _error = e;
     } finally {
       _setLoading(false);
     }
+  }
+
+  Object _formatDioOrRawError(Object e) {
+    if (e is DioException) {
+      final status = e.response?.statusCode;
+      final data = e.response?.data;
+      if (data is Map) {
+        final code = data['code'] ?? data['error'];
+        final msg = data['message'];
+        return 'HTTP $status ${code ?? ''} ${msg ?? ''}'.trim();
+      } else if (data is String && data.trim().isNotEmpty) {
+        return 'HTTP $status ${data.trim()}'.trim();
+      } else {
+        return 'HTTP $status ${e.message ?? 'Request failed'}'.trim();
+      }
+    }
+    return e;
   }
 
   Future<bool> _safeLoadIsAdmin(String token) async {
