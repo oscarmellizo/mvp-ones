@@ -119,6 +119,19 @@ CREATE TABLE $_table (
     return rows.map(_map).toList(growable: false);
   }
 
+  Future<List<PhotoUploadItem>> listActive({
+    int limit = 500,
+  }) async {
+    final db = await _open();
+    final rows = await db.query(
+      _table,
+      where: "status IN ('pending','uploading')",
+      orderBy: 'createdAt DESC',
+      limit: limit,
+    );
+    return rows.map(_map).toList(growable: false);
+  }
+
   Future<void> markUploading(int id) async {
     final db = await _open();
     await db.update(

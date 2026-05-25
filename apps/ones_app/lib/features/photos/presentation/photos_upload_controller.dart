@@ -18,6 +18,9 @@ class PhotosUploadController extends ChangeNotifier {
   bool _running = false;
   Object? _lastError;
 
+  int _tokenEpoch = 0;
+  bool _triggerAgain = false;
+
   final Map<String, List<PhotoUploadItem>> _activeByEvent = {};
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
@@ -39,19 +42,44 @@ class PhotosUploadController extends ChangeNotifier {
     return _activeByEvent[eventId] ?? const [];
   }
 
+  Future<void> rehydrateActive() async {
+    final items = await db.listActive();
+    final next = <String, List<PhotoUploadItem>>{};
+    for (final it in items) {
+      if (it.eventId.isEmpty) continue;
+      (next[it.eventId] ??= <PhotoUploadItem>[]).add(it);
+    }
+    _activeByEvent
+      ..clear()
+      ..addAll(next);
+    notifyListeners();
+  }
+
   void setIdToken(String? token) {
     if (_idToken == token) {
       api.setIdToken(token);
       return;
     }
 
+    _tokenEpoch++;
+
     _idToken = token;
     api.setIdToken(token);
 
-    _running = false;
     _lastError = null;
-    _activeByEvent.clear();
+
+    final hasToken = token != null && token.isNotEmpty;
+    if (!hasToken) {
+      _activeByEvent.clear();
+      _triggerAgain = false;
+      notifyListeners();
+      return;
+    }
+
+    unawaited(rehydrateActive());
+    _triggerAgain = true;
     notifyListeners();
+    unawaited(trigger());
   }
 
   Future<void> enqueueCapturedJpeg({
@@ -96,16 +124,27 @@ class PhotosUploadController extends ChangeNotifier {
   Future<void> trigger() async {
     if (_running) return;
 
+    final epoch = _tokenEpoch;
     final token = _idToken;
     if (token == null || token.isEmpty) return;
 
     _running = true;
+    _triggerAgain = false;
     notifyListeners();
 
     try {
       _lastError = null;
 
       while (true) {
+        if (epoch != _tokenEpoch) {
+          break;
+        }
+
+        final currentToken = _idToken;
+        if (currentToken == null || currentToken.isEmpty) {
+          break;
+        }
+
         final connectivity = await Connectivity().checkConnectivity();
         if (connectivity.contains(ConnectivityResult.none)) {
           break;
@@ -161,6 +200,11 @@ class PhotosUploadController extends ChangeNotifier {
     } finally {
       _running = false;
       notifyListeners();
+
+      if (_triggerAgain) {
+        _triggerAgain = false;
+        unawaited(trigger());
+      }
     }
   }
 
