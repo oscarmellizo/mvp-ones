@@ -1085,6 +1085,8 @@ Resources:
               Value: !Ref AdminsTable
             - Name: ONES_FRAMES_TABLE
               Value: !Ref FramesTable
+            - Name: ONES_TRANSLATIONS_TABLE
+              Value: !Ref TranslationsTable
             - Name: ONES_EVENTS_COVERS_TEMP_BUCKET
               Value: !Ref EventsCoversTempBucket
             - Name: ONES_EVENTS_ASSETS_BUCKET
@@ -1493,6 +1495,8 @@ Outputs:
     Value: !Ref AdminsTable
   FramesTableName:
     Value: !Ref FramesTable
+  TranslationsTableName:
+    Value: !Ref TranslationsTable
   EventsCoversTempBucketName:
     Value: !Ref EventsCoversTempBucket
   EventsAssetsBucketName:
