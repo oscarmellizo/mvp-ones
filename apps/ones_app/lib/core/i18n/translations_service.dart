@@ -77,6 +77,7 @@ class TranslationsService extends ChangeNotifier {
           _translationsCache[languageCode] =
               Map<String, String>.from(jsonDecode(cached))
                   .cast<String, String>();
+          notifyListeners();
           return;
         }
       }
@@ -86,6 +87,7 @@ class TranslationsService extends ChangeNotifier {
       if (token == null) {
         // User not authenticated, use empty cache
         _translationsCache[languageCode] = {};
+        notifyListeners();
         return;
       }
 
@@ -114,9 +116,11 @@ class TranslationsService extends ChangeNotifier {
         '$_translationsCacheTimestampKey$languageCode',
         DateTime.now().millisecondsSinceEpoch,
       );
+      notifyListeners();
     } catch (e) {
       // If loading fails, use empty map
       _translationsCache[languageCode] = {};
+      notifyListeners();
     }
   }
 
