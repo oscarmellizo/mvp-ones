@@ -23,6 +23,10 @@ class TranslationsService extends ChangeNotifier {
 
   void setAuthController(AuthController authController) {
     _authController = authController;
+    // Reload translations when auth controller is set (user may have just logged in)
+    if (_currentLanguage != null) {
+      _loadTranslations(_currentLanguage!);
+    }
   }
 
   Future<void> init() async {

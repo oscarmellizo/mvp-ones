@@ -234,14 +234,11 @@ class _ProfilePageState extends State<ProfilePage> {
                                     ?.translate('profile.language_pt') ??
                                 'Português')),
                       ],
-                      onChanged: (value) async {
+                      onChanged: (value) {
                         if (value != null) {
                           setState(() {
                             _selectedLanguage = value;
                           });
-                          if (translationsService != null) {
-                            await translationsService.setLanguage(value);
-                          }
                         }
                       },
                     ),
@@ -275,16 +272,16 @@ class _ProfilePageState extends State<ProfilePage> {
                                 }
                                 try {
                                   await auth.savePreferredName(value);
+                                  if (translationsService != null) {
+                                    await translationsService
+                                        .setLanguage(_selectedLanguage);
+                                  }
                                   if (!context.mounted) return;
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text(
-                                        value.isEmpty
-                                            ? translationsService?.translate(
-                                                    'profile.success_preferences_saved') ??
-                                                'Preferences saved.'
-                                            : '${translationsService?.translate('profile.success_preferences_saved') ?? 'Preferences saved.'}: $value',
-                                      ),
+                                      content: Text(translationsService?.translate(
+                                              'profile.success_preferences_saved') ??
+                                          'Preferences updated.'),
                                     ),
                                   );
                                 } catch (_) {
