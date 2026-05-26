@@ -28,6 +28,8 @@ import 'package:ones_api_client/src/model/health_response.dart';
 import 'package:ones_api_client/src/model/invitation.dart';
 import 'package:ones_api_client/src/model/invite_event_guests_request.dart';
 import 'package:ones_api_client/src/model/presigned_url_response.dart';
+import 'package:ones_api_client/src/model/translation.dart';
+import 'package:ones_api_client/src/model/upsert_translation_request.dart';
 
 part 'serializers.g.dart';
 
@@ -46,11 +48,17 @@ part 'serializers.g.dart';
   Invitation,
   InviteEventGuestsRequest,
   PresignedUrlResponse,
+  Translation,
+  UpsertTranslationRequest,
 ])
 Serializers serializers = (_$serializers.toBuilder()
       ..addBuilderFactory(
         const FullType(BuiltList, [FullType(Event)]),
         () => ListBuilder<Event>(),
+      )
+      ..addBuilderFactory(
+        const FullType(BuiltList, [FullType(Translation)]),
+        () => ListBuilder<Translation>(),
       )
       ..addBuilderFactory(
         const FullType(BuiltList, [FullType(Invitation)]),

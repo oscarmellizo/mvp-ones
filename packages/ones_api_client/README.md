@@ -69,9 +69,11 @@ Class | Method | HTTP request | Description
 [*DefaultApi*](doc/DefaultApi.md) | [**acceptInvitation**](doc/DefaultApi.md#acceptinvitation) | **POST** /v1/invitations/{eventId}/accept | Accept an invitation for an event
 [*DefaultApi*](doc/DefaultApi.md) | [**cancelEventCover**](doc/DefaultApi.md#canceleventcover) | **POST** /v1/events/covers/{coverId}/cancel | Cancel a generated cover preview (best-effort delete temp object)
 [*DefaultApi*](doc/DefaultApi.md) | [**createEvent**](doc/DefaultApi.md#createevent) | **POST** /v1/events | Create event for authenticated user
+[*DefaultApi*](doc/DefaultApi.md) | [**deleteTranslation**](doc/DefaultApi.md#deletetranslation) | **DELETE** /v1/admin/translations/{translationKey}/{languageCode} | Delete a translation (admin only)
 [*DefaultApi*](doc/DefaultApi.md) | [**generateEventCover**](doc/DefaultApi.md#generateeventcover) | **POST** /v1/events/covers/generate | Generate an AI event cover preview and return a pre-signed URL
 [*DefaultApi*](doc/DefaultApi.md) | [**getEvent**](doc/DefaultApi.md#getevent) | **GET** /v1/events/{id} | Get event by id (only if it belongs to authenticated user)
 [*DefaultApi*](doc/DefaultApi.md) | [**getEventCoverUrl**](doc/DefaultApi.md#geteventcoverurl) | **GET** /v1/events/{id}/cover-url | Get a pre-signed URL to view the event cover image (if configured)
+[*DefaultApi*](doc/DefaultApi.md) | [**getTranslation**](doc/DefaultApi.md#gettranslation) | **GET** /v1/admin/translations/{translationKey}/{languageCode} | Get a specific translation (admin only)
 [*DefaultApi*](doc/DefaultApi.md) | [**health**](doc/DefaultApi.md#health) | **GET** /health | Health check
 [*DefaultApi*](doc/DefaultApi.md) | [**inviteEventGuests**](doc/DefaultApi.md#inviteeventguests) | **POST** /v1/events/{id}/invitees | Invite new guests to an existing event (owner only)
 [*DefaultApi*](doc/DefaultApi.md) | [**listEventGuests**](doc/DefaultApi.md#listeventguests) | **GET** /v1/events/{id}/guests | List guests for an event (owner + invitees with invitation status)
@@ -79,8 +81,10 @@ Class | Method | HTTP request | Description
 [*DefaultApi*](doc/DefaultApi.md) | [**listEventPhotos**](doc/DefaultApi.md#listeventphotos) | **GET** /v1/events/{eventId}/photos | List event photos (paginated) with optional server-side filtering
 [*DefaultApi*](doc/DefaultApi.md) | [**listEvents**](doc/DefaultApi.md#listevents) | **GET** /v1/events | List events for authenticated user
 [*DefaultApi*](doc/DefaultApi.md) | [**listInvitations**](doc/DefaultApi.md#listinvitations) | **GET** /v1/invitations | List invitations for authenticated user (by email claim)
+[*DefaultApi*](doc/DefaultApi.md) | [**listTranslations**](doc/DefaultApi.md#listtranslations) | **GET** /v1/admin/translations | List translations (admin only)
 [*DefaultApi*](doc/DefaultApi.md) | [**rejectInvitation**](doc/DefaultApi.md#rejectinvitation) | **POST** /v1/invitations/{eventId}/reject | Reject an invitation for an event
 [*DefaultApi*](doc/DefaultApi.md) | [**resolveInvitation**](doc/DefaultApi.md#resolveinvitation) | **GET** /v1/invitations/resolve | Resolve an invitation token for authenticated user (returns invitation details for modal)
+[*DefaultApi*](doc/DefaultApi.md) | [**upsertTranslation**](doc/DefaultApi.md#upserttranslation) | **POST** /v1/admin/translations | Create or update a translation (admin only)
 
 
 ## Documentation For Models
@@ -99,6 +103,8 @@ Class | Method | HTTP request | Description
  - [Invitation](doc/Invitation.md)
  - [InviteEventGuestsRequest](doc/InviteEventGuestsRequest.md)
  - [PresignedUrlResponse](doc/PresignedUrlResponse.md)
+ - [Translation](doc/Translation.md)
+ - [UpsertTranslationRequest](doc/UpsertTranslationRequest.md)
 
 
 ## Documentation For Authorization

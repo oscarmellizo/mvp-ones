@@ -25,3 +25,5 @@ export 'package:ones_api_client/src/model/health_response.dart';
 export 'package:ones_api_client/src/model/invitation.dart';
 export 'package:ones_api_client/src/model/invite_event_guests_request.dart';
 export 'package:ones_api_client/src/model/presigned_url_response.dart';
+export 'package:ones_api_client/src/model/translation.dart';
+export 'package:ones_api_client/src/model/upsert_translation_request.dart';

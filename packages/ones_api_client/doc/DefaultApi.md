@@ -13,9 +13,11 @@ Method | HTTP request | Description
 [**acceptInvitation**](DefaultApi.md#acceptinvitation) | **POST** /v1/invitations/{eventId}/accept | Accept an invitation for an event
 [**cancelEventCover**](DefaultApi.md#canceleventcover) | **POST** /v1/events/covers/{coverId}/cancel | Cancel a generated cover preview (best-effort delete temp object)
 [**createEvent**](DefaultApi.md#createevent) | **POST** /v1/events | Create event for authenticated user
+[**deleteTranslation**](DefaultApi.md#deletetranslation) | **DELETE** /v1/admin/translations/{translationKey}/{languageCode} | Delete a translation (admin only)
 [**generateEventCover**](DefaultApi.md#generateeventcover) | **POST** /v1/events/covers/generate | Generate an AI event cover preview and return a pre-signed URL
 [**getEvent**](DefaultApi.md#getevent) | **GET** /v1/events/{id} | Get event by id (only if it belongs to authenticated user)
 [**getEventCoverUrl**](DefaultApi.md#geteventcoverurl) | **GET** /v1/events/{id}/cover-url | Get a pre-signed URL to view the event cover image (if configured)
+[**getTranslation**](DefaultApi.md#gettranslation) | **GET** /v1/admin/translations/{translationKey}/{languageCode} | Get a specific translation (admin only)
 [**health**](DefaultApi.md#health) | **GET** /health | Health check
 [**inviteEventGuests**](DefaultApi.md#inviteeventguests) | **POST** /v1/events/{id}/invitees | Invite new guests to an existing event (owner only)
 [**listEventGuests**](DefaultApi.md#listeventguests) | **GET** /v1/events/{id}/guests | List guests for an event (owner + invitees with invitation status)
@@ -23,8 +25,10 @@ Method | HTTP request | Description
 [**listEventPhotos**](DefaultApi.md#listeventphotos) | **GET** /v1/events/{eventId}/photos | List event photos (paginated) with optional server-side filtering
 [**listEvents**](DefaultApi.md#listevents) | **GET** /v1/events | List events for authenticated user
 [**listInvitations**](DefaultApi.md#listinvitations) | **GET** /v1/invitations | List invitations for authenticated user (by email claim)
+[**listTranslations**](DefaultApi.md#listtranslations) | **GET** /v1/admin/translations | List translations (admin only)
 [**rejectInvitation**](DefaultApi.md#rejectinvitation) | **POST** /v1/invitations/{eventId}/reject | Reject an invitation for an event
 [**resolveInvitation**](DefaultApi.md#resolveinvitation) | **GET** /v1/invitations/resolve | Resolve an invitation token for authenticated user (returns invitation details for modal)
+[**upsertTranslation**](DefaultApi.md#upserttranslation) | **POST** /v1/admin/translations | Create or update a translation (admin only)
 
 
 # **acceptEventCover**
@@ -190,6 +194,48 @@ Name | Type | Description  | Notes
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **deleteTranslation**
+> deleteTranslation(translationKey, languageCode)
+
+Delete a translation (admin only)
+
+### Example
+```dart
+import 'package:ones_api_client/api.dart';
+
+final api = OnesApiClient().getDefaultApi();
+final String translationKey = translationKey_example; // String | 
+final String languageCode = languageCode_example; // String | 
+
+try {
+    api.deleteTranslation(translationKey, languageCode);
+} catch on DioException (e) {
+    print('Exception when calling DefaultApi->deleteTranslation: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **translationKey** | **String**|  | 
+ **languageCode** | **String**|  | 
+
+### Return type
+
+void (empty response body)
+
+### Authorization
+
+[bearerAuth](../README.md#bearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **generateEventCover**
 > GenerateEventCoverResponse generateEventCover(generateEventCoverRequest)
 
@@ -301,6 +347,49 @@ Name | Type | Description  | Notes
 ### Return type
 
 [**PresignedUrlResponse**](PresignedUrlResponse.md)
+
+### Authorization
+
+[bearerAuth](../README.md#bearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getTranslation**
+> Translation getTranslation(translationKey, languageCode)
+
+Get a specific translation (admin only)
+
+### Example
+```dart
+import 'package:ones_api_client/api.dart';
+
+final api = OnesApiClient().getDefaultApi();
+final String translationKey = translationKey_example; // String | 
+final String languageCode = languageCode_example; // String | 
+
+try {
+    final response = api.getTranslation(translationKey, languageCode);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling DefaultApi->getTranslation: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **translationKey** | **String**|  | 
+ **languageCode** | **String**|  | 
+
+### Return type
+
+[**Translation**](Translation.md)
 
 ### Authorization
 
@@ -600,6 +689,47 @@ This endpoint does not need any parameter.
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **listTranslations**
+> BuiltList<Translation> listTranslations(languageCode)
+
+List translations (admin only)
+
+### Example
+```dart
+import 'package:ones_api_client/api.dart';
+
+final api = OnesApiClient().getDefaultApi();
+final String languageCode = languageCode_example; // String | 
+
+try {
+    final response = api.listTranslations(languageCode);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling DefaultApi->listTranslations: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **languageCode** | **String**|  | [optional] 
+
+### Return type
+
+[**BuiltList&lt;Translation&gt;**](Translation.md)
+
+### Authorization
+
+[bearerAuth](../README.md#bearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **rejectInvitation**
 > Invitation rejectInvitation(eventId)
 
@@ -678,6 +808,47 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **upsertTranslation**
+> Translation upsertTranslation(upsertTranslationRequest)
+
+Create or update a translation (admin only)
+
+### Example
+```dart
+import 'package:ones_api_client/api.dart';
+
+final api = OnesApiClient().getDefaultApi();
+final UpsertTranslationRequest upsertTranslationRequest = ; // UpsertTranslationRequest | 
+
+try {
+    final response = api.upsertTranslation(upsertTranslationRequest);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling DefaultApi->upsertTranslation: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **upsertTranslationRequest** | [**UpsertTranslationRequest**](UpsertTranslationRequest.md)|  | 
+
+### Return type
+
+[**Translation**](Translation.md)
+
+### Authorization
+
+[bearerAuth](../README.md#bearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

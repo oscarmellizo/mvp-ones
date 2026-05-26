@@ -16,6 +16,8 @@ doc/HealthResponse.md
 doc/Invitation.md
 doc/InviteEventGuestsRequest.md
 doc/PresignedUrlResponse.md
+doc/Translation.md
+doc/UpsertTranslationRequest.md
 lib/ones_api_client.dart
 lib/src/api.dart
 lib/src/api/default_api.dart
@@ -41,8 +43,9 @@ lib/src/model/health_response.dart
 lib/src/model/invitation.dart
 lib/src/model/invite_event_guests_request.dart
 lib/src/model/presigned_url_response.dart
+lib/src/model/translation.dart
+lib/src/model/upsert_translation_request.dart
 lib/src/serializers.dart
 pubspec.yaml
-test/event_photo_list_item_test.dart
-test/event_photos_list_page_test.dart
-test/guest_v2_test.dart
+test/translation_test.dart
+test/upsert_translation_request_test.dart

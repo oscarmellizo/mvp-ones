@@ -1,0 +1,217 @@
+{
+  "profile.account": {
+    "es": "Cuenta",
+    "en": "Account",
+    "pt": "Conta"
+  },
+  "profile.first_name": {
+    "es": "Nombre",
+    "en": "First name",
+    "pt": "Nome"
+  },
+  "profile.last_name": {
+    "es": "Apellido",
+    "en": "Last name",
+    "pt": "Sobrenome"
+  },
+  "profile.email": {
+    "es": "Correo electrónico",
+    "en": "Email",
+    "pt": "E-mail"
+  },
+  "profile.preferences": {
+    "es": "Preferencias",
+    "en": "Preferences",
+    "pt": "Preferências"
+  },
+  "profile.preferred_name_question": {
+    "es": "¿Cómo te gustaría que te llamen?",
+    "en": "How do you like to be called?",
+    "pt": "Como você gostaria de ser chamado?"
+  },
+  "profile.preferred_name_label": {
+    "es": "Nombre preferido",
+    "en": "Preferred name",
+    "pt": "Nome preferido"
+  },
+  "profile.preferred_name_hint": {
+    "es": "Este nombre se usa para indicar cuáles son tus fotos.",
+    "en": "This name is used to indicate which are your photos.",
+    "pt": "Este nome é usado para indicar quais são suas fotos."
+  },
+  "profile.language": {
+    "es": "Idioma",
+    "en": "Language",
+    "pt": "Idioma"
+  },
+  "profile.save_preferences": {
+    "es": "Guardar preferencias",
+    "en": "Save preferences",
+    "pt": "Salvar preferências"
+  },
+  "profile.error_preferred_name_required": {
+    "es": "El nombre preferido es obligatorio.",
+    "en": "Preferred name is required.",
+    "pt": "Nome preferido é obrigatório."
+  },
+  "profile.success_preferences_saved": {
+    "es": "Preferencias guardadas.",
+    "en": "Preferences saved.",
+    "pt": "Preferências salvas."
+  },
+  "profile.error_save_failed": {
+    "es": "No se pudieron guardar las preferencias.",
+    "en": "Could not save preferences.",
+    "pt": "Não foi possível salvar as preferências."
+  },
+  "profile.admin": {
+    "es": "Administrador",
+    "en": "Admin",
+    "pt": "Administrador"
+  },
+  "profile.open_admin": {
+    "es": "Abrir Admin",
+    "en": "Open Admin",
+    "pt": "Abrir Admin"
+  },
+  "profile.logout": {
+    "es": "Cerrar sesión",
+    "en": "Logout",
+    "pt": "Sair"
+  },
+  "profile.signing_out": {
+    "es": "Cerrando sesión...",
+    "en": "Signing out...",
+    "pt": "Saindo..."
+  },
+  "profile.no_authenticated_user": {
+    "es": "No hay usuario autenticado.",
+    "en": "No authenticated user.",
+    "pt": "Nenhum usuário autenticado."
+  },
+  "profile.guest": {
+    "es": "Invitado",
+    "en": "Guest",
+    "pt": "Convidado"
+  },
+  "admin.title": {
+    "es": "Administrador",
+    "en": "Admin",
+    "pt": "Administrador"
+  },
+  "admin.frames": {
+    "es": "Marcos",
+    "en": "Frames",
+    "pt": "Molduras"
+  },
+  "admin.manage_frames": {
+    "es": "Gestionar marcos",
+    "en": "Manage frames",
+    "pt": "Gerenciar molduras"
+  },
+  "admin.event_templates": {
+    "es": "Plantillas de eventos",
+    "en": "Event templates",
+    "pt": "Modelos de eventos"
+  },
+  "admin.manage_templates": {
+    "es": "Gestionar plantillas",
+    "en": "Manage templates",
+    "pt": "Gerenciar modelos"
+  },
+  "admin.translations": {
+    "es": "Traducciones",
+    "en": "Translations",
+    "pt": "Traduções"
+  },
+  "admin.manage_translations": {
+    "es": "Gestionar traducciones",
+    "en": "Manage translations",
+    "pt": "Gerenciar traduções"
+  },
+  "admin.administrators": {
+    "es": "Administradores",
+    "en": "Administrators",
+    "pt": "Administradores"
+  },
+  "admin.manage_admins": {
+    "es": "Gestionar administradores",
+    "en": "Manage admins",
+    "pt": "Gerenciar administradores"
+  },
+  "admin_translations.title": {
+    "es": "Traducciones",
+    "en": "Translations",
+    "pt": "Traduções"
+  },
+  "admin_translations.language": {
+    "es": "Idioma",
+    "en": "Language",
+    "pt": "Idioma"
+  },
+  "admin_translations.add_translation": {
+    "es": "Agregar traducción",
+    "en": "Add translation",
+    "pt": "Adicionar tradução"
+  },
+  "admin_translations.error": {
+    "es": "Error:",
+    "en": "Error:",
+    "pt": "Erro:"
+  },
+  "admin_translations.delete_title": {
+    "es": "Eliminar traducción",
+    "en": "Delete translation",
+    "pt": "Excluir tradução"
+  },
+  "admin_translations.delete_confirm": {
+    "es": "¿Estás seguro de que quieres eliminar esta traducción?",
+    "en": "Are you sure you want to delete this translation?",
+    "pt": "Tem certeza de que deseja excluir esta tradução?"
+  },
+  "common.cancel": {
+    "es": "Cancelar",
+    "en": "Cancel",
+    "pt": "Cancelar"
+  },
+  "common.delete": {
+    "es": "Eliminar",
+    "en": "Delete",
+    "pt": "Excluir"
+  },
+  "common.save": {
+    "es": "Guardar",
+    "en": "Save",
+    "pt": "Salvar"
+  },
+  "common.edit": {
+    "es": "Editar",
+    "en": "Edit",
+    "pt": "Editar"
+  },
+  "common.add": {
+    "es": "Agregar",
+    "en": "Add",
+    "pt": "Adicionar"
+  },
+  "common.back": {
+    "es": "Volver",
+    "en": "Back",
+    "pt": "Voltar"
+  },
+  "common.loading": {
+    "es": "Cargando...",
+    "en": "Loading...",
+    "pt": "Carregando..."
+  },
+  "common.error": {
+    "es": "Error",
+    "en": "Error",
+    "pt": "Erro"
+  },
+  "common.success": {
+    "es": "Éxito",
+    "en": "Success",
+    "pt": "Sucesso"
+  }
+}

@@ -57,14 +57,24 @@ class TranslationsService {
         return;
       }
 
-      // Fetch from backend - will need to implement this after API client is regenerated
-      // For now, use empty map
-      _translationsCache[languageCode] = {};
+      // Fetch from backend
+      final response = await _apiClient
+          .getDefaultApi()
+          .listTranslations(languageCode: languageCode, extra: {
+        'secure': [
+          {'type': 'http', 'scheme': 'bearer', 'name': 'bearerAuth'}
+        ]
+      });
+      final translationMap = <String, String>{};
+      for (final translation in response.data) {
+        translationMap[translation.translationKey] = translation.value ?? '';
+      }
+      _translationsCache[languageCode] = translationMap;
 
       // Cache the translations
       await _prefs.setString(
         '$_translationsCacheKey$languageCode',
-        jsonEncode(_translationsCache[languageCode]),
+        jsonEncode(translationMap),
       );
     } catch (e) {
       // If loading fails, ensure we have at least an empty map

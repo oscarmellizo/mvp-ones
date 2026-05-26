@@ -409,6 +409,101 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /v1/admin/translations:
+    get:
+      operationId: listTranslations
+      summary: List translations (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: languageCode
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [es, en, pt]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Translation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      operationId: upsertTranslation
+      summary: Create or update a translation (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertTranslationRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Translation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /v1/admin/translations/{translationKey}/{languageCode}:
+    get:
+      operationId: getTranslation
+      summary: Get a specific translation (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: translationKey
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: languageCode
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [es, en, pt]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Translation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteTranslation
+      summary: Delete a translation (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: translationKey
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: languageCode
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [es, en, pt]
+      responses:
+        '204':
+          description: No Content
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 components:
   securitySchemes:
     bearerAuth:
@@ -722,3 +817,46 @@ components:
           items:
             type: string
             format: email
+    Translation:
+      type: object
+      required: [translationKey, languageCode]
+      properties:
+        translationKey:
+          type: string
+        languageCode:
+          type: string
+          enum: [es, en, pt]
+        value:
+          type: string
+          nullable: true
+        context:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdBy:
+          type: string
+          nullable: true
+        updatedBy:
+          type: string
+          nullable: true
+    UpsertTranslationRequest:
+      type: object
+      required: [translationKey, languageCode, value]
+      properties:
+        translationKey:
+          type: string
+        languageCode:
+          type: string
+          enum: [es, en, pt]
+        value:
+          type: string
+        context:
+          type: string
+          nullable: true
