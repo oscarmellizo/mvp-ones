@@ -94,7 +94,12 @@ class TranslationsService extends ChangeNotifier {
           _translationsCache[languageCode] =
               Map<String, String>.from(jsonDecode(cached))
                   .cast<String, String>();
-          print('Loaded translations from cache for $languageCode');
+          print(
+              'Loaded translations from cache for $languageCode: ${_translationsCache[languageCode]?.length} entries');
+          if (_translationsCache[languageCode]!.isNotEmpty) {
+            print(
+                'Sample cached translations for $languageCode: ${_translationsCache[languageCode]!.entries.take(3).toList()}');
+          }
           notifyListeners();
           return;
         }
