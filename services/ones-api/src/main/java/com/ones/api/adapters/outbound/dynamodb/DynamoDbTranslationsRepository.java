@@ -47,18 +47,14 @@ public class DynamoDbTranslationsRepository implements TranslationsRepository {
 
     @Override
     public List<Translation> getAllTranslations(String languageCode) {
-        Key key = Key.builder()
-                .partitionValue(languageCode)
+        // Use scan with filter since languageCode is sort key, not partition key
+        ScanEnhancedRequest scanRequest = ScanEnhancedRequest.builder()
                 .build();
 
-        QueryConditional queryConditional = QueryConditional.keyEqualTo(key);
-        QueryEnhancedRequest queryRequest = QueryEnhancedRequest.builder()
-                .queryConditional(queryConditional)
-                .build();
-
-        return table.query(queryRequest)
+        return table.scan(scanRequest)
                 .items()
                 .stream()
+                .filter(item -> item.getLanguageCode().equals(languageCode))
                 .map(this::mapToTranslation)
                 .toList();
     }
