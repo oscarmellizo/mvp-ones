@@ -57,7 +57,15 @@ class TranslationsService {
         return;
       }
 
-      // Fetch from backend
+      // Fetch from backend (only if user is authenticated)
+      // If not authenticated, skip backend fetch and use empty cache
+      // TODO: Integrate with AuthController to get token for authenticated requests
+      // For now, skip backend fetch to prevent 401 errors
+      _translationsCache[languageCode] = {};
+      return;
+
+      // The following code is disabled for now because it requires authentication
+      /*
       final response = await _apiClient
           .getDefaultApi()
           .listTranslations(languageCode: languageCode, extra: {
@@ -79,6 +87,7 @@ class TranslationsService {
         '$_translationsCacheKey$languageCode',
         jsonEncode(translationMap),
       );
+      */
     } catch (e) {
       // If loading fails, ensure we have at least an empty map
       _translationsCache[languageCode] = {};

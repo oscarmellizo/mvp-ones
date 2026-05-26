@@ -26,6 +26,10 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(InvitationStatusEnum.serializer)
       ..add(InviteEventGuestsRequest.serializer)
       ..add(PresignedUrlResponse.serializer)
+      ..add(Translation.serializer)
+      ..add(TranslationLanguageCodeEnum.serializer)
+      ..add(UpsertTranslationRequest.serializer)
+      ..add(UpsertTranslationRequestLanguageCodeEnum.serializer)
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(EventPhotoListItem)]),
           () => new ListBuilder<EventPhotoListItem>())
