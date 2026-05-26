@@ -2,7 +2,8 @@ package com.ones.api.infrastructure.migrations;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ones.api.application.translations.TranslationsManagementService;
+import com.ones.api.application.translations.ports.TranslationsRepository;
+import com.ones.api.domain.translations.Translation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
@@ -11,6 +12,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.Iterator;
 
 @Component
@@ -19,12 +21,13 @@ public class TranslationsMigration implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(TranslationsMigration.class);
     private static final String RESOURCE_FILE = "initial-translations.json";
+    private static final String MIGRATION_ACTOR = "system-migration";
 
-    private final TranslationsManagementService translationsManagementService;
+    private final TranslationsRepository translationsRepository;
     private final ObjectMapper objectMapper;
 
-    public TranslationsMigration(TranslationsManagementService translationsManagementService, ObjectMapper objectMapper) {
-        this.translationsManagementService = translationsManagementService;
+    public TranslationsMigration(TranslationsRepository translationsRepository, ObjectMapper objectMapper) {
+        this.translationsRepository = translationsRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -48,14 +51,18 @@ public class TranslationsMigration implements CommandLineRunner {
                     String languageCode = languageCodes.next();
                     String value = languageNode.get(languageCode).asText();
 
-                    translationsManagementService.upsert(
-                        null, // authentication (null for system migration)
+                    Translation translation = new Translation(
                         translationKey,
                         languageCode,
                         value,
-                        null // context
+                        null, // context
+                        Instant.now(),
+                        Instant.now(),
+                        MIGRATION_ACTOR,
+                        MIGRATION_ACTOR
                     );
 
+                    translationsRepository.upsert(translation);
                     count++;
                     log.info("Migrated: {} ({}) = {}", translationKey, languageCode, value);
                 }
