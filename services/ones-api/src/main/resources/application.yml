@@ -244,6 +244,7 @@ ones:
     admins-table-name: ${ONES_ADMINS_TABLE:ones-admins}
     frames-table-name: ${ONES_FRAMES_TABLE:ones-frames}
     event-templates-table-name: ${ONES_EVENT_TEMPLATES_TABLE:ones-event-templates}
+    translations-table-name: ${ONES_TRANSLATIONS_TABLE:ones-translations}
     endpoint: ${DYNAMODB_ENDPOINT:}
 
   photos:
