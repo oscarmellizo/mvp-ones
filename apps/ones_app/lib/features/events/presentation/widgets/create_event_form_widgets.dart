@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/widgets/ones_card.dart';
 
@@ -69,6 +71,8 @@ class CreateEventDateTimeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.watch<TranslationsService>();
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -95,7 +99,7 @@ class CreateEventDateTimeRow extends StatelessWidget {
                 children: [
                   Expanded(
                     child: CreateEventMiniField(
-                      label: 'Date',
+                      label: t.translate('create_event.date_label'),
                       value: dateValue,
                       icon: Icons.calendar_today,
                       onTap: onPickDate,
@@ -104,7 +108,7 @@ class CreateEventDateTimeRow extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: CreateEventMiniField(
-                      label: 'Time',
+                      label: t.translate('create_event.time_label'),
                       value: timeValue,
                       icon: Icons.access_time,
                       onTap: onPickTime,

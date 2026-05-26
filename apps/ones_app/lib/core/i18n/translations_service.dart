@@ -11,9 +11,11 @@ class TranslationsService extends ChangeNotifier {
   AuthController? _authController;
 
   static const String _languageKey = 'ones.language_preference';
-  static const String _translationsCacheKey = 'ones.translations_cache_';
+  static const int _cacheVersion = 2;
+  static const String _translationsCacheKey =
+      'ones.translations_cache_v${_cacheVersion}_';
   static const String _translationsCacheTimestampKey =
-      'ones.translations_cache_timestamp_';
+      'ones.translations_cache_timestamp_v${_cacheVersion}_';
   static const Duration _cacheTtl = Duration(hours: 12);
 
   Map<String, Map<String, String>> _translationsCache = {};
@@ -31,7 +33,19 @@ class TranslationsService extends ChangeNotifier {
   Future<void> init() async {
     if (_prefs == null) return;
     _currentLanguage = _prefs!.getString(_languageKey) ?? 'es';
-    await _loadTranslations(_currentLanguage!);
+
+    // Apply saved language immediately, even if we can't fetch translations yet.
+    notifyListeners();
+
+    final token = _authController?.idToken;
+    if (token != null && token.isNotEmpty) {
+      _apiClient.setBearerAuth('bearerAuth', token);
+    }
+
+    await _loadTranslations(
+      _currentLanguage!,
+      forceNetwork: token != null && token.isNotEmpty,
+    );
     _isInitialized = true;
   }
 
@@ -45,7 +59,7 @@ class TranslationsService extends ChangeNotifier {
     if (_prefs != null) {
       await _prefs!.setString(_languageKey, languageCode);
     }
-    await _loadTranslations(languageCode);
+    await _loadTranslations(languageCode, forceNetwork: true);
     notifyListeners();
   }
 
@@ -58,7 +72,7 @@ class TranslationsService extends ChangeNotifier {
 
     // Reload translations when auth controller is set (user may have just logged in)
     if (_currentLanguage != null) {
-      _loadTranslations(_currentLanguage!);
+      _loadTranslations(_currentLanguage!, forceNetwork: true);
     }
   }
 
@@ -73,39 +87,51 @@ class TranslationsService extends ChangeNotifier {
     return fallback ?? key;
   }
 
-  Future<void> _loadTranslations(String languageCode) async {
+  Future<void> _loadTranslations(
+    String languageCode, {
+    bool forceNetwork = false,
+  }) async {
     if (_prefs == null) {
       _translationsCache[languageCode] = {};
       notifyListeners();
       return;
     }
 
+    final previous = _translationsCache[languageCode];
+
     try {
       // Check if cache exists and is still valid (within TTL)
-      final cached = _prefs!.getString('$_translationsCacheKey$languageCode');
-      final cachedTimestamp =
-          _prefs!.getInt('$_translationsCacheTimestampKey$languageCode');
+      if (!forceNetwork) {
+        final cached = _prefs!.getString('$_translationsCacheKey$languageCode');
+        final cachedTimestamp =
+            _prefs!.getInt('$_translationsCacheTimestampKey$languageCode');
 
-      if (cached != null && cachedTimestamp != null) {
-        final cacheAge =
-            DateTime.now().millisecondsSinceEpoch - cachedTimestamp;
-        if (cacheAge < _cacheTtl.inMilliseconds) {
-          final decoded = Map<String, String>.from(jsonDecode(cached))
-              .cast<String, String>();
+        if (cached != null && cachedTimestamp != null) {
+          final cacheAge =
+              DateTime.now().millisecondsSinceEpoch - cachedTimestamp;
+          if (cacheAge < _cacheTtl.inMilliseconds) {
+            final decoded = Map<String, String>.from(jsonDecode(cached))
+                .cast<String, String>();
 
-          if (decoded.isNotEmpty) {
-            _translationsCache[languageCode] = decoded;
-            notifyListeners();
-            return;
+            if (decoded.isNotEmpty) {
+              _translationsCache[languageCode] = decoded;
+              notifyListeners();
+              return;
+            }
+
+            await _prefs!.remove('$_translationsCacheKey$languageCode');
+            await _prefs!
+                .remove('$_translationsCacheTimestampKey$languageCode');
           }
-
-          await _prefs!.remove('$_translationsCacheKey$languageCode');
-          await _prefs!.remove('$_translationsCacheTimestampKey$languageCode');
         }
       }
 
       final token = _authController?.idToken;
       if (token == null || token.isEmpty) {
+        if (previous != null) {
+          _translationsCache[languageCode] = previous;
+          notifyListeners();
+        }
         return;
       }
 
@@ -139,16 +165,17 @@ class TranslationsService extends ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      await _prefs!.remove('$_translationsCacheKey$languageCode');
-      await _prefs!.remove('$_translationsCacheTimestampKey$languageCode');
-      _translationsCache[languageCode] = {};
+      if (kDebugMode) {
+        debugPrint('TranslationsService: failed to load translations: $e');
+      }
+      _translationsCache[languageCode] = previous ?? {};
       notifyListeners();
     }
   }
 
-  Future<void> refreshTranslations() async {
+  Future<void> refreshTranslations({bool forceNetwork = false}) async {
     if (_currentLanguage != null) {
-      await _loadTranslations(_currentLanguage!);
+      await _loadTranslations(_currentLanguage!, forceNetwork: forceNetwork);
     }
   }
 }

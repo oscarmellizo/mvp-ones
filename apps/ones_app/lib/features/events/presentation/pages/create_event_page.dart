@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/utils/datetime_formatters.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/ui/ones_colors.dart';
@@ -132,9 +133,12 @@ class _CreateEventPageState extends State<CreateEventPage> {
   }
 
   String _dateTimeSummary(BuildContext context) {
+    final t = context.read<TranslationsService>();
     final start = _combineLocal(_startDate, _startTime);
     final end = _combineLocal(_endDate, _endTime);
-    if (start == null || end == null) return 'Select start and end time';
+    if (start == null || end == null) {
+      return t.translate('create_event.date_time_select_start_end');
+    }
     final duration = end.difference(start);
     final hours = duration.inHours;
     final minutes = duration.inMinutes.remainder(60);
@@ -165,7 +169,9 @@ class _CreateEventPageState extends State<CreateEventPage> {
   String _resolveLocation() {
     final value = _locationController.text.trim();
     if (value.isNotEmpty) return value;
-    return 'TBD';
+    return context
+        .read<TranslationsService>()
+        .translate('create_event.location_tbd');
   }
 
   void _ensureEndDefaults() {
@@ -179,6 +185,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
   }
 
   void _validateDateTimes({bool showErrors = false}) {
+    final t = context.read<TranslationsService>();
     final start = _combineLocal(_startDate, _startTime);
     final end = _combineLocal(_endDate, _endTime);
 
@@ -186,7 +193,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
     if (start != null &&
         end != null &&
         end.isBefore(start.add(_minEventDuration))) {
-      error = 'Event must be at least 15 minutes.';
+      error = t.translate('create_event.error_min_duration');
     }
 
     setState(() {
@@ -286,6 +293,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
   }
 
   Future<void> _addInvitee() async {
+    final t = context.read<TranslationsService>();
     final raw = _inviteEmailController.text;
     final parts = raw
         .split(RegExp(r'[\s,;]+'))
@@ -295,7 +303,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
 
     if (parts.isEmpty) {
       setState(() {
-        _inviteError = 'Please enter an email.';
+        _inviteError = t.translate('create_event.invite_error_enter_email');
       });
       return;
     }
@@ -306,7 +314,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
         candidates.where((e) => !looksLikeEmail(e)).toList(growable: false);
     if (invalid.isNotEmpty) {
       setState(() {
-        _inviteError = 'Please enter a valid email.';
+        _inviteError = t.translate('create_event.invite_error_invalid_email');
       });
       return;
     }
@@ -330,8 +338,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
     if (toAdd.isEmpty) {
       setState(() {
         _inviteError = removedSelf
-            ? 'You cannot invite yourself.'
-            : 'This email is already invited.';
+            ? t.translate('create_event.invite_error_cannot_invite_self')
+            : t.translate('create_event.invite_error_already_invited');
       });
       return;
     }
@@ -364,13 +372,23 @@ class _CreateEventPageState extends State<CreateEventPage> {
       ..showSnackBar(
         SnackBar(
           content: Text(
-            removedSelf
-                ? (newInvitees.length == 1
-                    ? 'Guest added. Skipped your email.'
-                    : '${newInvitees.length} guests added. Skipped your email.')
-                : (newInvitees.length == 1
-                    ? 'Guest added.'
-                    : '${newInvitees.length} guests added.'),
+            () {
+              final count = newInvitees.length;
+              if (removedSelf) {
+                final template = count == 1
+                    ? t.translate(
+                        'create_event.invite_success_one_skipped_self')
+                    : t.translate(
+                        'create_event.invite_success_many_skipped_self',
+                      );
+                return template.replaceAll('{count}', count.toString());
+              }
+
+              final template = count == 1
+                  ? t.translate('create_event.invite_success_one')
+                  : t.translate('create_event.invite_success_many');
+              return template.replaceAll('{count}', count.toString());
+            }(),
           ),
         ),
       );
@@ -398,6 +416,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
   Widget build(BuildContext context) {
     final controller = context.watch<EventsController>();
     final coversController = context.watch<EventCoversController>();
+    final t = context.watch<TranslationsService>();
 
     _coverReservationId = coversController.reservationId;
 
@@ -415,9 +434,9 @@ class _CreateEventPageState extends State<CreateEventPage> {
           onPressed:
               controller.loading ? null : () => Navigator.of(context).pop(),
         ),
-        title: const Text(
-          'Create Event',
-          style: TextStyle(
+        title: Text(
+          t.translate('create_event.title'),
+          style: const TextStyle(
             fontWeight: FontWeight.w900,
             color: OnesColors.black,
           ),
@@ -426,8 +445,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
         actions: [
           TextButton(
             onPressed: controller.loading ? null : () => _submit(context),
-            child: const Text(
-              'Crear',
+            child: Text(
+              t.translate('create_event.action_create'),
               style: TextStyle(
                 fontWeight: FontWeight.w900,
                 color: OnesColors.purpleDeep,
@@ -445,26 +464,31 @@ class _CreateEventPageState extends State<CreateEventPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 CreateEventFormSection(
-                  title: 'Basics',
+                  title: t.translate('create_event.section_basics'),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const CreateEventFieldLabel('Event Name'),
+                      CreateEventFieldLabel(
+                        t.translate('create_event.field_event_name'),
+                      ),
                       const SizedBox(height: 8),
                       OnesTextFormField(
                         controller: _nameController,
-                        hintText: 'e.g. Summer Roadtrip 2024',
+                        hintText: t.translate('create_event.hint_event_name'),
                         suffixIcon: const Icon(Icons.edit_outlined),
                         textInputAction: TextInputAction.next,
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? 'Required' : null,
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? t.translate('create_event.validation_required')
+                            : null,
                       ),
                       const SizedBox(height: 16),
-                      const CreateEventFieldLabel('Objective'),
+                      CreateEventFieldLabel(
+                        t.translate('create_event.field_objective'),
+                      ),
                       const SizedBox(height: 8),
                       OnesTextFormField(
                         controller: _objectiveController,
-                        hintText: 'What is the objective of this event?',
+                        hintText: t.translate('create_event.hint_objective'),
                         prefixIcon: const Icon(
                           Icons.flag,
                           color: OnesColors.purpleDeep,
@@ -479,7 +503,11 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         ),
                         validator: (value) {
                           final v = value?.trim() ?? '';
-                          if (v.isEmpty) return 'Objective is required';
+                          if (v.isEmpty) {
+                            return t.translate(
+                              'create_event.validation_objective_required',
+                            );
+                          }
                           return null;
                         },
                       ),
@@ -488,7 +516,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                 ),
                 const SizedBox(height: 14),
                 CreateEventFormSection(
-                  title: 'When',
+                  title: t.translate('create_event.section_when'),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -505,27 +533,31 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         runSpacing: 8,
                         children: [
                           ActionChip(
-                            label: const Text('Today'),
+                            label:
+                                Text(t.translate('create_event.quick_today')),
                             onPressed: () =>
                                 _applyQuickStartDate(DateTime.now()),
                           ),
                           ActionChip(
-                            label: const Text('Tomorrow'),
+                            label: Text(
+                                t.translate('create_event.quick_tomorrow')),
                             onPressed: () => _applyQuickStartDate(
                                 DateTime.now().add(const Duration(days: 1))),
                           ),
                           ActionChip(
-                            label: const Text('This weekend'),
+                            label: Text(
+                                t.translate('create_event.quick_this_weekend')),
                             onPressed: () =>
                                 _applyQuickStartDate(_nextWeekendStart()),
                           ),
                           ActionChip(
-                            label: const Text('Now'),
+                            label: Text(t.translate('create_event.quick_now')),
                             onPressed: () =>
                                 _applyQuickStartTime(_roundedNowTime()),
                           ),
                           ActionChip(
-                            label: const Text('+30m'),
+                            label: Text(
+                                t.translate('create_event.quick_plus_30m')),
                             onPressed: () {
                               final base = _combineLocal(
                                       _startDate ?? DateTime.now(),
@@ -539,7 +571,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
                             },
                           ),
                           ActionChip(
-                            label: const Text('Evening'),
+                            label:
+                                Text(t.translate('create_event.quick_evening')),
                             onPressed: () => _applyQuickStartTime(
                                 const TimeOfDay(hour: 19, minute: 0)),
                           ),
@@ -562,7 +595,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                 ),
                 const SizedBox(height: 14),
                 CreateEventFormSection(
-                  title: 'Cover',
+                  title: t.translate('create_event.section_cover'),
                   child: CreateEventCoverPicker(
                     imageUrl: coversController.preview?.previewUrl,
                     loading: coversController.loading,
@@ -586,15 +619,18 @@ class _CreateEventPageState extends State<CreateEventPage> {
                 ),
                 const SizedBox(height: 14),
                 CreateEventFormSection(
-                  title: 'Where (optional)',
+                  title: t.translate('create_event.section_where_optional'),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const CreateEventFieldLabel('Location'),
+                      CreateEventFieldLabel(
+                        t.translate('create_event.field_location'),
+                      ),
                       const SizedBox(height: 8),
                       OnesTextFormField(
                         controller: _locationController,
-                        hintText: 'Add a location (optional)',
+                        hintText:
+                            t.translate('create_event.hint_location_optional'),
                         prefixIcon: const Icon(
                           Icons.location_on,
                           color: OnesColors.purpleDeep,
@@ -605,15 +641,15 @@ class _CreateEventPageState extends State<CreateEventPage> {
                 ),
                 const SizedBox(height: 14),
                 CreateEventFormSection(
-                  title: 'Guests',
+                  title: t.translate('create_event.section_guests'),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          const Text(
-                            'Allow Guest Invites',
-                            style: TextStyle(
+                          Text(
+                            t.translate('create_event.allow_guest_invites'),
+                            style: const TextStyle(
                               fontWeight: FontWeight.w800,
                               color: OnesColors.black,
                             ),
@@ -642,14 +678,24 @@ class _CreateEventPageState extends State<CreateEventPage> {
                 ),
                 const SizedBox(height: 14),
                 CreateEventFormSection(
-                  title: 'Frames',
+                  title: t.translate('create_event.section_frames'),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _frameIds.isEmpty
-                            ? 'No frames selected for this event.'
-                            : 'This event will use ${_frameIds.length} frame${_frameIds.length == 1 ? '' : 's'}.',
+                        () {
+                          if (_frameIds.isEmpty) {
+                            return t.translate('create_event.frames_none');
+                          }
+                          final count = _frameIds.length;
+                          final template = count == 1
+                              ? t.translate('create_event.frames_one')
+                              : t.translate('create_event.frames_many');
+                          return template.replaceAll(
+                            '{count}',
+                            count.toString(),
+                          );
+                        }(),
                         style: TextStyle(
                           color: OnesColors.black.withOpacity(0.7),
                           fontWeight: FontWeight.w700,
@@ -662,7 +708,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
                           onPressed: controller.loading
                               ? null
                               : () => _pickFrames(context),
-                          child: const Text('Seleccionar marcos'),
+                          child:
+                              Text(t.translate('create_event.select_frames')),
                         ),
                       ),
                     ],
@@ -686,12 +733,12 @@ class _CreateEventPageState extends State<CreateEventPage> {
                           ? null
                           : () => _submit(context),
                       child: controller.loading
-                          ? const Text('Creating...')
-                          : const Row(
+                          ? Text(t.translate('create_event.creating'))
+                          : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
-                                  'Create Event',
+                                  t.translate('create_event.cta_create'),
                                   style: TextStyle(
                                     fontWeight: FontWeight.w800,
                                     fontSize: 16,
@@ -716,11 +763,15 @@ class _CreateEventPageState extends State<CreateEventPage> {
   Future<void> _submit(BuildContext context) async {
     final controller = context.read<EventsController>();
     final auth = context.read<AuthController>();
+    final t = context.read<TranslationsService>();
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context)
         ..clearSnackBars()
         ..showSnackBar(
-          const SnackBar(content: Text('Please complete required fields.')),
+          SnackBar(
+            content: Text(
+                t.translate('create_event.error_complete_required_fields')),
+          ),
         );
       return;
     }
@@ -728,7 +779,11 @@ class _CreateEventPageState extends State<CreateEventPage> {
     if (objective.isEmpty) {
       ScaffoldMessenger.of(context)
         ..clearSnackBars()
-        ..showSnackBar(const SnackBar(content: Text('Objective is required.')));
+        ..showSnackBar(
+          SnackBar(
+            content: Text(t.translate('create_event.error_objective_required')),
+          ),
+        );
       return;
     }
 
@@ -741,7 +796,9 @@ class _CreateEventPageState extends State<CreateEventPage> {
       ScaffoldMessenger.of(context)
         ..clearSnackBars()
         ..showSnackBar(
-          const SnackBar(content: Text('Please select start and end time.')),
+          SnackBar(
+            content: Text(t.translate('create_event.error_select_start_end')),
+          ),
         );
       return;
     }
@@ -774,8 +831,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
         ScaffoldMessenger.of(context)
           ..clearSnackBars()
           ..showSnackBar(
-            const SnackBar(
-              content: Text('Your session expired. Please sign in again.'),
+            SnackBar(
+              content: Text(t.translate('create_event.error_session_expired')),
             ),
           );
         await auth.logout();
@@ -790,13 +847,15 @@ class _CreateEventPageState extends State<CreateEventPage> {
   ) async {
     final covers = context.read<EventCoversController>();
     final auth = context.read<AuthController>();
+    final t = context.read<TranslationsService>();
 
     final eventName = _nameController.text.trim();
     final objective = _objectiveController.text.trim();
     if (eventName.isEmpty) return;
     if (objective.isEmpty) return;
     final location = _locationController.text.trim();
-    final coverLocation = location.isEmpty ? 'TBD' : location;
+    final coverLocation =
+        location.isEmpty ? t.translate('create_event.location_tbd') : location;
 
     try {
       await covers.generate(
@@ -812,8 +871,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
         ScaffoldMessenger.of(context)
           ..clearSnackBars()
           ..showSnackBar(
-            const SnackBar(
-              content: Text('Your session expired. Please sign in again.'),
+            SnackBar(
+              content: Text(t.translate('create_event.error_session_expired')),
             ),
           );
         await auth.logout();
@@ -823,7 +882,10 @@ class _CreateEventPageState extends State<CreateEventPage> {
       ScaffoldMessenger.of(context)
         ..clearSnackBars()
         ..showSnackBar(
-          const SnackBar(content: Text('Failed to generate cover.')),
+          SnackBar(
+            content:
+                Text(t.translate('create_event.error_generate_cover_failed')),
+          ),
         );
       rethrow;
     }

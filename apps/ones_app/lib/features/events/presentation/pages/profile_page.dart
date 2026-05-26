@@ -181,7 +181,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     const SizedBox(height: 6),
                     Text(
                       translationsService
-                          .translate('profile.preferred_name_hint'),
+                          .translate('profile.preferred_name_description'),
                       style: TextStyle(
                         color: OnesColors.black.withOpacity(0.55),
                         fontWeight: FontWeight.w600,

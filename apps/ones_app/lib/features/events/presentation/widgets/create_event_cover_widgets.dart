@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/ui/ones_colors.dart';
 import 'create_event_form_widgets.dart';
 
@@ -27,6 +29,8 @@ class CreateEventCoverPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.watch<TranslationsService>();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -88,9 +92,9 @@ class CreateEventCoverPicker extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 10),
-                          const Text(
-                            'Event Cover',
-                            style: TextStyle(
+                          Text(
+                            t.translate('create_event.cover_placeholder_title'),
+                            style: const TextStyle(
                               color: OnesColors.purpleMid,
                               fontWeight: FontWeight.w800,
                             ),
@@ -123,9 +127,9 @@ class CreateEventCoverPicker extends StatelessWidget {
           const SizedBox(height: 6),
         ],
         if (showGenerateHelper) ...[
-          const Text(
-            'Complete name and objective to generate a cover.',
-            style: TextStyle(
+          Text(
+            t.translate('create_event.cover_generate_helper'),
+            style: const TextStyle(
               color: OnesColors.black,
               fontWeight: FontWeight.w700,
             ),
@@ -139,7 +143,8 @@ class CreateEventCoverPicker extends StatelessWidget {
                 style: FilledButton.styleFrom(
                   backgroundColor: OnesColors.purpleMid,
                   foregroundColor: OnesColors.white,
-                  disabledBackgroundColor: OnesColors.purpleMid.withOpacity(0.5),
+                  disabledBackgroundColor:
+                      OnesColors.purpleMid.withOpacity(0.5),
                   disabledForegroundColor: OnesColors.white.withOpacity(0.85),
                 ),
                 onPressed: (loading || onGenerate == null) ? null : onGenerate,
@@ -152,7 +157,9 @@ class CreateEventCoverPicker extends StatelessWidget {
                         ),
                       )
                     : Text(
-                        accepted ? 'Regenerate' : 'Generate with AI',
+                        accepted
+                            ? t.translate('create_event.cover_regenerate')
+                            : t.translate('create_event.cover_generate_ai'),
                       ),
               ),
             ),
@@ -168,7 +175,7 @@ class CreateEventCoverPicker extends StatelessWidget {
                     ),
                   ),
                   onPressed: onAccept,
-                  child: const Text('Use'),
+                  child: Text(t.translate('create_event.cover_use')),
                 ),
               ),
               const SizedBox(width: 10),
@@ -182,7 +189,7 @@ class CreateEventCoverPicker extends StatelessWidget {
                     ),
                   ),
                   onPressed: onCancel,
-                  child: const Text('Cancel'),
+                  child: Text(t.translate('create_event.cover_cancel')),
                 ),
               ),
             ],

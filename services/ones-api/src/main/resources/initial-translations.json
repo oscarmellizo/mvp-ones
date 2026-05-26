@@ -39,6 +39,11 @@
     "en": "This name is used to indicate which are your photos.",
     "pt": "Este nome é usado para indicar quais são suas fotos."
   },
+  "profile.preferred_name_description": {
+    "es": "Este nombre se usa para indicar cuáles son tus fotos.",
+    "en": "This name is used to indicate which are your photos.",
+    "pt": "Este nome é usado para indicar quais são suas fotos."
+  },
   "profile.language": {
     "es": "Idioma",
     "en": "Language",
@@ -228,5 +233,330 @@
     "es": "Éxito",
     "en": "Success",
     "pt": "Sucesso"
+  },
+  "nav.home": {
+    "es": "Inicio",
+    "en": "Home",
+    "pt": "Início"
+  },
+  "nav.discover": {
+    "es": "Descubrir",
+    "en": "Discover",
+    "pt": "Descobrir"
+  },
+  "nav.galleries": {
+    "es": "Galerías",
+    "en": "Galleries",
+    "pt": "Galerias"
+  },
+  "nav.profile": {
+    "es": "Perfil",
+    "en": "Profile",
+    "pt": "Perfil"
+  },
+  "create_event.title": {
+    "es": "Crear evento",
+    "en": "Create event",
+    "pt": "Criar evento"
+  },
+  "create_event.action_create": {
+    "es": "Crear",
+    "en": "Create",
+    "pt": "Criar"
+  },
+  "create_event.section_basics": {
+    "es": "Básicos",
+    "en": "Basics",
+    "pt": "Básico"
+  },
+  "create_event.section_when": {
+    "es": "Cuándo",
+    "en": "When",
+    "pt": "Quando"
+  },
+  "create_event.section_cover": {
+    "es": "Portada",
+    "en": "Cover",
+    "pt": "Capa"
+  },
+  "create_event.section_where_optional": {
+    "es": "Dónde (opcional)",
+    "en": "Where (optional)",
+    "pt": "Onde (opcional)"
+  },
+  "create_event.section_guests": {
+    "es": "Invitados",
+    "en": "Guests",
+    "pt": "Convidados"
+  },
+  "create_event.section_frames": {
+    "es": "Marcos",
+    "en": "Frames",
+    "pt": "Molduras"
+  },
+  "create_event.field_event_name": {
+    "es": "Nombre del evento",
+    "en": "Event name",
+    "pt": "Nome do evento"
+  },
+  "create_event.hint_event_name": {
+    "es": "Ej. Viaje de verano 2024",
+    "en": "e.g. Summer Roadtrip 2024",
+    "pt": "Ex.: Viagem de verão 2024"
+  },
+  "create_event.validation_required": {
+    "es": "Obligatorio",
+    "en": "Required",
+    "pt": "Obrigatório"
+  },
+  "create_event.field_objective": {
+    "es": "Objetivo",
+    "en": "Objective",
+    "pt": "Objetivo"
+  },
+  "create_event.hint_objective": {
+    "es": "¿Cuál es el objetivo de este evento?",
+    "en": "What is the objective of this event?",
+    "pt": "Qual é o objetivo deste evento?"
+  },
+  "create_event.validation_objective_required": {
+    "es": "El objetivo es obligatorio",
+    "en": "Objective is required",
+    "pt": "O objetivo é obrigatório"
+  },
+  "create_event.quick_today": {
+    "es": "Hoy",
+    "en": "Today",
+    "pt": "Hoje"
+  },
+  "create_event.quick_tomorrow": {
+    "es": "Mañana",
+    "en": "Tomorrow",
+    "pt": "Amanhã"
+  },
+  "create_event.quick_this_weekend": {
+    "es": "Este fin de semana",
+    "en": "This weekend",
+    "pt": "Neste fim de semana"
+  },
+  "create_event.quick_now": {
+    "es": "Ahora",
+    "en": "Now",
+    "pt": "Agora"
+  },
+  "create_event.quick_plus_30m": {
+    "es": "+30m",
+    "en": "+30m",
+    "pt": "+30m"
+  },
+  "create_event.quick_evening": {
+    "es": "Noche",
+    "en": "Evening",
+    "pt": "Noite"
+  },
+  "create_event.date_time_select_start_end": {
+    "es": "Selecciona inicio y fin",
+    "en": "Select start and end time",
+    "pt": "Selecione início e fim"
+  },
+  "create_event.error_min_duration": {
+    "es": "El evento debe durar al menos 15 minutos.",
+    "en": "Event must be at least 15 minutes.",
+    "pt": "O evento deve durar pelo menos 15 minutos."
+  },
+  "create_event.field_location": {
+    "es": "Ubicación",
+    "en": "Location",
+    "pt": "Local"
+  },
+  "create_event.hint_location_optional": {
+    "es": "Agrega una ubicación (opcional)",
+    "en": "Add a location (optional)",
+    "pt": "Adicione um local (opcional)"
+  },
+  "create_event.location_tbd": {
+    "es": "Por definir",
+    "en": "TBD",
+    "pt": "A definir"
+  },
+  "create_event.allow_guest_invites": {
+    "es": "Permitir invitar a invitados",
+    "en": "Allow guest invites",
+    "pt": "Permitir convites para convidados"
+  },
+  "create_event.invite_title": {
+    "es": "Invitar invitados",
+    "en": "Invite guests",
+    "pt": "Convidar convidados"
+  },
+  "create_event.invite_hint": {
+    "es": "Agregar correos (separados por coma/espacio)",
+    "en": "Add emails (comma/space separated)",
+    "pt": "Adicionar emails (separados por vírgula/espaço)"
+  },
+  "create_event.invite_button": {
+    "es": "Invitar",
+    "en": "Invite",
+    "pt": "Convidar"
+  },
+  "create_event.invited_label": {
+    "es": "Invitados",
+    "en": "Invited",
+    "pt": "Convidados"
+  },
+  "create_event.invite_none": {
+    "es": "Aún no hay invitados.",
+    "en": "No invited guests yet.",
+    "pt": "Ainda não há convidados."
+  },
+  "create_event.invite_error_enter_email": {
+    "es": "Ingresa un correo.",
+    "en": "Please enter an email.",
+    "pt": "Informe um email."
+  },
+  "create_event.invite_error_invalid_email": {
+    "es": "Ingresa un correo válido.",
+    "en": "Please enter a valid email.",
+    "pt": "Informe um email válido."
+  },
+  "create_event.invite_error_cannot_invite_self": {
+    "es": "No puedes invitarte a ti mismo.",
+    "en": "You cannot invite yourself.",
+    "pt": "Você não pode se convidar."
+  },
+  "create_event.invite_error_already_invited": {
+    "es": "Este correo ya está invitado.",
+    "en": "This email is already invited.",
+    "pt": "Este email já foi convidado."
+  },
+  "create_event.invite_success_one_skipped_self": {
+    "es": "Invitado agregado. Se omitió tu correo.",
+    "en": "Guest added. Skipped your email.",
+    "pt": "Convidado adicionado. Seu email foi ignorado."
+  },
+  "create_event.invite_success_many_skipped_self": {
+    "es": "{count} invitados agregados. Se omitió tu correo.",
+    "en": "{count} guests added. Skipped your email.",
+    "pt": "{count} convidados adicionados. Seu email foi ignorado."
+  },
+  "create_event.invite_success_one": {
+    "es": "Invitado agregado.",
+    "en": "Guest added.",
+    "pt": "Convidado adicionado."
+  },
+  "create_event.invite_success_many": {
+    "es": "{count} invitados agregados.",
+    "en": "{count} guests added.",
+    "pt": "{count} convidados adicionados."
+  },
+  "create_event.frames_none": {
+    "es": "No hay marcos seleccionados para este evento.",
+    "en": "No frames selected for this event.",
+    "pt": "Nenhuma moldura selecionada para este evento."
+  },
+  "create_event.frames_one": {
+    "es": "Este evento usará {count} marco.",
+    "en": "This event will use {count} frame.",
+    "pt": "Este evento usará {count} moldura."
+  },
+  "create_event.frames_many": {
+    "es": "Este evento usará {count} marcos.",
+    "en": "This event will use {count} frames.",
+    "pt": "Este evento usará {count} molduras."
+  },
+  "create_event.select_frames": {
+    "es": "Seleccionar marcos",
+    "en": "Select frames",
+    "pt": "Selecionar molduras"
+  },
+  "create_event.starts": {
+    "es": "Inicia",
+    "en": "Starts",
+    "pt": "Começa"
+  },
+  "create_event.ends": {
+    "es": "Termina",
+    "en": "Ends",
+    "pt": "Termina"
+  },
+  "create_event.date_label": {
+    "es": "Fecha",
+    "en": "Date",
+    "pt": "Data"
+  },
+  "create_event.time_label": {
+    "es": "Hora",
+    "en": "Time",
+    "pt": "Hora"
+  },
+  "create_event.placeholder_time": {
+    "es": "--:--",
+    "en": "--:--",
+    "pt": "--:--"
+  },
+  "create_event.cover_placeholder_title": {
+    "es": "Portada del evento",
+    "en": "Event cover",
+    "pt": "Capa do evento"
+  },
+  "create_event.cover_generate_helper": {
+    "es": "Completa nombre y objetivo para generar una portada.",
+    "en": "Complete name and objective to generate a cover.",
+    "pt": "Complete nome e objetivo para gerar uma capa."
+  },
+  "create_event.cover_regenerate": {
+    "es": "Regenerar",
+    "en": "Regenerate",
+    "pt": "Gerar novamente"
+  },
+  "create_event.cover_generate_ai": {
+    "es": "Generar con IA",
+    "en": "Generate with AI",
+    "pt": "Gerar com IA"
+  },
+  "create_event.cover_use": {
+    "es": "Usar",
+    "en": "Use",
+    "pt": "Usar"
+  },
+  "create_event.cover_cancel": {
+    "es": "Cancelar",
+    "en": "Cancel",
+    "pt": "Cancelar"
+  },
+  "create_event.creating": {
+    "es": "Creando...",
+    "en": "Creating...",
+    "pt": "Criando..."
+  },
+  "create_event.cta_create": {
+    "es": "Crear evento",
+    "en": "Create event",
+    "pt": "Criar evento"
+  },
+  "create_event.error_complete_required_fields": {
+    "es": "Completa los campos obligatorios.",
+    "en": "Please complete required fields.",
+    "pt": "Preencha os campos obrigatórios."
+  },
+  "create_event.error_objective_required": {
+    "es": "El objetivo es obligatorio.",
+    "en": "Objective is required.",
+    "pt": "O objetivo é obrigatório."
+  },
+  "create_event.error_select_start_end": {
+    "es": "Selecciona inicio y fin.",
+    "en": "Please select start and end time.",
+    "pt": "Selecione início e fim."
+  },
+  "create_event.error_session_expired": {
+    "es": "Tu sesión expiró. Inicia sesión de nuevo.",
+    "en": "Your session expired. Please sign in again.",
+    "pt": "Sua sessão expirou. Faça login novamente."
+  },
+  "create_event.error_generate_cover_failed": {
+    "es": "No se pudo generar la portada.",
+    "en": "Failed to generate cover.",
+    "pt": "Não foi possível gerar a capa."
   }
 }

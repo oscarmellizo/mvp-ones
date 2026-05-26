@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/ui/ones_colors.dart';
 import 'create_event_form_widgets.dart';
 
@@ -29,6 +31,7 @@ class CreateEventDateTimeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.watch<TranslationsService>();
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: const BoxDecoration(
@@ -39,7 +42,7 @@ class CreateEventDateTimeCard extends StatelessWidget {
         children: [
           CreateEventDateTimeRow(
             icon: Icons.calendar_month,
-            title: 'Starts',
+            title: t.translate('create_event.starts'),
             dateValue: _formatDate(startDate),
             timeValue: _formatTime(context, startTime),
             onPickDate: onPickStartDate,
@@ -48,7 +51,7 @@ class CreateEventDateTimeCard extends StatelessWidget {
           const SizedBox(height: 14),
           CreateEventDateTimeRow(
             icon: Icons.event_busy,
-            title: 'Ends',
+            title: t.translate('create_event.ends'),
             dateValue: _formatDate(endDate),
             timeValue: _formatTime(context, endTime),
             onPickDate: onPickEndDate,
@@ -81,7 +84,11 @@ class CreateEventDateTimeCard extends StatelessWidget {
   }
 
   String _formatTime(BuildContext context, TimeOfDay? time) {
-    if (time == null) return '--:--';
+    if (time == null) {
+      return context.read<TranslationsService>().translate(
+            'create_event.placeholder_time',
+          );
+    }
     return time.format(context);
   }
 }

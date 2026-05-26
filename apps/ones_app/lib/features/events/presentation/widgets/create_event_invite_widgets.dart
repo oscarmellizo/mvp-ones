@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/widgets/ones_card.dart';
 import '../../../../core/ui/widgets/ones_text_field.dart';
@@ -32,6 +34,7 @@ class CreateEventInviteGuestsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.watch<TranslationsService>();
     return OnesCard(
       padding: const EdgeInsets.all(14),
       child: Column(
@@ -39,10 +42,13 @@ class CreateEventInviteGuestsCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Invite Guests',
-                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                  t.translate('create_event.invite_title'),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                  ),
                 ),
               ),
               Text(
@@ -57,10 +63,11 @@ class CreateEventInviteGuestsCard extends StatelessWidget {
           const SizedBox(height: 10),
           OnesTextField(
             controller: emailController,
-            hintText: 'Add emails (comma/space separated)',
+            hintText: t.translate('create_event.invite_hint'),
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.done,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             onSubmitted: (_) {
               onInvite();
             },
@@ -90,21 +97,21 @@ class CreateEventInviteGuestsCard extends StatelessWidget {
               onPressed: () {
                 onInvite();
               },
-              child: const Text(
-                'Invite',
-                style: TextStyle(fontWeight: FontWeight.w900),
+              child: Text(
+                t.translate('create_event.invite_button'),
+                style: const TextStyle(fontWeight: FontWeight.w900),
               ),
             ),
           ),
           const SizedBox(height: 14),
-          const Text(
-            'Invited',
-            style: TextStyle(fontWeight: FontWeight.w900),
+          Text(
+            t.translate('create_event.invited_label'),
+            style: const TextStyle(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 8),
           if (invitees.isEmpty)
             Text(
-              'No invited guests yet.',
+              t.translate('create_event.invite_none'),
               style: TextStyle(color: OnesColors.black.withOpacity(0.55)),
             )
           else

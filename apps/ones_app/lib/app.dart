@@ -122,7 +122,7 @@ class OnesApp extends StatelessWidget {
             tokenRefreshService: tokenRefreshService,
           ),
         ),
-        ChangeNotifierProvider<TranslationsService>(
+        ChangeNotifierProxyProvider<AuthController, TranslationsService>(
           create: (_) {
             final translationsService =
                 TranslationsService(apiFactory.create());
@@ -130,10 +130,8 @@ class OnesApp extends StatelessWidget {
             translationsService.ensureInitialized();
             return translationsService;
           },
-        ),
-        ProxyProvider2<AuthController, TranslationsService,
-            TranslationsService>(
-          update: (_, auth, translationsService, __) {
+          update: (_, auth, translationsService) {
+            translationsService ??= TranslationsService(apiFactory.create());
             translationsService.setAuthController(auth);
             return translationsService;
           },
