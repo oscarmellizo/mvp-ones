@@ -108,20 +108,20 @@ class TranslationsService extends ChangeNotifier {
       // Temporarily allow loading without auth for debugging
       final token = _authController?.idToken;
       if (token == null) {
-        print('No token available, skipping backend fetch for $languageCode');
-        _translationsCache[languageCode] = {};
-        notifyListeners();
-        return;
+        print(
+            'No token available, attempting to fetch without auth for debugging');
       }
 
       print('Fetching translations from backend for $languageCode');
-      final response = await _apiClient
-          .getDefaultApi()
-          .listTranslations(languageCode: languageCode, extra: {
-        'secure': [
-          {'type': 'http', 'scheme': 'bearer', 'name': 'bearerAuth'}
-        ]
-      });
+      final response = await _apiClient.getDefaultApi().listTranslations(
+          languageCode: languageCode,
+          extra: token != null
+              ? {
+                  'secure': [
+                    {'type': 'http', 'scheme': 'bearer', 'name': 'bearerAuth'}
+                  ]
+                }
+              : {});
       final translationMap = <String, String>{};
       final translations = response.data;
       if (translations != null) {
