@@ -66,8 +66,11 @@ class TranslationsService {
         ]
       });
       final translationMap = <String, String>{};
-      for (final translation in response.data) {
-        translationMap[translation.translationKey] = translation.value ?? '';
+      final translations = response.data;
+      if (translations != null) {
+        for (final translation in translations) {
+          translationMap[translation.translationKey] = translation.value ?? '';
+        }
       }
       _translationsCache[languageCode] = translationMap;
 
