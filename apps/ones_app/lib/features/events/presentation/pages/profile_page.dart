@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/widgets/ones_card.dart';
 import '../../../../core/ui/widgets/ones_text_field.dart';
@@ -65,7 +64,6 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
-    final translationsService = context.watch<TranslationsService>();
 
     _seedPreferredNameIfNeeded(auth);
 
@@ -89,8 +87,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 OnesCard(
                   padding: const EdgeInsets.all(16),
                   child: Text(
-                    translationsService
-                        .translate('profile.no_authenticated_user'),
+                    'No authenticated user.',
                     style: TextStyle(color: OnesColors.black.withOpacity(0.6)),
                   ),
                 )
@@ -128,48 +125,42 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 const SizedBox(height: 14),
                 _Card(
-                  title: translationsService.translate('profile.account'),
+                  title: 'Account',
                   children: [
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                           child: _ReadOnlyField(
-                            label: translationsService
-                                .translate('profile.first_name'),
+                            label: 'First name',
                             value: firstName,
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: _ReadOnlyField(
-                            label: translationsService
-                                .translate('profile.last_name'),
+                            label: 'Last name',
                             value: lastName,
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    _ReadOnlyField(
-                        label: translationsService.translate('profile.email'),
-                        value: email ?? ''),
+                    _ReadOnlyField(label: 'Email', value: email ?? ''),
                   ],
                 ),
                 const SizedBox(height: 14),
                 _Card(
-                  title: translationsService.translate('profile.preferences'),
+                  title: 'Preferences',
                   children: [
-                    Text(
-                      translationsService
-                          .translate('profile.preferred_name_question'),
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    const Text(
+                      'How do you like to be called?',
+                      style: TextStyle(fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 8),
                     OnesTextField(
                       controller: _preferredNameController,
-                      hintText: translationsService
-                          .translate('profile.preferred_name_label'),
+                      hintText: 'Preferred name',
                       fillColor: OnesColors.yellowLight.withOpacity(0.35),
                       borderSide: BorderSide.none,
                       contentPadding: const EdgeInsets.symmetric(
@@ -179,8 +170,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      translationsService
-                          .translate('profile.preferred_name_hint'),
+                      'This name is used to indicate which are your photos.',
                       style: TextStyle(
                         color: OnesColors.black.withOpacity(0.55),
                         fontWeight: FontWeight.w600,
@@ -188,9 +178,9 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Text(
-                      translationsService.translate('profile.language'),
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    const Text(
+                      'Language',
+                      style: TextStyle(fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
@@ -240,11 +230,9 @@ class _ProfilePageState extends State<ProfilePage> {
                                 FocusScope.of(context).unfocus();
                                 if (value.isEmpty) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        translationsService.translate(
-                                            'profile.error_preferred_name_required'),
-                                      ),
+                                    const SnackBar(
+                                      content:
+                                          Text('Preferred name is required.'),
                                     ),
                                   );
                                   return;
@@ -255,27 +243,25 @@ class _ProfilePageState extends State<ProfilePage> {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
-                                        translationsService.translate(
-                                            'profile.success_preferences_saved'),
+                                        value.isEmpty
+                                            ? 'Preferences saved.'
+                                            : 'Preferences saved: $value',
                                       ),
                                     ),
                                   );
                                 } catch (_) {
                                   if (!context.mounted) return;
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        translationsService.translate(
-                                            'profile.error_save_failed'),
-                                      ),
+                                    const SnackBar(
+                                      content:
+                                          Text('Could not save preferences.'),
                                     ),
                                   );
                                 }
                               },
-                        child: Text(
-                          translationsService
-                              .translate('profile.save_preferences'),
-                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        child: const Text(
+                          'Save preferences',
+                          style: TextStyle(fontWeight: FontWeight.w900),
                         ),
                       ),
                     ),
@@ -284,7 +270,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 if (auth.isAdmin) ...[
                   const SizedBox(height: 14),
                   _Card(
-                    title: translationsService.translate('profile.admin'),
+                    title: 'Admin',
                     children: [
                       SizedBox(
                         width: double.infinity,
@@ -306,9 +292,9 @@ class _ProfilePageState extends State<ProfilePage> {
                                     ),
                                   );
                                 },
-                          child: Text(
-                            translationsService.translate('profile.open_admin'),
-                            style: const TextStyle(fontWeight: FontWeight.w900),
+                          child: const Text(
+                            'Open Admin',
+                            style: TextStyle(fontWeight: FontWeight.w900),
                           ),
                         ),
                       ),
@@ -330,11 +316,10 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   onPressed: auth.isLoading ? null : () => auth.logout(),
                   child: auth.isLoading
-                      ? Text(
-                          translationsService.translate('profile.signing_out'))
-                      : Text(
-                          translationsService.translate('profile.logout'),
-                          style: const TextStyle(fontWeight: FontWeight.w900),
+                      ? const Text('Signing out...')
+                      : const Text(
+                          'Logout',
+                          style: TextStyle(fontWeight: FontWeight.w900),
                         ),
                 ),
               ),
