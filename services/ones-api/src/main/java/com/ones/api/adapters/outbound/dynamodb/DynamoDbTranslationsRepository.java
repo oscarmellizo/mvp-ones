@@ -1,13 +1,14 @@
 package com.ones.api.adapters.outbound.dynamodb;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.StreamSupport;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbIndex;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
@@ -47,16 +48,31 @@ public class DynamoDbTranslationsRepository implements TranslationsRepository {
 
     @Override
     public List<Translation> getAllTranslations(String languageCode) {
-        // Use scan with filter since languageCode is sort key, not partition key
-        ScanEnhancedRequest scanRequest = ScanEnhancedRequest.builder()
-                .build();
+        try {
+            DynamoDbIndex<DynamoTranslationItem> languageIndex = table.index("LanguageCodeIndex");
 
-        return table.scan(scanRequest)
-                .items()
-                .stream()
-                .filter(item -> item.getLanguageCode().equals(languageCode))
-                .map(this::mapToTranslation)
-                .toList();
+            Key key = Key.builder()
+                    .partitionValue(languageCode)
+                    .build();
+
+            QueryEnhancedRequest queryRequest = QueryEnhancedRequest.builder()
+                    .queryConditional(QueryConditional.keyEqualTo(key))
+                    .build();
+
+            return StreamSupport.stream(languageIndex.query(queryRequest).spliterator(), false)
+                    .flatMap(page -> page.items().stream())
+                    .map(this::mapToTranslation)
+                    .toList();
+        } catch (Exception e) {
+            ScanEnhancedRequest scanRequest = ScanEnhancedRequest.builder().build();
+
+            return table.scan(scanRequest)
+                    .items()
+                    .stream()
+                    .filter(item -> item.getLanguageCode().equals(languageCode))
+                    .map(this::mapToTranslation)
+                    .toList();
+        }
     }
 
     @Override

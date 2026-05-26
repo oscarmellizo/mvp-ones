@@ -48,12 +48,15 @@ class _ProfilePageState extends State<ProfilePage> {
 
     final parts = _splitDisplayName(user.displayName);
     final first = parts.$1;
-    _preferredNameController.text = first.isNotEmpty ? first : 'Guest';
+    final translationsService = context.read<TranslationsService>();
+    _preferredNameController.text = first.isNotEmpty
+        ? first
+        : translationsService.translate('profile.guest');
   }
 
   Future<void> _loadLanguagePreference() async {
-    final translationsService = context.read<TranslationsService?>();
-    if (translationsService != null && mounted) {
+    final translationsService = context.read<TranslationsService>();
+    if (mounted) {
       setState(() {
         _selectedLanguage = translationsService.getCurrentLanguage();
       });
@@ -88,8 +91,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   padding: const EdgeInsets.all(16),
                   child: Text(
                     translationsService
-                            ?.translate('profile.no_authenticated_user') ??
-                        'No authenticated user.',
+                        .translate('profile.no_authenticated_user'),
                     style: TextStyle(color: OnesColors.black.withOpacity(0.6)),
                   ),
                 )
@@ -127,8 +129,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 const SizedBox(height: 14),
                 _Card(
-                  title: translationsService?.translate('profile.account') ??
-                      'Account',
+                  title: translationsService.translate('profile.account'),
                   children: [
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,8 +137,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         Expanded(
                           child: _ReadOnlyField(
                             label: translationsService
-                                    ?.translate('profile.first_name') ??
-                                'First name',
+                                .translate('profile.first_name'),
                             value: firstName,
                           ),
                         ),
@@ -145,8 +145,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         Expanded(
                           child: _ReadOnlyField(
                             label: translationsService
-                                    ?.translate('profile.last_name') ??
-                                'Last name',
+                                .translate('profile.last_name'),
                             value: lastName,
                           ),
                         ),
@@ -154,30 +153,24 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const SizedBox(height: 12),
                     _ReadOnlyField(
-                        label:
-                            translationsService?.translate('profile.email') ??
-                                'Email',
+                        label: translationsService.translate('profile.email'),
                         value: email ?? ''),
                   ],
                 ),
                 const SizedBox(height: 14),
                 _Card(
-                  title:
-                      translationsService?.translate('profile.preferences') ??
-                          'Preferences',
+                  title: translationsService.translate('profile.preferences'),
                   children: [
                     Text(
                       translationsService
-                              ?.translate('profile.preferred_name_question') ??
-                          'How do you like to be called?',
+                          .translate('profile.preferred_name_question'),
                       style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 8),
                     OnesTextField(
                       controller: _preferredNameController,
                       hintText: translationsService
-                              ?.translate('profile.preferred_name_hint') ??
-                          'Preferred name',
+                          .translate('profile.preferred_name_label'),
                       fillColor: OnesColors.yellowLight.withOpacity(0.35),
                       borderSide: BorderSide.none,
                       contentPadding: const EdgeInsets.symmetric(
@@ -187,9 +180,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      translationsService?.translate(
-                              'profile.preferred_name_description') ??
-                          'This name is used to indicate which are your photos.',
+                      translationsService
+                          .translate('profile.preferred_name_hint'),
                       style: TextStyle(
                         color: OnesColors.black.withOpacity(0.55),
                         fontWeight: FontWeight.w600,
@@ -198,8 +190,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      translationsService?.translate('profile.language') ??
-                          'Language',
+                      translationsService.translate('profile.language'),
                       style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 8),
@@ -221,18 +212,15 @@ class _ProfilePageState extends State<ProfilePage> {
                         DropdownMenuItem(
                             value: 'es',
                             child: Text(translationsService
-                                    ?.translate('profile.language_es') ??
-                                'Español')),
+                                .translate('profile.language_es'))),
                         DropdownMenuItem(
                             value: 'en',
                             child: Text(translationsService
-                                    ?.translate('profile.language_en') ??
-                                'English')),
+                                .translate('profile.language_en'))),
                         DropdownMenuItem(
                             value: 'pt',
                             child: Text(translationsService
-                                    ?.translate('profile.language_pt') ??
-                                'Português')),
+                                .translate('profile.language_pt'))),
                       ],
                       onChanged: (value) {
                         if (value != null) {
@@ -263,25 +251,21 @@ class _ProfilePageState extends State<ProfilePage> {
                                 if (value.isEmpty) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text(translationsService?.translate(
-                                              'profile.error_preferred_name_required') ??
-                                          'Preferred name is required.'),
+                                      content: Text(translationsService.translate(
+                                          'profile.error_preferred_name_required')),
                                     ),
                                   );
                                   return;
                                 }
                                 try {
                                   await auth.savePreferredName(value);
-                                  if (translationsService != null) {
-                                    await translationsService
-                                        .setLanguage(_selectedLanguage);
-                                  }
+                                  await translationsService
+                                      .setLanguage(_selectedLanguage);
                                   if (!context.mounted) return;
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text(translationsService?.translate(
-                                              'profile.success_preferences_saved') ??
-                                          'Preferences updated.'),
+                                      content: Text(translationsService.translate(
+                                          'profile.success_preferences_saved')),
                                     ),
                                   );
                                 } catch (_) {
@@ -289,17 +273,15 @@ class _ProfilePageState extends State<ProfilePage> {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
-                                          translationsService?.translate(
-                                                  'profile.error_save_failed') ??
-                                              'Could not save preferences.'),
+                                          translationsService.translate(
+                                              'profile.error_save_failed')),
                                     ),
                                   );
                                 }
                               },
                         child: Text(
                           translationsService
-                                  ?.translate('profile.save_preferences') ??
-                              'Save preferences',
+                              .translate('profile.save_preferences'),
                           style: const TextStyle(fontWeight: FontWeight.w900),
                         ),
                       ),
@@ -309,8 +291,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 if (auth.isAdmin) ...[
                   const SizedBox(height: 14),
                   _Card(
-                    title: translationsService?.translate('profile.admin') ??
-                        'Admin',
+                    title: translationsService.translate('profile.admin'),
                     children: [
                       SizedBox(
                         width: double.infinity,
@@ -333,9 +314,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                   );
                                 },
                           child: Text(
-                            translationsService
-                                    ?.translate('profile.open_admin') ??
-                                'Open Admin',
+                            translationsService.translate('profile.open_admin'),
                             style: const TextStyle(fontWeight: FontWeight.w900),
                           ),
                         ),
@@ -358,12 +337,11 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   onPressed: auth.isLoading ? null : () => auth.logout(),
                   child: auth.isLoading
-                      ? Text(translationsService
-                              ?.translate('profile.signing_out') ??
-                          'Signing out...')
+                      ? Text(
+                          translationsService.translate('profile.signing_out'),
+                        )
                       : Text(
-                          translationsService?.translate('profile.logout') ??
-                              'Logout',
+                          translationsService.translate('profile.logout'),
                           style: const TextStyle(fontWeight: FontWeight.w900),
                         ),
                 ),

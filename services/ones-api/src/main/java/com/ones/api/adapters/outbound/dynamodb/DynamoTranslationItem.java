@@ -5,6 +5,8 @@ import java.time.Instant;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttribute;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSecondaryPartitionKey;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSecondarySortKey;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSortKey;
 
 @DynamoDbBean
@@ -20,6 +22,7 @@ public class DynamoTranslationItem {
     private String updatedBy;
 
     @DynamoDbPartitionKey
+    @DynamoDbSecondarySortKey(indexNames = "LanguageCodeIndex")
     @DynamoDbAttribute("translationKey")
     public String getTranslationKey() {
         return translationKey;
@@ -30,6 +33,7 @@ public class DynamoTranslationItem {
     }
 
     @DynamoDbSortKey
+    @DynamoDbSecondaryPartitionKey(indexNames = "LanguageCodeIndex")
     @DynamoDbAttribute("languageCode")
     public String getLanguageCode() {
         return languageCode;

@@ -44,6 +44,21 @@
     "en": "Language",
     "pt": "Idioma"
   },
+  "profile.language_es": {
+    "es": "Español",
+    "en": "Spanish",
+    "pt": "Espanhol"
+  },
+  "profile.language_en": {
+    "es": "Inglés",
+    "en": "English",
+    "pt": "Inglês"
+  },
+  "profile.language_pt": {
+    "es": "Portugués",
+    "en": "Portuguese",
+    "pt": "Português"
+  },
   "profile.save_preferences": {
     "es": "Guardar preferencias",
     "en": "Save preferences",

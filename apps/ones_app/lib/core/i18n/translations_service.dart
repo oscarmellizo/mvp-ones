@@ -51,6 +51,11 @@ class TranslationsService extends ChangeNotifier {
 
   void setAuthController(AuthController authController) {
     _authController = authController;
+    final token = authController.idToken;
+    if (token != null && token.isNotEmpty) {
+      _apiClient.setBearerAuth('bearerAuth', token);
+    }
+
     // Reload translations when auth controller is set (user may have just logged in)
     if (_currentLanguage != null) {
       _loadTranslations(_currentLanguage!);
@@ -63,12 +68,6 @@ class TranslationsService extends ChangeNotifier {
 
     if (langTranslations != null && langTranslations.containsKey(key)) {
       return langTranslations[key]!;
-    }
-
-    // Fallback to Spanish if translation not found in current language
-    final esTranslations = _translationsCache['es'];
-    if (esTranslations != null && esTranslations.containsKey(key)) {
-      return esTranslations[key]!;
     }
 
     return fallback ?? key;
@@ -91,37 +90,33 @@ class TranslationsService extends ChangeNotifier {
         final cacheAge =
             DateTime.now().millisecondsSinceEpoch - cachedTimestamp;
         if (cacheAge < _cacheTtl.inMilliseconds) {
-          _translationsCache[languageCode] =
-              Map<String, String>.from(jsonDecode(cached))
-                  .cast<String, String>();
-          print(
-              'Loaded translations from cache for $languageCode: ${_translationsCache[languageCode]?.length} entries');
-          if (_translationsCache[languageCode]!.isNotEmpty) {
-            print(
-                'Sample cached translations for $languageCode: ${_translationsCache[languageCode]!.entries.take(3).toList()}');
+          final decoded = Map<String, String>.from(jsonDecode(cached))
+              .cast<String, String>();
+
+          if (decoded.isNotEmpty) {
+            _translationsCache[languageCode] = decoded;
+            notifyListeners();
+            return;
           }
-          notifyListeners();
-          return;
+
+          await _prefs!.remove('$_translationsCacheKey$languageCode');
+          await _prefs!.remove('$_translationsCacheTimestampKey$languageCode');
         }
       }
 
-      // Temporarily allow loading without auth for debugging
       final token = _authController?.idToken;
-      if (token == null) {
-        print(
-            'No token available, attempting to fetch without auth for debugging');
+      if (token == null || token.isEmpty) {
+        return;
       }
 
-      print('Fetching translations from backend for $languageCode');
       final response = await _apiClient.getDefaultApi().listTranslations(
-          languageCode: languageCode,
-          extra: token != null
-              ? {
-                  'secure': [
-                    {'type': 'http', 'scheme': 'bearer', 'name': 'bearerAuth'}
-                  ]
-                }
-              : {});
+        languageCode: languageCode,
+        extra: {
+          'secure': [
+            {'type': 'http', 'scheme': 'bearer', 'name': 'bearerAuth'}
+          ]
+        },
+      );
       final translationMap = <String, String>{};
       final translations = response.data;
       if (translations != null) {
@@ -129,22 +124,23 @@ class TranslationsService extends ChangeNotifier {
           translationMap[translation.translationKey] = translation.value ?? '';
         }
       }
-      print('Loaded ${translationMap.length} translations for $languageCode');
+
       _translationsCache[languageCode] = translationMap;
 
-      // Cache the translations with timestamp
-      await _prefs!.setString(
-        '$_translationsCacheKey$languageCode',
-        jsonEncode(translationMap),
-      );
-      await _prefs!.setInt(
-        '$_translationsCacheTimestampKey$languageCode',
-        DateTime.now().millisecondsSinceEpoch,
-      );
+      if (translationMap.isNotEmpty) {
+        await _prefs!.setString(
+          '$_translationsCacheKey$languageCode',
+          jsonEncode(translationMap),
+        );
+        await _prefs!.setInt(
+          '$_translationsCacheTimestampKey$languageCode',
+          DateTime.now().millisecondsSinceEpoch,
+        );
+      }
       notifyListeners();
     } catch (e) {
-      // If loading fails, use empty map
-      print('Error loading translations for $languageCode: $e');
+      await _prefs!.remove('$_translationsCacheKey$languageCode');
+      await _prefs!.remove('$_translationsCacheTimestampKey$languageCode');
       _translationsCache[languageCode] = {};
       notifyListeners();
     }

@@ -404,6 +404,15 @@ Resources:
           KeyType: HASH
         - AttributeName: languageCode
           KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: LanguageCodeIndex
+          KeySchema:
+            - AttributeName: languageCode
+              KeyType: HASH
+            - AttributeName: translationKey
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
 
   EventsCoversTempBucket:
     Type: AWS::S3::Bucket

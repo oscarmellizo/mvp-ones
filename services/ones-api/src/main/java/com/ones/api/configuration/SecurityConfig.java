@@ -2,6 +2,7 @@ package com.ones.api.configuration;
 
 import java.util.Collection;
 
+import org.springframework.http.HttpMethod;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -134,6 +135,7 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/v1/admin/translations", "/v1/admin/translations/**").authenticated()
                         .requestMatchers("/v1/admin/me").authenticated()
                         .requestMatchers("/v1/admin/**").access(adminOnly)
                         .anyRequest().authenticated()
