@@ -3,9 +3,12 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ones_api_client/ones_api_client.dart';
 
+import '../../../features/auth/presentation/auth_controller.dart';
+
 class TranslationsService extends ChangeNotifier {
   final OnesApiClient _apiClient;
   final SharedPreferences _prefs;
+  AuthController? _authController;
 
   static const String _languageKey = 'ones.language_preference';
   static const String _translationsCacheKey = 'ones.translations_cache_';
@@ -17,6 +20,10 @@ class TranslationsService extends ChangeNotifier {
   String? _currentLanguage;
 
   TranslationsService(this._apiClient, this._prefs);
+
+  void setAuthController(AuthController authController) {
+    _authController = authController;
+  }
 
   Future<void> init() async {
     _currentLanguage = _prefs.getString(_languageKey) ?? 'es';
@@ -70,7 +77,14 @@ class TranslationsService extends ChangeNotifier {
         }
       }
 
-      // Fetch from backend
+      // Fetch from backend only if user is authenticated
+      final token = _authController?.idToken;
+      if (token == null) {
+        // User not authenticated, use empty cache
+        _translationsCache[languageCode] = {};
+        return;
+      }
+
       final response = await _apiClient
           .getDefaultApi()
           .listTranslations(languageCode: languageCode, extra: {

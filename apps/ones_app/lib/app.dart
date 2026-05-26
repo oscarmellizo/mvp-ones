@@ -133,6 +133,15 @@ class OnesApp extends StatelessWidget {
           },
           initialData: null,
         ),
+        ChangeNotifierProxyProvider<AuthController, TranslationsService?>(
+          create: (_) => null,
+          update: (_, auth, translationsService) {
+            if (translationsService != null) {
+              translationsService.setAuthController(auth);
+            }
+            return translationsService;
+          },
+        ),
         ProxyProvider<AuthController, EventTemplatesApiRepository>(
           update: (_, auth, __) {
             eventTemplatesRepository.setIdToken(auth.idToken);
