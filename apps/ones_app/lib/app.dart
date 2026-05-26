@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/config/app_config.dart';
 import 'core/http/ones_api_factory.dart';
+import 'core/i18n/translations_service.dart';
 import 'core/ui/ones_theme.dart';
 import 'core/ui/splash_page.dart';
 import 'features/auth/adapters/google/google_auth_repository.dart';
@@ -120,6 +122,16 @@ class OnesApp extends StatelessWidget {
             getAdminMe: getAdminMe,
             tokenRefreshService: tokenRefreshService,
           ),
+        ),
+        FutureProvider<TranslationsService?>(
+          create: (_) async {
+            final prefs = await SharedPreferences.getInstance();
+            final apiClient = apiFactory.create();
+            final translationsService = TranslationsService(apiClient, prefs);
+            await translationsService.init();
+            return translationsService;
+          },
+          initialData: null,
         ),
         ProxyProvider<AuthController, EventTemplatesApiRepository>(
           update: (_, auth, __) {

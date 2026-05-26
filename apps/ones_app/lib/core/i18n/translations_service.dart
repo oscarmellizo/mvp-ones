@@ -1,8 +1,9 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ones_api_client/ones_api_client.dart';
 
-class TranslationsService {
+class TranslationsService extends ChangeNotifier {
   final OnesApiClient _apiClient;
   final SharedPreferences _prefs;
 
@@ -28,6 +29,7 @@ class TranslationsService {
     _currentLanguage = languageCode;
     await _prefs.setString(_languageKey, languageCode);
     await _loadTranslations(languageCode);
+    notifyListeners();
   }
 
   String translate(String key, {String? fallback}) {
