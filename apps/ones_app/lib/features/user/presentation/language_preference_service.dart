@@ -20,18 +20,17 @@ class LanguagePreferenceService {
 
     await _prefs.setString(_languageKey, languageCode);
 
-    // TODO: Update backend after API client is regenerated
+    // TODO: Update backend when user preferences endpoints are available
     // try {
-    //   // Get current user data first to get preferredName
-    //   final currentUser = await _apiClient.v1UsersMe();
-    //   await _apiClient.v1UsersPreferencesPut(
+    //   final currentUser = await _apiClient.getDefaultApi().v1UsersMe();
+    //   await _apiClient.getDefaultApi().v1UsersPreferencesPut(
     //     body: UpdatePreferencesRequest(
     //       preferredName: currentUser.preferredName ?? 'Guest',
     //       languagePreference: languageCode,
     //     ),
     //   );
     // } catch (e) {
-    //   // If backend update fails, still keep local preference
+    //   print('Failed to update language preference on backend: $e');
     // }
   }
 }
