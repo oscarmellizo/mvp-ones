@@ -94,20 +94,22 @@ class TranslationsService extends ChangeNotifier {
           _translationsCache[languageCode] =
               Map<String, String>.from(jsonDecode(cached))
                   .cast<String, String>();
+          print('Loaded translations from cache for $languageCode');
           notifyListeners();
           return;
         }
       }
 
-      // Fetch from backend only if user is authenticated
+      // Temporarily allow loading without auth for debugging
       final token = _authController?.idToken;
       if (token == null) {
-        // User not authenticated, use empty cache
+        print('No token available, skipping backend fetch for $languageCode');
         _translationsCache[languageCode] = {};
         notifyListeners();
         return;
       }
 
+      print('Fetching translations from backend for $languageCode');
       final response = await _apiClient
           .getDefaultApi()
           .listTranslations(languageCode: languageCode, extra: {
@@ -122,6 +124,7 @@ class TranslationsService extends ChangeNotifier {
           translationMap[translation.translationKey] = translation.value ?? '';
         }
       }
+      print('Loaded ${translationMap.length} translations for $languageCode');
       _translationsCache[languageCode] = translationMap;
 
       // Cache the translations with timestamp
@@ -136,6 +139,7 @@ class TranslationsService extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       // If loading fails, use empty map
+      print('Error loading translations for $languageCode: $e');
       _translationsCache[languageCode] = {};
       notifyListeners();
     }
