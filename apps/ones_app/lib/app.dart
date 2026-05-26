@@ -131,8 +131,9 @@ class OnesApp extends StatelessWidget {
             return translationsService;
           },
         ),
-        ProxyProvider<AuthController, TranslationsService>(
-          update: (_, auth, translationsService) {
+        ProxyProvider2<AuthController, TranslationsService,
+            TranslationsService>(
+          update: (_, auth, translationsService, __) {
             translationsService.setAuthController(auth);
             return translationsService;
           },
