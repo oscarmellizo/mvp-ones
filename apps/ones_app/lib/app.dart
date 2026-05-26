@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/config/app_config.dart';
 import 'core/http/ones_api_factory.dart';
@@ -123,22 +122,18 @@ class OnesApp extends StatelessWidget {
             tokenRefreshService: tokenRefreshService,
           ),
         ),
-        FutureProvider<TranslationsService?>(
-          create: (_) async {
-            final prefs = await SharedPreferences.getInstance();
+        ChangeNotifierProvider<TranslationsService>(
+          create: (_) {
             final apiClient = apiFactory.create();
-            final translationsService = TranslationsService(apiClient, prefs);
-            await translationsService.init();
+            final translationsService = TranslationsService(apiClient);
+            // Initialize asynchronously
+            translationsService.ensureInitialized();
             return translationsService;
           },
-          initialData: null,
         ),
-        ChangeNotifierProxyProvider<AuthController, TranslationsService?>(
-          create: (_) => null,
+        ProxyProvider<AuthController, TranslationsService>(
           update: (_, auth, translationsService) {
-            if (translationsService != null) {
-              translationsService.setAuthController(auth);
-            }
+            translationsService.setAuthController(auth);
             return translationsService;
           },
         ),

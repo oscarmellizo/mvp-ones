@@ -7,7 +7,7 @@ import '../../../features/auth/presentation/auth_controller.dart';
 
 class TranslationsService extends ChangeNotifier {
   final OnesApiClient _apiClient;
-  final SharedPreferences _prefs;
+  SharedPreferences? _prefs;
   AuthController? _authController;
 
   static const String _languageKey = 'ones.language_preference';
@@ -18,20 +18,21 @@ class TranslationsService extends ChangeNotifier {
 
   Map<String, Map<String, String>> _translationsCache = {};
   String? _currentLanguage;
+  bool _isInitialized = false;
 
-  TranslationsService(this._apiClient, this._prefs);
+  TranslationsService(this._apiClient, [this._prefs]);
 
-  void setAuthController(AuthController authController) {
-    _authController = authController;
-    // Reload translations when auth controller is set (user may have just logged in)
-    if (_currentLanguage != null) {
-      _loadTranslations(_currentLanguage!);
-    }
+  Future<void> ensureInitialized() async {
+    if (_isInitialized) return;
+    _prefs ??= await SharedPreferences.getInstance();
+    await init();
   }
 
   Future<void> init() async {
-    _currentLanguage = _prefs.getString(_languageKey) ?? 'es';
+    if (_prefs == null) return;
+    _currentLanguage = _prefs!.getString(_languageKey) ?? 'es';
     await _loadTranslations(_currentLanguage!);
+    _isInitialized = true;
   }
 
   String getCurrentLanguage() => _currentLanguage ?? 'es';
@@ -41,9 +42,19 @@ class TranslationsService extends ChangeNotifier {
       throw ArgumentError('Invalid language code. Valid values: es, en, pt');
     }
     _currentLanguage = languageCode;
-    await _prefs.setString(_languageKey, languageCode);
+    if (_prefs != null) {
+      await _prefs!.setString(_languageKey, languageCode);
+    }
     await _loadTranslations(languageCode);
     notifyListeners();
+  }
+
+  void setAuthController(AuthController authController) {
+    _authController = authController;
+    // Reload translations when auth controller is set (user may have just logged in)
+    if (_currentLanguage != null) {
+      _loadTranslations(_currentLanguage!);
+    }
   }
 
   String translate(String key, {String? fallback}) {
@@ -64,11 +75,17 @@ class TranslationsService extends ChangeNotifier {
   }
 
   Future<void> _loadTranslations(String languageCode) async {
+    if (_prefs == null) {
+      _translationsCache[languageCode] = {};
+      notifyListeners();
+      return;
+    }
+
     try {
       // Check if cache exists and is still valid (within TTL)
-      final cached = _prefs.getString('$_translationsCacheKey$languageCode');
+      final cached = _prefs!.getString('$_translationsCacheKey$languageCode');
       final cachedTimestamp =
-          _prefs.getInt('$_translationsCacheTimestampKey$languageCode');
+          _prefs!.getInt('$_translationsCacheTimestampKey$languageCode');
 
       if (cached != null && cachedTimestamp != null) {
         final cacheAge =
@@ -108,11 +125,11 @@ class TranslationsService extends ChangeNotifier {
       _translationsCache[languageCode] = translationMap;
 
       // Cache the translations with timestamp
-      await _prefs.setString(
+      await _prefs!.setString(
         '$_translationsCacheKey$languageCode',
         jsonEncode(translationMap),
       );
-      await _prefs.setInt(
+      await _prefs!.setInt(
         '$_translationsCacheTimestampKey$languageCode',
         DateTime.now().millisecondsSinceEpoch,
       );

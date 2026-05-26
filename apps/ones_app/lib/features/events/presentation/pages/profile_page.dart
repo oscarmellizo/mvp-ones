@@ -63,7 +63,7 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
-    final translationsService = context.watch<TranslationsService?>();
+    final translationsService = context.watch<TranslationsService>();
 
     _seedPreferredNameIfNeeded(auth);
 
