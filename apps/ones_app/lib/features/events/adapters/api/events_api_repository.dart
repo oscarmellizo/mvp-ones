@@ -146,17 +146,6 @@ class EventsApiRepository implements EventsRepository {
       queryParameters: {
         'sig': sig,
       },
-      options: Options(
-        extra: {
-          'secure': [
-            {
-              'type': 'http',
-              'scheme': 'bearer',
-              'name': 'bearerAuth',
-            }
-          ],
-        },
-      ),
     );
     final data = res.data;
     if (data is! Map<String, dynamic>) {
