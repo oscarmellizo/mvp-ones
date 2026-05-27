@@ -260,7 +260,8 @@ class EventCoversServiceTest {
                 Instant.parse("2026-01-01T01:00:00Z"),
                 null,
                 true,
-                java.util.List.of()
+                true,
+                java.util.List.<String>of()
         ));
 
         EventCoversService svc = new EventCoversService(

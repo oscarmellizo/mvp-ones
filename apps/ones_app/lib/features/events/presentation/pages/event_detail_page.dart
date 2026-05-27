@@ -3,7 +3,9 @@ import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/utils/datetime_formatters.dart';
 import '../../../../core/utils/validators.dart';
@@ -161,6 +163,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                                   frameIds: event.frameIds,
                                   isOwner: auth.user?.userId == event.ownerId,
                                   allowGuestInvites: event.allowGuestInvites,
+                                  inviteLinkEnabled: event.inviteLinkEnabled,
                                 ),
                         ),
                       ),
@@ -980,6 +983,7 @@ class _DetailsTab extends StatefulWidget {
   final List<String> frameIds;
   final bool isOwner;
   final bool allowGuestInvites;
+  final bool inviteLinkEnabled;
 
   const _DetailsTab({
     required this.eventId,
@@ -992,6 +996,7 @@ class _DetailsTab extends StatefulWidget {
     required this.frameIds,
     required this.isOwner,
     required this.allowGuestInvites,
+    required this.inviteLinkEnabled,
   });
 
   @override
@@ -1003,6 +1008,8 @@ class _DetailsTabState extends State<_DetailsTab> {
 
   Future<List<EventGuest>>? _guestsFuture;
   Future<Map<String, String>>? _frameNamesFuture;
+  Future<EventInviteLink>? _inviteLinkFuture;
+  bool _updatingInviteLink = false;
 
   String? _inviteError;
 
@@ -1011,6 +1018,13 @@ class _DetailsTabState extends State<_DetailsTab> {
     super.initState();
     _refreshGuests();
     _refreshFrameNames();
+    _refreshInviteLink();
+  }
+
+  void _refreshInviteLink() {
+    if (!(widget.isOwner || widget.allowGuestInvites)) return;
+    _inviteLinkFuture =
+        context.read<EventsRepository>().getInviteLink(widget.eventId);
   }
 
   void _refreshFrameNames() {
@@ -1310,6 +1324,141 @@ class _DetailsTabState extends State<_DetailsTab> {
           title: 'Invite Guests',
           children: [
             if (canInvite) ...[
+              FutureBuilder<EventInviteLink>(
+                future: _inviteLinkFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Padding(
+                      padding: EdgeInsets.only(bottom: 12),
+                      child: LinearProgressIndicator(),
+                    );
+                  }
+
+                  final link = snapshot.data;
+                  if (snapshot.hasError || link == null || link.url.isEmpty) {
+                    return const SizedBox(height: 0);
+                  }
+
+                  final canUseLink = link.enabled || widget.isOwner;
+
+                  Future<void> onCopy() async {
+                    await Clipboard.setData(ClipboardData(text: link.url));
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Invite link copied.')),
+                    );
+                  }
+
+                  Future<void> onShare() async {
+                    await Share.share(link.url);
+                  }
+
+                  Future<void> onToggle(bool enabled) async {
+                    if (_updatingInviteLink) return;
+                    setState(() {
+                      _updatingInviteLink = true;
+                    });
+                    try {
+                      final updated = await context
+                          .read<EventsRepository>()
+                          .setInviteLinkEnabled(widget.eventId, enabled);
+                      if (!context.mounted) return;
+                      setState(() {
+                        _inviteLinkFuture = Future.value(updated);
+                      });
+                      events.select(widget.eventId);
+                    } catch (_) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Failed to update invite link.'),
+                        ),
+                      );
+                    } finally {
+                      if (!context.mounted) return;
+                      setState(() {
+                        _updatingInviteLink = false;
+                      });
+                    }
+                  }
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                'Invite by link',
+                                style: TextStyle(fontWeight: FontWeight.w900),
+                              ),
+                            ),
+                            if (widget.isOwner)
+                              Switch(
+                                value: link.enabled,
+                                onChanged:
+                                    _updatingInviteLink ? null : onToggle,
+                              ),
+                          ],
+                        ),
+                        if (!link.enabled)
+                          Text(
+                            'Link is disabled.',
+                            style: TextStyle(
+                              color: OnesColors.black.withOpacity(0.55),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: FilledButton(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: OnesColors.purpleMid,
+                                  foregroundColor: OnesColors.white,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                  shape: const RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.zero,
+                                  ),
+                                ),
+                                onPressed: canUseLink ? onCopy : null,
+                                child: const Text(
+                                  'Copy link',
+                                  style: TextStyle(fontWeight: FontWeight.w900),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: FilledButton(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: OnesColors.yellowSoft,
+                                  foregroundColor: OnesColors.black,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                  shape: const RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.zero,
+                                  ),
+                                ),
+                                onPressed: canUseLink ? onShare : null,
+                                child: const Text(
+                                  'Share',
+                                  style: TextStyle(fontWeight: FontWeight.w900),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+                    ),
+                  );
+                },
+              ),
               OnesTextField(
                 controller: _emailController,
                 hintText: 'Email (required)',

@@ -51,6 +51,7 @@ import 'features/events/presentation/pages/events_list_page.dart';
 import 'features/events/presentation/pages/create_event_page.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/invitations/presentation/pages/invitation_link_page.dart';
+import 'features/events/presentation/pages/event_invite_link_page.dart';
 
 class OnesApp extends StatelessWidget {
   final AppConfig config;
@@ -332,6 +333,22 @@ class OnesApp extends StatelessWidget {
               ),
             );
           }
+          if (uri.path == EventInviteLinkPage.routeName) {
+            final eventId = uri.queryParameters['eventId'];
+            final sig = uri.queryParameters['sig'];
+            if (eventId == null || eventId.trim().isEmpty) {
+              return null;
+            }
+            if (sig == null || sig.trim().isEmpty) {
+              return null;
+            }
+            return MaterialPageRoute(
+              builder: (_) => EventInviteLinkPage(
+                eventId: eventId,
+                sig: sig,
+              ),
+            );
+          }
           if (uri.path == EventDetailPage.routeName) {
             final eventId = uri.queryParameters['eventId'] ??
                 (settings.arguments as String?);
@@ -368,6 +385,17 @@ class _RootRouter extends StatelessWidget {
       if (token != null && token.trim().isNotEmpty) {
         final action = base.queryParameters['action'];
         return InvitationLinkPage(token: token, action: action);
+      }
+    }
+
+    if (auth.isRegistered && base.path == EventInviteLinkPage.routeName) {
+      final eventId = base.queryParameters['eventId'];
+      final sig = base.queryParameters['sig'];
+      if (eventId != null &&
+          eventId.trim().isNotEmpty &&
+          sig != null &&
+          sig.trim().isNotEmpty) {
+        return EventInviteLinkPage(eventId: eventId, sig: sig);
       }
     }
 

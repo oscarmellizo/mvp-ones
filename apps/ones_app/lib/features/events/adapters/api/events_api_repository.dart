@@ -79,6 +79,123 @@ class EventsApiRepository implements EventsRepository {
   }
 
   @override
+  Future<EventInviteLink> getInviteLink(String eventId) async {
+    final dio = _apiFactory.create(idToken: _idToken).dio;
+    final res = await dio.get(
+      '/v1/events/$eventId/invite-link',
+      options: Options(
+        extra: {
+          'secure': [
+            {
+              'type': 'http',
+              'scheme': 'bearer',
+              'name': 'bearerAuth',
+            }
+          ],
+        },
+      ),
+    );
+    final data = res.data;
+    if (data is! Map<String, dynamic>) {
+      throw StateError('Invalid invite link response');
+    }
+    return EventInviteLink(
+      url: (data['url'] as String?) ?? '',
+      enabled: (data['enabled'] as bool?) ?? true,
+    );
+  }
+
+  @override
+  Future<EventInviteLink> setInviteLinkEnabled(
+      String eventId, bool enabled) async {
+    final dio = _apiFactory.create(idToken: _idToken).dio;
+    final res = await dio.put(
+      '/v1/events/$eventId/invite-link',
+      data: <String, dynamic>{
+        'enabled': enabled,
+      },
+      options: Options(
+        extra: {
+          'secure': [
+            {
+              'type': 'http',
+              'scheme': 'bearer',
+              'name': 'bearerAuth',
+            }
+          ],
+        },
+      ),
+    );
+
+    final data = res.data;
+    if (data is! Map<String, dynamic>) {
+      throw StateError('Invalid set invite link response');
+    }
+    return EventInviteLink(
+      url: (data['url'] as String?) ?? '',
+      enabled: (data['enabled'] as bool?) ?? true,
+    );
+  }
+
+  @override
+  Future<EventInviteLinkPreview> previewInviteLink(
+      String eventId, String sig) async {
+    final dio = _apiFactory.create(idToken: _idToken).dio;
+    final res = await dio.get(
+      '/v1/events/$eventId/invite-link/preview',
+      queryParameters: {
+        'sig': sig,
+      },
+      options: Options(
+        extra: {
+          'secure': [
+            {
+              'type': 'http',
+              'scheme': 'bearer',
+              'name': 'bearerAuth',
+            }
+          ],
+        },
+      ),
+    );
+    final data = res.data;
+    if (data is! Map<String, dynamic>) {
+      throw StateError('Invalid invite link preview response');
+    }
+    return EventInviteLinkPreview(
+      id: data['id'] as String,
+      title: data['title'] as String,
+      objective: data['objective'] as String,
+      location: data['location'] as String,
+      startAt: DateTime.parse(data['startAt'] as String),
+      endAt: DateTime.parse(data['endAt'] as String),
+      coverKey: data['coverKey'] as String?,
+    );
+  }
+
+  @override
+  Future<void> acceptInviteLink(String eventId, String sig) async {
+    final dio = _apiFactory.create(idToken: _idToken).dio;
+    await dio.post(
+      '/v1/events/$eventId/invite-link/accept',
+      queryParameters: {
+        'sig': sig,
+      },
+      options: Options(
+        extra: {
+          'secure': [
+            {
+              'type': 'http',
+              'scheme': 'bearer',
+              'name': 'bearerAuth',
+            }
+          ],
+        },
+      ),
+    );
+  }
+
+  @override
   Future<List<EventGuest>> listEventGuests(String eventId) async {
     final response = await _defaultApi(_idToken).listEventGuests(id: eventId);
     final BuiltList<api.Guest>? items = response.data;
@@ -178,7 +295,21 @@ class EventsApiRepository implements EventsRepository {
       'frameIds': frameIds,
     };
 
-    final response = await dio.post('/v1/events', data: payload);
+    final response = await dio.post(
+      '/v1/events',
+      data: payload,
+      options: Options(
+        extra: {
+          'secure': [
+            {
+              'type': 'http',
+              'scheme': 'bearer',
+              'name': 'bearerAuth',
+            }
+          ],
+        },
+      ),
+    );
     final data = response.data;
     if (data is! Map<String, dynamic>) {
       throw StateError('Invalid create event response');
@@ -195,6 +326,7 @@ class EventsApiRepository implements EventsRepository {
       endAt: DateTime.parse(data['endAt'] as String),
       coverKey: data['coverKey'] as String?,
       allowGuestInvites: (data['allowGuestInvites'] as bool?) ?? true,
+      inviteLinkEnabled: (data['inviteLinkEnabled'] as bool?) ?? true,
       frameIds: (data['frameIds'] as List?)
               ?.map((e) => e.toString())
               .toList(growable: false) ??
@@ -226,7 +358,21 @@ class EventsApiRepository implements EventsRepository {
       'frameIds': frameIds,
     };
 
-    final response = await dio.put('/v1/events/$eventId', data: payload);
+    final response = await dio.put(
+      '/v1/events/$eventId',
+      data: payload,
+      options: Options(
+        extra: {
+          'secure': [
+            {
+              'type': 'http',
+              'scheme': 'bearer',
+              'name': 'bearerAuth',
+            }
+          ],
+        },
+      ),
+    );
     final data = response.data;
     if (data is! Map<String, dynamic>) {
       throw StateError('Invalid update event response');
@@ -246,6 +392,7 @@ class EventsApiRepository implements EventsRepository {
       endAt: DateTime.parse(data['endAt'] as String),
       coverKey: data['coverKey'] as String?,
       allowGuestInvites: (data['allowGuestInvites'] as bool?) ?? true,
+      inviteLinkEnabled: (data['inviteLinkEnabled'] as bool?) ?? true,
       frameIds: (data['frameIds'] as List?)
               ?.map((e) => e.toString())
               .toList(growable: false) ??
@@ -265,6 +412,7 @@ class EventsApiRepository implements EventsRepository {
       endAt: e.endAt,
       coverKey: e.coverKey,
       allowGuestInvites: e.allowGuestInvites ?? true,
+      inviteLinkEnabled: true,
       frameIds: const <String>[],
     );
   }

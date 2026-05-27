@@ -29,6 +29,26 @@ class _FakeEventsRepository implements EventsRepository {
   }
 
   @override
+  Future<EventInviteLink> getInviteLink(String eventId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<EventInviteLinkPreview> previewInviteLink(String eventId, String sig) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> acceptInviteLink(String eventId, String sig) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<EventInviteLink> setInviteLinkEnabled(String eventId, bool enabled) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<List<EventGuest>> listEventGuests(String eventId) {
     throw UnimplementedError();
   }

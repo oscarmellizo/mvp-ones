@@ -1184,6 +1184,8 @@ Resources:
               Value: !Ref PublicBaseUrl
             - Name: ONES_EMAIL_ACTION_TOKEN_SECRET_NAME
               Value: !Ref InvitationEmailActionTokenSecret
+            - Name: ONES_EVENT_INVITE_LINK_SECRET_NAME
+              Value: !Ref InvitationEmailActionTokenSecret
             - Name: ONES_EVENTS_TABLE
               Value: !Ref EventsTable
             - Name: ONES_USERS_TABLE

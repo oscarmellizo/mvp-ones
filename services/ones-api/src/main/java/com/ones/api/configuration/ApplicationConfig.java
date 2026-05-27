@@ -16,6 +16,9 @@ import com.ones.api.application.events.InviteEventGuestsUseCase;
 import com.ones.api.application.events.ListEventGuestsUseCase;
 import com.ones.api.application.events.ListEventsUseCase;
 import com.ones.api.application.events.UpdateEventUseCase;
+import com.ones.api.application.events.invitelink.AcceptEventInviteLinkUseCase;
+import com.ones.api.application.events.invitelink.PreviewEventInviteLinkUseCase;
+import com.ones.api.application.events.invitelink.SetEventInviteLinkEnabledUseCase;
 import com.ones.api.application.events.ports.EventsRepository;
 import com.ones.api.application.users.EnsureUserUseCase;
 import com.ones.api.application.users.GetUserByIdUseCase;
@@ -60,6 +63,21 @@ public class ApplicationConfig {
     @Bean
     GetEventUseCase getEventUseCase(EventsRepository repository, InvitationsRepository invitationsRepository) {
         return new GetEventUseCase(repository, invitationsRepository);
+    }
+
+    @Bean
+    PreviewEventInviteLinkUseCase previewEventInviteLinkUseCase(EventsRepository repository, Clock clock) {
+        return new PreviewEventInviteLinkUseCase(repository, clock);
+    }
+
+    @Bean
+    AcceptEventInviteLinkUseCase acceptEventInviteLinkUseCase(InvitationsRepository invitationsRepository, Clock clock) {
+        return new AcceptEventInviteLinkUseCase(invitationsRepository, clock);
+    }
+
+    @Bean
+    SetEventInviteLinkEnabledUseCase setEventInviteLinkEnabledUseCase(EventsRepository repository) {
+        return new SetEventInviteLinkEnabledUseCase(repository);
     }
 
     @Bean

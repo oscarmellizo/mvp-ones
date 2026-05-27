@@ -22,6 +22,8 @@ public class DynamoEventItem {
 
     private Boolean allowGuestInvites;
 
+    private Boolean inviteLinkEnabled;
+
     private java.util.List<String> frameIds;
 
     private String gsi1pk;
@@ -116,6 +118,15 @@ public class DynamoEventItem {
 
     public void setAllowGuestInvites(Boolean allowGuestInvites) {
         this.allowGuestInvites = allowGuestInvites;
+    }
+
+    @DynamoDbAttribute("inviteLinkEnabled")
+    public Boolean getInviteLinkEnabled() {
+        return inviteLinkEnabled;
+    }
+
+    public void setInviteLinkEnabled(Boolean inviteLinkEnabled) {
+        this.inviteLinkEnabled = inviteLinkEnabled;
     }
 
     @DynamoDbAttribute("frameIds")

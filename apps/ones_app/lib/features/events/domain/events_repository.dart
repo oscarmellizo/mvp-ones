@@ -5,6 +5,14 @@ abstract interface class EventsRepository {
 
   Future<Event> getEvent(String id);
 
+  Future<EventInviteLink> getInviteLink(String eventId);
+
+  Future<EventInviteLinkPreview> previewInviteLink(String eventId, String sig);
+
+  Future<void> acceptInviteLink(String eventId, String sig);
+
+  Future<EventInviteLink> setInviteLinkEnabled(String eventId, bool enabled);
+
   Future<List<EventGuest>> listEventGuests(String eventId);
 
   Future<List<EventGuest>> listEventGuestsV2(String eventId);
@@ -34,6 +42,36 @@ abstract interface class EventsRepository {
     required bool allowGuestInvites,
     required List<String> frameIds,
     String? coverReservationId,
+  });
+}
+
+class EventInviteLink {
+  final String url;
+  final bool enabled;
+
+  const EventInviteLink({
+    required this.url,
+    required this.enabled,
+  });
+}
+
+class EventInviteLinkPreview {
+  final String id;
+  final String title;
+  final String objective;
+  final String location;
+  final DateTime startAt;
+  final DateTime endAt;
+  final String? coverKey;
+
+  const EventInviteLinkPreview({
+    required this.id,
+    required this.title,
+    required this.objective,
+    required this.location,
+    required this.startAt,
+    required this.endAt,
+    required this.coverKey,
   });
 }
 

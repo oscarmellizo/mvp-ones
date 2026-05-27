@@ -113,7 +113,7 @@ public class EventsController {
     ) {
         String requesterUserId = authentication.getName();
 
-        boolean allowGuestInvites = request.allowGuestInvites() == null ? null : request.allowGuestInvites();
+        Boolean allowGuestInvites = request.allowGuestInvites();
 
         Event updated = updateEventUseCase.execute(
                 requesterUserId,
@@ -242,6 +242,7 @@ public class EventsController {
                 e.getEndAt(),
                 e.getCoverKey(),
                 e.isAllowGuestInvites(),
+                e.isInviteLinkEnabled(),
                 e.getFrameIds()
         );
     }

@@ -67,7 +67,7 @@ public class CreateEventUseCase {
             coverKey = coversService.consumeReservationAndCopyToEvent(ownerId, coverReservationId.trim(), eventId);
         }
 
-        Event event = new Event(eventId, ownerId, createdAt, title, objective, location, startAt, endAt, coverKey, allowGuestInvites, frameIds);
+        Event event = new Event(eventId, ownerId, createdAt, title, objective, location, startAt, endAt, coverKey, allowGuestInvites, true, frameIds);
         Event saved = repository.save(event);
 
         if (inviteeEmails != null && !inviteeEmails.isEmpty()) {

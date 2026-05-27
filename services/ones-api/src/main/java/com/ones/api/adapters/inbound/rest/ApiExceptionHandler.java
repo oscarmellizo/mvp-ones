@@ -25,6 +25,7 @@ import com.ones.api.application.events.EventForbiddenException;
 import com.ones.api.application.events.EventNotFoundException;
 import com.ones.api.application.frames.FrameAssetNotFoundException;
 import com.ones.api.application.frames.FrameNotFoundException;
+import com.ones.api.application.events.invitelink.EventInviteLinkClosedException;
 import com.ones.api.application.invitations.InvitationClosedException;
 import com.ones.api.application.invitations.InvitationNotFoundException;
 
@@ -93,6 +94,14 @@ public class ApiExceptionHandler {
     public ResponseEntity<Map<String, Object>> invitationClosed(InvitationClosedException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
                 "error", "bad_request",
+                "message", ex.getMessage()
+        ));
+    }
+
+    @ExceptionHandler(EventInviteLinkClosedException.class)
+    public ResponseEntity<Map<String, Object>> gone(EventInviteLinkClosedException ex) {
+        return ResponseEntity.status(HttpStatus.GONE).body(Map.of(
+                "error", "gone",
                 "message", ex.getMessage()
         ));
     }

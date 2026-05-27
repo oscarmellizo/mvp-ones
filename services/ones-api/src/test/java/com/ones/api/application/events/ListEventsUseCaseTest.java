@@ -49,7 +49,8 @@ class ListEventsUseCaseTest {
                 Instant.parse("2025-01-01T22:00:00Z"),
                 null,
                 true,
-                java.util.List.of()
+                true,
+                java.util.List.<String>of()
         ));
 
         Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
