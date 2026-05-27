@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/widgets/ones_card.dart';
 import '../../../../core/ui/widgets/ones_search_field.dart';
@@ -62,6 +63,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
   @override
   Widget build(BuildContext context) {
     final ctrl = context.watch<DiscoverTemplatesController>();
+    final t = context.watch<TranslationsService>();
     final q = _searchController.text.trim().toLowerCase();
     final items = ctrl.templates;
     final filtered = items.where((t) {
@@ -77,7 +79,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
           children: [
             OnesSearchField(
               controller: _searchController,
-              hintText: 'Search templates (concert, movie, football...)',
+              hintText: t.translate('discover.search_templates'),
             ),
             const SizedBox(height: 14),
             if (ctrl.loading && items.isEmpty)
@@ -88,7 +90,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Failed to load templates. Please try again.',
+                      t.translate('discover.failed_load_templates'),
                       style: TextStyle(
                         color: OnesColors.black.withOpacity(0.6),
                       ),
@@ -112,7 +114,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
               if (filtered.isEmpty)
                 OnesCard(
                   child: Text(
-                    'No templates found for "$q".',
+                    '${t.translate('discover.no_templates_found_for')} "$q".',
                     style: TextStyle(color: OnesColors.black.withOpacity(0.6)),
                   ),
                 )
@@ -171,6 +173,7 @@ class _TemplateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.watch<TranslationsService>();
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.zero,
@@ -215,8 +218,8 @@ class _TemplateCard extends StatelessWidget {
                           color: OnesColors.green.withOpacity(0.25),
                           borderRadius: BorderRadius.zero,
                         ),
-                        child: const Text(
-                          'Public',
+                        child: Text(
+                          t.translate('discover.public'),
                           style: TextStyle(
                             fontWeight: FontWeight.w900,
                             color: OnesColors.purpleDark,
@@ -260,6 +263,7 @@ class _TemplateDetailsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.watch<TranslationsService>();
     return DraggableScrollableSheet(
       initialChildSize: 0.62,
       minChildSize: 0.40,
@@ -306,9 +310,11 @@ class _TemplateDetailsSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-              _InfoRow(label: 'Status', value: template.status),
               _InfoRow(
-                  label: 'Frames',
+                  label: t.translate('discover.status_label'),
+                  value: template.status),
+              _InfoRow(
+                  label: t.translate('discover.frames_label'),
                   value:
                       '${template.frameIds.length} frame${template.frameIds.length == 1 ? '' : 's'}'),
               const SizedBox(height: 12),
@@ -375,9 +381,9 @@ class _TemplateDetailsSheet extends StatelessWidget {
                   }).toList(),
                 ),
               const SizedBox(height: 16),
-              const Text(
-                'Use this event template?',
-                style: TextStyle(fontWeight: FontWeight.w900),
+              Text(
+                t.translate('discover.use_template_question'),
+                style: const TextStyle(fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 10),
               Row(
@@ -391,7 +397,7 @@ class _TemplateDetailsSheet extends StatelessWidget {
                           borderRadius: BorderRadius.zero,
                         ),
                       ),
-                      child: const Text('Not now'),
+                      child: Text(t.translate('discover.not_now')),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -406,9 +412,9 @@ class _TemplateDetailsSheet extends StatelessWidget {
                           borderRadius: BorderRadius.zero,
                         ),
                       ),
-                      child: const Text(
-                        'Use template',
-                        style: TextStyle(fontWeight: FontWeight.w900),
+                      child: Text(
+                        t.translate('discover.use_template'),
+                        style: const TextStyle(fontWeight: FontWeight.w900),
                       ),
                     ),
                   ),

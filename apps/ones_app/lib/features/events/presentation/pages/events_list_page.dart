@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/utils/datetime_formatters.dart';
+import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/widgets/ones_search_field.dart';
 import '../../../../core/ui/widgets/ones_section_header.dart';
@@ -47,6 +48,7 @@ class _EventsListPageState extends State<EventsListPage> {
   Widget build(BuildContext context) {
     final controller = context.watch<EventsController>();
     final coverUrls = context.watch<EventCoverUrlsController>();
+    final t = context.watch<TranslationsService>();
 
     final events = controller.events;
     final now = DateTime.now();
@@ -93,7 +95,7 @@ class _EventsListPageState extends State<EventsListPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: OnesSearchField(
                   controller: _searchController,
-                  hintText: 'Search events...',
+                  hintText: t.translate('home.search_events'),
                   borderRadius: BorderRadius.zero,
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
@@ -101,7 +103,7 @@ class _EventsListPageState extends State<EventsListPage> {
                 ),
               ),
               const SizedBox(height: 18),
-              const OnesSectionHeader(title: 'Today'),
+              OnesSectionHeader(title: t.translate('home.today')),
               const SizedBox(height: 12),
               SizedBox(
                 height: 260,
@@ -149,7 +151,9 @@ class _EventsListPageState extends State<EventsListPage> {
                                 dateText: null,
                                 timeText:
                                     '${_formatTimeOfDay(displayStart)} - ${_formatTimeOfDay(displayEnd)}',
-                                badgeText: isLiveNow ? 'LIVE NOW' : null,
+                                badgeText: isLiveNow
+                                    ? t.translate('home.live_now')
+                                    : null,
                                 width: 260,
                                 onTap: () => Navigator.of(context).pushNamed(
                                   EventDetailPage.routeName,
@@ -162,7 +166,7 @@ class _EventsListPageState extends State<EventsListPage> {
                       ),
               ),
               const SizedBox(height: 22),
-              const OnesSectionHeader(title: 'Next Events'),
+              OnesSectionHeader(title: t.translate('home.next_events')),
               const SizedBox(height: 12),
               if (controller.error != null) ...[
                 Container(
@@ -173,7 +177,7 @@ class _EventsListPageState extends State<EventsListPage> {
                     borderRadius: BorderRadius.zero,
                   ),
                   child: Text(
-                    'Error: ${controller.error}',
+                    '${t.translate('common.error')}: ${controller.error}',
                     style: const TextStyle(color: OnesColors.danger),
                   ),
                 ),
@@ -341,13 +345,14 @@ class _EmptyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.watch<TranslationsService>();
     return Container(
       width: 260,
       decoration: BoxDecoration(
         color: OnesColors.white.withOpacity(0.60),
         borderRadius: BorderRadius.zero,
       ),
-      child: const Center(child: Text('No upcoming events')),
+      child: Center(child: Text(t.translate('home.no_upcoming_events'))),
     );
   }
 }

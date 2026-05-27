@@ -234,6 +234,121 @@
     "en": "Success",
     "pt": "Sucesso"
   },
+  "home.search_events": {
+    "es": "Buscar eventos...",
+    "en": "Search events...",
+    "pt": "Pesquisar eventos..."
+  },
+  "home.today": {
+    "es": "Hoy",
+    "en": "Today",
+    "pt": "Hoje"
+  },
+  "home.live_now": {
+    "es": "EN VIVO",
+    "en": "LIVE NOW",
+    "pt": "AO VIVO"
+  },
+  "home.next_events": {
+    "es": "Próximos eventos",
+    "en": "Next events",
+    "pt": "Próximos eventos"
+  },
+  "home.no_upcoming_events": {
+    "es": "No hay próximos eventos",
+    "en": "No upcoming events",
+    "pt": "Nenhum evento próximo"
+  },
+  "discover.search_templates": {
+    "es": "Buscar plantillas (concierto, película, fútbol...)",
+    "en": "Search templates (concert, movie, football...)",
+    "pt": "Pesquisar modelos (show, filme, futebol...)"
+  },
+  "discover.failed_load_templates": {
+    "es": "No se pudieron cargar las plantillas. Intenta de nuevo.",
+    "en": "Failed to load templates. Please try again.",
+    "pt": "Não foi possível carregar os modelos. Tente novamente."
+  },
+  "discover.no_templates_found_for": {
+    "es": "No se encontraron plantillas para",
+    "en": "No templates found for",
+    "pt": "Nenhum modelo encontrado para"
+  },
+  "discover.public": {
+    "es": "Pública",
+    "en": "Public",
+    "pt": "Público"
+  },
+  "discover.status_label": {
+    "es": "Estado",
+    "en": "Status",
+    "pt": "Status"
+  },
+  "discover.frames_label": {
+    "es": "Marcos",
+    "en": "Frames",
+    "pt": "Molduras"
+  },
+  "discover.use_template_question": {
+    "es": "¿Usar esta plantilla de evento?",
+    "en": "Use this event template?",
+    "pt": "Usar este modelo de evento?"
+  },
+  "discover.not_now": {
+    "es": "Ahora no",
+    "en": "Not now",
+    "pt": "Agora não"
+  },
+  "discover.use_template": {
+    "es": "Usar plantilla",
+    "en": "Use template",
+    "pt": "Usar modelo"
+  },
+  "galleries.search_past_events": {
+    "es": "Buscar eventos pasados",
+    "en": "Search past events",
+    "pt": "Pesquisar eventos passados"
+  },
+  "galleries.filter_all": {
+    "es": "Todas",
+    "en": "All",
+    "pt": "Todas"
+  },
+  "galleries.filter_last_7_days": {
+    "es": "7 días",
+    "en": "7 days",
+    "pt": "7 dias"
+  },
+  "galleries.filter_last_30_days": {
+    "es": "30 días",
+    "en": "30 days",
+    "pt": "30 dias"
+  },
+  "galleries.filter_this_year": {
+    "es": "Este año",
+    "en": "This year",
+    "pt": "Este ano"
+  },
+  "galleries.no_past_events_yet": {
+    "es": "Aún no hay eventos pasados.",
+    "en": "No past events yet.",
+    "pt": "Ainda não há eventos passados."
+  },
+  "galleries.no_results_for": {
+    "es": "Sin resultados para",
+    "en": "No results for",
+    "pt": "Nenhum resultado para"
+  },
+  "galleries.today": {
+    "es": "Hoy",
+    "en": "Today",
+    "pt": "Hoje"
+  },
+  "galleries.yesterday": {
+    "es": "Ayer",
+    "en": "Yesterday",
+    "pt": "Ontem"
+  },
   "nav.home": {
     "es": "Inicio",
     "en": "Home",

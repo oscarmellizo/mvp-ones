@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/utils/datetime_formatters.dart';
+import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/widgets/ones_card.dart';
 import '../../../../core/ui/widgets/ones_search_field.dart';
@@ -49,6 +50,7 @@ class _GalleriesPageState extends State<GalleriesPage> {
   Widget build(BuildContext context) {
     final controller = context.watch<EventsController>();
     final coverUrls = context.watch<EventCoverUrlsController>();
+    final t = context.watch<TranslationsService>();
 
     final q = _searchController.text.trim().toLowerCase();
 
@@ -84,7 +86,7 @@ class _GalleriesPageState extends State<GalleriesPage> {
             children: [
               OnesSearchField(
                 controller: _searchController,
-                hintText: 'Search past events',
+                hintText: t.translate('galleries.search_past_events'),
               ),
               const SizedBox(height: 10),
               Wrap(
@@ -92,28 +94,28 @@ class _GalleriesPageState extends State<GalleriesPage> {
                 runSpacing: 8,
                 children: [
                   ChoiceChip(
-                    label: const Text('Todas'),
+                    label: Text(t.translate('galleries.filter_all')),
                     selected: _filter == _QuickFilter.all,
                     onSelected: (_) => setState(() {
                       _filter = _QuickFilter.all;
                     }),
                   ),
                   ChoiceChip(
-                    label: const Text('7 días'),
+                    label: Text(t.translate('galleries.filter_last_7_days')),
                     selected: _filter == _QuickFilter.last7Days,
                     onSelected: (_) => setState(() {
                       _filter = _QuickFilter.last7Days;
                     }),
                   ),
                   ChoiceChip(
-                    label: const Text('30 días'),
+                    label: Text(t.translate('galleries.filter_last_30_days')),
                     selected: _filter == _QuickFilter.last30Days,
                     onSelected: (_) => setState(() {
                       _filter = _QuickFilter.last30Days;
                     }),
                   ),
                   ChoiceChip(
-                    label: const Text('Este año'),
+                    label: Text(t.translate('galleries.filter_this_year')),
                     selected: _filter == _QuickFilter.thisYear,
                     onSelected: (_) => setState(() {
                       _filter = _QuickFilter.thisYear;
@@ -130,7 +132,9 @@ class _GalleriesPageState extends State<GalleriesPage> {
               else if (orderedDays.isEmpty)
                 OnesCard(
                   child: Text(
-                    q.isEmpty ? 'No past events yet.' : 'No results for "$q".',
+                    q.isEmpty
+                        ? t.translate('galleries.no_past_events_yet')
+                        : '${t.translate('galleries.no_results_for')} "$q".',
                     style: TextStyle(color: OnesColors.black.withOpacity(0.6)),
                   ),
                 )
@@ -148,7 +152,7 @@ class _GalleriesPageState extends State<GalleriesPage> {
                         Padding(
                           padding: const EdgeInsets.only(top: 6, bottom: 10),
                           child: Text(
-                            _friendlyDayHeader(day, now),
+                            _friendlyDayHeader(day, now, t),
                             style: const TextStyle(
                               fontWeight: FontWeight.w900,
                               color: OnesColors.black,
@@ -213,15 +217,15 @@ class _GalleriesPageState extends State<GalleriesPage> {
     );
   }
 
-  String _friendlyDayHeader(DateTime day, DateTime now) {
+  String _friendlyDayHeader(DateTime day, DateTime now, TranslationsService t) {
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
 
     if (_isSameDay(day, today)) {
-      return 'Hoy · ${formatMonthDayYear(day)}';
+      return '${t.translate('galleries.today')} · ${formatMonthDayYear(day)}';
     }
     if (_isSameDay(day, yesterday)) {
-      return 'Ayer · ${formatMonthDayYear(day)}';
+      return '${t.translate('galleries.yesterday')} · ${formatMonthDayYear(day)}';
     }
     return formatMonthDayYear(day);
   }
