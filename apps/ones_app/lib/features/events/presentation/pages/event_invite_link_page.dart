@@ -1,11 +1,14 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/utils/datetime_formatters.dart';
+import '../../../auth/presentation/auth_controller.dart';
+import '../../../auth/presentation/pages/register_page.dart';
+import '../../adapters/api/events_api_repository.dart';
 import '../../domain/events_repository.dart';
 import '../event_cover_urls_controller.dart';
-import '../events_controller.dart';
 import 'event_detail_page.dart';
 
 class EventInviteLinkPage extends StatefulWidget {
@@ -39,6 +42,7 @@ class _EventInviteLinkPageState extends State<EventInviteLinkPage> {
   @override
   Widget build(BuildContext context) {
     final previewFuture = _future;
+    final auth = context.watch<AuthController>();
 
     return Scaffold(
       backgroundColor: OnesColors.background,
@@ -219,25 +223,93 @@ class _EventInviteLinkPageState extends State<EventInviteLinkPage> {
                                     _accepting = true;
                                   });
                                   try {
+                                    final authController =
+                                        context.read<AuthController>();
+                                    final token = authController.idToken;
+                                    if (!authController.isSignedIn ||
+                                        token == null ||
+                                        token.isEmpty) {
+                                      final step =
+                                          await authController.signInExisting();
+                                      if (!context.mounted) return;
+                                      if (step ==
+                                          AuthNextStep.needsRegistration) {
+                                        await Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) => const RegisterPage(
+                                              popToRootOnComplete: false,
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    } else if (!authController.isRegistered) {
+                                      await Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => const RegisterPage(
+                                            popToRootOnComplete: false,
+                                          ),
+                                        ),
+                                      );
+                                    }
+
+                                    if (!context.mounted) return;
+                                    final afterAuth =
+                                        context.read<AuthController>();
+                                    if (!afterAuth.isRegistered) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'Sign in required to accept invitation.'),
+                                        ),
+                                      );
+                                      setState(() {
+                                        _accepting = false;
+                                      });
+                                      return;
+                                    }
+
+                                    final repo =
+                                        context.read<EventsRepository>();
+                                    if (repo is EventsApiRepository) {
+                                      repo.setIdToken(afterAuth.idToken);
+                                    }
+
                                     await context
                                         .read<EventsRepository>()
                                         .acceptInviteLink(
                                             preview.id, widget.sig);
                                     if (!context.mounted) return;
 
-                                    context
-                                        .read<EventsController>()
-                                        .select(preview.id);
-
                                     Navigator.of(context).pushReplacementNamed(
                                       '${EventDetailPage.routeName}?eventId=${Uri.encodeComponent(preview.id)}&invitationStatus=accepted',
                                     );
-                                  } catch (_) {
+                                  } catch (e) {
                                     if (!context.mounted) return;
+
+                                    String message =
+                                        'Failed to accept invitation.';
+                                    if (e is DioException) {
+                                      final status = e.response?.statusCode;
+                                      final data = e.response?.data;
+                                      String details = '';
+                                      if (data is Map) {
+                                        final code =
+                                            data['code'] ?? data['error'];
+                                        final msg = data['message'];
+                                        details =
+                                            '${code ?? ''} ${msg ?? ''}'.trim();
+                                      } else if (data is String &&
+                                          data.trim().isNotEmpty) {
+                                        details = data.trim();
+                                      }
+
+                                      message =
+                                          'Failed to accept invitation (HTTP ${status ?? 'unknown'}${details.isNotEmpty ? ' - $details' : ''}).';
+                                    }
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                            'Failed to accept invitation.'),
+                                      SnackBar(
+                                        content: Text(message),
                                       ),
                                     );
                                     setState(() {
@@ -245,9 +317,11 @@ class _EventInviteLinkPageState extends State<EventInviteLinkPage> {
                                     });
                                   }
                                 },
-                          child: const Text(
-                            'Accept invitation',
-                            style: TextStyle(fontWeight: FontWeight.w900),
+                          child: Text(
+                            auth.isRegistered
+                                ? 'Accept invitation'
+                                : 'Sign in to accept',
+                            style: const TextStyle(fontWeight: FontWeight.w900),
                           ),
                         ),
                       ],

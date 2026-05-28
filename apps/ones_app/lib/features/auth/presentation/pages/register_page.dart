@@ -7,7 +7,12 @@ import '../../../../core/ui/widgets/ones_text_field.dart';
 import '../auth_controller.dart';
 
 class RegisterPage extends StatefulWidget {
-  const RegisterPage({super.key});
+  final bool popToRootOnComplete;
+
+  const RegisterPage({
+    super.key,
+    this.popToRootOnComplete = true,
+  });
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
@@ -305,8 +310,12 @@ class _RegisterPageState extends State<RegisterPage> {
                                           _preferredNameController.text,
                                         );
                                         if (!context.mounted) return;
-                                        Navigator.of(context)
-                                            .popUntil((r) => r.isFirst);
+                                        if (widget.popToRootOnComplete) {
+                                          Navigator.of(context)
+                                              .popUntil((r) => r.isFirst);
+                                        } else {
+                                          Navigator.of(context).pop(true);
+                                        }
                                       } catch (_) {
                                         if (!context.mounted) return;
                                       }

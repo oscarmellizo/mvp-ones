@@ -109,7 +109,6 @@ class OnesApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         Provider.value(value: config),
-        Provider<EventsRepository>.value(value: eventsRepository),
         ChangeNotifierProvider(
           create: (_) => AuthController(
             signInWithGoogle: signInWithGoogle,
@@ -122,6 +121,13 @@ class OnesApp extends StatelessWidget {
             getAdminMe: getAdminMe,
             tokenRefreshService: tokenRefreshService,
           ),
+        ),
+        ProxyProvider<AuthController, EventsRepository>(
+          update: (_, auth, __) {
+            apiFactory.setTokenRefresher(auth.refreshIdToken);
+            eventsRepository.setIdToken(auth.idToken);
+            return eventsRepository;
+          },
         ),
         ChangeNotifierProxyProvider<AuthController, TranslationsService>(
           create: (_) {
@@ -380,15 +386,7 @@ class _RootRouter extends StatelessWidget {
     final auth = context.watch<AuthController>();
 
     final base = Uri.base;
-    if (auth.isRegistered && base.path == InvitationLinkPage.routeName) {
-      final token = base.queryParameters['token'];
-      if (token != null && token.trim().isNotEmpty) {
-        final action = base.queryParameters['action'];
-        return InvitationLinkPage(token: token, action: action);
-      }
-    }
-
-    if (auth.isRegistered && base.path == EventInviteLinkPage.routeName) {
+    if (base.path == EventInviteLinkPage.routeName) {
       final eventId = base.queryParameters['eventId'];
       final sig = base.queryParameters['sig'];
       if (eventId != null &&
@@ -396,6 +394,13 @@ class _RootRouter extends StatelessWidget {
           sig != null &&
           sig.trim().isNotEmpty) {
         return EventInviteLinkPage(eventId: eventId, sig: sig);
+      }
+    }
+    if (auth.isRegistered && base.path == InvitationLinkPage.routeName) {
+      final token = base.queryParameters['token'];
+      if (token != null && token.trim().isNotEmpty) {
+        final action = base.queryParameters['action'];
+        return InvitationLinkPage(token: token, action: action);
       }
     }
 
