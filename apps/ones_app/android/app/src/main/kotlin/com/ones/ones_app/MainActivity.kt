@@ -1,4 +1,4 @@
-package com.ones.ones_app
+package com.ones.events
 
 import io.flutter.embedding.android.FlutterActivity
 
