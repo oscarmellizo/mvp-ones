@@ -2,7 +2,7 @@
     <uses-permission android:name="android.permission.CAMERA" />
 
     <application
-        android:label="ones_app"
+        android:label="Ones"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
