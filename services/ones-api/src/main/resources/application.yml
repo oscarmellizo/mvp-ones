@@ -13,6 +13,8 @@ spring:
 
 ones:
   env: ${ONES_ENV:dev}
+  dynamodb:
+    fail-on-scan-fallback: true
   app:
     base-url: ${ONES_APP_BASE_URL:}
   email:

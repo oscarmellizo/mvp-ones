@@ -32,31 +32,31 @@ public class CacheConfig {
         manager.registerCustomCache(
                 EVENTS_METADATA_CACHE,
                 java.util.Objects.requireNonNull(
-                        Caffeine.<Object, Object>newBuilder().expireAfterWrite(Duration.ofHours(6)).build()
+                        Caffeine.<Object, Object>newBuilder().recordStats().expireAfterWrite(Duration.ofHours(6)).build()
                 )
         );
         manager.registerCustomCache(
                 ADMIN_ACCESS_CACHE,
                 java.util.Objects.requireNonNull(
-                        Caffeine.<Object, Object>newBuilder().expireAfterWrite(Duration.ofMinutes(5)).build()
+                        Caffeine.<Object, Object>newBuilder().recordStats().expireAfterWrite(Duration.ofMinutes(5)).build()
                 )
         );
         manager.registerCustomCache(
                 TRANSLATIONS_BY_LANGUAGE_CACHE,
                 java.util.Objects.requireNonNull(
-                        Caffeine.<Object, Object>newBuilder().maximumSize(50).build()
+                        Caffeine.<Object, Object>newBuilder().recordStats().maximumSize(50).build()
                 )
         );
         manager.registerCustomCache(
                 PHOTOS_BY_EVENT_FIRST_PAGE_CACHE,
                 java.util.Objects.requireNonNull(
-                        Caffeine.<Object, Object>newBuilder().maximumSize(5_000).expireAfterWrite(Duration.ofSeconds(10)).build()
+                        Caffeine.<Object, Object>newBuilder().recordStats().maximumSize(5_000).expireAfterWrite(Duration.ofSeconds(10)).build()
                 )
         );
         manager.registerCustomCache(
                 INVITATIONS_BY_EVENT_CACHE,
                 java.util.Objects.requireNonNull(
-                        Caffeine.<Object, Object>newBuilder().maximumSize(5_000).expireAfterWrite(Duration.ofSeconds(30)).build()
+                        Caffeine.<Object, Object>newBuilder().recordStats().maximumSize(5_000).expireAfterWrite(Duration.ofSeconds(30)).build()
                 )
         );
         return manager;
