@@ -445,7 +445,7 @@ Resources:
             Action:
               - sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSApplicationAutoScalingDynamoDBTablePolicy
+        - arn:aws:iam::aws:policy/service-role/AWSApplicationAutoscalingDynamoDBTablePolicy
 
   PhotosTableReadScalableTarget:
     Type: AWS::ApplicationAutoScaling::ScalableTarget
