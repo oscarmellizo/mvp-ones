@@ -75,7 +75,7 @@ public class EventTemplatesController {
 
             try {
                 FramesManagementService.PresignedGetAssetResult vertical =
-                        framesService.presignGetAsset(frameId, "vertical");
+                        framesService.presignGetAsset(frame, "vertical");
                 verticalUrl = vertical.url();
             } catch (FrameAssetNotFoundException ignored) {
                 // ignore missing vertical asset
@@ -85,7 +85,7 @@ public class EventTemplatesController {
 
             try {
                 FramesManagementService.PresignedGetAssetResult horizontal =
-                        framesService.presignGetAsset(frameId, "horizontal");
+                        framesService.presignGetAsset(frame, "horizontal");
                 horizontalUrl = horizontal.url();
             } catch (FrameAssetNotFoundException ignored) {
                 // ignore missing horizontal asset

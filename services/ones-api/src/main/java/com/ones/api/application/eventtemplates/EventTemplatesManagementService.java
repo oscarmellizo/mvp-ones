@@ -6,12 +6,15 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import com.ones.api.adapters.inbound.rest.AuthClaims;
 import com.ones.api.application.eventtemplates.ports.EventTemplatesRepository;
 import com.ones.api.application.frames.ports.FramesRepository;
+import com.ones.api.configuration.CacheConfig;
 import com.ones.api.domain.eventtemplates.EventTemplate;
 import com.ones.api.domain.frames.Frame;
 
@@ -32,10 +35,19 @@ public class EventTemplatesManagementService {
         this.clock = clock;
     }
 
+    @Cacheable(
+            cacheNames = CacheConfig.EVENT_TEMPLATES_BY_STATUS_CACHE,
+            key = "#status == null ? 'active' : #status.name()",
+            sync = true
+    )
     public List<EventTemplate> list(EventTemplate.Status status) {
         return repository.list(status);
     }
 
+    @CacheEvict(
+            cacheNames = CacheConfig.EVENT_TEMPLATES_BY_STATUS_CACHE,
+            allEntries = true
+    )
     public EventTemplate upsert(
             Authentication authentication,
             String eventTemplateId,
@@ -81,6 +93,10 @@ public class EventTemplatesManagementService {
         return repository.upsert(toSave);
     }
 
+    @CacheEvict(
+            cacheNames = CacheConfig.EVENT_TEMPLATES_BY_STATUS_CACHE,
+            allEntries = true
+    )
     public void delete(String eventTemplateId) {
         repository.deleteById(eventTemplateId);
     }

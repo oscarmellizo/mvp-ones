@@ -126,14 +126,22 @@ public class FramesManagementService {
         }
 
         Frame existing = repository.findById(frameId.trim()).orElseThrow(() -> new FrameNotFoundException(frameId));
+        return presignGetAsset(existing, variant);
+    }
+
+    public PresignedGetAssetResult presignGetAsset(Frame frame, String variant) {
+        if (frame == null || frame.getFrameId() == null || frame.getFrameId().isBlank()) {
+            throw new IllegalArgumentException("frame.frameId is required");
+        }
+
         String assetKey = null;
         if ("vertical".equalsIgnoreCase(variant)) {
-            assetKey = existing.getVerticalAssetKey();
+            assetKey = frame.getVerticalAssetKey();
         } else if ("horizontal".equalsIgnoreCase(variant)) {
-            assetKey = existing.getHorizontalAssetKey();
+            assetKey = frame.getHorizontalAssetKey();
         }
         if (assetKey == null || assetKey.isBlank()) {
-            throw new FrameAssetNotFoundException(frameId);
+            throw new FrameAssetNotFoundException(frame.getFrameId());
         }
 
         Instant now = Instant.now(clock);

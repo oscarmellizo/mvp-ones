@@ -18,6 +18,8 @@ public class CacheConfig {
     public static final String TRANSLATIONS_BY_LANGUAGE_CACHE = "translationsByLanguage";
     public static final String PHOTOS_BY_EVENT_FIRST_PAGE_CACHE = "photosByEventFirstPage";
     public static final String INVITATIONS_BY_EVENT_CACHE = "invitationsByEvent";
+    public static final String FRAMES_BY_ID_CACHE = "framesById";
+    public static final String EVENT_TEMPLATES_BY_STATUS_CACHE = "eventTemplatesByStatus";
 
     @Bean
     CacheManager cacheManager() {
@@ -27,7 +29,9 @@ public class CacheConfig {
                 ADMIN_ACCESS_CACHE,
                 TRANSLATIONS_BY_LANGUAGE_CACHE,
                 PHOTOS_BY_EVENT_FIRST_PAGE_CACHE,
-                INVITATIONS_BY_EVENT_CACHE
+                INVITATIONS_BY_EVENT_CACHE,
+                FRAMES_BY_ID_CACHE,
+                EVENT_TEMPLATES_BY_STATUS_CACHE
         ));
         manager.registerCustomCache(
                 EVENTS_METADATA_CACHE,
@@ -57,6 +61,18 @@ public class CacheConfig {
                 INVITATIONS_BY_EVENT_CACHE,
                 java.util.Objects.requireNonNull(
                         Caffeine.<Object, Object>newBuilder().recordStats().maximumSize(5_000).expireAfterWrite(Duration.ofSeconds(30)).build()
+                )
+        );
+        manager.registerCustomCache(
+                FRAMES_BY_ID_CACHE,
+                java.util.Objects.requireNonNull(
+                        Caffeine.<Object, Object>newBuilder().recordStats().maximumSize(10_000).expireAfterWrite(Duration.ofHours(1)).build()
+                )
+        );
+        manager.registerCustomCache(
+                EVENT_TEMPLATES_BY_STATUS_CACHE,
+                java.util.Objects.requireNonNull(
+                        Caffeine.<Object, Object>newBuilder().recordStats().maximumSize(50).expireAfterWrite(Duration.ofMinutes(30)).build()
                 )
         );
         return manager;

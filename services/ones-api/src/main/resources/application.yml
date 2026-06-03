@@ -13,8 +13,6 @@ spring:
 
 ones:
   env: ${ONES_ENV:dev}
-  dynamodb:
-    fail-on-scan-fallback: true
   app:
     base-url: ${ONES_APP_BASE_URL:}
   email:
@@ -233,7 +231,7 @@ ones:
             - id: group_trip
               label: Viaje grupal
   dynamodb:
-    fail-on-scan-fallback: ${ONES_DYNAMODB_FAIL_ON_SCAN_FALLBACK:false}
+    fail-on-scan-fallback: ${ONES_DYNAMODB_FAIL_ON_SCAN_FALLBACK:true}
     table-name: ${ONES_EVENTS_TABLE:ones-events}
     users-table-name: ${ONES_USERS_TABLE:ones-users}
     invitations-table-name: ${ONES_INVITATIONS_TABLE:ones-invitations}

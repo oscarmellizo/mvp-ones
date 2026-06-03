@@ -9,9 +9,12 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Repository;
 
 import com.ones.api.application.frames.ports.FramesRepository;
+import com.ones.api.configuration.CacheConfig;
 import com.ones.api.domain.frames.Frame;
 
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
@@ -37,6 +40,12 @@ public class DynamoDbFramesRepository implements FramesRepository {
     }
 
     @Override
+    @Cacheable(
+            cacheNames = CacheConfig.FRAMES_BY_ID_CACHE,
+            key = "#frameId == null ? '' : #frameId.trim()",
+            condition = "#frameId != null && !#frameId.isBlank()",
+            sync = true
+    )
     public Optional<Frame> findById(String frameId) {
         if (frameId == null || frameId.isBlank()) {
             return Optional.empty();
@@ -46,6 +55,11 @@ public class DynamoDbFramesRepository implements FramesRepository {
     }
 
     @Override
+    @CacheEvict(
+            cacheNames = CacheConfig.FRAMES_BY_ID_CACHE,
+            key = "#frame.frameId == null ? '' : #frame.frameId.trim()",
+            condition = "#frame != null && #frame.frameId != null && !#frame.frameId.isBlank()"
+    )
     public Frame upsert(Frame frame) {
         if (frame == null || frame.getFrameId() == null || frame.getFrameId().isBlank()) {
             throw new IllegalArgumentException("frame.frameId is required");
@@ -55,6 +69,11 @@ public class DynamoDbFramesRepository implements FramesRepository {
     }
 
     @Override
+    @CacheEvict(
+            cacheNames = CacheConfig.FRAMES_BY_ID_CACHE,
+            key = "#frameId == null ? '' : #frameId.trim()",
+            condition = "#frameId != null && !#frameId.isBlank()"
+    )
     public void deleteById(String frameId) {
         if (frameId == null || frameId.isBlank()) {
             return;

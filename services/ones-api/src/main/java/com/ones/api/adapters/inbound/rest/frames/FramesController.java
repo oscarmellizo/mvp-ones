@@ -59,7 +59,7 @@ public class FramesController {
         String horizontalUrl = null;
 
         try {
-            FramesManagementService.PresignedGetAssetResult vertical = framesService.presignGetAsset(frameId, "vertical");
+            FramesManagementService.PresignedGetAssetResult vertical = framesService.presignGetAsset(f, "vertical");
             verticalUrl = vertical.url();
         } catch (FrameAssetNotFoundException ignored) {
             // ignore missing vertical asset
@@ -68,7 +68,7 @@ public class FramesController {
         }
 
         try {
-            FramesManagementService.PresignedGetAssetResult horizontal = framesService.presignGetAsset(frameId, "horizontal");
+            FramesManagementService.PresignedGetAssetResult horizontal = framesService.presignGetAsset(f, "horizontal");
             horizontalUrl = horizontal.url();
         } catch (FrameAssetNotFoundException ignored) {
             // ignore missing horizontal asset
