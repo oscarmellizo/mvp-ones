@@ -287,6 +287,19 @@ Resources:
                   - dynamodb:UntagResource
                 Resource: '*'
 
+              - Sid: ApplicationAutoScaling
+                Effect: Allow
+                Action:
+                  - application-autoscaling:RegisterScalableTarget
+                  - application-autoscaling:DeregisterScalableTarget
+                  - application-autoscaling:PutScalingPolicy
+                  - application-autoscaling:DeleteScalingPolicy
+                  - application-autoscaling:Describe*
+                  - application-autoscaling:List*
+                  - application-autoscaling:TagResource
+                  - application-autoscaling:UntagResource
+                Resource: '*'
+
               - Sid: SecretsManager
                 Effect: Allow
                 Action:
