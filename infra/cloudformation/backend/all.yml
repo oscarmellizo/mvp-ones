@@ -157,7 +157,10 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: !Sub ${StackPrefix}-${Environment}-invitations
-      BillingMode: PAY_PER_REQUEST
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: 3
+        WriteCapacityUnits: 1
       Tags:
         - Key: Environment
           Value: !Ref Environment
@@ -180,6 +183,9 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 1
+            WriteCapacityUnits: 1
 
   CoverPreviewsTable:
     Type: AWS::DynamoDB::Table
@@ -221,7 +227,10 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: !Sub ${StackPrefix}-${Environment}-photos
-      BillingMode: PAY_PER_REQUEST
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 2
       Tags:
         - Key: Environment
           Value: !Ref Environment
@@ -244,6 +253,9 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 2
 
   PhotoLikesTable:
     Type: AWS::DynamoDB::Table
@@ -388,7 +400,10 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: !Sub ${StackPrefix}-${Environment}-translations
-      BillingMode: PAY_PER_REQUEST
+      BillingMode: PROVISIONED
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 1
       Tags:
         - Key: Environment
           Value: !Ref Environment
@@ -413,6 +428,300 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 1
+
+  DynamoDbAutoScalingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - application-autoscaling.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSApplicationAutoScalingDynamoDBTablePolicy
+
+  PhotosTableReadScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 500
+      MinCapacity: 5
+      ResourceId: !Sub table/${PhotosTable}
+      RoleARN: !GetAtt DynamoDbAutoScalingRole.Arn
+      ScalableDimension: dynamodb:table:ReadCapacityUnits
+      ServiceNamespace: dynamodb
+
+  PhotosTableReadScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: photos-table-read
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref PhotosTableReadScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBReadCapacityUtilization
+        TargetValue: 70.0
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+
+  PhotosTableWriteScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 200
+      MinCapacity: 2
+      ResourceId: !Sub table/${PhotosTable}
+      RoleARN: !GetAtt DynamoDbAutoScalingRole.Arn
+      ScalableDimension: dynamodb:table:WriteCapacityUnits
+      ServiceNamespace: dynamodb
+
+  PhotosTableWriteScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: photos-table-write
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref PhotosTableWriteScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBWriteCapacityUtilization
+        TargetValue: 70.0
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+
+  PhotosByEventIdIndexReadScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 500
+      MinCapacity: 5
+      ResourceId: !Sub table/${PhotosTable}/index/byEventId
+      RoleARN: !GetAtt DynamoDbAutoScalingRole.Arn
+      ScalableDimension: dynamodb:index:ReadCapacityUnits
+      ServiceNamespace: dynamodb
+
+  PhotosByEventIdIndexReadScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: photos-byEventId-read
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref PhotosByEventIdIndexReadScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBReadCapacityUtilization
+        TargetValue: 70.0
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+
+  PhotosByEventIdIndexWriteScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 200
+      MinCapacity: 2
+      ResourceId: !Sub table/${PhotosTable}/index/byEventId
+      RoleARN: !GetAtt DynamoDbAutoScalingRole.Arn
+      ScalableDimension: dynamodb:index:WriteCapacityUnits
+      ServiceNamespace: dynamodb
+
+  PhotosByEventIdIndexWriteScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: photos-byEventId-write
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref PhotosByEventIdIndexWriteScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBWriteCapacityUtilization
+        TargetValue: 70.0
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+
+  InvitationsTableReadScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 200
+      MinCapacity: 3
+      ResourceId: !Sub table/${InvitationsTable}
+      RoleARN: !GetAtt DynamoDbAutoScalingRole.Arn
+      ScalableDimension: dynamodb:table:ReadCapacityUnits
+      ServiceNamespace: dynamodb
+
+  InvitationsTableReadScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: invitations-table-read
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref InvitationsTableReadScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBReadCapacityUtilization
+        TargetValue: 70.0
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+
+  InvitationsTableWriteScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 100
+      MinCapacity: 1
+      ResourceId: !Sub table/${InvitationsTable}
+      RoleARN: !GetAtt DynamoDbAutoScalingRole.Arn
+      ScalableDimension: dynamodb:table:WriteCapacityUnits
+      ServiceNamespace: dynamodb
+
+  InvitationsTableWriteScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: invitations-table-write
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref InvitationsTableWriteScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBWriteCapacityUtilization
+        TargetValue: 70.0
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+
+  InvitationsByEventIdIndexReadScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 200
+      MinCapacity: 1
+      ResourceId: !Sub table/${InvitationsTable}/index/byEventId
+      RoleARN: !GetAtt DynamoDbAutoScalingRole.Arn
+      ScalableDimension: dynamodb:index:ReadCapacityUnits
+      ServiceNamespace: dynamodb
+
+  InvitationsByEventIdIndexReadScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: invitations-byEventId-read
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref InvitationsByEventIdIndexReadScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBReadCapacityUtilization
+        TargetValue: 70.0
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+
+  InvitationsByEventIdIndexWriteScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 100
+      MinCapacity: 1
+      ResourceId: !Sub table/${InvitationsTable}/index/byEventId
+      RoleARN: !GetAtt DynamoDbAutoScalingRole.Arn
+      ScalableDimension: dynamodb:index:WriteCapacityUnits
+      ServiceNamespace: dynamodb
+
+  InvitationsByEventIdIndexWriteScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: invitations-byEventId-write
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref InvitationsByEventIdIndexWriteScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBWriteCapacityUtilization
+        TargetValue: 70.0
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+
+  TranslationsTableReadScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 200
+      MinCapacity: 5
+      ResourceId: !Sub table/${TranslationsTable}
+      RoleARN: !GetAtt DynamoDbAutoScalingRole.Arn
+      ScalableDimension: dynamodb:table:ReadCapacityUnits
+      ServiceNamespace: dynamodb
+
+  TranslationsTableReadScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: translations-table-read
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref TranslationsTableReadScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBReadCapacityUtilization
+        TargetValue: 70.0
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+
+  TranslationsTableWriteScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 50
+      MinCapacity: 1
+      ResourceId: !Sub table/${TranslationsTable}
+      RoleARN: !GetAtt DynamoDbAutoScalingRole.Arn
+      ScalableDimension: dynamodb:table:WriteCapacityUnits
+      ServiceNamespace: dynamodb
+
+  TranslationsTableWriteScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: translations-table-write
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref TranslationsTableWriteScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBWriteCapacityUtilization
+        TargetValue: 70.0
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+
+  TranslationsLanguageCodeIndexReadScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 200
+      MinCapacity: 5
+      ResourceId: !Sub table/${TranslationsTable}/index/LanguageCodeIndex
+      RoleARN: !GetAtt DynamoDbAutoScalingRole.Arn
+      ScalableDimension: dynamodb:index:ReadCapacityUnits
+      ServiceNamespace: dynamodb
+
+  TranslationsLanguageCodeIndexReadScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: translations-LanguageCodeIndex-read
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref TranslationsLanguageCodeIndexReadScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBReadCapacityUtilization
+        TargetValue: 70.0
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+
+  TranslationsLanguageCodeIndexWriteScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 50
+      MinCapacity: 1
+      ResourceId: !Sub table/${TranslationsTable}/index/LanguageCodeIndex
+      RoleARN: !GetAtt DynamoDbAutoScalingRole.Arn
+      ScalableDimension: dynamodb:index:WriteCapacityUnits
+      ServiceNamespace: dynamodb
+
+  TranslationsLanguageCodeIndexWriteScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: translations-LanguageCodeIndex-write
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref TranslationsLanguageCodeIndexWriteScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBWriteCapacityUtilization
+        TargetValue: 70.0
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
 
   EventsCoversTempBucket:
     Type: AWS::S3::Bucket

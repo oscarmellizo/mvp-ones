@@ -69,6 +69,44 @@ public class AdminTranslationsController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/cache/evict")
+    public ResponseEntity<Void> evictCache(
+            @RequestParam(value = "languageCode", required = false) String languageCode
+    ) {
+        if (languageCode == null || languageCode.isBlank()) {
+            service.evictTranslationsCache();
+        } else {
+            service.evictTranslationsCache(languageCode);
+        }
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/cache/refresh")
+    public ResponseEntity<RefreshTranslationsCacheResponse> refreshCache(
+            @RequestParam(value = "languageCode", required = false) String languageCode
+    ) {
+        String normalizedLanguageCode = languageCode == null ? null : languageCode.trim().toLowerCase();
+        if (normalizedLanguageCode == null || normalizedLanguageCode.isBlank()) {
+            service.evictTranslationsCache();
+            List<String> languages = List.of("es", "en", "pt");
+            int total = 0;
+            for (String lang : languages) {
+                total += service.getAllTranslations(lang).size();
+            }
+            return ResponseEntity.ok(new RefreshTranslationsCacheResponse(languages, total));
+        }
+
+        service.evictTranslationsCache(normalizedLanguageCode);
+        int count = service.getAllTranslations(normalizedLanguageCode).size();
+        return ResponseEntity.ok(new RefreshTranslationsCacheResponse(List.of(normalizedLanguageCode), count));
+    }
+
+    public record RefreshTranslationsCacheResponse(
+            List<String> languagesWarmed,
+            int totalTranslationsLoaded
+    ) {
+    }
+
     public record UpsertTranslationRequest(
             String translationKey,
             String languageCode,

@@ -504,6 +504,48 @@ paths:
           description: No Content
         '401':
           $ref: '#/components/responses/Unauthorized'
+
+  /v1/admin/translations/cache/evict:
+    post:
+      operationId: evictTranslationsCache
+      summary: Evict translations cache (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: languageCode
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [es, en, pt]
+      responses:
+        '204':
+          description: No Content
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/admin/translations/cache/refresh:
+    post:
+      operationId: refreshTranslationsCache
+      summary: Refresh (evict and warm) translations cache (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: languageCode
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [es, en, pt]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTranslationsCacheResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 components:
   securitySchemes:
     bearerAuth:
@@ -860,3 +902,15 @@ components:
         context:
           type: string
           nullable: true
+
+    RefreshTranslationsCacheResponse:
+      type: object
+      required: [languagesWarmed, totalTranslationsLoaded]
+      properties:
+        languagesWarmed:
+          type: array
+          items:
+            type: string
+            enum: [es, en, pt]
+        totalTranslationsLoaded:
+          type: integer

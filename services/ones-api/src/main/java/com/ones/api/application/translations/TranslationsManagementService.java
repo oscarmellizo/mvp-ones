@@ -5,11 +5,14 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import com.ones.api.adapters.inbound.rest.AuthClaims;
 import com.ones.api.application.translations.ports.TranslationsRepository;
+import com.ones.api.configuration.CacheConfig;
 import com.ones.api.domain.translations.Translation;
 
 @Service
@@ -29,14 +32,31 @@ public class TranslationsManagementService {
         return repository.getTranslation(translationKey, languageCode).orElse(null);
     }
 
+    @Cacheable(
+            cacheNames = CacheConfig.TRANSLATIONS_BY_LANGUAGE_CACHE,
+            key = "#languageCode == null ? '' : #languageCode.toLowerCase()",
+            sync = true
+    )
     public List<Translation> getAllTranslations(String languageCode) {
+        if (languageCode == null || languageCode.isBlank()) {
+            throw new IllegalArgumentException("languageCode is required");
+        }
         return repository.getAllTranslations(languageCode);
     }
 
+    @Cacheable(
+            cacheNames = CacheConfig.TRANSLATIONS_BY_LANGUAGE_CACHE,
+            key = "'__all__'",
+            sync = true
+    )
     public List<Translation> getAllTranslations() {
         return repository.getAllTranslations();
     }
 
+    @CacheEvict(
+            cacheNames = CacheConfig.TRANSLATIONS_BY_LANGUAGE_CACHE,
+            allEntries = true
+    )
     public Translation upsert(Authentication authentication, String translationKey, String languageCode, String value, String context) {
         if (translationKey == null || translationKey.isBlank()) {
             throw new IllegalArgumentException("translationKey is required");
@@ -69,6 +89,10 @@ public class TranslationsManagementService {
         return repository.upsert(toSave);
     }
 
+    @CacheEvict(
+            cacheNames = CacheConfig.TRANSLATIONS_BY_LANGUAGE_CACHE,
+            allEntries = true
+    )
     public void deleteTranslation(String translationKey, String languageCode) {
         if (translationKey == null || translationKey.isBlank()) {
             throw new IllegalArgumentException("translationKey is required");
@@ -77,6 +101,20 @@ public class TranslationsManagementService {
             throw new IllegalArgumentException("languageCode is required");
         }
         repository.deleteTranslation(translationKey, languageCode);
+    }
+
+    @CacheEvict(
+            cacheNames = CacheConfig.TRANSLATIONS_BY_LANGUAGE_CACHE,
+            allEntries = true
+    )
+    public void evictTranslationsCache() {
+    }
+
+    @CacheEvict(
+            cacheNames = CacheConfig.TRANSLATIONS_BY_LANGUAGE_CACHE,
+            key = "#languageCode == null ? '' : #languageCode.toLowerCase()"
+    )
+    public void evictTranslationsCache(String languageCode) {
     }
 
     private String resolveActor(Authentication authentication) {

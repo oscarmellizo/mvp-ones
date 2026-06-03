@@ -10,10 +10,13 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 
 import com.ones.api.application.invitations.ports.InvitationsRepository;
+import com.ones.api.configuration.CacheConfig;
 import com.ones.api.domain.invitations.Invitation;
 
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
@@ -64,6 +67,10 @@ public class DynamoDbInvitationsRepository implements InvitationsRepository {
     }
 
     @Override
+    @CacheEvict(
+            cacheNames = CacheConfig.INVITATIONS_BY_EVENT_CACHE,
+            allEntries = true
+    )
     public Invitation upsert(Invitation invitation) {
         table.putItem(toItem(invitation));
         return invitation;
@@ -91,6 +98,11 @@ public class DynamoDbInvitationsRepository implements InvitationsRepository {
     }
 
     @Override
+    @Cacheable(
+            cacheNames = CacheConfig.INVITATIONS_BY_EVENT_CACHE,
+            key = "#eventId + ':' + #limit",
+            sync = true
+    )
     public List<Invitation> listByEventId(String eventId, int limit) {
         if (eventId == null || eventId.isBlank()) {
             return List.of();
