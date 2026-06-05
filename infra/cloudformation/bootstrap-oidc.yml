@@ -333,6 +333,18 @@ Resources:
                   - ses:ListTagsForResource
                 Resource: '*'
 
+              - Sid: SNS
+                Effect: Allow
+                Action:
+                  - sns:CreateTopic
+                  - sns:DeleteTopic
+                  - sns:GetTopicAttributes
+                  - sns:SetTopicAttributes
+                  - sns:ListTopics
+                  - sns:TagResource
+                  - sns:UntagResource
+                Resource: '*'
+
               - Sid: AmazonManagedPrometheus
                 Effect: Allow
                 Action:
