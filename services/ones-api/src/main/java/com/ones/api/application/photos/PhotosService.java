@@ -474,6 +474,11 @@ public class PhotosService {
                 }
             }
 
+            if (page.nextToken() == null || page.nextToken().isBlank()) {
+                outNextToken = null;
+                break;
+            }
+
             cursor = page.nextToken();
             outNextToken = cursor;
         }

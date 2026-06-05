@@ -82,11 +82,13 @@ public class DynamoDbInvitationsRepository implements InvitationsRepository {
             return List.of();
         }
 
+        int resolvedLimit = limit <= 0 ? 50 : Math.min(limit, 200);
+
         QueryEnhancedRequest request = QueryEnhancedRequest.builder()
                 .queryConditional(QueryConditional.keyEqualTo(Key.builder()
                         .partitionValue(inviteeEmail.trim().toLowerCase())
                         .build()))
-                .limit(limit)
+                .limit(resolvedLimit)
                 .scanIndexForward(false)
                 .build();
 
@@ -109,13 +111,14 @@ public class DynamoDbInvitationsRepository implements InvitationsRepository {
         }
 
         String normalizedEventId = eventId.trim();
+        int resolvedLimit = limit <= 0 ? 50 : Math.min(limit, 200);
         try {
             DynamoDbIndex<DynamoInvitationItem> index = table.index("byEventId");
             QueryEnhancedRequest request = QueryEnhancedRequest.builder()
                     .queryConditional(QueryConditional.keyEqualTo(Key.builder()
                             .partitionValue(normalizedEventId)
                             .build()))
-                    .limit(limit)
+                    .limit(resolvedLimit)
                     .build();
 
             List<Invitation> out = new ArrayList<>();
@@ -128,23 +131,23 @@ public class DynamoDbInvitationsRepository implements InvitationsRepository {
         } catch (ResourceNotFoundException e) {
             log.warn("Falling back to DynamoDB Scan for listByEventId; consider creating GSI byEventId (eventId={}, limit={})",
                     normalizedEventId,
-                    limit);
+                    resolvedLimit);
             if (failOnScanFallback) {
                 throw new IllegalStateException("DynamoDB Scan fallback disabled for invitations.listByEventId; missing GSI byEventId", e);
             }
             scanFallbackCounter.increment();
-            return scanByEventId(normalizedEventId, limit);
+            return scanByEventId(normalizedEventId, resolvedLimit);
         } catch (Exception e) {
             String msg = e.getMessage();
             if (msg != null && msg.toLowerCase().contains("byeventid")) {
                 log.warn("Falling back to DynamoDB Scan for listByEventId; consider creating GSI byEventId (eventId={}, limit={})",
                         normalizedEventId,
-                        limit);
+                        resolvedLimit);
                 if (failOnScanFallback) {
                     throw new IllegalStateException("DynamoDB Scan fallback disabled for invitations.listByEventId; missing GSI byEventId", e);
                 }
                 scanFallbackCounter.increment();
-                return scanByEventId(normalizedEventId, limit);
+                return scanByEventId(normalizedEventId, resolvedLimit);
             }
             throw e;
         }
