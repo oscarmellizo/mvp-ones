@@ -290,6 +290,23 @@ Resources:
                   - dynamodb:UntagResource
                 Resource: '*'
 
+              - Sid: CloudWatch
+                Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricAlarm
+                  - cloudwatch:DeleteAlarms
+                  - cloudwatch:DescribeAlarms
+                  - cloudwatch:DescribeAlarmsForMetric
+                  - cloudwatch:DescribeAlarmHistory
+                  - cloudwatch:SetAlarmState
+                  - cloudwatch:PutAnomalyDetector
+                  - cloudwatch:DeleteAnomalyDetector
+                  - cloudwatch:DescribeAnomalyDetectors
+                  - cloudwatch:TagResource
+                  - cloudwatch:UntagResource
+                  - cloudwatch:ListTagsForResource
+                Resource: '*'
+
               - Sid: ApplicationAutoScaling
                 Effect: Allow
                 Action:
