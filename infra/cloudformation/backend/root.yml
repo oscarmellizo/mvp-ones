@@ -154,3 +154,18 @@ Outputs:
     Value: !GetAtt AllStack.Outputs.EventsPhotosBucketName
   OpenAiApiKeySecretName:
     Value: !GetAtt AllStack.Outputs.OpenAiApiKeySecretName
+
+  ActuatorBasicAuthSecretName:
+    Value: !GetAtt AllStack.Outputs.ActuatorBasicAuthSecretName
+
+  InternalBasicAuthSecretName:
+    Value: !GetAtt AllStack.Outputs.InternalBasicAuthSecretName
+
+  AlertsTopicArn:
+    Value: !GetAtt AllStack.Outputs.AlertsTopicArn
+
+  PrometheusWorkspaceId:
+    Value: !GetAtt AllStack.Outputs.PrometheusWorkspaceId
+
+  PrometheusWorkspaceArn:
+    Value: !GetAtt AllStack.Outputs.PrometheusWorkspaceArn

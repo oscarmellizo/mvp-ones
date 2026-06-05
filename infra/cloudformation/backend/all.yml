@@ -1009,6 +1009,417 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
+  AlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub ${StackPrefix}-${Environment}-alerts
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  PhotosTableReadThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-ddb-photos-read-throttles
+      Namespace: AWS/DynamoDB
+      MetricName: ReadThrottleEvents
+      Dimensions:
+        - Name: TableName
+          Value: !Ref PhotosTable
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 5
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  PhotosTableWriteThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-ddb-photos-write-throttles
+      Namespace: AWS/DynamoDB
+      MetricName: WriteThrottleEvents
+      Dimensions:
+        - Name: TableName
+          Value: !Ref PhotosTable
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 5
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  PhotosByEventIdIndexReadThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-ddb-photos-byEventId-read-throttles
+      Namespace: AWS/DynamoDB
+      MetricName: ReadThrottleEvents
+      Dimensions:
+        - Name: TableName
+          Value: !Ref PhotosTable
+        - Name: GlobalSecondaryIndexName
+          Value: byEventId
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 5
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  PhotosByEventIdIndexWriteThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-ddb-photos-byEventId-write-throttles
+      Namespace: AWS/DynamoDB
+      MetricName: WriteThrottleEvents
+      Dimensions:
+        - Name: TableName
+          Value: !Ref PhotosTable
+        - Name: GlobalSecondaryIndexName
+          Value: byEventId
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 5
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  InvitationsTableReadThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-ddb-invitations-read-throttles
+      Namespace: AWS/DynamoDB
+      MetricName: ReadThrottleEvents
+      Dimensions:
+        - Name: TableName
+          Value: !Ref InvitationsTable
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 5
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  InvitationsTableWriteThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-ddb-invitations-write-throttles
+      Namespace: AWS/DynamoDB
+      MetricName: WriteThrottleEvents
+      Dimensions:
+        - Name: TableName
+          Value: !Ref InvitationsTable
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 5
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  InvitationsByEventIdIndexReadThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-ddb-invitations-byEventId-read-throttles
+      Namespace: AWS/DynamoDB
+      MetricName: ReadThrottleEvents
+      Dimensions:
+        - Name: TableName
+          Value: !Ref InvitationsTable
+        - Name: GlobalSecondaryIndexName
+          Value: byEventId
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 5
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  InvitationsByEventIdIndexWriteThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-ddb-invitations-byEventId-write-throttles
+      Namespace: AWS/DynamoDB
+      MetricName: WriteThrottleEvents
+      Dimensions:
+        - Name: TableName
+          Value: !Ref InvitationsTable
+        - Name: GlobalSecondaryIndexName
+          Value: byEventId
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 5
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  TranslationsTableReadThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-ddb-translations-read-throttles
+      Namespace: AWS/DynamoDB
+      MetricName: ReadThrottleEvents
+      Dimensions:
+        - Name: TableName
+          Value: !Ref TranslationsTable
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 5
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  TranslationsTableWriteThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-ddb-translations-write-throttles
+      Namespace: AWS/DynamoDB
+      MetricName: WriteThrottleEvents
+      Dimensions:
+        - Name: TableName
+          Value: !Ref TranslationsTable
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 5
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  TranslationsLanguageCodeIndexReadThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-ddb-translations-LanguageCodeIndex-read-throttles
+      Namespace: AWS/DynamoDB
+      MetricName: ReadThrottleEvents
+      Dimensions:
+        - Name: TableName
+          Value: !Ref TranslationsTable
+        - Name: GlobalSecondaryIndexName
+          Value: LanguageCodeIndex
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 5
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  TranslationsLanguageCodeIndexWriteThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-ddb-translations-LanguageCodeIndex-write-throttles
+      Namespace: AWS/DynamoDB
+      MetricName: WriteThrottleEvents
+      Dimensions:
+        - Name: TableName
+          Value: !Ref TranslationsTable
+        - Name: GlobalSecondaryIndexName
+          Value: LanguageCodeIndex
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 5
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  FramesTableReadThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-ddb-frames-read-throttles
+      Namespace: AWS/DynamoDB
+      MetricName: ReadThrottleEvents
+      Dimensions:
+        - Name: TableName
+          Value: !Ref FramesTable
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 5
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  FramesTableWriteThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-ddb-frames-write-throttles
+      Namespace: AWS/DynamoDB
+      MetricName: WriteThrottleEvents
+      Dimensions:
+        - Name: TableName
+          Value: !Ref FramesTable
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 5
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  EventTemplatesTableReadThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-ddb-event-templates-read-throttles
+      Namespace: AWS/DynamoDB
+      MetricName: ReadThrottleEvents
+      Dimensions:
+        - Name: TableName
+          Value: !Ref EventTemplatesTable
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 5
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  EventTemplatesTableWriteThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-ddb-event-templates-write-throttles
+      Namespace: AWS/DynamoDB
+      MetricName: WriteThrottleEvents
+      Dimensions:
+        - Name: TableName
+          Value: !Ref EventTemplatesTable
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 5
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  PhotosTableConsumedReadCapacityAnomalyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-ddb-photos-consumed-rcu-anomaly
+      ComparisonOperator: GreaterThanUpperThreshold
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      ThresholdMetricId: ad1
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+      Metrics:
+        - Id: m1
+          Label: PhotosTable ConsumedReadCapacityUnits
+          MetricStat:
+            Metric:
+              Namespace: AWS/DynamoDB
+              MetricName: ConsumedReadCapacityUnits
+              Dimensions:
+                - Name: TableName
+                  Value: !Ref PhotosTable
+            Period: 300
+            Stat: Sum
+          ReturnData: true
+        - Id: ad1
+          Label: PhotosTable ConsumedReadCapacityUnits (expected)
+          Expression: ANOMALY_DETECTION_BAND(m1, 2)
+          ReturnData: true
+
+  InvitationsTableConsumedReadCapacityAnomalyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-ddb-invitations-consumed-rcu-anomaly
+      ComparisonOperator: GreaterThanUpperThreshold
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      ThresholdMetricId: ad1
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+      Metrics:
+        - Id: m1
+          Label: InvitationsTable ConsumedReadCapacityUnits
+          MetricStat:
+            Metric:
+              Namespace: AWS/DynamoDB
+              MetricName: ConsumedReadCapacityUnits
+              Dimensions:
+                - Name: TableName
+                  Value: !Ref InvitationsTable
+            Period: 300
+            Stat: Sum
+          ReturnData: true
+        - Id: ad1
+          Label: InvitationsTable ConsumedReadCapacityUnits (expected)
+          Expression: ANOMALY_DETECTION_BAND(m1, 2)
+          ReturnData: true
+
+  TranslationsTableConsumedReadCapacityAnomalyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-ddb-translations-consumed-rcu-anomaly
+      ComparisonOperator: GreaterThanUpperThreshold
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      ThresholdMetricId: ad1
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+      Metrics:
+        - Id: m1
+          Label: TranslationsTable ConsumedReadCapacityUnits
+          MetricStat:
+            Metric:
+              Namespace: AWS/DynamoDB
+              MetricName: ConsumedReadCapacityUnits
+              Dimensions:
+                - Name: TableName
+                  Value: !Ref TranslationsTable
+            Period: 300
+            Stat: Sum
+          ReturnData: true
+        - Id: ad1
+          Label: TranslationsTable ConsumedReadCapacityUnits (expected)
+          Expression: ANOMALY_DETECTION_BAND(m1, 2)
+          ReturnData: true
+
   EcrRepository:
     Type: AWS::ECR::Repository
     Properties:
@@ -1459,6 +1870,17 @@ Resources:
                   - aps:GetMetricMetadata
                 Resource: !GetAtt PrometheusWorkspace.Arn
 
+        - PolicyName: grafana-cloudwatch-read
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudwatch:GetMetricData
+                  - cloudwatch:ListMetrics
+                  - cloudwatch:GetMetricStatistics
+                Resource: '*'
+
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -1467,6 +1889,32 @@ Resources:
       Tags:
         - Key: Environment
           Value: !Ref Environment
+
+  DynamoDbScanFallbackMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref LogGroup
+      FilterPattern: '"Falling back to DynamoDB Scan"'
+      MetricTransformations:
+        - MetricNamespace: !Sub ${StackPrefix}/${Environment}
+          MetricName: dynamodb_scan_fallback
+          MetricValue: '1'
+
+  DynamoDbScanFallbackAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-dynamodb-scan-fallback
+      Namespace: !Sub ${StackPrefix}/${Environment}
+      MetricName: dynamodb_scan_fallback
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 5
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
 
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
@@ -1753,10 +2201,14 @@ Resources:
           Command:
             - !Sub |
               mkdir -p /etc/grafana/provisioning/datasources
+              mkdir -p /etc/grafana/provisioning/dashboards
+              mkdir -p /var/lib/grafana/dashboards
+
               cat > /etc/grafana/provisioning/datasources/amp.yaml <<'EOF'
               apiVersion: 1
               datasources:
                 - name: AMP
+                  uid: amp
                   type: prometheus
                   access: proxy
                   url: https://aps-workspaces.${AWS::Region}.amazonaws.com/workspaces/${PrometheusWorkspace.WorkspaceId}
@@ -1767,6 +2219,220 @@ Resources:
                     sigV4Region: ${AWS::Region}
                     sigV4Service: aps
               EOF
+
+              cat > /etc/grafana/provisioning/datasources/cloudwatch.yaml <<'EOF'
+              apiVersion: 1
+              datasources:
+                - name: CloudWatch
+                  uid: cloudwatch
+                  type: cloudwatch
+                  access: proxy
+                  isDefault: false
+                  jsonData:
+                    authType: default
+                    defaultRegion: ${AWS::Region}
+              EOF
+
+              cat > /etc/grafana/provisioning/dashboards/ones.yaml <<'EOF'
+              apiVersion: 1
+              providers:
+                - name: Ones
+                  orgId: 1
+                  type: file
+                  disableDeletion: false
+                  editable: true
+                  updateIntervalSeconds: 30
+                  options:
+                    path: /var/lib/grafana/dashboards
+              EOF
+
+              cat > /var/lib/grafana/dashboards/ones-cost-observability.json <<'EOF'
+              {
+                "uid": "ones-cost-observability",
+                "title": "Ones - Cost & DynamoDB Health",
+                "tags": ["ones", "dynamodb", "cost"],
+                "timezone": "browser",
+                "schemaVersion": 39,
+                "version": 1,
+                "refresh": "30s",
+                "panels": [
+                  {
+                    "type": "timeseries",
+                    "title": "DynamoDB Throttles (Table) - ReadThrottleEvents",
+                    "datasource": {"type": "cloudwatch", "uid": "cloudwatch"},
+                    "gridPos": {"h": 8, "w": 24, "x": 0, "y": 0},
+                    "targets": [
+                      {
+                        "refId": "A",
+                        "id": "queryA",
+                        "queryMode": "Metrics",
+                        "metricQueryType": 0,
+                        "metricEditorMode": 0,
+                        "region": "${AWS::Region}",
+                        "namespace": "AWS/DynamoDB",
+                        "metricName": "ReadThrottleEvents",
+                        "dimensions": {"TableName": "${PhotosTable}"},
+                        "statistic": "Sum",
+                        "period": "60"
+                      },
+                      {
+                        "refId": "B",
+                        "id": "queryB",
+                        "queryMode": "Metrics",
+                        "metricQueryType": 0,
+                        "metricEditorMode": 0,
+                        "region": "${AWS::Region}",
+                        "namespace": "AWS/DynamoDB",
+                        "metricName": "ReadThrottleEvents",
+                        "dimensions": {"TableName": "${TranslationsTable}"},
+                        "statistic": "Sum",
+                        "period": "60"
+                      },
+                      {
+                        "refId": "C",
+                        "id": "queryC",
+                        "queryMode": "Metrics",
+                        "metricQueryType": 0,
+                        "metricEditorMode": 0,
+                        "region": "${AWS::Region}",
+                        "namespace": "AWS/DynamoDB",
+                        "metricName": "ReadThrottleEvents",
+                        "dimensions": {"TableName": "${InvitationsTable}"},
+                        "statistic": "Sum",
+                        "period": "60"
+                      },
+                      {
+                        "refId": "D",
+                        "id": "queryD",
+                        "queryMode": "Metrics",
+                        "metricQueryType": 0,
+                        "metricEditorMode": 0,
+                        "region": "${AWS::Region}",
+                        "namespace": "AWS/DynamoDB",
+                        "metricName": "ReadThrottleEvents",
+                        "dimensions": {"TableName": "${FramesTable}"},
+                        "statistic": "Sum",
+                        "period": "60"
+                      },
+                      {
+                        "refId": "E",
+                        "id": "queryE",
+                        "queryMode": "Metrics",
+                        "metricQueryType": 0,
+                        "metricEditorMode": 0,
+                        "region": "${AWS::Region}",
+                        "namespace": "AWS/DynamoDB",
+                        "metricName": "ReadThrottleEvents",
+                        "dimensions": {"TableName": "${EventTemplatesTable}"},
+                        "statistic": "Sum",
+                        "period": "60"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "timeseries",
+                    "title": "DynamoDB Throttles (Table) - WriteThrottleEvents",
+                    "datasource": {"type": "cloudwatch", "uid": "cloudwatch"},
+                    "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8},
+                    "targets": [
+                      {
+                        "refId": "A",
+                        "id": "queryA",
+                        "queryMode": "Metrics",
+                        "metricQueryType": 0,
+                        "metricEditorMode": 0,
+                        "region": "${AWS::Region}",
+                        "namespace": "AWS/DynamoDB",
+                        "metricName": "WriteThrottleEvents",
+                        "dimensions": {"TableName": "${PhotosTable}"},
+                        "statistic": "Sum",
+                        "period": "60"
+                      },
+                      {
+                        "refId": "B",
+                        "id": "queryB",
+                        "queryMode": "Metrics",
+                        "metricQueryType": 0,
+                        "metricEditorMode": 0,
+                        "region": "${AWS::Region}",
+                        "namespace": "AWS/DynamoDB",
+                        "metricName": "WriteThrottleEvents",
+                        "dimensions": {"TableName": "${TranslationsTable}"},
+                        "statistic": "Sum",
+                        "period": "60"
+                      },
+                      {
+                        "refId": "C",
+                        "id": "queryC",
+                        "queryMode": "Metrics",
+                        "metricQueryType": 0,
+                        "metricEditorMode": 0,
+                        "region": "${AWS::Region}",
+                        "namespace": "AWS/DynamoDB",
+                        "metricName": "WriteThrottleEvents",
+                        "dimensions": {"TableName": "${InvitationsTable}"},
+                        "statistic": "Sum",
+                        "period": "60"
+                      },
+                      {
+                        "refId": "D",
+                        "id": "queryD",
+                        "queryMode": "Metrics",
+                        "metricQueryType": 0,
+                        "metricEditorMode": 0,
+                        "region": "${AWS::Region}",
+                        "namespace": "AWS/DynamoDB",
+                        "metricName": "WriteThrottleEvents",
+                        "dimensions": {"TableName": "${FramesTable}"},
+                        "statistic": "Sum",
+                        "period": "60"
+                      },
+                      {
+                        "refId": "E",
+                        "id": "queryE",
+                        "queryMode": "Metrics",
+                        "metricQueryType": 0,
+                        "metricEditorMode": 0,
+                        "region": "${AWS::Region}",
+                        "namespace": "AWS/DynamoDB",
+                        "metricName": "WriteThrottleEvents",
+                        "dimensions": {"TableName": "${EventTemplatesTable}"},
+                        "statistic": "Sum",
+                        "period": "60"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "timeseries",
+                    "title": "DynamoDB Scan Fallback (should be 0)",
+                    "datasource": {"type": "prometheus", "uid": "amp"},
+                    "gridPos": {"h": 7, "w": 24, "x": 0, "y": 16},
+                    "targets": [
+                      {
+                        "refId": "A",
+                        "expr": "increase(ones_dynamodb_scan_fallback_total[5m])",
+                        "legendFormat": "{{repository}}/{{operation}}"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "timeseries",
+                    "title": "Cache Hit Ratio (by cache)",
+                    "datasource": {"type": "prometheus", "uid": "amp"},
+                    "gridPos": {"h": 8, "w": 24, "x": 0, "y": 23},
+                    "fieldConfig": {"defaults": {"min": 0, "max": 1}},
+                    "targets": [
+                      {
+                        "refId": "A",
+                        "expr": "sum by (cache) (rate(cache_gets_total{result=\"hit\",cache=~\"translationsByLanguage|photosByEventFirstPage|invitationsByEvent|framesById|eventTemplatesByStatus\"}[5m])) / sum by (cache) (rate(cache_gets_total{cache=~\"translationsByLanguage|photosByEventFirstPage|invitationsByEvent|framesById|eventTemplatesByStatus\"}[5m]))",
+                        "legendFormat": "{{cache}}"
+                      }
+                    ]
+                  }
+                ]
+              }
+              EOF
+
               exec /run.sh
           LogConfiguration:
             LogDriver: awslogs
@@ -1886,6 +2552,9 @@ Outputs:
   InternalBasicAuthSecretName:
     Value: !Ref InternalBasicAuthSecret
 
+
+  AlertsTopicArn:
+    Value: !Ref AlertsTopic
   PrometheusWorkspaceId:
     Value: !GetAtt PrometheusWorkspace.WorkspaceId
   PrometheusWorkspaceArn:
