@@ -93,6 +93,9 @@ Resources:
                   - apigateway:PUT
                   - apigateway:PATCH
                   - apigateway:DELETE
+                  - apigateway:TagResource
+                  - apigateway:UntagResource
+                  - apigateway:ListTagsForResource
                 Resource:
                   - arn:aws:apigateway:*::/apis*
                   - arn:aws:apigateway:*::/tags*
