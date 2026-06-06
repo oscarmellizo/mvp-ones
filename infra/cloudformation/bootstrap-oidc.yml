@@ -85,6 +85,18 @@ Resources:
                   - cloudformation:ValidateTemplate
                 Resource: '*'
 
+              - Sid: ApiGateway
+                Effect: Allow
+                Action:
+                  - apigateway:GET
+                  - apigateway:POST
+                  - apigateway:PUT
+                  - apigateway:PATCH
+                  - apigateway:DELETE
+                Resource:
+                  - arn:aws:apigateway:*::/apis*
+                  - arn:aws:apigateway:*::/tags*
+
               - Sid: S3
                 Effect: Allow
                 Action:
