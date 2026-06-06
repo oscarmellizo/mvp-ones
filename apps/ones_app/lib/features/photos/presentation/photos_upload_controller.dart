@@ -23,6 +23,8 @@ class PhotosUploadController extends ChangeNotifier {
 
   final Map<String, List<PhotoUploadItem>> _activeByEvent = {};
 
+  final Map<String, double> _uploadProgressByPhotoId = {};
+
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
   PhotosUploadController({
@@ -40,6 +42,22 @@ class PhotosUploadController extends ChangeNotifier {
   List<PhotoUploadItem> activeByEvent(String eventId) {
     if (eventId.isEmpty) return const [];
     return _activeByEvent[eventId] ?? const [];
+  }
+
+  double? uploadProgressByPhotoId(String photoId) {
+    if (photoId.isEmpty) return null;
+    return _uploadProgressByPhotoId[photoId];
+  }
+
+  Future<void> markDoneByPhotoId({
+    required String eventId,
+    required String photoId,
+  }) async {
+    if (eventId.isEmpty || photoId.isEmpty) return;
+    await db.deleteByPhotoId(photoId);
+    _uploadProgressByPhotoId.remove(photoId);
+    await _refreshActiveForEvent(eventId);
+    notifyListeners();
   }
 
   Future<void> rehydrateActive() async {
@@ -175,6 +193,13 @@ class PhotosUploadController extends ChangeNotifier {
             putUrl: presign.putUrl,
             file: file,
             contentType: item.contentType,
+            onProgress: (sent, total) {
+              if (total <= 0) return;
+              final p = sent / total;
+              final clamped = p < 0 ? 0.0 : (p > 1 ? 1.0 : p);
+              _uploadProgressByPhotoId[item.photoId] = clamped;
+              notifyListeners();
+            },
           );
 
           await api.complete(
@@ -184,7 +209,7 @@ class PhotosUploadController extends ChangeNotifier {
             createdAt: item.createdAt,
           );
 
-          await db.markUploaded(item.id);
+          await db.markProcessing(item.id);
           await _refreshActiveForEvent(item.eventId);
           notifyListeners();
         } catch (e) {

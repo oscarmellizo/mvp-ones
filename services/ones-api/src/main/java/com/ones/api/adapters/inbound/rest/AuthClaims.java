@@ -21,7 +21,7 @@ public final class AuthClaims {
         }
 
         String email = value != null ? value.toString().trim().toLowerCase() : "";
-        if (email.isEmpty()) {
+        if (email.isEmpty() || !email.contains("@")) {
             throw new IllegalStateException("Missing email claim");
         }
         return email;

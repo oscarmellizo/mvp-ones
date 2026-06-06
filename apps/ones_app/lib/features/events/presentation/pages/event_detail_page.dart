@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
@@ -15,6 +16,7 @@ import '../../../auth/presentation/auth_controller.dart';
 import '../../../photos/presentation/pages/photo_viewer_page.dart';
 import '../../../photos/presentation/photos_gallery_controller.dart';
 import '../../../photos/presentation/photos_upload_controller.dart';
+import '../../../photos/presentation/photos_ws_controller.dart';
 import '../../../photos/domain/event_photo.dart';
 import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
@@ -208,11 +210,16 @@ class _GalleryTabState extends State<_GalleryTab> {
   bool _selecting = false;
   final Set<String> _selectedIds = {};
 
+  final Set<String> _cleanupUploadPhotoIds = {};
+
   Future<List<EventGuest>>? _guestsFuture;
 
   late final List<Color> _badgePalette;
   final Map<String, Color> _badgeColorByIdentity = {};
   int _nextBadgeColorIndex = 0;
+
+  PhotosWsController? _ws;
+  Timer? _wsDebounce;
 
   Color _badgeColorForIdentity(String identity) {
     final trimmed = identity.trim();
@@ -269,6 +276,11 @@ class _GalleryTabState extends State<_GalleryTab> {
       if (!mounted) return;
       context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
 
+      final ws = context.read<PhotosWsController>();
+      _ws = ws;
+      ws.onPhotoReady = _onWsPhotoReady;
+      ws.subscribe(eventId: widget.eventId);
+
       // Reuse existing guests listing used in Details tab, but load it here for filters.
       setState(() {
         _guestsFuture =
@@ -294,6 +306,14 @@ class _GalleryTabState extends State<_GalleryTab> {
       if (!mounted) return;
       context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
 
+      final ws = _ws ?? context.read<PhotosWsController>();
+      _ws = ws;
+      ws.onPhotoReady = _onWsPhotoReady;
+      if (eventChanged) {
+        ws.unsubscribe(eventId: oldWidget.eventId);
+      }
+      ws.subscribe(eventId: widget.eventId);
+
       setState(() {
         _guestsFuture =
             context.read<EventsRepository>().listEventGuestsV2(widget.eventId);
@@ -303,7 +323,28 @@ class _GalleryTabState extends State<_GalleryTab> {
 
   @override
   void dispose() {
+    _wsDebounce?.cancel();
+    _wsDebounce = null;
+
+    final ws = _ws;
+    if (ws != null) {
+      ws.unsubscribe(eventId: widget.eventId);
+      if (ws.onPhotoReady == _onWsPhotoReady) {
+        ws.onPhotoReady = null;
+      }
+    }
     super.dispose();
+  }
+
+  void _onWsPhotoReady(String eventId, String photoId) {
+    if (!mounted) return;
+    if (eventId != widget.eventId) return;
+
+    _wsDebounce?.cancel();
+    _wsDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
+    });
   }
 
   void _exitSelectionMode() {
@@ -367,11 +408,35 @@ class _GalleryTabState extends State<_GalleryTab> {
     final localActive = uploader.activeByEvent(widget.eventId);
     final localPathById = <String, String>{};
     final localCreatedAtById = <String, DateTime>{};
+    final localById = <String, dynamic>{};
     for (final it in localActive) {
       if (it.photoId.isEmpty) continue;
       if (it.localPath.isEmpty) continue;
       localPathById[it.photoId] = it.localPath;
       localCreatedAtById[it.photoId] = parseIso(it.createdAt);
+      localById[it.photoId] = it;
+    }
+
+    final doneLocal = <String>[];
+    for (final it in localActive) {
+      final pid = it.photoId;
+      if (pid.isEmpty) continue;
+      final remote = remoteById[pid];
+      if (remote == null) continue;
+      final status = (remote.status).trim().toLowerCase();
+      if (status == 'ready' && !_cleanupUploadPhotoIds.contains(pid)) {
+        doneLocal.add(pid);
+      }
+    }
+    if (doneLocal.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        for (final pid in doneLocal) {
+          if (_cleanupUploadPhotoIds.contains(pid)) continue;
+          _cleanupUploadPhotoIds.add(pid);
+          uploader.markDoneByPhotoId(eventId: widget.eventId, photoId: pid);
+        }
+      });
     }
 
     final allPhotoIds = <String>{
@@ -621,9 +686,15 @@ class _GalleryTabState extends State<_GalleryTab> {
                       itemBuilder: (context, index) {
                         final photoId = mergedIds[index];
                         final localPath = localPathById[photoId];
+                        final remote = remoteById[photoId];
+                        final remoteStatus =
+                            (remote?.status ?? '').trim().toLowerCase();
+                        final isRemoteReady =
+                            remote != null && remoteStatus == 'ready';
+
                         final isLocalPending = localPath != null &&
                             localPath.isNotEmpty &&
-                            !remoteById.containsKey(photoId);
+                            !isRemoteReady;
 
                         final item =
                             !isLocalPending ? remoteById[photoId] : null;
@@ -732,16 +803,54 @@ class _GalleryTabState extends State<_GalleryTab> {
                               if (isLocalPending)
                                 Container(
                                   color: Colors.black.withOpacity(0.35),
-                                  child: const Center(
-                                    child: SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.2,
-                                        valueColor: AlwaysStoppedAnimation(
-                                            Colors.white),
-                                      ),
-                                    ),
+                                  child: Center(
+                                    child: () {
+                                      final local = localById[photoId];
+                                      final localStatus = (local?.status ?? '')
+                                          .trim()
+                                          .toLowerCase();
+                                      final progress = uploader
+                                          .uploadProgressByPhotoId(photoId);
+                                      final isUploading =
+                                          localStatus == 'uploading';
+
+                                      final value =
+                                          (isUploading && progress != null)
+                                              ? progress
+                                              : null;
+                                      final pct =
+                                          (isUploading && progress != null)
+                                              ? (progress * 100).round()
+                                              : null;
+
+                                      return Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2.2,
+                                              value: value,
+                                              valueColor:
+                                                  const AlwaysStoppedAnimation(
+                                                      Colors.white),
+                                            ),
+                                          ),
+                                          if (pct != null) ...[
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              '$pct%',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w900,
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      );
+                                    }(),
                                   ),
                                 ),
                               if (_selecting)
@@ -1375,10 +1484,11 @@ class _DetailsTabState extends State<_DetailsTab> {
                         ),
                       );
                     } finally {
-                      if (!context.mounted) return;
-                      setState(() {
-                        _updatingInviteLink = false;
-                      });
+                      if (context.mounted) {
+                        setState(() {
+                          _updatingInviteLink = false;
+                        });
+                      }
                     }
                   }
 

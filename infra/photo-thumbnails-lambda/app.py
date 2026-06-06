@@ -6,10 +6,12 @@ import urllib.parse
 import urllib.request
 
 import boto3
+from boto3.dynamodb.conditions import Key
 from PIL import Image, ImageOps
 
 s3 = boto3.client('s3')
 secrets = boto3.client('secretsmanager')
+ddb = boto3.resource('dynamodb')
 
 M_WIDTH = int(os.environ.get('M_WIDTH', '1280'))
 M_QUALITY = int(os.environ.get('M_QUALITY', '85'))
@@ -50,6 +52,68 @@ def _call_backend_ready(event_id, photo_id, key_m, key_s):
     req.add_header('Authorization', auth)
     with urllib.request.urlopen(req, timeout=10) as resp:
         resp.read()
+
+
+def _ws_subscriptions_table():
+    name = (os.environ.get('WS_SUBSCRIPTIONS_TABLE') or '').strip()
+    if not name:
+        return None
+    return ddb.Table(name)
+
+
+def _ws_client():
+    endpoint = (os.environ.get('WS_ENDPOINT') or '').strip()
+    if not endpoint:
+        return None
+    return boto3.client('apigatewaymanagementapi', endpoint_url=endpoint)
+
+
+def _publish_photo_ready(event_id: str, photo_id: str):
+    if not event_id or not photo_id:
+        return
+    table = _ws_subscriptions_table()
+    client = _ws_client()
+    if table is None or client is None:
+        return
+
+    payload = json.dumps({
+        "type": "photo.ready",
+        "eventId": event_id,
+        "photoId": photo_id,
+    }).encode('utf-8')
+
+    last_key = None
+    while True:
+        args = {
+            'KeyConditionExpression': Key('eventId').eq(event_id),
+            'Limit': 100,
+        }
+        if last_key:
+            args['ExclusiveStartKey'] = last_key
+        res = table.query(**args)
+        items = res.get('Items') or []
+        for it in items:
+            cid = (it.get('connectionId') or '').strip()
+            if not cid:
+                continue
+            try:
+                client.post_to_connection(ConnectionId=cid, Data=payload)
+            except Exception as e:
+                code = None
+                try:
+                    code = getattr(getattr(e, 'response', None), 'get', lambda _k, _d=None: None)('ResponseMetadata', {}).get('HTTPStatusCode')
+                except Exception:
+                    code = None
+
+                # Typical case when the client disconnected.
+                if hasattr(client, 'exceptions') and hasattr(client.exceptions, 'GoneException') and isinstance(e, client.exceptions.GoneException):
+                    table.delete_item(Key={'eventId': event_id, 'connectionId': cid})
+                elif code == 410:
+                    table.delete_item(Key={'eventId': event_id, 'connectionId': cid})
+
+        last_key = res.get('LastEvaluatedKey')
+        if not last_key:
+            break
 
 
 def _parse_key(key: str):
@@ -144,3 +208,4 @@ def handler(event, context):
             continue
 
         _call_backend_ready(event_id, photo_id, key_m, key_s)
+        _publish_photo_ready(event_id, photo_id)

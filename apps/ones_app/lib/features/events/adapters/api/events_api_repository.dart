@@ -26,6 +26,7 @@ class EventsApiRepository implements EventsRepository {
             env: 'test',
             apiBaseUrl: 'http://localhost:0',
             googleWebClientId: '',
+            photosWsUrl: null,
           ),
         );
 

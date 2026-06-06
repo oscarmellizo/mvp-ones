@@ -43,6 +43,7 @@ import 'features/photos/adapters/local/photo_storage.dart';
 import 'features/photos/adapters/local/photo_upload_db.dart';
 import 'features/photos/presentation/photos_gallery_controller.dart';
 import 'features/photos/presentation/photos_upload_controller.dart';
+import 'features/photos/presentation/photos_ws_controller.dart';
 import 'features/users/adapters/api/users_api_repository.dart';
 import 'features/users/application/ensure_user_use_case.dart';
 import 'features/events/presentation/pages/event_detail_page.dart';
@@ -105,6 +106,8 @@ class OnesApp extends StatelessWidget {
     final eventPhotosGalleryApi = EventPhotosApi(apiFactory);
     final photoUploadDb = PhotoUploadDb();
     final photoStorage = PhotoStorage();
+    final photosWsController =
+        PhotosWsController(wsUrl: config.photosWsUrl ?? '');
 
     return MultiProvider(
       providers: [
@@ -309,6 +312,20 @@ class OnesApp extends StatelessWidget {
                   api: eventPhotosGalleryApi,
                 );
             controller.setIdToken(auth.idToken);
+            return controller;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthController, PhotosWsController>(
+          create: (_) => photosWsController,
+          update: (_, auth, ctrl) {
+            final controller = ctrl ?? photosWsController;
+            controller.setIdToken(auth.idToken);
+            final token = auth.idToken;
+            if (token != null && token.isNotEmpty) {
+              controller.connect();
+            } else {
+              controller.disconnect();
+            }
             return controller;
           },
         ),

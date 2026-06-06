@@ -185,7 +185,7 @@ public class PhotosService {
 
         String resolvedScope = scope != null ? scope.trim().toLowerCase() : "";
 
-        int resolvedLimit = limit <= 0 ? 10 : Math.min(limit, 50);
+        int resolvedLimit = limit <= 0 ? 9 : Math.min(limit, 50);
 
         boolean guestOnly = "guest".equals(resolvedScope);
         boolean sharedOnly = "shared".equals(resolvedScope);
@@ -264,9 +264,12 @@ public class PhotosService {
                         smallKey = variantKeyFromOriginal(originalKey, "_s");
                     }
 
+                    String status = p.getStatus() != null ? p.getStatus().trim().toLowerCase() : "";
+                    boolean isReady = "ready".equals(status);
+
                     String originalUrl = signedCdnUrlIfAny(originalKey);
-                    String mediumUrl = signedCdnUrlIfAny(mediumKey);
-                    String smallUrl = signedCdnUrlIfAny(smallKey);
+                    String mediumUrl = isReady ? signedCdnUrlIfAny(mediumKey) : null;
+                    String smallUrl = isReady ? signedCdnUrlIfAny(smallKey) : null;
 
                     if (debugList) {
                         log.info(
@@ -339,7 +342,7 @@ public class PhotosService {
 
         Set<String> guestIdSet = guestIds != null && !guestIds.isEmpty() ? new HashSet<>(guestIds) : Set.of();
 
-        int resolvedLimit = limit <= 0 ? 10 : Math.min(limit, 50);
+        int resolvedLimit = limit <= 0 ? 9 : Math.min(limit, 50);
 
         boolean mineOnly = "mine".equals(resolvedFilter);
         boolean sharedByMeOnly = "shared_by_me".equals(resolvedFilter);
@@ -423,9 +426,12 @@ public class PhotosService {
                         smallKey = variantKeyFromOriginal(originalKey, "_s");
                     }
 
+                    String status = p.getStatus() != null ? p.getStatus().trim().toLowerCase() : "";
+                    boolean isReady = "ready".equals(status);
+
                     String originalUrl = signedCdnUrlIfAny(originalKey);
-                    String mediumUrl = signedCdnUrlIfAny(mediumKey);
-                    String smallUrl = signedCdnUrlIfAny(smallKey);
+                    String mediumUrl = isReady ? signedCdnUrlIfAny(mediumKey) : null;
+                    String smallUrl = isReady ? signedCdnUrlIfAny(smallKey) : null;
 
                     if (debugList) {
                         log.info(

@@ -80,7 +80,7 @@ public class EventPhotosController {
     public PhotosService.ListPage list(
             Authentication authentication,
             @PathVariable("eventId") String eventId,
-            @RequestParam(value = "limit", required = false, defaultValue = "10") int limit,
+            @RequestParam(value = "limit", required = false, defaultValue = "9") int limit,
             @RequestParam(value = "nextToken", required = false) String nextToken,
             @RequestParam(value = "scope", required = false) String scope,
             @RequestParam(value = "filter", required = false) String filter,

@@ -432,6 +432,55 @@ Resources:
             ReadCapacityUnits: 5
             WriteCapacityUnits: 1
 
+  PhotosWsConnectionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-photos-ws-connections
+      BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      AttributeDefinitions:
+        - AttributeName: connectionId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: connectionId
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
+  PhotosWsSubscriptionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-photos-ws-subscriptions
+      BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      AttributeDefinitions:
+        - AttributeName: eventId
+          AttributeType: S
+        - AttributeName: connectionId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: eventId
+          KeyType: HASH
+        - AttributeName: connectionId
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: byConnectionId
+          KeySchema:
+            - AttributeName: connectionId
+              KeyType: HASH
+            - AttributeName: eventId
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
   DynamoDbAutoScalingRole:
     Type: AWS::IAM::Role
     Properties:
@@ -2110,6 +2159,280 @@ Resources:
                 Resource:
                   - !Ref InternalBasicAuthSecret
 
+              - Effect: Allow
+                Action:
+                  - dynamodb:Query
+                  - dynamodb:DeleteItem
+                Resource:
+                  - !GetAtt PhotosWsSubscriptionsTable.Arn
+                  - !Sub ${PhotosWsSubscriptionsTable.Arn}/index/*
+
+              - Effect: Allow
+                Action:
+                  - execute-api:ManageConnections
+                Resource:
+                  - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${PhotosWebSocketApi}/*/POST/@connections/*
+
+  PhotosWebSocketHandlerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${StackPrefix}-${Environment}-photos-ws-handler-role
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: ones-photos-ws-ddb
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt PhotosWsConnectionsTable.Arn
+                  - !GetAtt PhotosWsSubscriptionsTable.Arn
+                  - !Sub ${PhotosWsSubscriptionsTable.Arn}/index/*
+
+  PhotosWebSocketHandlerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${StackPrefix}-${Environment}-photos-ws-handler
+      Runtime: python3.12
+      Handler: index.handler
+      Timeout: 10
+      MemorySize: 256
+      Role: !GetAtt PhotosWebSocketHandlerRole.Arn
+      Environment:
+        Variables:
+          CONNECTIONS_TABLE: !Ref PhotosWsConnectionsTable
+          SUBSCRIPTIONS_TABLE: !Ref PhotosWsSubscriptionsTable
+          TTL_SECONDS: '86400'
+          BACKEND_BASE_URL: !Sub http://${LoadBalancer.DNSName}
+      Code:
+        ZipFile: |
+          import json
+          import os
+          import time
+          import urllib.parse
+          import urllib.request
+
+          import boto3
+          from boto3.dynamodb.conditions import Key
+
+          ddb = boto3.resource('dynamodb')
+          conn_table = ddb.Table(os.environ['CONNECTIONS_TABLE'])
+          sub_table = ddb.Table(os.environ['SUBSCRIPTIONS_TABLE'])
+
+          TTL_SECONDS = int(os.environ.get('TTL_SECONDS', '86400'))
+          BACKEND_BASE_URL = (os.environ.get('BACKEND_BASE_URL') or '').rstrip('/')
+
+          def _resp(code: int, body: str = ''):
+              return {"statusCode": code, "body": body}
+
+          def _token_from_event(event: dict):
+              q = event.get('queryStringParameters') or {}
+              tok = (q.get('token') or '').strip()
+              if tok:
+                  return tok
+              headers = event.get('headers') or {}
+              auth = (headers.get('Authorization') or headers.get('authorization') or '').strip()
+              if auth.lower().startswith('bearer '):
+                  return auth[7:].strip()
+              return ''
+
+          def _now_ttl():
+              return int(time.time()) + TTL_SECONDS
+
+          def _disconnect_cleanup(connection_id: str):
+              if not connection_id:
+                  return
+              conn_table.delete_item(Key={'connectionId': connection_id})
+              try:
+                  last_key = None
+                  while True:
+                      args = {
+                          'IndexName': 'byConnectionId',
+                          'KeyConditionExpression': Key('connectionId').eq(connection_id),
+                          'Limit': 100,
+                      }
+                      if last_key:
+                          args['ExclusiveStartKey'] = last_key
+                      res = sub_table.query(**args)
+                      items = res.get('Items') or []
+                      for it in items:
+                          eid = it.get('eventId')
+                          cid = it.get('connectionId')
+                          if eid and cid:
+                              sub_table.delete_item(Key={'eventId': eid, 'connectionId': cid})
+                      last_key = res.get('LastEvaluatedKey')
+                      if not last_key:
+                          break
+              except Exception:
+                  return
+
+          def _authorized_for_event(event_id: str, token: str) -> bool:
+              if not BACKEND_BASE_URL:
+                  return False
+              if not event_id or not token:
+                  return False
+              url = f"{BACKEND_BASE_URL}/v1/events/{urllib.parse.quote(event_id)}"
+              req = urllib.request.Request(url, method='GET')
+              req.add_header('Authorization', 'Bearer ' + token)
+              try:
+                  with urllib.request.urlopen(req, timeout=5) as resp:
+                      return int(getattr(resp, 'status', 200)) < 300
+              except Exception:
+                  return False
+
+          def handler(event, context):
+              ctx = event.get('requestContext') or {}
+              route_key = ctx.get('routeKey') or ''
+              connection_id = ctx.get('connectionId') or ''
+
+              if route_key == '$connect':
+                  token = _token_from_event(event)
+                  if not token:
+                      return _resp(401, 'missing_token')
+                  conn_table.put_item(Item={
+                      'connectionId': connection_id,
+                      'expiresAt': _now_ttl(),
+                  })
+                  return _resp(200, 'ok')
+
+              if route_key == '$disconnect':
+                  _disconnect_cleanup(connection_id)
+                  return _resp(200, 'ok')
+
+              # Auth: connection must exist
+              if not connection_id:
+                  return _resp(400, 'missing_connection')
+              existing = conn_table.get_item(Key={'connectionId': connection_id}).get('Item')
+              if not existing:
+                  return _resp(401, 'not_connected')
+
+              body_raw = event.get('body') or '{}'
+              try:
+                  body = json.loads(body_raw) if isinstance(body_raw, str) else (body_raw or {})
+              except Exception:
+                  body = {}
+
+              if route_key == 'subscribe':
+                  event_id = (body.get('eventId') or '').strip()
+                  if not event_id:
+                      return _resp(400, 'missing_eventId')
+
+                  token = (body.get('token') or '').strip()
+                  if not token:
+                      return _resp(401, 'missing_token')
+                  if not _authorized_for_event(event_id, token):
+                      return _resp(403, 'forbidden')
+
+                  sub_table.put_item(Item={
+                      'eventId': event_id,
+                      'connectionId': connection_id,
+                      'expiresAt': _now_ttl(),
+                  })
+                  return _resp(200, 'ok')
+
+              if route_key == 'unsubscribe':
+                  event_id = (body.get('eventId') or '').strip()
+                  if not event_id:
+                      return _resp(400, 'missing_eventId')
+                  sub_table.delete_item(Key={'eventId': event_id, 'connectionId': connection_id})
+                  return _resp(200, 'ok')
+
+              return _resp(200, 'ok')
+
+  PhotosWebSocketApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub ${StackPrefix}-${Environment}-photos-ws
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: $request.body.action
+
+  PhotosWebSocketStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref PhotosWebSocketApi
+      StageName: !Ref Environment
+      AutoDeploy: true
+
+  PhotosWebSocketIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref PhotosWebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationMethod: POST
+      IntegrationUri: !Join
+        - ''
+        - - 'arn:'
+          - !Ref AWS::Partition
+          - ':apigateway:'
+          - !Ref AWS::Region
+          - ':lambda:path/2015-03-31/functions/'
+          - !GetAtt PhotosWebSocketHandlerFunction.Arn
+          - /invocations
+
+  PhotosWebSocketRouteConnect:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref PhotosWebSocketApi
+      RouteKey: $connect
+      AuthorizationType: NONE
+      Target: !Sub integrations/${PhotosWebSocketIntegration}
+
+  PhotosWebSocketRouteDisconnect:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref PhotosWebSocketApi
+      RouteKey: $disconnect
+      AuthorizationType: NONE
+      Target: !Sub integrations/${PhotosWebSocketIntegration}
+
+  PhotosWebSocketRouteSubscribe:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref PhotosWebSocketApi
+      RouteKey: subscribe
+      AuthorizationType: NONE
+      Target: !Sub integrations/${PhotosWebSocketIntegration}
+
+  PhotosWebSocketRouteUnsubscribe:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref PhotosWebSocketApi
+      RouteKey: unsubscribe
+      AuthorizationType: NONE
+      Target: !Sub integrations/${PhotosWebSocketIntegration}
+
+  PhotosWebSocketRouteDefault:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref PhotosWebSocketApi
+      RouteKey: $default
+      AuthorizationType: NONE
+      Target: !Sub integrations/${PhotosWebSocketIntegration}
+
+  PhotosWebSocketLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref PhotosWebSocketHandlerFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${PhotosWebSocketApi}/*
+
   PhotoThumbnailsFunctionZip:
     Type: AWS::Lambda::Function
     Condition: UsePhotoThumbnailsZipCond
@@ -2128,6 +2451,8 @@ Resources:
           BUCKET: !Sub ${StackPrefix}-${Environment}-events-photos
           BACKEND_BASE_URL: !Sub http://${LoadBalancer.DNSName}
           INTERNAL_SECRET_ARN: !Ref InternalBasicAuthSecret
+          WS_ENDPOINT: !Sub https://${PhotosWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+          WS_SUBSCRIPTIONS_TABLE: !Ref PhotosWsSubscriptionsTable
       Code:
         S3Bucket: !Ref LambdaArtifactsBucket
         S3Key: !Ref PhotoThumbnailsZipS3Key
@@ -2153,6 +2478,8 @@ Resources:
           M_QUALITY: '85'
           S_WIDTH: '360'
           S_QUALITY: '70'
+          WS_ENDPOINT: !Sub https://${PhotosWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+          WS_SUBSCRIPTIONS_TABLE: !Ref PhotosWsSubscriptionsTable
       Code:
         ImageUri: !Sub ${PhotoThumbnailsEcrRepository.RepositoryUri}:latest
 
@@ -2501,6 +2828,8 @@ Outputs:
     Value: !Sub http://${LoadBalancer.DNSName}
   AlbDnsName:
     Value: !GetAtt LoadBalancer.DNSName
+  PhotosWsUrl:
+    Value: !Sub wss://${PhotosWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
   GrafanaUrl:
     Value: !Sub http://${LoadBalancer.DNSName}/grafana/
   EcrRepositoryUri:

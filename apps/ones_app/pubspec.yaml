@@ -52,6 +52,7 @@ dependencies:
   file_picker: ^8.1.2
   image: ^4.2.0
   share_plus: ^10.0.2
+  web_socket_channel: ^3.0.1
 
   ones_api_client:
     path: ../../packages/ones_api_client

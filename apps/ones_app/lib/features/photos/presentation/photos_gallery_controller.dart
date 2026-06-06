@@ -17,6 +17,8 @@ class PhotosGalleryController extends ChangeNotifier {
   Object? _error;
   List<EventPhoto> _items = const [];
 
+  int _requestEpoch = 0;
+
   PhotosGalleryFilter _filter = PhotosGalleryFilter.all;
   Set<String> _guestIds = <String>{};
   String? _nextToken;
@@ -49,6 +51,7 @@ class PhotosGalleryController extends ChangeNotifier {
     _nextToken = null;
     _hasMore = true;
     _currentEventId = null;
+    _requestEpoch++;
     notifyListeners();
   }
 
@@ -187,8 +190,11 @@ class PhotosGalleryController extends ChangeNotifier {
       _items = const [];
       _nextToken = null;
       _hasMore = true;
+      _requestEpoch++;
       notifyListeners();
     }
+
+    final epoch = ++_requestEpoch;
 
     _setLoading(true);
     try {
@@ -199,7 +205,7 @@ class PhotosGalleryController extends ChangeNotifier {
 
       final res = await api.list(
         eventId: trimmedEventId,
-        limit: 50,
+        limit: 9,
         filter: switch (_filter) {
           PhotosGalleryFilter.all => 'all',
           PhotosGalleryFilter.mine => 'mine',
@@ -209,6 +215,10 @@ class PhotosGalleryController extends ChangeNotifier {
             ? _guestIds.toList(growable: false)
             : null,
       );
+
+      if (epoch != _requestEpoch || _currentEventId != trimmedEventId) {
+        return;
+      }
 
       final merged = <String, EventPhoto>{
         for (final it in res.items) it.photoId: it,
@@ -225,9 +235,13 @@ class PhotosGalleryController extends ChangeNotifier {
       _nextToken = res.nextToken;
       _hasMore = _nextToken != null && _nextToken!.isNotEmpty;
     } catch (e) {
-      _error = e;
+      if (epoch == _requestEpoch) {
+        _error = e;
+      }
     } finally {
-      _setLoading(false);
+      if (epoch == _requestEpoch) {
+        _setLoading(false);
+      }
     }
   }
 
@@ -254,12 +268,14 @@ class PhotosGalleryController extends ChangeNotifier {
       return;
     }
 
+    final epoch = ++_requestEpoch;
+
     _setLoading(true);
     try {
       _error = null;
       final res = await api.list(
         eventId: trimmedEventId,
-        limit: 50,
+        limit: 9,
         nextToken: cursor,
         filter: switch (_filter) {
           PhotosGalleryFilter.all => 'all',
@@ -270,6 +286,10 @@ class PhotosGalleryController extends ChangeNotifier {
             ? _guestIds.toList(growable: false)
             : null,
       );
+
+      if (epoch != _requestEpoch || _currentEventId != trimmedEventId) {
+        return;
+      }
 
       final merged = <String, EventPhoto>{
         for (final it in _items) it.photoId: it,
@@ -289,9 +309,13 @@ class PhotosGalleryController extends ChangeNotifier {
       _nextToken = res.nextToken;
       _hasMore = _nextToken != null && _nextToken!.isNotEmpty;
     } catch (e) {
-      _error = e;
+      if (epoch == _requestEpoch) {
+        _error = e;
+      }
     } finally {
-      _setLoading(false);
+      if (epoch == _requestEpoch) {
+        _setLoading(false);
+      }
     }
   }
 

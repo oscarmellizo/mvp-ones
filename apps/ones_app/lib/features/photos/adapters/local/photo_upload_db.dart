@@ -111,7 +111,7 @@ CREATE TABLE $_table (
     final db = await _open();
     final rows = await db.query(
       _table,
-      where: "eventId = ? AND status IN ('pending','uploading')",
+      where: "eventId = ? AND status IN ('pending','uploading','processing')",
       whereArgs: [eventId],
       orderBy: 'createdAt DESC',
       limit: limit,
@@ -125,7 +125,7 @@ CREATE TABLE $_table (
     final db = await _open();
     final rows = await db.query(
       _table,
-      where: "status IN ('pending','uploading')",
+      where: "status IN ('pending','uploading','processing')",
       orderBy: 'createdAt DESC',
       limit: limit,
     );
@@ -169,6 +169,30 @@ CREATE TABLE $_table (
       },
       where: 'id = ?',
       whereArgs: [id],
+    );
+  }
+
+  Future<void> markProcessing(int id) async {
+    final db = await _open();
+    await db.update(
+      _table,
+      {
+        'status': 'processing',
+        'lastError': null,
+        'updatedAt': DateTime.now().toUtc().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> deleteByPhotoId(String photoId) async {
+    if (photoId.isEmpty) return;
+    final db = await _open();
+    await db.delete(
+      _table,
+      where: 'photoId = ?',
+      whereArgs: [photoId],
     );
   }
 

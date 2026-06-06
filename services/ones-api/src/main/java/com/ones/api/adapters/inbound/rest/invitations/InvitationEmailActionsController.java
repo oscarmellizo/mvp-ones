@@ -1,6 +1,8 @@
 package com.ones.api.adapters.inbound.rest.invitations;
 
 import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -72,6 +74,29 @@ public class InvitationEmailActionsController {
                 return ResponseEntity.badRequest().build();
             }
 
+            if (expected == InvitationActionTokenService.Action.accept) {
+                acceptCounter.increment();
+            } else {
+                rejectCounter.increment();
+            }
+
+            return redirectToInvitation(token, expected.name());
+        } catch (Exception e) {
+            invalidCounter.increment();
+            log.info("Invalid invitation email action token", e);
+            return ResponseEntity.status(HttpStatus.GONE).build();
+        }
+    }
+
+    @SuppressWarnings("unused")
+    private ResponseEntity<Void> handleLegacy(String token, InvitationActionTokenService.Action expected) {
+        try {
+            InvitationActionTokenService.Decoded decoded = tokenService.decodeAndValidate(token);
+            if (decoded.action() != expected) {
+                invalidCounter.increment();
+                return ResponseEntity.badRequest().build();
+            }
+
             Invitation updated;
             if (expected == InvitationActionTokenService.Action.accept) {
                 acceptCounter.increment();
@@ -103,5 +128,28 @@ public class InvitationEmailActionsController {
         HttpHeaders headers = new HttpHeaders();
         headers.setLocation(URI.create(location));
         return new ResponseEntity<>(headers, HttpStatus.FOUND);
+    }
+
+    private ResponseEntity<Void> redirectToInvitation(String token, String action) {
+        if (appBaseUrl == null || appBaseUrl.isBlank()) {
+            return ResponseEntity.noContent().build();
+        }
+
+        String base = appBaseUrl.trim();
+        while (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+
+        String location = base
+                + "/invitation?token=" + urlEncodeQuery(token)
+                + "&action=" + urlEncodeQuery(action);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setLocation(URI.create(location));
+        return new ResponseEntity<>(headers, HttpStatus.FOUND);
+    }
+
+    private static String urlEncodeQuery(String s) {
+        return URLEncoder.encode(s, StandardCharsets.UTF_8)
+                .replace("+", "%20");
     }
 }

@@ -7,15 +7,18 @@ class AppConfig {
   final String env;
   final String apiBaseUrl;
   final String? googleWebClientId;
+  final String? photosWsUrl;
 
   const AppConfig({
     required this.env,
     required this.apiBaseUrl,
     required this.googleWebClientId,
+    required this.photosWsUrl,
   });
 
   static const _assetPath = 'assets/config/app_config.json';
   static const _defaultApiBaseUrl = 'http://localhost:8080';
+  static const _defaultPhotosWsUrl = '';
 
   static Future<AppConfig> load() async {
     final fromDefine = AppConfig.fromDartDefines();
@@ -29,6 +32,7 @@ class AppConfig {
       final envFromFile = json['env'] as String?;
       final apiBaseUrlFromFile = json['apiBaseUrl'] as String?;
       final googleWebClientIdFromFile = json['googleWebClientId'] as String?;
+      final photosWsUrlFromFile = json['photosWsUrl'] as String?;
 
       final resolvedEnv = fromDefine.env.isNotEmpty
           ? fromDefine.env
@@ -49,11 +53,20 @@ class AppConfig {
               ? null
               : googleWebClientIdFromFile);
 
+      final resolvedPhotosWsUrl =
+          (fromDefine.photosWsUrl != _defaultPhotosWsUrl &&
+                  (fromDefine.photosWsUrl ?? '').isNotEmpty)
+              ? fromDefine.photosWsUrl
+              : (photosWsUrlFromFile == null || photosWsUrlFromFile.isEmpty)
+                  ? fromDefine.photosWsUrl
+                  : photosWsUrlFromFile;
+
       if (kIsWeb) {
         return AppConfig(
           env: resolvedEnv,
           apiBaseUrl: resolvedApiBaseUrl,
           googleWebClientId: resolvedGoogleWebClientId,
+          photosWsUrl: resolvedPhotosWsUrl,
         );
       }
 
@@ -61,6 +74,7 @@ class AppConfig {
         env: envFromFile ?? resolvedEnv,
         apiBaseUrl: apiBaseUrlFromFile ?? resolvedApiBaseUrl,
         googleWebClientId: resolvedGoogleWebClientId,
+        photosWsUrl: resolvedPhotosWsUrl,
       );
     } catch (_) {
       return fromDefine;
@@ -73,11 +87,14 @@ class AppConfig {
         defaultValue: _defaultApiBaseUrl);
     const googleWebClientId =
         String.fromEnvironment('GOOGLE_WEB_CLIENT_ID', defaultValue: '');
+    const photosWsUrl =
+        String.fromEnvironment('ONES_PHOTOS_WS_URL', defaultValue: '');
 
     return AppConfig(
       env: env,
       apiBaseUrl: apiBaseUrl,
       googleWebClientId: googleWebClientId.isEmpty ? null : googleWebClientId,
+      photosWsUrl: photosWsUrl.isEmpty ? null : photosWsUrl,
     );
   }
 }

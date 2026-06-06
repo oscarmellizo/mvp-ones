@@ -219,6 +219,7 @@ class EventPhotosApi {
     required String putUrl,
     required File file,
     required String contentType,
+    void Function(int sent, int total)? onProgress,
   }) async {
     final bytes = await file.readAsBytes();
 
@@ -231,13 +232,14 @@ class EventPhotosApi {
 
     await dio.put(
       putUrl,
-      data: Stream.fromIterable(<List<int>>[bytes]),
+      data: bytes,
       options: Options(
         headers: {
           HttpHeaders.contentTypeHeader: contentType,
           HttpHeaders.contentLengthHeader: bytes.length,
         },
       ),
+      onSendProgress: onProgress,
     );
   }
 
@@ -270,7 +272,7 @@ class EventPhotosApi {
 
   Future<ListPhotosPage> list({
     required String eventId,
-    int limit = 10,
+    int limit = 9,
     String? nextToken,
     String? scope,
     String? filter,

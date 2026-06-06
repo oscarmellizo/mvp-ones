@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ones_api_client/ones_api_client.dart';
 
@@ -44,7 +45,7 @@ class TranslationsService extends ChangeNotifier {
 
     await _loadTranslations(
       _currentLanguage!,
-      forceNetwork: token != null && token.isNotEmpty,
+      forceNetwork: false,
     );
     _isInitialized = true;
   }
@@ -135,19 +136,29 @@ class TranslationsService extends ChangeNotifier {
         return;
       }
 
-      final response = await _apiClient.getDefaultApi().listTranslations(
-        languageCode: languageCode,
-        extra: {
-          'secure': [
-            {'type': 'http', 'scheme': 'bearer', 'name': 'bearerAuth'}
-          ]
-        },
+      final res = await _apiClient.dio.get(
+        '/v1/translations',
+        queryParameters: {'languageCode': languageCode},
+        options: Options(
+          extra: {
+            'secure': [
+              {'type': 'http', 'scheme': 'bearer', 'name': 'bearerAuth'}
+            ],
+          },
+        ),
       );
+
       final translationMap = <String, String>{};
-      final translations = response.data;
-      if (translations != null) {
-        for (final translation in translations) {
-          translationMap[translation.translationKey] = translation.value ?? '';
+      final data = res.data;
+      if (data is List) {
+        for (final row in data) {
+          if (row is Map) {
+            final k = row['translationKey'];
+            final v = row['value'];
+            if (k is String && k.isNotEmpty) {
+              translationMap[k] = (v is String) ? v : '';
+            }
+          }
         }
       }
 
