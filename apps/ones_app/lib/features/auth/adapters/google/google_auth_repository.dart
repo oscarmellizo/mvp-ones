@@ -62,6 +62,12 @@ class GoogleAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async {
+    try {
+      await _signIn.disconnect();
+      return;
+    } catch (_) {
+      // Best-effort: if disconnect fails (e.g. not connected), fall back to signOut.
+    }
     await _signIn.signOut();
   }
 

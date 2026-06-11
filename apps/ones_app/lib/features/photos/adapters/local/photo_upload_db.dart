@@ -92,6 +92,11 @@ CREATE TABLE $_table (
     );
   }
 
+  Future<void> clearAll() async {
+    final db = await _open();
+    await db.delete(_table);
+  }
+
   Future<List<PhotoUploadItem>> listPending({int limit = 10}) async {
     final db = await _open();
     final rows = await db.query(

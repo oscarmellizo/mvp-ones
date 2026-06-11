@@ -89,6 +89,7 @@ class PhotosUploadController extends ChangeNotifier {
     final hasToken = token != null && token.isNotEmpty;
     if (!hasToken) {
       _activeByEvent.clear();
+      unawaited(db.clearAll());
       _triggerAgain = false;
       notifyListeners();
       return;

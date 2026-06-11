@@ -237,6 +237,9 @@ class PhotosGalleryController extends ChangeNotifier {
     } catch (e) {
       if (epoch == _requestEpoch) {
         _error = e;
+        _items = const [];
+        _nextToken = null;
+        _hasMore = false;
       }
     } finally {
       if (epoch == _requestEpoch) {

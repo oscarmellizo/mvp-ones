@@ -12,6 +12,7 @@ class EventsController extends ChangeNotifier {
   final CreateEventUseCase createEvent;
   final UpdateEventUseCase updateEventUseCase;
 
+  String? _idToken;
   bool _loading = false;
   Object? _error;
 
@@ -31,6 +32,15 @@ class EventsController extends ChangeNotifier {
   Event? get selected => _selected;
 
   void setIdToken(String? token) {
+    if (_idToken == token) {
+      return;
+    }
+    _idToken = token;
+
+    _loading = false;
+    _error = null;
+    _events = const [];
+    _selected = null;
     notifyListeners();
   }
 
@@ -41,6 +51,8 @@ class EventsController extends ChangeNotifier {
       _events = await listEvents.execute();
     } catch (e) {
       _error = e;
+      _events = const [];
+      _selected = null;
     } finally {
       _setLoading(false);
     }

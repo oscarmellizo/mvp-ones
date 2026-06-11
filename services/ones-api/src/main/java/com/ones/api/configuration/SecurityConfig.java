@@ -154,7 +154,7 @@ public class SecurityConfig {
 
     @Bean
     JwtDecoder jwtDecoder(
-            @Value("${ones.auth.google.client-id:}") String googleClientId
+            @Value("${GOOGLE_CLIENT_ID:${ones.auth.google.client-id:}}") String googleClientId
     ) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri("https://www.googleapis.com/oauth2/v3/certs").build();
 

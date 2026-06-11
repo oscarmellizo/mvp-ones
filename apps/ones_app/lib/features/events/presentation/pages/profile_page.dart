@@ -335,7 +335,14 @@ class _ProfilePageState extends State<ProfilePage> {
                       borderRadius: BorderRadius.zero,
                     ),
                   ),
-                  onPressed: auth.isLoading ? null : () => auth.logout(),
+                  onPressed: auth.isLoading
+                      ? null
+                      : () async {
+                          await auth.logout();
+                          if (!context.mounted) return;
+                          Navigator.of(context)
+                              .popUntil((route) => route.isFirst);
+                        },
                   child: auth.isLoading
                       ? Text(
                           translationsService.translate('profile.signing_out'),
