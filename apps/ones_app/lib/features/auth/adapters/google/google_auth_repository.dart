@@ -62,6 +62,11 @@ class GoogleAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async {
+    if (kIsWeb) {
+      await _signIn.signOut();
+      return;
+    }
+
     try {
       await _signIn.disconnect();
       return;
