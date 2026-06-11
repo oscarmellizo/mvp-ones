@@ -12,24 +12,63 @@ class GoogleAuthRepository implements AuthRepository {
   GoogleAuthRepository({required this.webClientId});
 
   GoogleSignIn get _signIn {
+    final effectiveWebClientId =
+        (webClientId != null && webClientId!.trim().isNotEmpty)
+            ? webClientId
+            : null;
     return _googleSignIn ??= GoogleSignIn(
-      clientId: kIsWeb ? webClientId : null,
-      serverClientId: kIsWeb ? null : webClientId,
+      clientId: kIsWeb ? effectiveWebClientId : null,
+      serverClientId: kIsWeb ? null : effectiveWebClientId,
       scopes: const ['email', 'profile', 'openid'],
     );
   }
 
+  Future<String?> _getIdTokenWithRetries(
+    GoogleSignInAccount account, {
+    required int attempts,
+    required int baseDelayMs,
+  }) async {
+    String? idToken;
+    for (var i = 0; i < attempts && (idToken == null || idToken.isEmpty); i++) {
+      final auth = await account.authentication;
+      idToken = auth.idToken;
+      if (idToken != null && idToken.isNotEmpty) {
+        break;
+      }
+      await Future<void>.delayed(
+        Duration(milliseconds: baseDelayMs * (i + 1)),
+      );
+    }
+    return idToken;
+  }
+
   @override
   Future<AuthUser> signInWithGoogle() async {
-    final account = await _signIn.signIn();
+    GoogleSignInAccount? account = await _signIn.signIn();
     if (account == null) {
       throw StateError('Sign-in aborted');
     }
 
-    String? idToken;
-    {
-      final auth = await account.authentication;
-      idToken = auth.idToken;
+    String? idToken = await _getIdTokenWithRetries(
+      account,
+      attempts: kIsWeb ? 8 : 1,
+      baseDelayMs: 120,
+    );
+
+    if (kIsWeb && (idToken == null || idToken.isEmpty)) {
+      for (var i = 0; i < 2 && (idToken == null || idToken.isEmpty); i++) {
+        await _signIn.signOut();
+        await Future<void>.delayed(Duration(milliseconds: 150 * (i + 1)));
+        account = await _signIn.signIn();
+        if (account == null) {
+          break;
+        }
+        idToken = await _getIdTokenWithRetries(
+          account,
+          attempts: 8,
+          baseDelayMs: 120,
+        );
+      }
     }
 
     if (idToken == null || idToken.isEmpty) {
