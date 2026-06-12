@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/utils/datetime_formatters.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/ui/ones_colors.dart';
@@ -52,6 +53,61 @@ class _EventDetailPageState extends State<EventDetailPage> {
   final _searchController = TextEditingController();
   bool _openedInitialPhoto = false;
 
+  static const Set<String> _eventDetailRequiredKeys = {
+    'event_detail.no_event',
+    'event_detail.tab_gallery',
+    'event_detail.tab_details',
+    'event_detail.no_photos',
+    'event_detail.action_refresh',
+    'event_detail.error_loading_gallery',
+    'event_detail.action_retry',
+    'event_detail.filter_all',
+    'event_detail.filter_shared',
+    'event_detail.filter_mine',
+    'event_detail.guests',
+    'event_detail.action_clear',
+    'event_detail.action_apply',
+    'event_detail.photo_processing',
+    'event_detail.processing',
+    'event_detail.shared',
+    'event_detail.guest',
+    'event_detail.action_cancel',
+    'event_detail.error_mix_shared_private',
+    'event_detail.photos_unshared',
+    'event_detail.photos_shared',
+    'event_detail.error_update_failed',
+    'event_detail.action_unshare',
+    'event_detail.action_share',
+    'event_detail.section_event_details',
+    'event_detail.action_edit_tooltip',
+    'event_detail.field_event_name',
+    'event_detail.field_location',
+    'event_detail.field_starts',
+    'event_detail.field_ends',
+    'event_detail.field_description',
+    'event_detail.section_frames',
+    'event_detail.selected_frames',
+    'event_detail.section_invite_guests',
+    'event_detail.invite_by_link',
+    'event_detail.link_disabled',
+    'event_detail.copy_link',
+    'event_detail.share_link',
+    'event_detail.invite_link_copied',
+    'event_detail.invite_link_update_failed',
+    'event_detail.email_required_hint',
+    'event_detail.action_invite',
+    'event_detail.guests_title',
+    'event_detail.error_enter_email',
+    'event_detail.error_invalid_email',
+    'event_detail.error_invite_failed',
+    'event_detail.error_load_guests',
+    'event_detail.no_guests_yet',
+    'event_detail.guest_status_owner',
+    'event_detail.guest_status_accepted',
+    'event_detail.guest_status_rejected',
+    'event_detail.guest_status_invited',
+  };
+
   @override
   void initState() {
     super.initState();
@@ -60,6 +116,11 @@ class _EventDetailPageState extends State<EventDetailPage> {
       _tabIndex = 0;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<TranslationsService>().ensurePageTranslations(
+            page: 'event_detail',
+            requiredKeys: _eventDetailRequiredKeys,
+          );
       context.read<EventsController>().select(widget.eventId);
     });
   }
@@ -74,6 +135,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
   Widget build(BuildContext context) {
     final controller = context.watch<EventsController>();
     final auth = context.watch<AuthController>();
+    final t = context.watch<TranslationsService>();
     final event = controller.selected;
     final currentUserId = auth.user?.userId;
 
@@ -111,7 +173,9 @@ class _EventDetailPageState extends State<EventDetailPage> {
             : event == null
                 ? Padding(
                     padding: EdgeInsets.all(horizontalPadding),
-                    child: Text('No event (error: ${controller.error})'),
+                    child: Text(
+                      '${t.translate('event_detail.no_event', fallback: 'No event')} (error: ${controller.error})',
+                    ),
                   )
                 : Column(
                     children: [
@@ -366,6 +430,7 @@ class _GalleryTabState extends State<_GalleryTab> {
   Widget build(BuildContext context) {
     final controller = context.watch<PhotosGalleryController>();
     final uploader = context.watch<PhotosUploadController>();
+    final t = context.watch<TranslationsService>();
 
     final remoteItems = controller.items;
 
@@ -467,15 +532,23 @@ class _GalleryTabState extends State<_GalleryTab> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Aún no hay fotos en este evento.',
+              Text(
+                t.translate(
+                  'event_detail.no_photos',
+                  fallback: 'Aún no hay fotos en este evento.',
+                ),
                 textAlign: TextAlign.center,
                 style: TextStyle(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 12),
               FilledButton.tonal(
                 onPressed: () => controller.refresh(eventId: widget.eventId),
-                child: const Text('Actualizar'),
+                child: Text(
+                  t.translate(
+                    'event_detail.action_refresh',
+                    fallback: 'Actualizar',
+                  ),
+                ),
               ),
             ],
           ),
@@ -491,14 +564,19 @@ class _GalleryTabState extends State<_GalleryTab> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Error cargando galería: ${controller.error}',
+                '${t.translate('event_detail.error_loading_gallery', fallback: 'Error cargando galería')}: ${controller.error}',
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
               FilledButton.tonal(
                 onPressed: () => controller.refresh(eventId: widget.eventId),
-                child: const Text('Reintentar'),
+                child: Text(
+                  t.translate(
+                    'event_detail.action_retry',
+                    fallback: 'Reintentar',
+                  ),
+                ),
               ),
             ],
           ),
@@ -516,18 +594,33 @@ class _GalleryTabState extends State<_GalleryTab> {
                 children: [
                   Expanded(
                     child: SegmentedButton<PhotosGalleryFilter>(
-                      segments: const <ButtonSegment<PhotosGalleryFilter>>[
+                      segments: <ButtonSegment<PhotosGalleryFilter>>[
                         ButtonSegment(
                           value: PhotosGalleryFilter.all,
-                          label: Text('All'),
+                          label: Text(
+                            t.translate(
+                              'event_detail.filter_all',
+                              fallback: 'All',
+                            ),
+                          ),
                         ),
                         ButtonSegment(
                           value: PhotosGalleryFilter.sharedByMe,
-                          label: Text('Shared'),
+                          label: Text(
+                            t.translate(
+                              'event_detail.filter_shared',
+                              fallback: 'Shared',
+                            ),
+                          ),
                         ),
                         ButtonSegment(
                           value: PhotosGalleryFilter.mine,
-                          label: Text('Propias'),
+                          label: Text(
+                            t.translate(
+                              'event_detail.filter_mine',
+                              fallback: 'Propias',
+                            ),
+                          ),
                         ),
                       ],
                       selected: <PhotosGalleryFilter>{controller.filter},
@@ -567,8 +660,11 @@ class _GalleryTabState extends State<_GalleryTab> {
                                         child: Column(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            const Text(
-                                              'Invitados',
+                                            Text(
+                                              t.translate(
+                                                'event_detail.guests_title',
+                                                fallback: 'Invitados',
+                                              ),
                                               style: TextStyle(
                                                 fontWeight: FontWeight.w900,
                                               ),
@@ -624,14 +720,24 @@ class _GalleryTabState extends State<_GalleryTab> {
                                                     Navigator.of(ctx)
                                                         .pop(<String>{});
                                                   },
-                                                  child: const Text('Clear'),
+                                                  child: Text(
+                                                    t.translate(
+                                                      'event_detail.action_clear',
+                                                      fallback: 'Clear',
+                                                    ),
+                                                  ),
                                                 ),
                                                 const Spacer(),
                                                 FilledButton(
                                                   onPressed: () {
                                                     Navigator.of(ctx).pop(tmp);
                                                   },
-                                                  child: const Text('Apply'),
+                                                  child: Text(
+                                                    t.translate(
+                                                      'event_detail.action_apply',
+                                                      fallback: 'Apply',
+                                                    ),
+                                                  ),
                                                 )
                                               ],
                                             ),
@@ -648,7 +754,12 @@ class _GalleryTabState extends State<_GalleryTab> {
                             controller.setGuestIds(selected);
                             await controller.refresh(eventId: widget.eventId);
                           },
-                    child: const Text('Invitados'),
+                    child: Text(
+                      t.translate(
+                        'event_detail.guests',
+                        fallback: 'Invitados',
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -741,9 +852,14 @@ class _GalleryTabState extends State<_GalleryTab> {
                             }
                             if (viewerUrl == null || viewerUrl.isEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content:
-                                      Text('La foto aún se está procesando.'),
+                                SnackBar(
+                                  content: Text(
+                                    t.translate(
+                                      'event_detail.photo_processing',
+                                      fallback:
+                                          'La foto aún se está procesando.',
+                                    ),
+                                  ),
                                 ),
                               );
                               return;
@@ -780,10 +896,13 @@ class _GalleryTabState extends State<_GalleryTab> {
                                         },
                                       )
                                     : (thumbUrl == null || thumbUrl.isEmpty)
-                                        ? const Center(
+                                        ? Center(
                                             child: Text(
-                                              'Procesando',
-                                              style: TextStyle(
+                                              t.translate(
+                                                'event_detail.processing',
+                                                fallback: 'Procesando',
+                                              ),
+                                              style: const TextStyle(
                                                 color: Colors.white,
                                                 fontSize: 11,
                                                 fontWeight: FontWeight.w900,
@@ -894,8 +1013,11 @@ class _GalleryTabState extends State<_GalleryTab> {
                                       vertical: 4,
                                     ),
                                     color: OnesColors.yellow.withOpacity(0.72),
-                                    child: const Text(
-                                      'Shared',
+                                    child: Text(
+                                      t.translate(
+                                        'event_detail.shared',
+                                        fallback: 'Shared',
+                                      ),
                                       style: TextStyle(
                                         color: OnesColors.black,
                                         fontSize: 11,
@@ -931,7 +1053,10 @@ class _GalleryTabState extends State<_GalleryTab> {
                                       (item.ownerName != null &&
                                               item.ownerName!.isNotEmpty)
                                           ? '${item.ownerName}'
-                                          : 'Invitado',
+                                          : t.translate(
+                                              'event_detail.guest',
+                                              fallback: 'Invitado',
+                                            ),
                                       style: TextStyle(
                                         color: _badgeTextColor(
                                           _badgeColorForIdentity(
@@ -979,7 +1104,12 @@ class _GalleryTabState extends State<_GalleryTab> {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: controller.loading ? null : _exitSelectionMode,
-                      child: const Text('Cancel'),
+                      child: Text(
+                        t.translate(
+                          'event_detail.action_cancel',
+                          fallback: 'Cancel',
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -1005,9 +1135,13 @@ class _GalleryTabState extends State<_GalleryTab> {
 
                               if (anyShared && anyNotShared) {
                                 messenger.showSnackBar(
-                                  const SnackBar(
+                                  SnackBar(
                                     content: Text(
-                                      'No puedes mezclar fotos compartidas y privadas.',
+                                      t.translate(
+                                        'event_detail.error_mix_shared_private',
+                                        fallback:
+                                            'No puedes mezclar fotos compartidas y privadas.',
+                                      ),
                                     ),
                                   ),
                                 );
@@ -1024,8 +1158,13 @@ class _GalleryTabState extends State<_GalleryTab> {
                                       );
                                   if (!mounted) return;
                                   messenger.showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Fotos descompartidas.'),
+                                    SnackBar(
+                                      content: Text(
+                                        t.translate(
+                                          'event_detail.photos_unshared',
+                                          fallback: 'Fotos descompartidas.',
+                                        ),
+                                      ),
                                     ),
                                   );
                                 } else {
@@ -1037,8 +1176,13 @@ class _GalleryTabState extends State<_GalleryTab> {
                                       );
                                   if (!mounted) return;
                                   messenger.showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Fotos compartidas.'),
+                                    SnackBar(
+                                      content: Text(
+                                        t.translate(
+                                          'event_detail.photos_shared',
+                                          fallback: 'Fotos compartidas.',
+                                        ),
+                                      ),
                                     ),
                                   );
                                 }
@@ -1049,7 +1193,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                                 messenger.showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      'No se pudo actualizar: $e',
+                                      '${t.translate('event_detail.error_update_failed', fallback: 'No se pudo actualizar')}: $e',
                                     ),
                                   ),
                                 );
@@ -1064,9 +1208,9 @@ class _GalleryTabState extends State<_GalleryTab> {
                           final anyNotShared = selected.any((it) => !it.shared);
 
                           if (anyShared && !anyNotShared) {
-                            return 'Unshare (${_selectedIds.length})';
+                            return '${t.translate('event_detail.action_unshare', fallback: 'Unshare')} (${_selectedIds.length})';
                           }
-                          return 'Share (${_selectedIds.length})';
+                          return '${t.translate('event_detail.action_share', fallback: 'Share')} (${_selectedIds.length})';
                         })(),
                         style: const TextStyle(fontWeight: FontWeight.w900),
                       ),
@@ -1189,20 +1333,27 @@ class _DetailsTabState extends State<_DetailsTab> {
   }
 
   Future<void> _addInvitee() async {
+    final t = context.read<TranslationsService>();
     final email = _emailController.text.trim();
 
     final normalizedEmail = email.toLowerCase();
 
     if (email.isEmpty) {
       setState(() {
-        _inviteError = 'Please enter an email.';
+        _inviteError = t.translate(
+          'event_detail.error_enter_email',
+          fallback: 'Please enter an email.',
+        );
       });
       return;
     }
 
     if (!looksLikeEmail(normalizedEmail)) {
       setState(() {
-        _inviteError = 'Please enter a valid email.';
+        _inviteError = t.translate(
+          'event_detail.error_invalid_email',
+          fallback: 'Please enter a valid email.',
+        );
       });
       return;
     }
@@ -1220,7 +1371,10 @@ class _DetailsTabState extends State<_DetailsTab> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _inviteError = 'Failed to invite guest.';
+        _inviteError = t.translate(
+          'event_detail.error_invite_failed',
+          fallback: 'Failed to invite guest.',
+        );
       });
     }
 
@@ -1236,6 +1390,7 @@ class _DetailsTabState extends State<_DetailsTab> {
   Widget build(BuildContext context) {
     final coverUrls = context.watch<EventCoverUrlsController>();
     final events = context.watch<EventsController>();
+    final t = context.watch<TranslationsService>();
 
     Widget buildFallbackCover() {
       return ColoredBox(
@@ -1287,10 +1442,16 @@ class _DetailsTabState extends State<_DetailsTab> {
         ),
         const SizedBox(height: 14),
         EventDetailSectionCard(
-          title: 'Event Details',
+          title: t.translate(
+            'event_detail.section_event_details',
+            fallback: 'Event Details',
+          ),
           trailing: widget.isOwner
               ? IconButton(
-                  tooltip: 'Editar',
+                  tooltip: t.translate(
+                    'event_detail.action_edit_tooltip',
+                    fallback: 'Editar',
+                  ),
                   onPressed: () async {
                     final current = events.selected;
                     if (current == null) return;
@@ -1321,14 +1482,20 @@ class _DetailsTabState extends State<_DetailsTab> {
               children: [
                 Expanded(
                   child: ReadOnlyField(
-                    label: 'Event Name',
+                    label: t.translate(
+                      'event_detail.field_event_name',
+                      fallback: 'Event Name',
+                    ),
                     value: widget.title,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: ReadOnlyField(
-                    label: 'Location',
+                    label: t.translate(
+                      'event_detail.field_location',
+                      fallback: 'Location',
+                    ),
                     value: location,
                   ),
                 ),
@@ -1340,7 +1507,10 @@ class _DetailsTabState extends State<_DetailsTab> {
               children: [
                 Expanded(
                   child: ReadOnlyField(
-                    label: 'Starts',
+                    label: t.translate(
+                      'event_detail.field_starts',
+                      fallback: 'Starts',
+                    ),
                     value:
                         '${formatMonthDayYear(start)} • ${formatTimeOfDay(start)}',
                   ),
@@ -1348,7 +1518,10 @@ class _DetailsTabState extends State<_DetailsTab> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ReadOnlyField(
-                    label: 'Ends',
+                    label: t.translate(
+                      'event_detail.field_ends',
+                      fallback: 'Ends',
+                    ),
                     value:
                         '${formatMonthDayYear(end)} • ${formatTimeOfDay(end)}',
                   ),
@@ -1357,7 +1530,10 @@ class _DetailsTabState extends State<_DetailsTab> {
             ),
             const SizedBox(height: 12),
             ReadOnlyField(
-              label: 'Description',
+              label: t.translate(
+                'event_detail.field_description',
+                fallback: 'Description',
+              ),
               value: description,
               maxLines: null,
               overflow: null,
@@ -1366,14 +1542,20 @@ class _DetailsTabState extends State<_DetailsTab> {
         ),
         const SizedBox(height: 14),
         EventDetailSectionCard(
-          title: 'Frames',
+          title: t.translate(
+            'event_detail.section_frames',
+            fallback: 'Frames',
+          ),
           children: [
             FutureBuilder<Map<String, String>>(
               future: _frameNamesFuture,
               builder: (context, snapshot) {
                 if (widget.frameIds.isEmpty) {
-                  return const ReadOnlyField(
-                    label: 'Selected frames',
+                  return ReadOnlyField(
+                    label: t.translate(
+                      'event_detail.selected_frames',
+                      fallback: 'Selected frames',
+                    ),
                     value: '-',
                   );
                 }
@@ -1387,7 +1569,10 @@ class _DetailsTabState extends State<_DetailsTab> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Selected frames',
+                      t.translate(
+                        'event_detail.selected_frames',
+                        fallback: 'Selected frames',
+                      ),
                       style: TextStyle(
                         color: OnesColors.black.withOpacity(0.55),
                         fontWeight: FontWeight.w700,
@@ -1430,7 +1615,10 @@ class _DetailsTabState extends State<_DetailsTab> {
         ),
         const SizedBox(height: 14),
         EventDetailSectionCard(
-          title: 'Invite Guests',
+          title: t.translate(
+            'event_detail.section_invite_guests',
+            fallback: 'Invite Guests',
+          ),
           children: [
             if (canInvite) ...[
               FutureBuilder<EventInviteLink>(
@@ -1454,7 +1642,14 @@ class _DetailsTabState extends State<_DetailsTab> {
                     await Clipboard.setData(ClipboardData(text: link.url));
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Invite link copied.')),
+                      SnackBar(
+                        content: Text(
+                          t.translate(
+                            'event_detail.invite_link_copied',
+                            fallback: 'Invite link copied.',
+                          ),
+                        ),
+                      ),
                     );
                   }
 
@@ -1479,8 +1674,13 @@ class _DetailsTabState extends State<_DetailsTab> {
                     } catch (_) {
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Failed to update invite link.'),
+                        SnackBar(
+                          content: Text(
+                            t.translate(
+                              'event_detail.invite_link_update_failed',
+                              fallback: 'Failed to update invite link.',
+                            ),
+                          ),
                         ),
                       );
                     } finally {
@@ -1499,10 +1699,15 @@ class _DetailsTabState extends State<_DetailsTab> {
                       children: [
                         Row(
                           children: [
-                            const Expanded(
+                            Expanded(
                               child: Text(
-                                'Invite by link',
-                                style: TextStyle(fontWeight: FontWeight.w900),
+                                t.translate(
+                                  'event_detail.invite_by_link',
+                                  fallback: 'Invite by link',
+                                ),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                ),
                               ),
                             ),
                             if (widget.isOwner)
@@ -1515,7 +1720,10 @@ class _DetailsTabState extends State<_DetailsTab> {
                         ),
                         if (!link.enabled)
                           Text(
-                            'Link is disabled.',
+                            t.translate(
+                              'event_detail.link_disabled',
+                              fallback: 'Link is disabled.',
+                            ),
                             style: TextStyle(
                               color: OnesColors.black.withOpacity(0.55),
                               fontWeight: FontWeight.w700,
@@ -1536,9 +1744,14 @@ class _DetailsTabState extends State<_DetailsTab> {
                                   ),
                                 ),
                                 onPressed: canUseLink ? onCopy : null,
-                                child: const Text(
-                                  'Copy link',
-                                  style: TextStyle(fontWeight: FontWeight.w900),
+                                child: Text(
+                                  t.translate(
+                                    'event_detail.copy_link',
+                                    fallback: 'Copy link',
+                                  ),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                  ),
                                 ),
                               ),
                             ),
@@ -1555,9 +1768,14 @@ class _DetailsTabState extends State<_DetailsTab> {
                                   ),
                                 ),
                                 onPressed: canUseLink ? onShare : null,
-                                child: const Text(
-                                  'Share',
-                                  style: TextStyle(fontWeight: FontWeight.w900),
+                                child: Text(
+                                  t.translate(
+                                    'event_detail.share_link',
+                                    fallback: 'Share',
+                                  ),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                  ),
                                 ),
                               ),
                             ),
@@ -1571,7 +1789,10 @@ class _DetailsTabState extends State<_DetailsTab> {
               ),
               OnesTextField(
                 controller: _emailController,
-                hintText: 'Email (required)',
+                hintText: t.translate(
+                  'event_detail.email_required_hint',
+                  fallback: 'Email (required)',
+                ),
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.done,
                 contentPadding:
@@ -1607,17 +1828,23 @@ class _DetailsTabState extends State<_DetailsTab> {
                   onPressed: () {
                     _addInvitee();
                   },
-                  child: const Text(
-                    'Invite',
-                    style: TextStyle(fontWeight: FontWeight.w900),
+                  child: Text(
+                    t.translate(
+                      'event_detail.action_invite',
+                      fallback: 'Invite',
+                    ),
+                    style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
                 ),
               ),
             ],
             const SizedBox(height: 14),
-            const Text(
-              'Guests',
-              style: TextStyle(fontWeight: FontWeight.w900),
+            Text(
+              t.translate(
+                'event_detail.guests',
+                fallback: 'Guests',
+              ),
+              style: const TextStyle(fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 8),
             FutureBuilder<List<EventGuest>>(
@@ -1633,14 +1860,20 @@ class _DetailsTabState extends State<_DetailsTab> {
 
                 if (snapshot.hasError) {
                   return Text(
-                    'Failed to load guests.',
+                    t.translate(
+                      'event_detail.error_load_guests',
+                      fallback: 'Failed to load guests.',
+                    ),
                     style: TextStyle(color: OnesColors.black.withOpacity(0.55)),
                   );
                 }
 
                 if (guests == null || guests.isEmpty) {
                   return Text(
-                    'No guests yet.',
+                    t.translate(
+                      'event_detail.no_guests_yet',
+                      fallback: 'No guests yet.',
+                    ),
                     style: TextStyle(color: OnesColors.black.withOpacity(0.55)),
                   );
                 }
@@ -1663,11 +1896,23 @@ class _DetailsTabState extends State<_DetailsTab> {
 
                     final isOwner = g.role == 'owner';
                     final statusText = isOwner
-                        ? 'Owner'
+                        ? t.translate(
+                            'event_detail.guest_status_owner',
+                            fallback: 'Owner',
+                          )
                         : switch (g.status) {
-                            'accepted' => 'Accepted',
-                            'rejected' => 'Rejected',
-                            'invited' => 'Invited',
+                            'accepted' => t.translate(
+                                'event_detail.guest_status_accepted',
+                                fallback: 'Accepted',
+                              ),
+                            'rejected' => t.translate(
+                                'event_detail.guest_status_rejected',
+                                fallback: 'Rejected',
+                              ),
+                            'invited' => t.translate(
+                                'event_detail.guest_status_invited',
+                                fallback: 'Invited',
+                              ),
                             _ => g.status,
                           };
 

@@ -51,6 +51,70 @@ class _CreateEventPageState extends State<CreateEventPage> {
   final _locationController = TextEditingController();
   final _inviteEmailController = TextEditingController();
 
+  static const Set<String> _createEventRequiredKeys = {
+    'create_event.action_create',
+    'create_event.allow_guest_invites',
+    'create_event.cover_cancel',
+    'create_event.cover_generate_ai',
+    'create_event.cover_generate_helper',
+    'create_event.cover_placeholder_title',
+    'create_event.cover_regenerate',
+    'create_event.cover_use',
+    'create_event.creating',
+    'create_event.cta_create',
+    'create_event.date_label',
+    'create_event.date_time_select_start_end',
+    'create_event.ends',
+    'create_event.error_complete_required_fields',
+    'create_event.error_generate_cover_failed',
+    'create_event.error_min_duration',
+    'create_event.error_objective_required',
+    'create_event.error_select_start_end',
+    'create_event.error_session_expired',
+    'create_event.field_event_name',
+    'create_event.field_location',
+    'create_event.field_objective',
+    'create_event.frames_many',
+    'create_event.frames_none',
+    'create_event.frames_one',
+    'create_event.hint_event_name',
+    'create_event.hint_location_optional',
+    'create_event.hint_objective',
+    'create_event.invite_button',
+    'create_event.invite_error_already_invited',
+    'create_event.invite_error_cannot_invite_self',
+    'create_event.invite_error_enter_email',
+    'create_event.invite_error_invalid_email',
+    'create_event.invite_hint',
+    'create_event.invite_none',
+    'create_event.invite_success_many',
+    'create_event.invite_success_many_skipped_self',
+    'create_event.invite_success_one',
+    'create_event.invite_success_one_skipped_self',
+    'create_event.invite_title',
+    'create_event.invited_label',
+    'create_event.location_tbd',
+    'create_event.placeholder_time',
+    'create_event.quick_evening',
+    'create_event.quick_now',
+    'create_event.quick_plus_30m',
+    'create_event.quick_this_weekend',
+    'create_event.quick_today',
+    'create_event.quick_tomorrow',
+    'create_event.section_basics',
+    'create_event.section_cover',
+    'create_event.section_frames',
+    'create_event.section_guests',
+    'create_event.section_when',
+    'create_event.section_where_optional',
+    'create_event.select_frames',
+    'create_event.starts',
+    'create_event.time_label',
+    'create_event.title',
+    'create_event.validation_objective_required',
+    'create_event.validation_required',
+  };
+
   static const double _ctaHeight = 56;
   static const double _ctaBottomGap = 16;
   static const Duration _minEventDuration = Duration(minutes: 15);
@@ -81,6 +145,10 @@ class _CreateEventPageState extends State<CreateEventPage> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      context.read<TranslationsService>().ensurePageTranslations(
+            page: 'create_event',
+            requiredKeys: _createEventRequiredKeys,
+          );
       context.read<EventCoversController>().clear();
       setState(() {
         _coverReservationId = null;

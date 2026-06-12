@@ -12,6 +12,7 @@ import 'package:uuid/uuid.dart';
 import 'package:image/image.dart' as img;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/i18n/translations_service.dart';
 import '../../../photos/presentation/photos_upload_controller.dart';
 import '../../adapters/api/event_templates_api_repository.dart';
 
@@ -52,6 +53,16 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
   bool _shutterSoundEnabled = true;
   bool _shutterHapticEnabled = true;
 
+  static const Set<String> _photoCaptureRequiredKeys = {
+    'photo_capture.error_web_not_supported',
+    'photo_capture.error_camera_not_initialized',
+    'photo_capture.frames_loading',
+    'photo_capture.frames_error',
+    'photo_capture.error_capture_failed',
+    'photo_capture.camera_error',
+    'photo_capture.retry',
+  };
+
   Object _formatError(Object error) {
     if (error is DioException) {
       final status = error.response?.statusCode;
@@ -73,6 +84,15 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<TranslationsService>().ensurePageTranslations(
+            page: 'photo_capture',
+            requiredKeys: _photoCaptureRequiredKeys,
+          );
+    });
+
     _init();
     _loadFrames();
     _loadShutterPreferences();
@@ -91,10 +111,14 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
 
   Future<void> _init() async {
     if (kIsWeb) {
+      final t = context.read<TranslationsService>();
       setState(() {
         _initializing = false;
-        _error =
-            'Camera preview is not supported on Web yet. Please use Android/iOS.';
+        _error = t.translate(
+          'photo_capture.error_web_not_supported',
+          fallback:
+              'Camera preview is not supported on Web yet. Please use Android/iOS.',
+        );
       });
       return;
     }
@@ -468,7 +492,12 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
                       )
                     : (controller == null || !controller.value.isInitialized)
                         ? _CameraErrorView(
-                            error: 'Camera not initialized',
+                            error: context
+                                .read<TranslationsService>()
+                                .translate(
+                                  'photo_capture.error_camera_not_initialized',
+                                  fallback: 'Camera not initialized',
+                                ),
                             onRetry: _init,
                           )
                         : LayoutBuilder(
@@ -578,18 +607,21 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 color: Colors.black.withOpacity(0.45),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    SizedBox(
+                    const SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                    SizedBox(width: 10),
+                    const SizedBox(width: 10),
                     Text(
-                      'Cargando frames…',
-                      style: TextStyle(
+                      context.read<TranslationsService>().translate(
+                            'photo_capture.frames_loading',
+                            fallback: 'Cargando frames…',
+                          ),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w800,
                       ),
@@ -610,7 +642,10 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 color: Colors.red.withOpacity(0.6),
                 child: Text(
-                  'Error cargando frames: $_framesError',
+                  '${context.read<TranslationsService>().translate(
+                        "photo_capture.frames_error",
+                        fallback: 'Error cargando frames',
+                      )}: $_framesError',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -814,7 +849,14 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('Error capturando foto: $e')),
+        SnackBar(
+          content: Text(
+            '${context.read<TranslationsService>().translate(
+                  "photo_capture.error_capture_failed",
+                  fallback: 'Error capturando foto',
+                )}: $e',
+          ),
+        ),
       );
     } finally {
       if (mounted) {
@@ -834,6 +876,7 @@ class _CameraErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.watch<TranslationsService>();
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -843,7 +886,10 @@ class _CameraErrorView extends StatelessWidget {
             const Icon(Icons.error_outline, color: Colors.white, size: 42),
             const SizedBox(height: 12),
             Text(
-              'Camera error: $error',
+              '${t.translate(
+                    "photo_capture.camera_error",
+                    fallback: 'Camera error',
+                  )}: $error',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Colors.white,
@@ -853,7 +899,12 @@ class _CameraErrorView extends StatelessWidget {
             const SizedBox(height: 18),
             FilledButton.tonal(
               onPressed: onRetry,
-              child: const Text('Retry'),
+              child: Text(
+                t.translate(
+                  'photo_capture.retry',
+                  fallback: 'Retry',
+                ),
+              ),
             ),
           ],
         ),

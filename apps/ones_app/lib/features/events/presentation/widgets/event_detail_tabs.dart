@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/ui/ones_colors.dart';
 
 class EventDetailTabs extends StatelessWidget {
@@ -14,6 +16,7 @@ class EventDetailTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.watch<TranslationsService>();
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
@@ -24,14 +27,20 @@ class EventDetailTabs extends StatelessWidget {
         children: [
           Expanded(
             child: _TabButton(
-              label: 'Gallery',
+              label: t.translate(
+                'event_detail.tab_gallery',
+                fallback: 'Gallery',
+              ),
               selected: index == 0,
               onTap: () => onChanged(0),
             ),
           ),
           Expanded(
             child: _TabButton(
-              label: 'Details',
+              label: t.translate(
+                'event_detail.tab_details',
+                fallback: 'Details',
+              ),
               selected: index == 1,
               onTap: () => onChanged(1),
             ),

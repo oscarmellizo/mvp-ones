@@ -188,12 +188,184 @@ final class TranslationsPageKeys {
             "profile.logout"
     );
 
+    private static final Set<String> CREATE_EVENT_KEYS = Set.of(
+            "create_event.action_create",
+            "create_event.allow_guest_invites",
+            "create_event.cover_cancel",
+            "create_event.cover_generate_ai",
+            "create_event.cover_generate_helper",
+            "create_event.cover_placeholder_title",
+            "create_event.cover_regenerate",
+            "create_event.cover_use",
+            "create_event.creating",
+            "create_event.cta_create",
+            "create_event.date_label",
+            "create_event.date_time_select_start_end",
+            "create_event.ends",
+            "create_event.error_complete_required_fields",
+            "create_event.error_generate_cover_failed",
+            "create_event.error_min_duration",
+            "create_event.error_objective_required",
+            "create_event.error_select_start_end",
+            "create_event.error_session_expired",
+            "create_event.field_event_name",
+            "create_event.field_location",
+            "create_event.field_objective",
+            "create_event.frames_many",
+            "create_event.frames_none",
+            "create_event.frames_one",
+            "create_event.hint_event_name",
+            "create_event.hint_location_optional",
+            "create_event.hint_objective",
+            "create_event.invite_button",
+            "create_event.invite_error_already_invited",
+            "create_event.invite_error_cannot_invite_self",
+            "create_event.invite_error_enter_email",
+            "create_event.invite_error_invalid_email",
+            "create_event.invite_hint",
+            "create_event.invite_none",
+            "create_event.invite_success_many",
+            "create_event.invite_success_many_skipped_self",
+            "create_event.invite_success_one",
+            "create_event.invite_success_one_skipped_self",
+            "create_event.invite_title",
+            "create_event.invited_label",
+            "create_event.location_tbd",
+            "create_event.placeholder_time",
+            "create_event.quick_evening",
+            "create_event.quick_now",
+            "create_event.quick_plus_30m",
+            "create_event.quick_this_weekend",
+            "create_event.quick_today",
+            "create_event.quick_tomorrow",
+            "create_event.section_basics",
+            "create_event.section_cover",
+            "create_event.section_frames",
+            "create_event.section_guests",
+            "create_event.section_when",
+            "create_event.section_where_optional",
+            "create_event.select_frames",
+            "create_event.starts",
+            "create_event.time_label",
+            "create_event.title",
+            "create_event.validation_objective_required",
+            "create_event.validation_required"
+    );
+
+    private static final Set<String> EDIT_EVENT_KEYS = Set.of(
+            "edit_event.title",
+            "edit_event.action_save",
+            "edit_event.error_update_failed",
+            "create_event.date_time_select_start_end",
+            "create_event.error_select_start_end",
+            "create_event.error_min_duration",
+            "create_event.error_complete_required_fields",
+            "create_event.location_tbd",
+            "create_event.field_event_name",
+            "create_event.field_objective",
+            "create_event.field_location",
+            "create_event.validation_required",
+            "create_event.starts",
+            "create_event.ends",
+            "create_event.date_label",
+            "create_event.time_label",
+            "create_event.placeholder_time",
+            "create_event.cover_placeholder_title",
+            "create_event.cover_generate_helper",
+            "create_event.cover_generate_ai",
+            "create_event.cover_regenerate",
+            "create_event.cover_use",
+            "create_event.cover_cancel",
+            "create_event.frames_none",
+            "create_event.frames_one",
+            "create_event.frames_many",
+            "create_event.select_frames"
+    );
+
+    private static final Set<String> EVENT_DETAIL_KEYS = Set.of(
+            "event_detail.no_event",
+            "event_detail.tab_gallery",
+            "event_detail.tab_details",
+            "event_detail.no_photos",
+            "event_detail.action_refresh",
+            "event_detail.error_loading_gallery",
+            "event_detail.action_retry",
+            "event_detail.filter_all",
+            "event_detail.filter_shared",
+            "event_detail.filter_mine",
+            "event_detail.guests",
+            "event_detail.action_clear",
+            "event_detail.action_apply",
+            "event_detail.photo_processing",
+            "event_detail.processing",
+            "event_detail.shared",
+            "event_detail.guest",
+            "event_detail.action_cancel",
+            "event_detail.error_mix_shared_private",
+            "event_detail.photos_unshared",
+            "event_detail.photos_shared",
+            "event_detail.error_update_failed",
+            "event_detail.action_unshare",
+            "event_detail.action_share",
+            "event_detail.section_event_details",
+            "event_detail.action_edit_tooltip",
+            "event_detail.field_event_name",
+            "event_detail.field_location",
+            "event_detail.field_starts",
+            "event_detail.field_ends",
+            "event_detail.field_description",
+            "event_detail.section_frames",
+            "event_detail.selected_frames",
+            "event_detail.section_invite_guests",
+            "event_detail.invite_by_link",
+            "event_detail.link_disabled",
+            "event_detail.copy_link",
+            "event_detail.share_link",
+            "event_detail.invite_link_copied",
+            "event_detail.invite_link_update_failed",
+            "event_detail.email_required_hint",
+            "event_detail.action_invite",
+            "event_detail.guests_title",
+            "event_detail.error_enter_email",
+            "event_detail.error_invalid_email",
+            "event_detail.error_invite_failed",
+            "event_detail.error_load_guests",
+            "event_detail.no_guests_yet",
+            "event_detail.guest_status_owner",
+            "event_detail.guest_status_accepted",
+            "event_detail.guest_status_rejected",
+            "event_detail.guest_status_invited"
+    );
+
+    private static final Set<String> PHOTO_CAPTURE_KEYS = Set.of(
+            "photo_capture.error_web_not_supported",
+            "photo_capture.error_camera_not_initialized",
+            "photo_capture.frames_loading",
+            "photo_capture.frames_error",
+            "photo_capture.error_capture_failed",
+            "photo_capture.camera_error",
+            "photo_capture.retry"
+    );
+
+    private static final Set<String> PHOTO_VIEWER_KEYS = Set.of(
+            "photo_viewer.shared_by",
+            "photo_viewer.photo_processing",
+            "photo_viewer.error_loading_image",
+            "photo_viewer.error_like_update_failed",
+            "photo_viewer.error_share_failed"
+    );
+
     public static Set<String> keysFor(TranslationsPageId pageId) {
         return switch (pageId) {
             case HOME -> HOME_KEYS;
             case DISCOVER -> DISCOVER_KEYS;
             case GALLERIES -> GALLERIES_KEYS;
             case PROFILE -> PROFILE_KEYS;
+            case CREATE_EVENT -> CREATE_EVENT_KEYS;
+            case EDIT_EVENT -> EDIT_EVENT_KEYS;
+            case EVENT_DETAIL -> EVENT_DETAIL_KEYS;
+            case PHOTO_CAPTURE -> PHOTO_CAPTURE_KEYS;
+            case PHOTO_VIEWER -> PHOTO_VIEWER_KEYS;
             default -> Set.of();
         };
     }

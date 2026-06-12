@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/utils/datetime_formatters.dart';
 import '../../domain/event.dart';
@@ -40,6 +41,36 @@ class _EditEventPageState extends State<EditEventPage> {
 
   String? _coverReservationId;
 
+  static const Set<String> _editEventRequiredKeys = {
+    'edit_event.title',
+    'edit_event.action_save',
+    'edit_event.error_update_failed',
+    'create_event.date_time_select_start_end',
+    'create_event.error_select_start_end',
+    'create_event.error_min_duration',
+    'create_event.error_complete_required_fields',
+    'create_event.location_tbd',
+    'create_event.field_event_name',
+    'create_event.field_objective',
+    'create_event.field_location',
+    'create_event.validation_required',
+    'create_event.starts',
+    'create_event.ends',
+    'create_event.date_label',
+    'create_event.time_label',
+    'create_event.placeholder_time',
+    'create_event.cover_placeholder_title',
+    'create_event.cover_generate_helper',
+    'create_event.cover_generate_ai',
+    'create_event.cover_regenerate',
+    'create_event.cover_use',
+    'create_event.cover_cancel',
+    'create_event.frames_none',
+    'create_event.frames_one',
+    'create_event.frames_many',
+    'create_event.select_frames',
+  };
+
   @override
   void initState() {
     super.initState();
@@ -63,6 +94,10 @@ class _EditEventPageState extends State<EditEventPage> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      context.read<TranslationsService>().ensurePageTranslations(
+            page: 'edit_event',
+            requiredKeys: _editEventRequiredKeys,
+          );
       context.read<EventCoversController>().clear();
       setState(() {
         _coverReservationId = null;
@@ -90,14 +125,21 @@ class _EditEventPageState extends State<EditEventPage> {
   }
 
   void _validateDateTimes({bool showErrors = false}) {
+    final t = context.read<TranslationsService>();
     final start = _combineLocal(_startDate, _startTime);
     final end = _combineLocal(_endDate, _endTime);
 
     String? error;
     if (start == null || end == null) {
-      error = 'Please select start and end time.';
+      error = t.translate(
+        'create_event.error_select_start_end',
+        fallback: 'Please select start and end time.',
+      );
     } else if (end.isBefore(start.add(_minEventDuration))) {
-      error = 'Event must be at least 15 minutes.';
+      error = t.translate(
+        'create_event.error_min_duration',
+        fallback: 'Event must be at least 15 minutes.',
+      );
     }
 
     setState(() {
@@ -175,6 +217,7 @@ class _EditEventPageState extends State<EditEventPage> {
 
   Future<void> _generateCover() async {
     final covers = context.read<EventCoversController>();
+    final t = context.read<TranslationsService>();
 
     final eventName = _nameController.text.trim();
     final objective = _objectiveController.text.trim();
@@ -182,7 +225,9 @@ class _EditEventPageState extends State<EditEventPage> {
 
     if (eventName.isEmpty || objective.isEmpty) return;
 
-    final coverLocation = location.isEmpty ? 'TBD' : location;
+    final coverLocation = location.isEmpty
+        ? t.translate('create_event.location_tbd', fallback: 'TBD')
+        : location;
     await covers.generate(
       eventName: eventName,
       objective: objective,
@@ -197,11 +242,20 @@ class _EditEventPageState extends State<EditEventPage> {
   }
 
   Future<void> _submit() async {
+    final t = context.read<TranslationsService>();
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context)
         ..clearSnackBars()
         ..showSnackBar(
-            const SnackBar(content: Text('Please complete required fields.')));
+          SnackBar(
+            content: Text(
+              t.translate(
+                'create_event.error_complete_required_fields',
+                fallback: 'Please complete required fields.',
+              ),
+            ),
+          ),
+        );
       return;
     }
 
@@ -258,7 +312,10 @@ class _EditEventPageState extends State<EditEventPage> {
     final end = _combineLocal(_endDate, _endTime);
 
     final dateSummary = (start == null || end == null)
-        ? 'Select start and end time'
+        ? context.read<TranslationsService>().translate(
+              'create_event.date_time_select_start_end',
+              fallback: 'Select start and end time',
+            )
         : '${formatShortMonthDay(start)} • ${TimeOfDay.fromDateTime(start).format(context)} → ${formatShortMonthDay(end)} • ${TimeOfDay.fromDateTime(end).format(context)}';
 
     return Scaffold(
@@ -271,9 +328,12 @@ class _EditEventPageState extends State<EditEventPage> {
           icon: const Icon(Icons.close, color: OnesColors.purpleDeep),
           onPressed: () => Navigator.of(context).pop(false),
         ),
-        title: const Text(
-          'Edit Event',
-          style: TextStyle(
+        title: Text(
+          context.read<TranslationsService>().translate(
+                'edit_event.title',
+                fallback: 'Edit Event',
+              ),
+          style: const TextStyle(
             fontWeight: FontWeight.w900,
             color: OnesColors.black,
           ),
@@ -282,9 +342,12 @@ class _EditEventPageState extends State<EditEventPage> {
         actions: [
           TextButton(
             onPressed: _submit,
-            child: const Text(
-              'Guardar',
-              style: TextStyle(
+            child: Text(
+              context.read<TranslationsService>().translate(
+                    'edit_event.action_save',
+                    fallback: 'Guardar',
+                  ),
+              style: const TextStyle(
                 fontWeight: FontWeight.w900,
                 color: OnesColors.purpleDeep,
               ),
@@ -310,23 +373,48 @@ class _EditEventPageState extends State<EditEventPage> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'Event Name'),
+                  decoration: InputDecoration(
+                    labelText: context.read<TranslationsService>().translate(
+                          'create_event.field_event_name',
+                          fallback: 'Event Name',
+                        ),
+                  ),
                   validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Required' : null,
+                      (v == null || v.trim().isEmpty)
+                          ? context.read<TranslationsService>().translate(
+                                'create_event.validation_required',
+                                fallback: 'Required',
+                              )
+                          : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _objectiveController,
-                  decoration: const InputDecoration(labelText: 'Description'),
+                  decoration: InputDecoration(
+                    labelText: context.read<TranslationsService>().translate(
+                          'create_event.field_objective',
+                          fallback: 'Description',
+                        ),
+                  ),
                   minLines: 3,
                   maxLines: 6,
                   validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Required' : null,
+                      (v == null || v.trim().isEmpty)
+                          ? context.read<TranslationsService>().translate(
+                                'create_event.validation_required',
+                                fallback: 'Required',
+                              )
+                          : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _locationController,
-                  decoration: const InputDecoration(labelText: 'Location'),
+                  decoration: InputDecoration(
+                    labelText: context.read<TranslationsService>().translate(
+                          'create_event.field_location',
+                          fallback: 'Location',
+                        ),
+                  ),
                 ),
                 const SizedBox(height: 14),
                 CreateEventDateTimeCard(
@@ -365,9 +453,28 @@ class _EditEventPageState extends State<EditEventPage> {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  _frameIds.isEmpty
-                      ? 'No frames selected for this event.'
-                      : 'This event will use ${_frameIds.length} frame${_frameIds.length == 1 ? '' : 's'}.',
+                  () {
+                    if (_frameIds.isEmpty) {
+                      return context.read<TranslationsService>().translate(
+                            'create_event.frames_none',
+                            fallback: 'No frames selected for this event.',
+                          );
+                    }
+                    final count = _frameIds.length;
+                    final template = count == 1
+                        ? context.read<TranslationsService>().translate(
+                              'create_event.frames_one',
+                              fallback: 'This event will use {count} frame.',
+                            )
+                        : context.read<TranslationsService>().translate(
+                              'create_event.frames_many',
+                              fallback: 'This event will use {count} frames.',
+                            );
+                    return template.replaceAll(
+                      '{count}',
+                      count.toString(),
+                    );
+                  }(),
                   style: TextStyle(
                     color: OnesColors.black.withOpacity(0.7),
                     fontWeight: FontWeight.w700,
@@ -378,7 +485,12 @@ class _EditEventPageState extends State<EditEventPage> {
                   width: double.infinity,
                   child: OutlinedButton(
                     onPressed: _pickFrames,
-                    child: const Text('Seleccionar marcos'),
+                    child: Text(
+                      context.read<TranslationsService>().translate(
+                            'create_event.select_frames',
+                            fallback: 'Seleccionar marcos',
+                          ),
+                    ),
                   ),
                 ),
               ],

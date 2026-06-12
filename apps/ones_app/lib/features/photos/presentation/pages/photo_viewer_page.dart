@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../../core/i18n/translations_service.dart';
 import '../photos_gallery_controller.dart';
 import '../../domain/event_photo.dart';
 
@@ -31,12 +32,28 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
   bool _likeBusy = false;
   bool _shareBusy = false;
 
+  static const Set<String> _photoViewerRequiredKeys = {
+    'photo_viewer.shared_by',
+    'photo_viewer.photo_processing',
+    'photo_viewer.error_loading_image',
+    'photo_viewer.error_like_update_failed',
+    'photo_viewer.error_share_failed',
+  };
+
   @override
   void initState() {
     super.initState();
     final initial = widget.initialIndex < 0 ? 0 : widget.initialIndex;
     _currentIndex = initial;
     _pageController = PageController(initialPage: initial);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<TranslationsService>().ensurePageTranslations(
+            page: 'photo_viewer',
+            requiredKeys: _photoViewerRequiredKeys,
+          );
+    });
   }
 
   @override
@@ -74,7 +91,12 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
     if (isSharedByMe) {
       final n = item.sharedByName;
       if (n != null && n.trim().isNotEmpty) {
-        return 'Compartida por $n';
+        final t = context.read<TranslationsService>();
+        final template = t.translate(
+          'photo_viewer.shared_by',
+          fallback: 'Compartida por {name}',
+        );
+        return template.replaceAll('{name}', n);
       }
       return null;
     }
@@ -105,11 +127,17 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
 
   Future<void> _shareCurrentPhoto(BuildContext context,
       PhotosGalleryController gallery, EventPhoto currentItem) async {
+    final t = context.read<TranslationsService>();
     final url = currentItem.originalUrl ??
         currentItem.mediumUrl ??
         currentItem.smallUrl;
     if (url == null || url.trim().isEmpty) {
-      throw Exception('La foto aún se está procesando');
+      throw Exception(
+        t.translate(
+          'photo_viewer.photo_processing',
+          fallback: 'La foto aún se está procesando',
+        ),
+      );
     }
 
     final link = await gallery.api.createSocialShareLink(
@@ -133,6 +161,7 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
   Widget build(BuildContext context) {
     final gallery = context.watch<PhotosGalleryController>();
     final items = gallery.items;
+    final t = context.watch<TranslationsService>();
 
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     const floatingBarHeight = 52.0;
@@ -183,10 +212,13 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
                         final it = items[index];
                         final url = it.mediumUrl;
                         if (url == null || url.trim().isEmpty) {
-                          return const Center(
+                          return Center(
                             child: Text(
-                              'La foto aún se está procesando.',
-                              style: TextStyle(color: Colors.white),
+                              t.translate(
+                                'photo_viewer.photo_processing',
+                                fallback: 'La foto aún se está procesando.',
+                              ),
+                              style: const TextStyle(color: Colors.white),
                               textAlign: TextAlign.center,
                             ),
                           );
@@ -206,7 +238,7 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
                                 child: Padding(
                                   padding: const EdgeInsets.all(24),
                                   child: Text(
-                                    'Error cargando imagen: $error',
+                                    '${t.translate('photo_viewer.error_loading_image', fallback: 'Error cargando imagen')}: $error',
                                     style: const TextStyle(
                                       color: Colors.white,
                                     ),
@@ -291,7 +323,7 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
                                             ..showSnackBar(
                                               SnackBar(
                                                 content: Text(
-                                                    'No se pudo actualizar el like: $e'),
+                                                    '${t.translate('photo_viewer.error_like_update_failed', fallback: 'No se pudo actualizar el like')}: $e'),
                                               ),
                                             );
                                         } finally {
@@ -327,7 +359,7 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
                                             ..showSnackBar(
                                               SnackBar(
                                                 content: Text(
-                                                    'No se pudo compartir la foto: $e'),
+                                                    '${t.translate('photo_viewer.error_share_failed', fallback: 'No se pudo compartir la foto')}: $e'),
                                               ),
                                             );
                                         } finally {
