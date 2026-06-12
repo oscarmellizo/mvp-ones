@@ -8,7 +8,6 @@ import '../../../features/auth/presentation/auth_controller.dart';
 class TranslationsService extends ChangeNotifier {
   final OnesApiClient _apiClient;
   SharedPreferences? _prefs;
-  AuthController? _authController;
 
   static const String _languageKey = 'ones.language_preference';
   static const int _cacheVersion = 2;
@@ -58,7 +57,6 @@ class TranslationsService extends ChangeNotifier {
   }
 
   void setAuthController(AuthController authController) {
-    _authController = authController;
     final token = authController.idToken;
     if (token != null && token.isNotEmpty) {
       _apiClient.setBearerAuth('bearerAuth', token);

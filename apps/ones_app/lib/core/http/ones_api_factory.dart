@@ -8,6 +8,8 @@ class OnesApiFactory {
 
   Future<String?> Function()? _tokenRefresher;
 
+  Future<String?>? _refreshInFlight;
+
   OnesApiFactory(this.config);
 
   void setTokenRefresher(Future<String?> Function()? refresher) {
@@ -41,6 +43,21 @@ class OnesApiFactory {
           }
 
           final opts = e.requestOptions;
+
+          final secure = opts.extra['secure'];
+          final isBearerSecure = secure is List && secure.any(
+                (s) => s is Map &&
+                    s['type'] == 'http' &&
+                    (s['scheme']?.toString().toLowerCase() == 'bearer'),
+              );
+          final authHeader = (opts.headers['Authorization'] ?? '').toString();
+          final hasBearerHeader = authHeader.toLowerCase().startsWith('bearer ');
+
+          if (!isBearerSecure && !hasBearerHeader) {
+            handler.next(e);
+            return;
+          }
+
           final alreadyRetried = opts.extra['__retried_401'] == true;
           if (alreadyRetried) {
             handler.next(e);
@@ -53,7 +70,11 @@ class OnesApiFactory {
             return;
           }
 
-          final refreshed = await refresher();
+          _refreshInFlight ??= Future<String?>.sync(refresher).whenComplete(() {
+            _refreshInFlight = null;
+          });
+
+          final refreshed = await _refreshInFlight;
           if (refreshed == null || refreshed.isEmpty) {
             handler.next(e);
             return;

@@ -107,6 +107,24 @@ public class SecurityConfig {
 
     @Bean
     @Order(3)
+    SecurityFilterChain publicTranslationsSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher(
+                        new AntPathRequestMatcher("/v1/translations/page"),
+                        new AntPathRequestMatcher("/v1/translations/key")
+                )
+                .csrf(csrf -> csrf.disable())
+                .cors(Customizer.withDefaults())
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .anyRequest().permitAll()
+                );
+
+        return http.build();
+    }
+
+    @Bean
+    @Order(4)
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             JwtDecoder jwtDecoder,
