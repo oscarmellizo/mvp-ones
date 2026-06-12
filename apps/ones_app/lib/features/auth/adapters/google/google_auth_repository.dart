@@ -67,6 +67,18 @@ class GoogleAuthRepository implements AuthRepository {
       }
     }
 
+    if (kIsWeb && (idToken == null || idToken.isEmpty)) {
+      await _signIn.signInSilently(reAuthenticate: true);
+      final current = _signIn.currentUser;
+      if (current != null) {
+        idToken = await _getIdTokenWithRetries(
+          current,
+          attempts: 12,
+          baseDelayMs: 140,
+        );
+      }
+    }
+
     if (idToken == null || idToken.isEmpty) {
       throw StateError(
         'Missing Google idToken (GOOGLE_WEB_CLIENT_ID=${webClientId ?? 'null'}). '

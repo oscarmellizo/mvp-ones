@@ -51,6 +51,18 @@ Conditions:
   WafEnabledCond: !Equals [!Ref WafEnabled, 'true']
 
 Resources:
+  WebResponseHeadersPolicy:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub ${AWS::StackName}-web-headers
+        Comment: Allow cross-origin popups (Google Sign-In)
+        CustomHeadersConfig:
+          Items:
+            - Header: Cross-Origin-Opener-Policy
+              Override: true
+              Value: same-origin-allow-popups
+
   WebAcl:
     Type: AWS::WAFv2::WebACL
     Condition: WafEnabledCond
@@ -178,6 +190,7 @@ Resources:
             - HEAD
             - OPTIONS
           Compress: true
+          ResponseHeadersPolicyId: !Ref WebResponseHeadersPolicy
           ForwardedValues:
             QueryString: true
             Cookies:
