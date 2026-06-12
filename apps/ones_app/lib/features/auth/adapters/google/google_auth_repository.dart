@@ -76,10 +76,11 @@ class GoogleAuthRepository implements AuthRepository {
         await Future<void>.delayed(Duration(milliseconds: 250 * (i + 1)));
         await _signIn.signInSilently(reAuthenticate: true);
         final current = _signIn.currentUser;
-        if (current != null) {
-          final auth = await current.authentication;
-          idToken = auth.idToken;
+        if (current == null) {
+          continue;
         }
+        final auth = await current.authentication;
+        idToken = auth.idToken;
       }
     }
 
@@ -91,11 +92,16 @@ class GoogleAuthRepository implements AuthRepository {
       );
     }
 
+    final signedInAccount = account;
+    if (signedInAccount == null) {
+      throw StateError('Sign-in aborted');
+    }
+
     return AuthUser(
-      userId: account.id,
-      email: account.email,
-      displayName: account.displayName,
-      pictureUrl: account.photoUrl,
+      userId: signedInAccount.id,
+      email: signedInAccount.email,
+      displayName: signedInAccount.displayName,
+      pictureUrl: signedInAccount.photoUrl,
     );
   }
 
