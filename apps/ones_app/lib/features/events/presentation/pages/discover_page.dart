@@ -21,6 +21,18 @@ class DiscoverPage extends StatefulWidget {
 class _DiscoverPageState extends State<DiscoverPage> {
   final _searchController = TextEditingController();
 
+  static const Set<String> _discoverRequiredKeys = {
+    'discover.search_templates',
+    'discover.failed_load_templates',
+    'discover.no_templates_found_for',
+    'discover.public',
+    'discover.status_label',
+    'discover.frames_label',
+    'discover.use_template_question',
+    'discover.not_now',
+    'discover.use_template',
+  };
+
   String _formatError(Object error) {
     if (error is DioException) {
       final status = error.response?.statusCode;
@@ -43,6 +55,10 @@ class _DiscoverPageState extends State<DiscoverPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      context.read<TranslationsService>().ensurePageTranslations(
+            page: 'discover',
+            requiredKeys: _discoverRequiredKeys,
+          );
       final ctrl = context.read<DiscoverTemplatesController>();
       if (ctrl.templates.isEmpty && !ctrl.loading) {
         ctrl.load();

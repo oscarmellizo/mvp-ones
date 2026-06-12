@@ -18,6 +18,31 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final _preferredNameController = TextEditingController();
 
+  static const Set<String> _profileRequiredKeys = {
+    'profile.guest',
+    'profile.no_authenticated_user',
+    'profile.account',
+    'profile.first_name',
+    'profile.last_name',
+    'profile.email',
+    'profile.preferences',
+    'profile.preferred_name_question',
+    'profile.preferred_name_label',
+    'profile.preferred_name_description',
+    'profile.language',
+    'profile.language_es',
+    'profile.language_en',
+    'profile.language_pt',
+    'profile.error_preferred_name_required',
+    'profile.success_preferences_saved',
+    'profile.error_save_failed',
+    'profile.save_preferences',
+    'profile.admin',
+    'profile.open_admin',
+    'profile.signing_out',
+    'profile.logout',
+  };
+
   String? _seedUserId;
   String _selectedLanguage = 'es';
 
@@ -25,6 +50,13 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     _loadLanguagePreference();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<TranslationsService>().ensurePageTranslations(
+            page: 'profile',
+            requiredKeys: _profileRequiredKeys,
+          );
+    });
   }
 
   @override

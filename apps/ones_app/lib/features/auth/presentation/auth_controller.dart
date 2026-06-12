@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../application/get_id_token_use_case.dart';
 import '../application/sign_in_with_google_use_case.dart';
@@ -36,6 +37,13 @@ class AuthController extends ChangeNotifier {
   bool _isLoading = false;
   Object? _error;
 
+  SharedPreferences? _prefs;
+  Future<void>? _restoreInFlight;
+
+  static const String _lastInteractiveSignInAtKey =
+      'ones.auth.last_interactive_signin_at_v1';
+  static const Duration _interactiveSessionTtl = Duration(hours: 24);
+
   AuthController({
     required this.signInWithGoogle,
     required this.signOut,
@@ -59,6 +67,72 @@ class AuthController extends ChangeNotifier {
 
   Future<void> signIn() async {
     await signInExisting();
+  }
+
+  Future<void> restoreSessionIfPossible() async {
+    final existing = _restoreInFlight;
+    if (existing != null) {
+      await existing;
+      return;
+    }
+
+    final f = _restoreSessionInternal();
+    _restoreInFlight = f;
+    try {
+      await f;
+    } finally {
+      _restoreInFlight = null;
+    }
+  }
+
+  Future<void> _restoreSessionInternal() async {
+    _prefs ??= await SharedPreferences.getInstance();
+
+    final last = _prefs!.getInt(_lastInteractiveSignInAtKey);
+    if (last == null) {
+      return;
+    }
+
+    final ageMs = DateTime.now().millisecondsSinceEpoch - last;
+    if (ageMs > _interactiveSessionTtl.inMilliseconds) {
+      await _prefs!.remove(_lastInteractiveSignInAtKey);
+      return;
+    }
+
+    _setLoading(true);
+    try {
+      _error = null;
+      final token = await tokenRefreshService.refreshIdToken();
+      if (token == null || token.isEmpty) {
+        return;
+      }
+
+      _idToken = token;
+      _user = _userFromIdToken(token);
+
+      try {
+        _preferredName = await getPreferredName.execute(token);
+        _isAdmin = await _safeLoadIsAdmin(token);
+        _isRegistered = true;
+      } on DioException catch (e) {
+        if (e.response?.statusCode == 404) {
+          _preferredName = null;
+          _isAdmin = false;
+          _isRegistered = false;
+          return;
+        }
+        rethrow;
+      }
+    } catch (e) {
+      _error = _formatDioOrRawError(e);
+      _user = null;
+      _idToken = null;
+      _preferredName = null;
+      _isAdmin = false;
+      _isRegistered = false;
+    } finally {
+      _setLoading(false);
+    }
   }
 
   Future<AuthNextStep> signInExisting() async {
@@ -97,6 +171,7 @@ class AuthController extends ChangeNotifier {
         _preferredName = await getPreferredName.execute(token);
         _isAdmin = await _safeLoadIsAdmin(token);
         _isRegistered = true;
+        await _persistInteractiveSignInTimestamp();
         return AuthNextStep.signedIn;
       } on DioException catch (e) {
         if (e.response?.statusCode == 404) {
@@ -151,6 +226,8 @@ class AuthController extends ChangeNotifier {
         throw StateError('Missing idToken');
       }
 
+      await _persistInteractiveSignInTimestamp();
+
       return AuthNextStep.needsRegistration;
     } catch (e) {
       _error = _formatDioOrRawError(e);
@@ -184,6 +261,7 @@ class AuthController extends ChangeNotifier {
       _preferredName = (updated ?? trimmed).trim();
       _isAdmin = await _safeLoadIsAdmin(token);
       _isRegistered = true;
+      await _persistInteractiveSignInTimestamp();
     } catch (e) {
       _error = _formatDioOrRawError(e);
       rethrow;
@@ -244,11 +322,21 @@ class AuthController extends ChangeNotifier {
       _preferredName = null;
       _isAdmin = false;
       _isRegistered = false;
+      _prefs ??= await SharedPreferences.getInstance();
+      await _prefs!.remove(_lastInteractiveSignInAtKey);
     } catch (e) {
       _error = e;
     } finally {
       _setLoading(false);
     }
+  }
+
+  Future<void> _persistInteractiveSignInTimestamp() async {
+    _prefs ??= await SharedPreferences.getInstance();
+    await _prefs!.setInt(
+      _lastInteractiveSignInAtKey,
+      DateTime.now().millisecondsSinceEpoch,
+    );
   }
 
   Object _formatDioOrRawError(Object e) {
@@ -294,6 +382,35 @@ class AuthController extends ChangeNotifier {
         if (v is String) return v;
       }
       return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  AuthUser? _userFromIdToken(String idToken) {
+    try {
+      final parts = idToken.split('.');
+      if (parts.length < 2) return null;
+      final payload = parts[1];
+      final normalized = base64Url.normalize(payload);
+      final jsonStr = utf8.decode(base64Url.decode(normalized));
+      final decoded = json.decode(jsonStr);
+
+      if (decoded is! Map) return null;
+
+      final sub = decoded['sub']?.toString();
+      final email = decoded['email']?.toString();
+      final name = decoded['name']?.toString();
+      final picture = decoded['picture']?.toString();
+
+      if (sub == null || sub.isEmpty) return null;
+
+      return AuthUser(
+        userId: sub,
+        email: email,
+        displayName: name,
+        pictureUrl: picture,
+      );
     } catch (_) {
       return null;
     }

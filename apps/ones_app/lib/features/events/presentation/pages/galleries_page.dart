@@ -25,10 +25,27 @@ class _GalleriesPageState extends State<GalleriesPage> {
 
   _QuickFilter _filter = _QuickFilter.all;
 
+  static const Set<String> _galleriesRequiredKeys = {
+    'galleries.search_past_events',
+    'galleries.filter_all',
+    'galleries.filter_last_7_days',
+    'galleries.filter_last_30_days',
+    'galleries.filter_this_year',
+    'galleries.no_past_events_yet',
+    'galleries.no_results_for',
+    'galleries.today',
+    'galleries.yesterday',
+  };
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<TranslationsService>().ensurePageTranslations(
+            page: 'galleries',
+            requiredKeys: _galleriesRequiredKeys,
+          );
       final controller = context.read<EventsController>();
       if (controller.events.isEmpty && !controller.loading) {
         controller.refresh();

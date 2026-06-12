@@ -31,7 +31,7 @@ class GoogleTokenRefreshService {
       }
 
       // If that fails, try silent sign-in to obtain a new ID token
-      await _signIn.signInSilently(reAuthenticate: true);
+      await _signIn.signInSilently(reAuthenticate: false);
       final current = _signIn.currentUser;
       if (current != null) {
         final auth = await current.authentication;

@@ -51,36 +51,19 @@ class GoogleAuthRepository implements AuthRepository {
 
     String? idToken = await _getIdTokenWithRetries(
       account,
-      attempts: kIsWeb ? 8 : 1,
-      baseDelayMs: 120,
+      attempts: kIsWeb ? 12 : 1,
+      baseDelayMs: 140,
     );
 
     if (kIsWeb && (idToken == null || idToken.isEmpty)) {
-      for (var i = 0; i < 2 && (idToken == null || idToken.isEmpty); i++) {
-        await _signIn.signOut();
-        await Future<void>.delayed(Duration(milliseconds: 150 * (i + 1)));
-        account = await _signIn.signIn();
-        if (account == null) {
-          break;
-        }
+      await _signIn.signInSilently(reAuthenticate: false);
+      final current = _signIn.currentUser;
+      if (current != null) {
         idToken = await _getIdTokenWithRetries(
-          account,
-          attempts: 8,
-          baseDelayMs: 120,
+          current,
+          attempts: 12,
+          baseDelayMs: 140,
         );
-      }
-    }
-
-    if (idToken == null || idToken.isEmpty) {
-      for (var i = 0; i < 5 && (idToken == null || idToken.isEmpty); i++) {
-        await Future<void>.delayed(Duration(milliseconds: 250 * (i + 1)));
-        await _signIn.signInSilently(reAuthenticate: true);
-        final current = _signIn.currentUser;
-        if (current == null) {
-          continue;
-        }
-        final auth = await current.authentication;
-        idToken = auth.idToken;
       }
     }
 
@@ -92,16 +75,11 @@ class GoogleAuthRepository implements AuthRepository {
       );
     }
 
-    final signedInAccount = account;
-    if (signedInAccount == null) {
-      throw StateError('Sign-in aborted');
-    }
-
     return AuthUser(
-      userId: signedInAccount.id,
-      email: signedInAccount.email,
-      displayName: signedInAccount.displayName,
-      pictureUrl: signedInAccount.photoUrl,
+      userId: account.id,
+      email: account.email,
+      displayName: account.displayName,
+      pictureUrl: account.photoUrl,
     );
   }
 

@@ -113,17 +113,21 @@ class OnesApp extends StatelessWidget {
       providers: [
         Provider.value(value: config),
         ChangeNotifierProvider(
-          create: (_) => AuthController(
-            signInWithGoogle: signInWithGoogle,
-            signOut: signOut,
-            getIdToken: getIdToken,
-            ensureUser: ensureUser,
-            getPreferredName: getPreferredName,
-            updatePreferredName: updatePreferredName,
-            lookupUserByEmailUseCase: lookupUserByEmail,
-            getAdminMe: getAdminMe,
-            tokenRefreshService: tokenRefreshService,
-          ),
+          create: (_) {
+            final ctrl = AuthController(
+              signInWithGoogle: signInWithGoogle,
+              signOut: signOut,
+              getIdToken: getIdToken,
+              ensureUser: ensureUser,
+              getPreferredName: getPreferredName,
+              updatePreferredName: updatePreferredName,
+              lookupUserByEmailUseCase: lookupUserByEmail,
+              getAdminMe: getAdminMe,
+              tokenRefreshService: tokenRefreshService,
+            );
+            ctrl.restoreSessionIfPossible();
+            return ctrl;
+          },
         ),
         ProxyProvider<AuthController, EventsRepository>(
           update: (_, auth, __) {

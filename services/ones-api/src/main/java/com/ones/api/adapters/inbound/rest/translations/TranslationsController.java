@@ -139,9 +139,61 @@ final class TranslationsPageKeys {
             "common.error"
     );
 
+    private static final Set<String> DISCOVER_KEYS = Set.of(
+            "discover.search_templates",
+            "discover.failed_load_templates",
+            "discover.no_templates_found_for",
+            "discover.public",
+            "discover.status_label",
+            "discover.frames_label",
+            "discover.use_template_question",
+            "discover.not_now",
+            "discover.use_template"
+    );
+
+    private static final Set<String> GALLERIES_KEYS = Set.of(
+            "galleries.search_past_events",
+            "galleries.filter_all",
+            "galleries.filter_last_7_days",
+            "galleries.filter_last_30_days",
+            "galleries.filter_this_year",
+            "galleries.no_past_events_yet",
+            "galleries.no_results_for",
+            "galleries.today",
+            "galleries.yesterday"
+    );
+
+    private static final Set<String> PROFILE_KEYS = Set.of(
+            "profile.guest",
+            "profile.no_authenticated_user",
+            "profile.account",
+            "profile.first_name",
+            "profile.last_name",
+            "profile.email",
+            "profile.preferences",
+            "profile.preferred_name_question",
+            "profile.preferred_name_label",
+            "profile.preferred_name_description",
+            "profile.language",
+            "profile.language_es",
+            "profile.language_en",
+            "profile.language_pt",
+            "profile.error_preferred_name_required",
+            "profile.success_preferences_saved",
+            "profile.error_save_failed",
+            "profile.save_preferences",
+            "profile.admin",
+            "profile.open_admin",
+            "profile.signing_out",
+            "profile.logout"
+    );
+
     public static Set<String> keysFor(TranslationsPageId pageId) {
         return switch (pageId) {
             case HOME -> HOME_KEYS;
+            case DISCOVER -> DISCOVER_KEYS;
+            case GALLERIES -> GALLERIES_KEYS;
+            case PROFILE -> PROFILE_KEYS;
             default -> Set.of();
         };
     }
