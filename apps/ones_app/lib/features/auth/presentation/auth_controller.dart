@@ -23,8 +23,8 @@ class AuthController extends ChangeNotifier {
   final SignOutUseCase signOut;
   final GetIdTokenUseCase getIdToken;
   final EnsureUserUseCase ensureUser;
-  final GetPreferredNameUseCase getPreferredName;
-  final UpdatePreferredNameUseCase updatePreferredName;
+  final GetUserPreferencesUseCase getUserPreferences;
+  final UpdateUserPreferencesUseCase updateUserPreferences;
   final LookupUserByEmailUseCase lookupUserByEmailUseCase;
   final GetAdminMeUseCase getAdminMe;
   final GoogleTokenRefreshService tokenRefreshService;
@@ -32,6 +32,7 @@ class AuthController extends ChangeNotifier {
   AuthUser? _user;
   String? _idToken;
   String? _preferredName;
+  String? _languagePreference;
   bool _isAdmin = false;
   bool _isRegistered = false;
   bool _isLoading = false;
@@ -49,8 +50,8 @@ class AuthController extends ChangeNotifier {
     required this.signOut,
     required this.getIdToken,
     required this.ensureUser,
-    required this.getPreferredName,
-    required this.updatePreferredName,
+    required this.getUserPreferences,
+    required this.updateUserPreferences,
     required this.lookupUserByEmailUseCase,
     required this.getAdminMe,
     required this.tokenRefreshService,
@@ -59,6 +60,7 @@ class AuthController extends ChangeNotifier {
   AuthUser? get user => _user;
   String? get idToken => _idToken;
   String? get preferredName => _preferredName;
+  String? get languagePreference => _languagePreference;
   bool get isAdmin => _isAdmin;
   bool get isSignedIn => _user != null;
   bool get isRegistered => _isRegistered;
@@ -111,12 +113,18 @@ class AuthController extends ChangeNotifier {
       _user = _userFromIdToken(token);
 
       try {
-        _preferredName = await getPreferredName.execute(token);
+        final prefs = await getUserPreferences.execute(token);
+        _preferredName = prefs?.preferredName;
+        final lp = prefs?.languagePreference;
+        _languagePreference = (lp != null && lp.trim().isNotEmpty)
+            ? lp.trim().toLowerCase()
+            : 'es';
         _isAdmin = await _safeLoadIsAdmin(token);
         _isRegistered = true;
       } on DioException catch (e) {
         if (e.response?.statusCode == 404) {
           _preferredName = null;
+          _languagePreference = null;
           _isAdmin = false;
           _isRegistered = false;
           return;
@@ -168,7 +176,12 @@ class AuthController extends ChangeNotifier {
       }
 
       try {
-        _preferredName = await getPreferredName.execute(token);
+        final prefs = await getUserPreferences.execute(token);
+        _preferredName = prefs?.preferredName;
+        final lp = prefs?.languagePreference;
+        _languagePreference = (lp != null && lp.trim().isNotEmpty)
+            ? lp.trim().toLowerCase()
+            : 'es';
         _isAdmin = await _safeLoadIsAdmin(token);
         _isRegistered = true;
         await _persistInteractiveSignInTimestamp();
@@ -176,6 +189,7 @@ class AuthController extends ChangeNotifier {
       } on DioException catch (e) {
         if (e.response?.statusCode == 404) {
           _preferredName = null;
+          _languagePreference = null;
           _isAdmin = false;
           _isRegistered = false;
           return AuthNextStep.needsRegistration;
@@ -257,8 +271,12 @@ class AuthController extends ChangeNotifier {
     try {
       _error = null;
       await ensureUser.execute(token);
-      final updated = await updatePreferredName.execute(token, trimmed);
-      _preferredName = (updated ?? trimmed).trim();
+      final lang = _languagePreference ?? 'es';
+      final updated =
+          await updateUserPreferences.execute(token, trimmed, lang);
+      _preferredName = (updated?.preferredName ?? trimmed).trim();
+      _languagePreference =
+          (updated?.languagePreference ?? lang).trim().toLowerCase();
       _isAdmin = await _safeLoadIsAdmin(token);
       _isRegistered = true;
       await _persistInteractiveSignInTimestamp();
@@ -271,16 +289,34 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> savePreferredName(String value) async {
+    await savePreferences(preferredName: value, languagePreference: null);
+  }
+
+  Future<void> savePreferences({
+    required String preferredName,
+    required String? languagePreference,
+  }) async {
     final token = _idToken;
     if (token == null || token.isEmpty) return;
-    if (value.trim().isEmpty) {
+
+    final pn = preferredName.trim();
+    if (pn.isEmpty) {
       throw StateError('Preferred name is required');
     }
+
+    final lang = (languagePreference ?? _languagePreference ?? 'es').trim();
+    if (lang.isEmpty) {
+      throw StateError('Language preference is required');
+    }
+
     _setLoading(true);
     try {
       _error = null;
-      final updated = await updatePreferredName.execute(token, value);
-      _preferredName = updated ?? value;
+      final updated =
+          await updateUserPreferences.execute(token, pn, lang);
+      _preferredName = updated?.preferredName ?? pn;
+      _languagePreference =
+          (updated?.languagePreference ?? lang).trim().toLowerCase();
     } catch (e) {
       _error = e;
       rethrow;

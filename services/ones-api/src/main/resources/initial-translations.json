@@ -673,5 +673,340 @@
     "es": "No se pudo generar la portada.",
     "en": "Failed to generate cover.",
     "pt": "Não foi possível gerar a capa."
+  },
+  "edit_event.title": {
+    "es": "Editar evento",
+    "en": "Edit event",
+    "pt": "Editar evento"
+  },
+  "edit_event.action_save": {
+    "es": "Guardar",
+    "en": "Save",
+    "pt": "Salvar"
+  },
+  "edit_event.error_update_failed": {
+    "es": "No se pudo actualizar el evento.",
+    "en": "Failed to update event.",
+    "pt": "Não foi possível atualizar o evento."
+  },
+  "event_detail.no_event": {
+    "es": "Evento no encontrado",
+    "en": "Event not found",
+    "pt": "Evento não encontrado"
+  },
+  "event_detail.tab_gallery": {
+    "es": "Galería",
+    "en": "Gallery",
+    "pt": "Galeria"
+  },
+  "event_detail.tab_details": {
+    "es": "Detalles",
+    "en": "Details",
+    "pt": "Detalhes"
+  },
+  "event_detail.no_photos": {
+    "es": "No hay fotos",
+    "en": "No photos",
+    "pt": "Sem fotos"
+  },
+  "event_detail.action_refresh": {
+    "es": "Actualizar",
+    "en": "Refresh",
+    "pt": "Atualizar"
+  },
+  "event_detail.error_loading_gallery": {
+    "es": "Error cargando galería",
+    "en": "Error loading gallery",
+    "pt": "Erro ao carregar galeria"
+  },
+  "event_detail.action_retry": {
+    "es": "Reintentar",
+    "en": "Retry",
+    "pt": "Tentar novamente"
+  },
+  "event_detail.filter_all": {
+    "es": "Todas",
+    "en": "All",
+    "pt": "Todas"
+  },
+  "event_detail.filter_shared": {
+    "es": "Compartidas",
+    "en": "Shared",
+    "pt": "Compartilhadas"
+  },
+  "event_detail.filter_mine": {
+    "es": "Mías",
+    "en": "Mine",
+    "pt": "Minhas"
+  },
+  "event_detail.guests": {
+    "es": "Invitados",
+    "en": "Guests",
+    "pt": "Convidados"
+  },
+  "event_detail.action_clear": {
+    "es": "Limpiar",
+    "en": "Clear",
+    "pt": "Limpar"
+  },
+  "event_detail.action_apply": {
+    "es": "Aplicar",
+    "en": "Apply",
+    "pt": "Aplicar"
+  },
+  "event_detail.photo_processing": {
+    "es": "Procesando",
+    "en": "Processing",
+    "pt": "Processando"
+  },
+  "event_detail.processing": {
+    "es": "Procesando...",
+    "en": "Processing...",
+    "pt": "Processando..."
+  },
+  "event_detail.shared": {
+    "es": "Compartida",
+    "en": "Shared",
+    "pt": "Compartilhada"
+  },
+  "event_detail.guest": {
+    "es": "Invitado",
+    "en": "Guest",
+    "pt": "Convidado"
+  },
+  "event_detail.action_cancel": {
+    "es": "Cancelar",
+    "en": "Cancel",
+    "pt": "Cancelar"
+  },
+  "event_detail.error_mix_shared_private": {
+    "es": "No puedes mezclar fotos compartidas y privadas.",
+    "en": "You can't mix shared and private photos.",
+    "pt": "Você não pode misturar fotos compartilhadas e privadas."
+  },
+  "event_detail.photos_unshared": {
+    "es": "Fotos privadas",
+    "en": "Private photos",
+    "pt": "Fotos privadas"
+  },
+  "event_detail.photos_shared": {
+    "es": "Fotos compartidas",
+    "en": "Shared photos",
+    "pt": "Fotos compartilhadas"
+  },
+  "event_detail.error_update_failed": {
+    "es": "No se pudo actualizar.",
+    "en": "Update failed.",
+    "pt": "Falha ao atualizar."
+  },
+  "event_detail.action_unshare": {
+    "es": "Dejar privada",
+    "en": "Unshare",
+    "pt": "Tornar privada"
+  },
+  "event_detail.action_share": {
+    "es": "Compartir",
+    "en": "Share",
+    "pt": "Compartilhar"
+  },
+  "event_detail.section_event_details": {
+    "es": "Detalles del evento",
+    "en": "Event details",
+    "pt": "Detalhes do evento"
+  },
+  "event_detail.action_edit_tooltip": {
+    "es": "Editar",
+    "en": "Edit",
+    "pt": "Editar"
+  },
+  "event_detail.field_event_name": {
+    "es": "Nombre del evento",
+    "en": "Event name",
+    "pt": "Nome do evento"
+  },
+  "event_detail.field_location": {
+    "es": "Ubicación",
+    "en": "Location",
+    "pt": "Local"
+  },
+  "event_detail.field_starts": {
+    "es": "Inicia",
+    "en": "Starts",
+    "pt": "Começa"
+  },
+  "event_detail.field_ends": {
+    "es": "Termina",
+    "en": "Ends",
+    "pt": "Termina"
+  },
+  "event_detail.field_description": {
+    "es": "Descripción",
+    "en": "Description",
+    "pt": "Descrição"
+  },
+  "event_detail.section_frames": {
+    "es": "Marcos",
+    "en": "Frames",
+    "pt": "Molduras"
+  },
+  "event_detail.selected_frames": {
+    "es": "Marcos seleccionados",
+    "en": "Selected frames",
+    "pt": "Molduras selecionadas"
+  },
+  "event_detail.section_invite_guests": {
+    "es": "Invitar invitados",
+    "en": "Invite guests",
+    "pt": "Convidar convidados"
+  },
+  "event_detail.invite_by_link": {
+    "es": "Invitar por enlace",
+    "en": "Invite by link",
+    "pt": "Convidar por link"
+  },
+  "event_detail.link_disabled": {
+    "es": "Enlace deshabilitado",
+    "en": "Link disabled",
+    "pt": "Link desativado"
+  },
+  "event_detail.copy_link": {
+    "es": "Copiar enlace",
+    "en": "Copy link",
+    "pt": "Copiar link"
+  },
+  "event_detail.share_link": {
+    "es": "Compartir enlace",
+    "en": "Share link",
+    "pt": "Compartilhar link"
+  },
+  "event_detail.invite_link_copied": {
+    "es": "Enlace copiado",
+    "en": "Link copied",
+    "pt": "Link copiado"
+  },
+  "event_detail.invite_link_update_failed": {
+    "es": "No se pudo actualizar el enlace.",
+    "en": "Failed to update link.",
+    "pt": "Não foi possível atualizar o link."
+  },
+  "event_detail.email_required_hint": {
+    "es": "Correo requerido",
+    "en": "Email required",
+    "pt": "E-mail obrigatório"
+  },
+  "event_detail.action_invite": {
+    "es": "Invitar",
+    "en": "Invite",
+    "pt": "Convidar"
+  },
+  "event_detail.guests_title": {
+    "es": "Invitados",
+    "en": "Guests",
+    "pt": "Convidados"
+  },
+  "event_detail.error_enter_email": {
+    "es": "Ingresa un correo.",
+    "en": "Please enter an email.",
+    "pt": "Informe um e-mail."
+  },
+  "event_detail.error_invalid_email": {
+    "es": "Ingresa un correo válido.",
+    "en": "Please enter a valid email.",
+    "pt": "Informe um e-mail válido."
+  },
+  "event_detail.error_invite_failed": {
+    "es": "No se pudo invitar.",
+    "en": "Failed to invite.",
+    "pt": "Não foi possível convidar."
+  },
+  "event_detail.error_load_guests": {
+    "es": "No se pudieron cargar los invitados.",
+    "en": "Failed to load guests.",
+    "pt": "Não foi possível carregar os convidados."
+  },
+  "event_detail.no_guests_yet": {
+    "es": "Aún no hay invitados.",
+    "en": "No guests yet.",
+    "pt": "Ainda não há convidados."
+  },
+  "event_detail.guest_status_owner": {
+    "es": "Propietario",
+    "en": "Owner",
+    "pt": "Dono"
+  },
+  "event_detail.guest_status_accepted": {
+    "es": "Aceptado",
+    "en": "Accepted",
+    "pt": "Aceito"
+  },
+  "event_detail.guest_status_rejected": {
+    "es": "Rechazado",
+    "en": "Rejected",
+    "pt": "Recusado"
+  },
+  "event_detail.guest_status_invited": {
+    "es": "Invitado",
+    "en": "Invited",
+    "pt": "Convidado"
+  },
+  "photo_capture.error_web_not_supported": {
+    "es": "Captura de fotos no está soportada en web.",
+    "en": "Photo capture is not supported on web.",
+    "pt": "Captura de fotos não é suportada na web."
+  },
+  "photo_capture.error_camera_not_initialized": {
+    "es": "Cámara no inicializada",
+    "en": "Camera not initialized",
+    "pt": "Câmera não inicializada"
+  },
+  "photo_capture.frames_loading": {
+    "es": "Cargando frames…",
+    "en": "Loading frames…",
+    "pt": "Carregando molduras…"
+  },
+  "photo_capture.frames_error": {
+    "es": "Error cargando frames",
+    "en": "Error loading frames",
+    "pt": "Erro ao carregar molduras"
+  },
+  "photo_capture.error_capture_failed": {
+    "es": "No se pudo capturar la foto.",
+    "en": "Failed to capture photo.",
+    "pt": "Não foi possível capturar a foto."
+  },
+  "photo_capture.camera_error": {
+    "es": "Error de cámara",
+    "en": "Camera error",
+    "pt": "Erro da câmera"
+  },
+  "photo_capture.retry": {
+    "es": "Reintentar",
+    "en": "Retry",
+    "pt": "Tentar novamente"
+  },
+  "photo_viewer.shared_by": {
+    "es": "Compartida por {name}",
+    "en": "Shared by {name}",
+    "pt": "Compartilhada por {name}"
+  },
+  "photo_viewer.photo_processing": {
+    "es": "La foto aún se está procesando.",
+    "en": "The photo is still processing.",
+    "pt": "A foto ainda está sendo processada."
+  },
+  "photo_viewer.error_loading_image": {
+    "es": "Error cargando imagen",
+    "en": "Error loading image",
+    "pt": "Erro ao carregar imagem"
+  },
+  "photo_viewer.error_like_update_failed": {
+    "es": "No se pudo actualizar el like",
+    "en": "Could not update like",
+    "pt": "Não foi possível atualizar o like"
+  },
+  "photo_viewer.error_share_failed": {
+    "es": "No se pudo compartir la foto",
+    "en": "Could not share the photo",
+    "pt": "Não foi possível compartilhar a foto"
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,6 +21,9 @@ class TranslationsService extends ChangeNotifier {
   Map<String, Map<String, String>> _translationsCache = {};
   String? _currentLanguage;
   bool _isInitialized = false;
+
+  String? _lastSyncedUserLanguage;
+  String? _syncLanguageInFlight;
 
   Future<void>? _initInFlight;
 
@@ -60,6 +64,24 @@ class TranslationsService extends ChangeNotifier {
   }
 
   String getCurrentLanguage() => _currentLanguage ?? 'es';
+
+  void syncLanguageFromUserPreference(String? languageCode) {
+    if (languageCode == null || languageCode.trim().isEmpty) return;
+    final normalized = languageCode.trim().toLowerCase();
+    if (!['es', 'en', 'pt'].contains(normalized)) return;
+    if (_lastSyncedUserLanguage == normalized) return;
+    _lastSyncedUserLanguage = normalized;
+
+    if (_syncLanguageInFlight == normalized) return;
+    _syncLanguageInFlight = normalized;
+    unawaited(
+      setLanguage(normalized).whenComplete(() {
+        if (_syncLanguageInFlight == normalized) {
+          _syncLanguageInFlight = null;
+        }
+      }),
+    );
+  }
 
   Future<void> setLanguage(String languageCode) async {
     await ensureInitialized();

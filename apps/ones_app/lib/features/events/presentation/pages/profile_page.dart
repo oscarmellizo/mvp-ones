@@ -90,9 +90,11 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _loadLanguagePreference() async {
     final translationsService = context.read<TranslationsService>();
+    await translationsService.ensureInitialized();
     if (mounted) {
       setState(() {
         _selectedLanguage = translationsService.getCurrentLanguage();
+        _lastLanguage = _selectedLanguage;
       });
     }
   }
@@ -107,6 +109,11 @@ class _ProfilePageState extends State<ProfilePage> {
       _lastLanguage = lang;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
+        if (_selectedLanguage != lang) {
+          setState(() {
+            _selectedLanguage = lang;
+          });
+        }
         context.read<TranslationsService>().ensurePageTranslations(
               page: 'profile',
               requiredKeys: _profileRequiredKeys,
@@ -293,6 +300,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             : () async {
                                 final value =
                                     _preferredNameController.text.trim();
+                                final selectedLanguage = _selectedLanguage;
                                 FocusScope.of(context).unfocus();
                                 if (value.isEmpty) {
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -304,13 +312,15 @@ class _ProfilePageState extends State<ProfilePage> {
                                   return;
                                 }
                                 try {
-                                  await auth.savePreferredName(value);
                                   await translationsService
-                                      .setLanguage(_selectedLanguage);
-                                  await translationsService
-                                      .ensurePageTranslations(
+                                      .setLanguage(selectedLanguage);
+                                  await translationsService.ensurePageTranslations(
                                     page: 'profile',
                                     requiredKeys: _profileRequiredKeys,
+                                  );
+                                  await auth.savePreferences(
+                                    preferredName: value,
+                                    languagePreference: selectedLanguage,
                                   );
                                   if (!context.mounted) return;
                                   ScaffoldMessenger.of(context).showSnackBar(

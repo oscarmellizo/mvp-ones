@@ -31,7 +31,7 @@ class UsersApiRepository implements UsersRepository {
   }
 
   @override
-  Future<String?> getPreferredName(String idToken) async {
+  Future<UserPreferences?> getPreferences(String idToken) async {
     final res = await _dioFactory(idToken).get(
       '/v1/users/me',
       options: Options(
@@ -49,19 +49,27 @@ class UsersApiRepository implements UsersRepository {
 
     final data = res.data;
     if (data is Map<String, dynamic>) {
-      final v = data['preferredName'];
-      return v is String ? v : null;
+      final pn = data['preferredName'];
+      final lp = data['languagePreference'];
+      return UserPreferences(
+        preferredName: pn is String ? pn : null,
+        languagePreference: lp is String ? lp : null,
+      );
     }
     return null;
   }
 
   @override
-  Future<String?> updatePreferredName(
-      String idToken, String preferredName) async {
+  Future<UserPreferences?> updatePreferences(
+    String idToken,
+    String preferredName,
+    String languagePreference,
+  ) async {
     final res = await _dioFactory(idToken).put(
       '/v1/users/preferences',
       data: {
         'preferredName': preferredName,
+        'languagePreference': languagePreference,
       },
       options: Options(
         extra: {
@@ -78,8 +86,12 @@ class UsersApiRepository implements UsersRepository {
 
     final data = res.data;
     if (data is Map<String, dynamic>) {
-      final v = data['preferredName'];
-      return v is String ? v : null;
+      final pn = data['preferredName'];
+      final lp = data['languagePreference'];
+      return UserPreferences(
+        preferredName: pn is String ? pn : null,
+        languagePreference: lp is String ? lp : null,
+      );
     }
     return null;
   }

@@ -10,23 +10,27 @@ class EnsureUserUseCase {
   }
 }
 
-class GetPreferredNameUseCase {
+class GetUserPreferencesUseCase {
   final UsersRepository repository;
 
-  GetPreferredNameUseCase(this.repository);
+  GetUserPreferencesUseCase(this.repository);
 
-  Future<String?> execute(String idToken) {
-    return repository.getPreferredName(idToken);
+  Future<UserPreferences?> execute(String idToken) {
+    return repository.getPreferences(idToken);
   }
 }
 
-class UpdatePreferredNameUseCase {
+class UpdateUserPreferencesUseCase {
   final UsersRepository repository;
 
-  UpdatePreferredNameUseCase(this.repository);
+  UpdateUserPreferencesUseCase(this.repository);
 
-  Future<String?> execute(String idToken, String preferredName) {
-    return repository.updatePreferredName(idToken, preferredName);
+  Future<UserPreferences?> execute(
+    String idToken,
+    String preferredName,
+    String languagePreference,
+  ) {
+    return repository.updatePreferences(idToken, preferredName, languagePreference);
   }
 }
 

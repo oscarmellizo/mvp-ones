@@ -3,7 +3,9 @@ package com.ones.api.application.users;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 
 import com.ones.api.application.users.ports.PreferredNamesCacheRepository;
 import com.ones.api.application.users.ports.UsersRepository;
@@ -14,6 +16,8 @@ public class UpdateUserPreferencesUseCase {
     private final UsersRepository usersRepository;
     private final PreferredNamesCacheRepository preferredNamesCacheRepository;
     private final Clock clock;
+
+    private static final Set<String> VALID_LANGUAGE_CODES = Set.of("es", "en", "pt");
 
     public UpdateUserPreferencesUseCase(
             UsersRepository usersRepository,
@@ -29,6 +33,11 @@ public class UpdateUserPreferencesUseCase {
         return usersRepository.findById(userId)
                 .map(existing -> {
                     Instant now = Instant.now(clock);
+
+                    String effectiveLanguagePreference = normalizeLanguagePreference(
+                            languagePreference,
+                            existing.getLanguagePreference()
+                    );
                     User updated = new User(
                             existing.getUserId(),
                             existing.getEmail(),
@@ -38,7 +47,7 @@ public class UpdateUserPreferencesUseCase {
                             existing.getPicture(),
                             preferredName,
                             existing.getProvider(),
-                            languagePreference,
+                            effectiveLanguagePreference,
                             existing.getCreatedAt(),
                             now
                     );
@@ -53,5 +62,20 @@ public class UpdateUserPreferencesUseCase {
                     );
                     return updated;
                 });
+    }
+
+    private String normalizeLanguagePreference(String requested, String existing) {
+        String candidate = requested;
+        if (candidate == null || candidate.isBlank()) {
+            candidate = existing;
+        }
+        if (candidate == null || candidate.isBlank()) {
+            candidate = "es";
+        }
+        String normalized = candidate.trim().toLowerCase(Locale.ROOT);
+        if (!VALID_LANGUAGE_CODES.contains(normalized)) {
+            return "es";
+        }
+        return normalized;
     }
 }

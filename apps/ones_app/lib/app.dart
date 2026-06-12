@@ -77,8 +77,8 @@ class OnesApp extends StatelessWidget {
 
     final usersRepository = UsersApiRepository(apiFactory);
     final ensureUser = EnsureUserUseCase(usersRepository);
-    final getPreferredName = GetPreferredNameUseCase(usersRepository);
-    final updatePreferredName = UpdatePreferredNameUseCase(usersRepository);
+    final getUserPreferences = GetUserPreferencesUseCase(usersRepository);
+    final updateUserPreferences = UpdateUserPreferencesUseCase(usersRepository);
     final lookupUserByEmail = LookupUserByEmailUseCase(usersRepository);
 
     final adminRepository = AdminApiRepository(apiFactory);
@@ -120,8 +120,8 @@ class OnesApp extends StatelessWidget {
               signOut: signOut,
               getIdToken: getIdToken,
               ensureUser: ensureUser,
-              getPreferredName: getPreferredName,
-              updatePreferredName: updatePreferredName,
+              getUserPreferences: getUserPreferences,
+              updateUserPreferences: updateUserPreferences,
               lookupUserByEmailUseCase: lookupUserByEmail,
               getAdminMe: getAdminMe,
               tokenRefreshService: tokenRefreshService,
@@ -148,6 +148,16 @@ class OnesApp extends StatelessWidget {
           update: (_, auth, translationsService) {
             translationsService ??= TranslationsService(apiFactory.create());
             translationsService.setAuthController(auth);
+            final preferredLanguage =
+                auth.isRegistered ? auth.languagePreference : null;
+            if (!auth.isLoading &&
+                preferredLanguage != null &&
+                preferredLanguage.trim().isNotEmpty &&
+                preferredLanguage.trim().toLowerCase() !=
+                    translationsService.getCurrentLanguage()) {
+              translationsService
+                  .syncLanguageFromUserPreference(preferredLanguage);
+            }
             return translationsService;
           },
         ),

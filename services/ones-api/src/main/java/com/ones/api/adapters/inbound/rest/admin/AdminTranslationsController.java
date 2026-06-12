@@ -1,8 +1,13 @@
 package com.ones.api.adapters.inbound.rest.admin;
 
+import java.io.InputStream;
+import java.util.Iterator;
 import java.util.List;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.ResponseEntity;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,9 +26,11 @@ import com.ones.api.domain.translations.Translation;
 public class AdminTranslationsController {
 
     private final TranslationsManagementService service;
+    private final ObjectMapper objectMapper;
 
-    public AdminTranslationsController(TranslationsManagementService service) {
+    public AdminTranslationsController(TranslationsManagementService service, ObjectMapper objectMapper) {
         this.service = service;
+        this.objectMapper = objectMapper;
     }
 
     @GetMapping
@@ -101,9 +108,56 @@ public class AdminTranslationsController {
         return ResponseEntity.ok(new RefreshTranslationsCacheResponse(List.of(normalizedLanguageCode), count));
     }
 
+    @PostMapping("/seed/initial")
+    public ResponseEntity<SeedTranslationsResponse> seedInitial(Authentication authentication) throws Exception {
+        InputStream inputStream = new ClassPathResource("initial-translations.json").getInputStream();
+        JsonNode rootNode = objectMapper.readTree(inputStream);
+
+        int inserted = 0;
+        int skipped = 0;
+
+        Iterator<String> fieldNames = rootNode.fieldNames();
+        while (fieldNames.hasNext()) {
+            String translationKey = fieldNames.next();
+            JsonNode languageNode = rootNode.get(translationKey);
+            if (languageNode == null || !languageNode.isObject()) {
+                continue;
+            }
+
+            Iterator<String> languageCodes = languageNode.fieldNames();
+            while (languageCodes.hasNext()) {
+                String languageCode = languageCodes.next();
+                JsonNode valueNode = languageNode.get(languageCode);
+                String value = valueNode != null ? valueNode.asText() : null;
+                if (value == null) {
+                    continue;
+                }
+
+                Translation existing = service.getTranslation(translationKey, languageCode);
+                if (existing != null && existing.getValue() != null && !existing.getValue().isBlank()) {
+                    skipped++;
+                    continue;
+                }
+
+                service.upsert(authentication, translationKey, languageCode, value, "seed:initial");
+                inserted++;
+            }
+        }
+
+        service.evictTranslationsCache();
+
+        return ResponseEntity.ok(new SeedTranslationsResponse(inserted, skipped));
+    }
+
     public record RefreshTranslationsCacheResponse(
             List<String> languagesWarmed,
             int totalTranslationsLoaded
+    ) {
+    }
+
+    public record SeedTranslationsResponse(
+            int inserted,
+            int skipped
     ) {
     }
 
