@@ -136,6 +136,7 @@ public class SecurityConfig {
                                 "/swagger-ui.html"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/events/*/invite-link/preview").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/v1/translations/page", "/v1/translations/key").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/translations", "/v1/translations/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/v1/admin/translations", "/v1/admin/translations/**").authenticated()
                         .requestMatchers("/v1/admin/me").authenticated()

@@ -27,12 +27,29 @@ class _EventsListPageState extends State<EventsListPage> {
   static const _bg = OnesColors.background;
   static const _divider = OnesColors.orange;
 
+  static const Set<String> _homeRequiredKeys = {
+    'nav.home',
+    'nav.discover',
+    'nav.galleries',
+    'nav.profile',
+    'home.search_events',
+    'home.today',
+    'home.next_events',
+    'home.live_now',
+    'home.no_upcoming_events',
+    'common.error',
+  };
+
   final _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<TranslationsService>().ensurePageTranslations(
+            page: 'home',
+            requiredKeys: _homeRequiredKeys,
+          );
       context.read<EventsController>().refresh();
       context.read<InvitationsController>().refresh();
     });

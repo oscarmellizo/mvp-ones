@@ -19,12 +19,37 @@ class HomeShellPage extends StatefulWidget {
 class _HomeShellPageState extends State<HomeShellPage> {
   int _index = 0;
 
+  static const Set<String> _homeRequiredKeys = {
+    'nav.home',
+    'nav.discover',
+    'nav.galleries',
+    'nav.profile',
+    'home.search_events',
+    'home.today',
+    'home.next_events',
+    'home.live_now',
+    'home.no_upcoming_events',
+    'common.error',
+  };
+
   static const _pages = [
     EventsListPage(),
     DiscoverPage(),
     GalleriesPage(),
     ProfilePage(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<TranslationsService>().ensurePageTranslations(
+            page: 'home',
+            requiredKeys: _homeRequiredKeys,
+          );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

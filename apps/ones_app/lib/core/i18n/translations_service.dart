@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ones_api_client/ones_api_client.dart';
 
@@ -17,11 +16,13 @@ class TranslationsService extends ChangeNotifier {
       'ones.translations_cache_v${_cacheVersion}_';
   static const String _translationsCacheTimestampKey =
       'ones.translations_cache_timestamp_v${_cacheVersion}_';
-  static const Duration _cacheTtl = Duration(hours: 12);
+  static const Duration _cacheTtl = Duration(hours: 24);
 
   Map<String, Map<String, String>> _translationsCache = {};
   String? _currentLanguage;
   bool _isInitialized = false;
+
+  final Map<String, Future<void>> _inFlightByPageAndLang = {};
 
   TranslationsService(this._apiClient, [this._prefs]);
 
@@ -38,15 +39,7 @@ class TranslationsService extends ChangeNotifier {
     // Apply saved language immediately, even if we can't fetch translations yet.
     notifyListeners();
 
-    final token = _authController?.idToken;
-    if (token != null && token.isNotEmpty) {
-      _apiClient.setBearerAuth('bearerAuth', token);
-    }
-
-    await _loadTranslations(
-      _currentLanguage!,
-      forceNetwork: false,
-    );
+    await _loadCachedTranslations(_currentLanguage!);
     _isInitialized = true;
   }
 
@@ -60,7 +53,7 @@ class TranslationsService extends ChangeNotifier {
     if (_prefs != null) {
       await _prefs!.setString(_languageKey, languageCode);
     }
-    await _loadTranslations(languageCode, forceNetwork: true);
+    await _loadCachedTranslations(languageCode);
     notifyListeners();
   }
 
@@ -69,11 +62,6 @@ class TranslationsService extends ChangeNotifier {
     final token = authController.idToken;
     if (token != null && token.isNotEmpty) {
       _apiClient.setBearerAuth('bearerAuth', token);
-    }
-
-    // Reload translations when auth controller is set (user may have just logged in)
-    if (_currentLanguage != null) {
-      _loadTranslations(_currentLanguage!, forceNetwork: true);
     }
   }
 
@@ -88,105 +76,128 @@ class TranslationsService extends ChangeNotifier {
     return fallback ?? key;
   }
 
-  Future<void> _loadTranslations(
-    String languageCode, {
-    bool forceNetwork = false,
-  }) async {
+  Future<void> _loadCachedTranslations(String languageCode) async {
     if (_prefs == null) {
       _translationsCache[languageCode] = {};
       notifyListeners();
       return;
     }
 
-    final previous = _translationsCache[languageCode];
-
     try {
-      // Check if cache exists and is still valid (within TTL)
-      if (!forceNetwork) {
-        final cached = _prefs!.getString('$_translationsCacheKey$languageCode');
-        final cachedTimestamp =
-            _prefs!.getInt('$_translationsCacheTimestampKey$languageCode');
+      final cached = _prefs!.getString('$_translationsCacheKey$languageCode');
+      final cachedTimestamp =
+          _prefs!.getInt('$_translationsCacheTimestampKey$languageCode');
 
-        if (cached != null && cachedTimestamp != null) {
-          final cacheAge =
-              DateTime.now().millisecondsSinceEpoch - cachedTimestamp;
-          if (cacheAge < _cacheTtl.inMilliseconds) {
-            final decoded = Map<String, String>.from(jsonDecode(cached))
-                .cast<String, String>();
-
-            if (decoded.isNotEmpty) {
-              _translationsCache[languageCode] = decoded;
-              notifyListeners();
-              return;
-            }
-
-            await _prefs!.remove('$_translationsCacheKey$languageCode');
-            await _prefs!
-                .remove('$_translationsCacheTimestampKey$languageCode');
-          }
-        }
-      }
-
-      final token = _authController?.idToken;
-      if (token == null || token.isEmpty) {
-        if (previous != null) {
-          _translationsCache[languageCode] = previous;
+      if (cached != null && cachedTimestamp != null) {
+        final cacheAge = DateTime.now().millisecondsSinceEpoch - cachedTimestamp;
+        if (cacheAge < _cacheTtl.inMilliseconds) {
+          final decoded =
+              Map<String, String>.from(jsonDecode(cached)).cast<String, String>();
+          _translationsCache[languageCode] = decoded;
           notifyListeners();
-        }
-        return;
-      }
-
-      final res = await _apiClient.dio.get(
-        '/v1/translations',
-        queryParameters: {'languageCode': languageCode},
-        options: Options(
-          extra: {
-            'secure': [
-              {'type': 'http', 'scheme': 'bearer', 'name': 'bearerAuth'}
-            ],
-          },
-        ),
-      );
-
-      final translationMap = <String, String>{};
-      final data = res.data;
-      if (data is List) {
-        for (final row in data) {
-          if (row is Map) {
-            final k = row['translationKey'];
-            final v = row['value'];
-            if (k is String && k.isNotEmpty) {
-              translationMap[k] = (v is String) ? v : '';
-            }
-          }
+          return;
         }
       }
 
-      _translationsCache[languageCode] = translationMap;
-
-      if (translationMap.isNotEmpty) {
-        await _prefs!.setString(
-          '$_translationsCacheKey$languageCode',
-          jsonEncode(translationMap),
-        );
-        await _prefs!.setInt(
-          '$_translationsCacheTimestampKey$languageCode',
-          DateTime.now().millisecondsSinceEpoch,
-        );
-      }
+      await _prefs!.remove('$_translationsCacheKey$languageCode');
+      await _prefs!.remove('$_translationsCacheTimestampKey$languageCode');
+      _translationsCache[languageCode] = {};
       notifyListeners();
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('TranslationsService: failed to load translations: $e');
+        debugPrint('TranslationsService: failed to load cached translations: $e');
       }
-      _translationsCache[languageCode] = previous ?? {};
+      _translationsCache[languageCode] = _translationsCache[languageCode] ?? {};
+      notifyListeners();
+    }
+  }
+
+  Future<void> ensurePageTranslations({
+    required String page,
+    required Set<String> requiredKeys,
+  }) async {
+    await ensureInitialized();
+
+    final lang = _currentLanguage ?? 'es';
+    final existing = _translationsCache[lang] ?? const <String, String>{};
+
+    final hasAll = requiredKeys.every((k) => existing.containsKey(k));
+    if (hasAll) return;
+
+    final inFlightKey = '$page::$lang';
+    final existingFuture = _inFlightByPageAndLang[inFlightKey];
+    if (existingFuture != null) {
+      await existingFuture;
+      return;
+    }
+
+    final f = _loadPageBundle(page: page, languageCode: lang);
+    _inFlightByPageAndLang[inFlightKey] = f;
+    try {
+      await f;
+    } finally {
+      _inFlightByPageAndLang.remove(inFlightKey);
+    }
+  }
+
+  Future<void> _loadPageBundle({
+    required String page,
+    required String languageCode,
+  }) async {
+    if (_prefs == null) {
+      return;
+    }
+
+    final previous = _translationsCache[languageCode] ?? <String, String>{};
+
+    try {
+      final res = await _apiClient.dio.get(
+        '/v1/translations/page',
+        queryParameters: {
+          'page': page,
+          'languageCode': languageCode,
+        },
+      );
+
+      final data = res.data;
+      final incoming = <String, String>{};
+      if (data is Map) {
+        final translations = data['translations'];
+        if (translations is Map) {
+          for (final e in translations.entries) {
+            final k = e.key;
+            final v = e.value;
+            if (k is String && k.isNotEmpty) {
+              incoming[k] = (v is String) ? v : '';
+            }
+          }
+        }
+      }
+
+      final merged = <String, String>{...previous, ...incoming};
+      _translationsCache[languageCode] = merged;
+
+      await _prefs!.setString(
+        '$_translationsCacheKey$languageCode',
+        jsonEncode(merged),
+      );
+      await _prefs!.setInt(
+        '$_translationsCacheTimestampKey$languageCode',
+        DateTime.now().millisecondsSinceEpoch,
+      );
+      notifyListeners();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('TranslationsService: failed to load page bundle: $e');
+      }
+      _translationsCache[languageCode] = previous;
       notifyListeners();
     }
   }
 
   Future<void> refreshTranslations({bool forceNetwork = false}) async {
     if (_currentLanguage != null) {
-      await _loadTranslations(_currentLanguage!, forceNetwork: forceNetwork);
+      await _loadCachedTranslations(_currentLanguage!);
     }
   }
 }
