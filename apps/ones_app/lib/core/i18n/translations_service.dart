@@ -21,14 +21,32 @@ class TranslationsService extends ChangeNotifier {
   String? _currentLanguage;
   bool _isInitialized = false;
 
+  Future<void>? _initInFlight;
+
   final Map<String, Future<void>> _inFlightByPageAndLang = {};
 
   TranslationsService(this._apiClient, [this._prefs]);
 
   Future<void> ensureInitialized() async {
     if (_isInitialized) return;
-    _prefs ??= await SharedPreferences.getInstance();
-    await init();
+    final existing = _initInFlight;
+    if (existing != null) {
+      await existing;
+      return;
+    }
+
+    final f = () async {
+      _prefs ??= await SharedPreferences.getInstance();
+      await init();
+      _isInitialized = true;
+    }();
+
+    _initInFlight = f;
+    try {
+      await f;
+    } finally {
+      _initInFlight = null;
+    }
   }
 
   Future<void> init() async {
@@ -39,7 +57,6 @@ class TranslationsService extends ChangeNotifier {
     notifyListeners();
 
     await _loadCachedTranslations(_currentLanguage!);
-    _isInitialized = true;
   }
 
   String getCurrentLanguage() => _currentLanguage ?? 'es';
