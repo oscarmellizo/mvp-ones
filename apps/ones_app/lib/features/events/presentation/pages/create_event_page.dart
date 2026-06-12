@@ -51,6 +51,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
   final _locationController = TextEditingController();
   final _inviteEmailController = TextEditingController();
 
+  String? _lastLanguage;
+
   static const Set<String> _createEventRequiredKeys = {
     'create_event.action_create',
     'create_event.allow_guest_invites',
@@ -138,6 +140,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
   @override
   void initState() {
     super.initState();
+
+    _lastLanguage = context.read<TranslationsService>().getCurrentLanguage();
 
     _nameController.addListener(_onFormChanged);
     _objectiveController.addListener(_onFormChanged);
@@ -485,6 +489,18 @@ class _CreateEventPageState extends State<CreateEventPage> {
     final controller = context.watch<EventsController>();
     final coversController = context.watch<EventCoversController>();
     final t = context.watch<TranslationsService>();
+
+    final lang = t.getCurrentLanguage();
+    if (_lastLanguage != lang) {
+      _lastLanguage = lang;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<TranslationsService>().ensurePageTranslations(
+              page: 'create_event',
+              requiredKeys: _createEventRequiredKeys,
+            );
+      });
+    }
 
     _coverReservationId = coversController.reservationId;
 

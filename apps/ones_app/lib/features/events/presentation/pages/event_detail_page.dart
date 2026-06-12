@@ -53,6 +53,8 @@ class _EventDetailPageState extends State<EventDetailPage> {
   final _searchController = TextEditingController();
   bool _openedInitialPhoto = false;
 
+  String? _lastLanguage;
+
   static const Set<String> _eventDetailRequiredKeys = {
     'event_detail.no_event',
     'event_detail.tab_gallery',
@@ -111,6 +113,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
   @override
   void initState() {
     super.initState();
+    _lastLanguage = context.read<TranslationsService>().getCurrentLanguage();
     if (widget.initialPhotoId != null &&
         widget.initialPhotoId!.trim().isNotEmpty) {
       _tabIndex = 0;
@@ -136,6 +139,18 @@ class _EventDetailPageState extends State<EventDetailPage> {
     final controller = context.watch<EventsController>();
     final auth = context.watch<AuthController>();
     final t = context.watch<TranslationsService>();
+
+    final lang = t.getCurrentLanguage();
+    if (_lastLanguage != lang) {
+      _lastLanguage = lang;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<TranslationsService>().ensurePageTranslations(
+              page: 'event_detail',
+              requiredKeys: _eventDetailRequiredKeys,
+            );
+      });
+    }
     final event = controller.selected;
     final currentUserId = auth.user?.userId;
 

@@ -62,6 +62,7 @@ class TranslationsService extends ChangeNotifier {
   String getCurrentLanguage() => _currentLanguage ?? 'es';
 
   Future<void> setLanguage(String languageCode) async {
+    await ensureInitialized();
     if (!['es', 'en', 'pt'].contains(languageCode)) {
       throw ArgumentError('Invalid language code. Valid values: es, en, pt');
     }

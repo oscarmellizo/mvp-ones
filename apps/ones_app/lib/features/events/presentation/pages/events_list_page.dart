@@ -27,6 +27,8 @@ class _EventsListPageState extends State<EventsListPage> {
   static const _bg = OnesColors.background;
   static const _divider = OnesColors.orange;
 
+  String? _lastLanguage;
+
   static const Set<String> _homeRequiredKeys = {
     'nav.home',
     'nav.discover',
@@ -45,6 +47,7 @@ class _EventsListPageState extends State<EventsListPage> {
   @override
   void initState() {
     super.initState();
+    _lastLanguage = context.read<TranslationsService>().getCurrentLanguage();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<TranslationsService>().ensurePageTranslations(
             page: 'home',
@@ -66,6 +69,18 @@ class _EventsListPageState extends State<EventsListPage> {
     final controller = context.watch<EventsController>();
     final coverUrls = context.watch<EventCoverUrlsController>();
     final t = context.watch<TranslationsService>();
+
+    final lang = t.getCurrentLanguage();
+    if (_lastLanguage != lang) {
+      _lastLanguage = lang;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<TranslationsService>().ensurePageTranslations(
+              page: 'home',
+              requiredKeys: _homeRequiredKeys,
+            );
+      });
+    }
 
     final events = controller.events;
     final now = DateTime.now();

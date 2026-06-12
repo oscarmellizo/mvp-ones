@@ -21,6 +21,8 @@ class DiscoverPage extends StatefulWidget {
 class _DiscoverPageState extends State<DiscoverPage> {
   final _searchController = TextEditingController();
 
+  String? _lastLanguage;
+
   static const Set<String> _discoverRequiredKeys = {
     'discover.search_templates',
     'discover.failed_load_templates',
@@ -53,6 +55,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
   @override
   void initState() {
     super.initState();
+    _lastLanguage = context.read<TranslationsService>().getCurrentLanguage();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<TranslationsService>().ensurePageTranslations(
@@ -80,6 +83,18 @@ class _DiscoverPageState extends State<DiscoverPage> {
   Widget build(BuildContext context) {
     final ctrl = context.watch<DiscoverTemplatesController>();
     final t = context.watch<TranslationsService>();
+
+    final lang = t.getCurrentLanguage();
+    if (_lastLanguage != lang) {
+      _lastLanguage = lang;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<TranslationsService>().ensurePageTranslations(
+              page: 'discover',
+              requiredKeys: _discoverRequiredKeys,
+            );
+      });
+    }
     final q = _searchController.text.trim().toLowerCase();
     final items = ctrl.templates;
     final filtered = items.where((t) {

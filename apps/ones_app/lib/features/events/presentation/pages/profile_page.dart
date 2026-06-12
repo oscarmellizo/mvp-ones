@@ -45,10 +45,12 @@ class _ProfilePageState extends State<ProfilePage> {
 
   String? _seedUserId;
   String _selectedLanguage = 'es';
+  String? _lastLanguage;
 
   @override
   void initState() {
     super.initState();
+    _lastLanguage = context.read<TranslationsService>().getCurrentLanguage();
     _loadLanguagePreference();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -99,6 +101,18 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
     final translationsService = context.watch<TranslationsService>();
+
+    final lang = translationsService.getCurrentLanguage();
+    if (_lastLanguage != lang) {
+      _lastLanguage = lang;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<TranslationsService>().ensurePageTranslations(
+              page: 'profile',
+              requiredKeys: _profileRequiredKeys,
+            );
+      });
+    }
 
     _seedPreferredNameIfNeeded(auth);
 
@@ -293,6 +307,11 @@ class _ProfilePageState extends State<ProfilePage> {
                                   await auth.savePreferredName(value);
                                   await translationsService
                                       .setLanguage(_selectedLanguage);
+                                  await translationsService
+                                      .ensurePageTranslations(
+                                    page: 'profile',
+                                    requiredKeys: _profileRequiredKeys,
+                                  );
                                   if (!context.mounted) return;
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(

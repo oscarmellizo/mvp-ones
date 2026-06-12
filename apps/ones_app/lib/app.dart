@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'core/config/app_config.dart';
@@ -334,66 +335,82 @@ class OnesApp extends StatelessWidget {
           },
         ),
       ],
-      child: MaterialApp(
-        title: 'Ones',
-        theme: OnesTheme.light(),
-        home: const _RootRouter(),
-        routes: {
-          EventsListPage.routeName: (_) => const EventsListPage(),
-          CreateEventPage.routeName: (_) => const CreateEventPage(),
-        },
-        onGenerateRoute: (settings) {
-          final name = settings.name;
-          if (name == null || name.isEmpty) return null;
+      child: Builder(
+        builder: (context) {
+          final lang = context.watch<TranslationsService>().getCurrentLanguage();
+          return MaterialApp(
+            title: 'Ones',
+            theme: OnesTheme.light(),
+            locale: Locale(lang),
+            supportedLocales: const [
+              Locale('es'),
+              Locale('en'),
+              Locale('pt'),
+            ],
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            home: const _RootRouter(),
+            routes: {
+              EventsListPage.routeName: (_) => const EventsListPage(),
+              CreateEventPage.routeName: (_) => const CreateEventPage(),
+            },
+            onGenerateRoute: (settings) {
+              final name = settings.name;
+              if (name == null || name.isEmpty) return null;
 
-          final uri = Uri.parse(name);
-          if (uri.path == InvitationLinkPage.routeName) {
-            final token = uri.queryParameters['token'];
-            if (token == null || token.trim().isEmpty) {
-              return null;
-            }
-            final action = uri.queryParameters['action'];
-            return MaterialPageRoute(
-              builder: (_) => InvitationLinkPage(
-                token: token,
-                action: action,
-              ),
-            );
-          }
-          if (uri.path == EventInviteLinkPage.routeName) {
-            final eventId = uri.queryParameters['eventId'];
-            final sig = uri.queryParameters['sig'];
-            if (eventId == null || eventId.trim().isEmpty) {
-              return null;
-            }
-            if (sig == null || sig.trim().isEmpty) {
-              return null;
-            }
-            return MaterialPageRoute(
-              builder: (_) => EventInviteLinkPage(
-                eventId: eventId,
-                sig: sig,
-              ),
-            );
-          }
-          if (uri.path == EventDetailPage.routeName) {
-            final eventId = uri.queryParameters['eventId'] ??
-                (settings.arguments as String?);
-            if (eventId == null || eventId.isEmpty) {
-              return null;
-            }
+              final uri = Uri.parse(name);
+              if (uri.path == InvitationLinkPage.routeName) {
+                final token = uri.queryParameters['token'];
+                if (token == null || token.trim().isEmpty) {
+                  return null;
+                }
+                final action = uri.queryParameters['action'];
+                return MaterialPageRoute(
+                  builder: (_) => InvitationLinkPage(
+                    token: token,
+                    action: action,
+                  ),
+                );
+              }
+              if (uri.path == EventInviteLinkPage.routeName) {
+                final eventId = uri.queryParameters['eventId'];
+                final sig = uri.queryParameters['sig'];
+                if (eventId == null || eventId.trim().isEmpty) {
+                  return null;
+                }
+                if (sig == null || sig.trim().isEmpty) {
+                  return null;
+                }
+                return MaterialPageRoute(
+                  builder: (_) => EventInviteLinkPage(
+                    eventId: eventId,
+                    sig: sig,
+                  ),
+                );
+              }
+              if (uri.path == EventDetailPage.routeName) {
+                final eventId = uri.queryParameters['eventId'] ??
+                    (settings.arguments as String?);
+                if (eventId == null || eventId.isEmpty) {
+                  return null;
+                }
 
-            final initialPhotoId = uri.queryParameters['photoId'];
-            return MaterialPageRoute(
-              builder: (_) => EventDetailPage(
-                eventId: eventId,
-                initialPhotoId: initialPhotoId,
-              ),
-            );
-          }
-          return null;
+                final initialPhotoId = uri.queryParameters['photoId'];
+                return MaterialPageRoute(
+                  builder: (_) => EventDetailPage(
+                    eventId: eventId,
+                    initialPhotoId: initialPhotoId,
+                  ),
+                );
+              }
+              return null;
+            },
+            debugShowCheckedModeBanner: false,
+          );
         },
-        debugShowCheckedModeBanner: false,
       ),
     );
   }

@@ -23,6 +23,8 @@ class GalleriesPage extends StatefulWidget {
 class _GalleriesPageState extends State<GalleriesPage> {
   final _searchController = TextEditingController();
 
+  String? _lastLanguage;
+
   _QuickFilter _filter = _QuickFilter.all;
 
   static const Set<String> _galleriesRequiredKeys = {
@@ -40,6 +42,7 @@ class _GalleriesPageState extends State<GalleriesPage> {
   @override
   void initState() {
     super.initState();
+    _lastLanguage = context.read<TranslationsService>().getCurrentLanguage();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<TranslationsService>().ensurePageTranslations(
@@ -68,6 +71,18 @@ class _GalleriesPageState extends State<GalleriesPage> {
     final controller = context.watch<EventsController>();
     final coverUrls = context.watch<EventCoverUrlsController>();
     final t = context.watch<TranslationsService>();
+
+    final lang = t.getCurrentLanguage();
+    if (_lastLanguage != lang) {
+      _lastLanguage = lang;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<TranslationsService>().ensurePageTranslations(
+              page: 'galleries',
+              requiredKeys: _galleriesRequiredKeys,
+            );
+      });
+    }
 
     final q = _searchController.text.trim().toLowerCase();
 

@@ -41,6 +41,8 @@ class _EditEventPageState extends State<EditEventPage> {
 
   String? _coverReservationId;
 
+  String? _lastLanguage;
+
   static const Set<String> _editEventRequiredKeys = {
     'edit_event.title',
     'edit_event.action_save',
@@ -74,6 +76,8 @@ class _EditEventPageState extends State<EditEventPage> {
   @override
   void initState() {
     super.initState();
+
+    _lastLanguage = context.read<TranslationsService>().getCurrentLanguage();
 
     final e = widget.initial;
 
@@ -304,6 +308,19 @@ class _EditEventPageState extends State<EditEventPage> {
   Widget build(BuildContext context) {
     final coversController = context.watch<EventCoversController>();
     _coverReservationId = coversController.reservationId;
+
+    final t = context.watch<TranslationsService>();
+    final lang = t.getCurrentLanguage();
+    if (_lastLanguage != lang) {
+      _lastLanguage = lang;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<TranslationsService>().ensurePageTranslations(
+              page: 'edit_event',
+              requiredKeys: _editEventRequiredKeys,
+            );
+      });
+    }
 
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
     final isKeyboardOpen = bottomInset > 0;

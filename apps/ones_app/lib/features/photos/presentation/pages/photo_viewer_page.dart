@@ -32,6 +32,8 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
   bool _likeBusy = false;
   bool _shareBusy = false;
 
+  String? _lastLanguage;
+
   static const Set<String> _photoViewerRequiredKeys = {
     'photo_viewer.shared_by',
     'photo_viewer.photo_processing',
@@ -43,6 +45,7 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
   @override
   void initState() {
     super.initState();
+    _lastLanguage = context.read<TranslationsService>().getCurrentLanguage();
     final initial = widget.initialIndex < 0 ? 0 : widget.initialIndex;
     _currentIndex = initial;
     _pageController = PageController(initialPage: initial);
@@ -162,6 +165,18 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
     final gallery = context.watch<PhotosGalleryController>();
     final items = gallery.items;
     final t = context.watch<TranslationsService>();
+
+    final lang = t.getCurrentLanguage();
+    if (_lastLanguage != lang) {
+      _lastLanguage = lang;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<TranslationsService>().ensurePageTranslations(
+              page: 'photo_viewer',
+              requiredKeys: _photoViewerRequiredKeys,
+            );
+      });
+    }
 
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     const floatingBarHeight = 52.0;

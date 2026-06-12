@@ -39,6 +39,8 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
   bool _switchingCamera = false;
   bool _capturing = false;
 
+  String? _lastLanguage;
+
   bool _framesEnabled = false;
   List<TemplateFrame> _framePairs = const [];
   int _currentFrameIndex = 0;
@@ -83,6 +85,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
   @override
   void initState() {
     super.initState();
+    _lastLanguage = context.read<TranslationsService>().getCurrentLanguage();
     WidgetsBinding.instance.addObserver(this);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -476,6 +479,18 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
 
   @override
   Widget build(BuildContext context) {
+    final t = context.watch<TranslationsService>();
+    final lang = t.getCurrentLanguage();
+    if (_lastLanguage != lang) {
+      _lastLanguage = lang;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<TranslationsService>().ensurePageTranslations(
+              page: 'photo_capture',
+              requiredKeys: _photoCaptureRequiredKeys,
+            );
+      });
+    }
     final controller = _controller;
 
     return Scaffold(
@@ -789,7 +804,6 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
     if (cam == null || !cam.value.isInitialized) return;
 
     final uploader = context.read<PhotosUploadController>();
-    final messenger = ScaffoldMessenger.of(context);
 
     setState(() {
       _capturing = true;
@@ -847,11 +861,12 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
         cameraType: isFront ? 'front' : 'back',
       );
     } catch (e) {
-      if (!mounted) return;
-      messenger.showSnackBar(
+      if (!context.mounted) return;
+      final t = context.read<TranslationsService>();
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '${context.read<TranslationsService>().translate(
+            '${t.translate(
                   "photo_capture.error_capture_failed",
                   fallback: 'Error capturando foto',
                 )}: $e',
