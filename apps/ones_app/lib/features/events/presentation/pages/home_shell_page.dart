@@ -18,6 +18,7 @@ class HomeShellPage extends StatefulWidget {
 
 class _HomeShellPageState extends State<HomeShellPage> {
   int _index = 0;
+  String? _lastLanguage;
 
   static const Set<String> _homeRequiredKeys = {
     'nav.home',
@@ -54,6 +55,18 @@ class _HomeShellPageState extends State<HomeShellPage> {
   @override
   Widget build(BuildContext context) {
     final translationsService = context.watch<TranslationsService>();
+    final lang = translationsService.getCurrentLanguage();
+
+    if (_lastLanguage != lang) {
+      _lastLanguage = lang;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<TranslationsService>().ensurePageTranslations(
+              page: 'home',
+              requiredKeys: _homeRequiredKeys,
+            );
+      });
+    }
 
     return Scaffold(
       body: _pages[_index],
