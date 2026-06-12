@@ -79,10 +79,10 @@ public class DynamoDbTranslationsRepository implements TranslationsRepository {
         }
 
         if (failOnScanFallback) {
-            throw new IllegalStateException("DynamoDB Scan fallback disabled for translations.getAllTranslations; missing GSI LanguageCodeIndex");
+            log.error("DynamoDB Scan fallback is enabled (fail-fast) but LanguageCodeIndex is missing. Falling back to Scan for translations.getAllTranslations to keep the app functional. Fix the table by creating/fixing GSI LanguageCodeIndex.");
+        } else {
+            log.warn("Falling back to DynamoDB Scan for translations.getAllTranslations; consider creating/fixing GSI LanguageCodeIndex");
         }
-
-        log.warn("Falling back to DynamoDB Scan for translations.getAllTranslations; consider creating/fixing GSI LanguageCodeIndex");
         scanFallbackCounter.increment();
         return scanByLanguageCode(normalizedLanguageCode);
     }

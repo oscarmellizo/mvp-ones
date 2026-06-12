@@ -1,7 +1,5 @@
 package com.ones.api.configuration;
 
-import java.util.Collection;
-
 import org.springframework.http.HttpMethod;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -109,10 +107,7 @@ public class SecurityConfig {
     @Order(3)
     SecurityFilterChain publicTranslationsSecurityFilterChain(HttpSecurity http) throws Exception {
         http
-                .securityMatcher(
-                        new AntPathRequestMatcher("/v1/translations/page"),
-                        new AntPathRequestMatcher("/v1/translations/key")
-                )
+                .securityMatcher("/v1/translations/page", "/v1/translations/key")
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
