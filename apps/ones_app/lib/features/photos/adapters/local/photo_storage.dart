@@ -33,4 +33,20 @@ class PhotoStorage {
     final base = await _baseDir();
     return File(p.join(base.path, eventId, '$photoId.jpg'));
   }
+
+  Future<void> deleteEventPhotos({required String eventId}) async {
+    final base = await _baseDir();
+    final eventDir = Directory(p.join(base.path, eventId));
+    if (await eventDir.exists()) {
+      await eventDir.delete(recursive: true);
+    }
+  }
+
+  Future<void> clearAll() async {
+    final base = await _baseDir();
+    if (await base.exists()) {
+      await base.delete(recursive: true);
+      await base.create(recursive: true);
+    }
+  }
 }

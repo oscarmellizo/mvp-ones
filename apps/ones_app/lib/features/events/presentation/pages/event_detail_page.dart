@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -19,6 +20,7 @@ import '../../../photos/presentation/photos_gallery_controller.dart';
 import '../../../photos/presentation/photos_upload_controller.dart';
 import '../../../photos/presentation/photos_ws_controller.dart';
 import '../../../photos/domain/event_photo.dart';
+import '../../../photos/adapters/local/photo_storage.dart';
 import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
 import '../widgets/event_detail_details_widgets.dart';
@@ -412,7 +414,29 @@ class _GalleryTabState extends State<_GalleryTab> {
         ws.onPhotoReady = null;
       }
     }
+
+    // Limpiar fotos locales del evento
+    final storage = context.read<PhotoStorage>();
+    unawaited(storage.deleteEventPhotos(eventId: widget.eventId));
+
+    // Limpiar cache de fotos remotas del evento
+    _clearEventImageCache();
+
     super.dispose();
+  }
+
+  void _clearEventImageCache() {
+    final controller = context.read<PhotosGalleryController>();
+    final items = controller.items;
+
+    for (final photo in items) {
+      if (photo.smallUrl != null && photo.smallUrl!.isNotEmpty) {
+        DefaultCacheManager().removeFile(photo.smallUrl!);
+      }
+      if (photo.mediumUrl != null && photo.mediumUrl!.isNotEmpty) {
+        DefaultCacheManager().removeFile(photo.mediumUrl!);
+      }
+    }
   }
 
   void _onWsPhotoReady(String eventId, String photoId) {
