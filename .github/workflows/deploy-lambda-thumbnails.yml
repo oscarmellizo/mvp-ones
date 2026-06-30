@@ -1,0 +1,130 @@
+name: Deploy Lambda Photo Thumbnails
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment (dev, stage, prod)'
+        required: false
+        default: 'dev'
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-lambda-thumbnails
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  CFN_PACKAGE_BUCKET_PREFIX: ones-cfn-templates
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_GITHUB_OIDC_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}
+
+      - name: Create Lambda ZIP
+        run: |
+          cd infra/lambda/photo-thumbnails-zip
+          zip -r photo-thumbnails.zip index.py
+
+      - name: Upload ZIP to S3
+        run: |
+          packageBucket="${CFN_PACKAGE_BUCKET_PREFIX}-${{ inputs.environment }}"
+          if ! aws s3api head-bucket --bucket "${packageBucket}" >/dev/null 2>&1; then
+            aws s3api create-bucket --bucket "${packageBucket}" --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
+          fi
+          thumbnailsKey="lambda/photo-thumbnails-zip/${GITHUB_SHA}.zip"
+          aws s3 cp "infra/lambda/photo-thumbnails-zip/photo-thumbnails.zip" "s3://${packageBucket}/${thumbnailsKey}"
+
+      - name: Deploy Lambda function
+        run: |
+          packageBucket="${CFN_PACKAGE_BUCKET_PREFIX}-${{ inputs.environment }}"
+          thumbnailsKey="lambda/photo-thumbnails-zip/${GITHUB_SHA}.zip"
+          functionName="ones-${{ inputs.environment }}-photo-thumbnails-zip"
+          
+          # Get role ARN from existing Lambda
+          existingRole=$(aws lambda get-function-configuration --function-name ones-dev-photo-thumbnails-image --query 'Role' --output text 2>/dev/null || echo "")
+          
+          if [ -z "${existingRole}" ] || [ "${existingRole}" = "None" ]; then
+            echo "ERROR: Could not get role from existing Lambda"
+            exit 1
+          fi
+          
+          # Check if function exists
+          if aws lambda get-function --function-name "${functionName}" --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}" >/dev/null 2>&1; then
+            echo "Updating existing function"
+            aws lambda update-function-code \
+              --function-name "${functionName}" \
+              --s3-bucket "${packageBucket}" \
+              --s3-key "${thumbnailsKey}" \
+              --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
+          else
+            echo "Creating new function"
+            aws lambda create-function \
+              --function-name "${functionName}" \
+              --runtime python3.12 \
+              --role "${existingRole}" \
+              --handler index.handler \
+              --code S3Bucket="${packageBucket}",S3Key="${thumbnailsKey}" \
+              --timeout 30 \
+              --memory-size 1536 \
+              --environment Variables="{BUCKET=ones-dev-events-photos,BACKEND_BASE_URL=http://ones-b-LoadB-ILpah5AUMVhQ-238143497.us-east-1.elb.amazonaws.com,INTERNAL_SECRET_ARN=arn:aws:secretsmanager:us-east-1:743338489837:secret:ones-dev-internal-basic-auth-BxO9mN,WS_ENDPOINT=https://c9h2nzbu2g.execute-api.us-east-1.amazonaws.com/dev,WS_SUBSCRIPTIONS_TABLE=ones-dev-photos-ws-subscriptions}" \
+              --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
+          fi
+
+      - name: Add S3 trigger
+        run: |
+          functionName="ones-${{ inputs.environment }}-photo-thumbnails-zip"
+          bucket="ones-dev-events-photos"
+          
+          # Add S3 notification
+          aws s3api put-bucket-notification-configuration \
+            --bucket "${bucket}" \
+            --notification-configuration '{
+              "LambdaFunctionConfigurations": [
+                {
+                  "LambdaFunctionArn": "'$(aws lambda get-function --function-name "${functionName}" --query 'Configuration.FunctionArn' --output text)'",
+                  "Events": ["s3:ObjectCreated:*"],
+                  "Filter": {
+                    "Key": {
+                      "FilterRules": [
+                        {"Name": "suffix", "Value": ".jpg"}
+                      ]
+                    }
+                  }
+                }
+              ]
+            }' \
+            --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
+
+      - name: Add Lambda permission for S3
+        run: |
+          functionName="ones-${{ inputs.environment }}-photo-thumbnails-zip"
+          bucket="ones-dev-events-photos"
+          account=$(aws sts get-caller-identity --query Account --output text)
+          
+          aws lambda add-permission \
+            --function-name "${functionName}" \
+            --principal s3.amazonaws.com \
+            --statement-id s3invoke \
+            --action "lambda:InvokeFunction" \
+            --source-arn arn:aws:s3:::${bucket} \
+            --source-account "${account}" \
+            --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}" || true
+
+      - name: Show Lambda info
+        run: |
+          functionName="ones-${{ inputs.environment }}-photo-thumbnails-zip"
+          aws lambda get-function-configuration --function-name "${functionName}" --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
