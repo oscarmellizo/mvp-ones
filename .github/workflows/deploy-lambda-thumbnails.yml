@@ -47,98 +47,22 @@ jobs:
           fi
           thumbnailsKey="lambda/photo-thumbnails-zip/${GITHUB_SHA}.zip"
           aws s3 cp "infra/lambda/photo-thumbnails-zip/photo-thumbnails.zip" "s3://${packageBucket}/${thumbnailsKey}"
+          echo "thumbnailsKey=${thumbnailsKey}" >> $GITHUB_OUTPUT
 
-      - name: Deploy Lambda function
+      - name: Update Lambda function code
         run: |
           packageBucket="${CFN_PACKAGE_BUCKET_PREFIX}-${{ inputs.environment }}"
           thumbnailsKey="lambda/photo-thumbnails-zip/${GITHUB_SHA}.zip"
           functionName="ones-${{ inputs.environment }}-photo-thumbnails-zip"
           
-          # Get role ARN from existing Lambda
-          existingRole=$(aws lambda get-function-configuration --function-name ones-dev-photo-thumbnails-image --query 'Role' --output text 2>/dev/null || echo "")
-          
-          if [ -z "${existingRole}" ] || [ "${existingRole}" = "None" ]; then
-            echo "ERROR: Could not get role from existing Lambda"
-            exit 1
-          fi
-          
-          # Check if function exists
-          if aws lambda get-function --function-name "${functionName}" --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}" >/dev/null 2>&1; then
-            echo "Updating existing function"
-            aws lambda update-function-code \
-              --function-name "${functionName}" \
-              --s3-bucket "${packageBucket}" \
-              --s3-key "${thumbnailsKey}" \
-              --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
-          else
-            echo "Creating new function"
-            aws lambda create-function \
-              --function-name "${functionName}" \
-              --runtime python3.12 \
-              --role "${existingRole}" \
-              --handler index.handler \
-              --code S3Bucket="${packageBucket}",S3Key="${thumbnailsKey}" \
-              --timeout 30 \
-              --memory-size 1536 \
-              --environment Variables="{BUCKET=ones-dev-events-photos,BACKEND_BASE_URL=http://ones-b-LoadB-ILpah5AUMVhQ-238143497.us-east-1.elb.amazonaws.com,INTERNAL_SECRET_ARN=arn:aws:secretsmanager:us-east-1:743338489837:secret:ones-dev-internal-basic-auth-BxO9mN,WS_ENDPOINT=https://c9h2nzbu2g.execute-api.us-east-1.amazonaws.com/dev,WS_SUBSCRIPTIONS_TABLE=ones-dev-photos-ws-subscriptions}" \
-              --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
-          fi
-
-      - name: Add Lambda permission for S3
-        run: |
-          functionName="ones-${{ inputs.environment }}-photo-thumbnails-zip"
-          bucket="ones-dev-events-photos"
-          account=$(aws sts get-caller-identity --query Account --output text)
-          
-          aws lambda add-permission \
+          echo "Updating Lambda function code for ${functionName}"
+          aws lambda update-function-code \
             --function-name "${functionName}" \
-            --principal s3.amazonaws.com \
-            --statement-id s3invoke \
-            --action "lambda:InvokeFunction" \
-            --source-arn arn:aws:s3:::${bucket} \
-            --source-account "${account}" \
-            --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}" || true
-
-      - name: Add S3 trigger
-        run: |
-          functionName="ones-${{ inputs.environment }}-photo-thumbnails-zip"
-          bucket="ones-dev-events-photos"
-          
-          echo "Getting Lambda ARN for ${functionName}"
-          lambdaArn=$(aws lambda get-function --function-name "${functionName}" --query 'Configuration.FunctionArn' --output text)
-          echo "Lambda ARN: ${lambdaArn}"
-          
-          # Create notification config file
-          cat > s3-notification.json << EOF
-          {
-            "LambdaFunctionConfigurations": [
-              {
-                "LambdaFunctionArn": "${lambdaArn}",
-                "Events": ["s3:ObjectCreated:*"]
-              }
-            ]
-          }
-          EOF
-          
-          echo "Notification config file created:"
-          cat s3-notification.json
-          
-          # Add S3 notification
-          echo "Configuring S3 notification for bucket ${bucket}"
-          aws s3api put-bucket-notification-configuration \
-            --bucket "${bucket}" \
-            --notification-configuration file://s3-notification.json \
+            --s3-bucket "${packageBucket}" \
+            --s3-key "${thumbnailsKey}" \
             --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
           
-          echo "S3 notification configured successfully"
-
-      - name: Verify S3 trigger
-        run: |
-          bucket="ones-dev-events-photos"
-          echo "Current S3 notification configuration for ${bucket}:"
-          aws s3api get-bucket-notification-configuration \
-            --bucket "${bucket}" \
-            --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
+          echo "Lambda function code updated successfully"
 
       - name: Show Lambda info
         run: |
