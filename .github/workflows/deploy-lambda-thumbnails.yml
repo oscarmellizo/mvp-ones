@@ -84,31 +84,6 @@ jobs:
               --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
           fi
 
-      - name: Add S3 trigger
-        run: |
-          functionName="ones-${{ inputs.environment }}-photo-thumbnails-zip"
-          bucket="ones-dev-events-photos"
-          
-          # Add S3 notification
-          aws s3api put-bucket-notification-configuration \
-            --bucket "${bucket}" \
-            --notification-configuration '{
-              "LambdaFunctionConfigurations": [
-                {
-                  "LambdaFunctionArn": "'$(aws lambda get-function --function-name "${functionName}" --query 'Configuration.FunctionArn' --output text)'",
-                  "Events": ["s3:ObjectCreated:*"],
-                  "Filter": {
-                    "Key": {
-                      "FilterRules": [
-                        {"Name": "suffix", "Value": ".jpg"}
-                      ]
-                    }
-                  }
-                }
-              ]
-            }' \
-            --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
-
       - name: Add Lambda permission for S3
         run: |
           functionName="ones-${{ inputs.environment }}-photo-thumbnails-zip"
@@ -123,6 +98,25 @@ jobs:
             --source-arn arn:aws:s3:::${bucket} \
             --source-account "${account}" \
             --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}" || true
+
+      - name: Add S3 trigger
+        run: |
+          functionName="ones-${{ inputs.environment }}-photo-thumbnails-zip"
+          bucket="ones-dev-events-photos"
+          lambdaArn=$(aws lambda get-function --function-name "${functionName}" --query 'Configuration.FunctionArn' --output text)
+          
+          # Add S3 notification
+          aws s3api put-bucket-notification-configuration \
+            --bucket "${bucket}" \
+            --notification-configuration '{
+              "LambdaFunctionConfigurations": [
+                {
+                  "LambdaFunctionArn": "'"${lambdaArn}"'",
+                  "Events": ["s3:ObjectCreated:*"]
+                }
+              ]
+            }' \
+            --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
 
       - name: Show Lambda info
         run: |
