@@ -105,17 +105,22 @@ jobs:
           bucket="ones-dev-events-photos"
           lambdaArn=$(aws lambda get-function --function-name "${functionName}" --query 'Configuration.FunctionArn' --output text)
           
+          # Create notification config file
+          cat > s3-notification.json << EOF
+          {
+            "LambdaFunctionConfigurations": [
+              {
+                "LambdaFunctionArn": "${lambdaArn}",
+                "Events": ["s3:ObjectCreated:*"]
+              }
+            ]
+          }
+          EOF
+          
           # Add S3 notification
           aws s3api put-bucket-notification-configuration \
             --bucket "${bucket}" \
-            --notification-configuration '{
-              "LambdaFunctionConfigurations": [
-                {
-                  "LambdaFunctionArn": "'"${lambdaArn}"'",
-                  "Events": ["s3:ObjectCreated:*"]
-                }
-              ]
-            }' \
+            --notification-configuration file://s3-notification.json \
             --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
 
       - name: Show Lambda info
