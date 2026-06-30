@@ -93,6 +93,10 @@ Parameters:
     Type: String
     Default: ''
 
+  PillowLayerArn:
+    Type: String
+    Default: 'arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p312-Pillow:9'
+
 Conditions:
   UsePhotoThumbnailsImageCond: !Equals [!Ref UsePhotoThumbnailsImage, 'true']
   UsePhotoThumbnailsZipCond: !Not [!Equals [!Ref UsePhotoThumbnailsImage, 'true']]
@@ -2449,6 +2453,8 @@ Resources:
           INTERNAL_SECRET_ARN: !Ref InternalBasicAuthSecret
           WS_ENDPOINT: !Sub https://${PhotosWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
           WS_SUBSCRIPTIONS_TABLE: !Ref PhotosWsSubscriptionsTable
+      Layers:
+        - !Ref PillowLayerArn
       Code:
         S3Bucket: !Ref LambdaArtifactsBucket
         S3Key: !Ref PhotoThumbnailsZipS3Key

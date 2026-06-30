@@ -248,8 +248,9 @@ def handler(event, context):
                 # If thumbnailing fails we avoid calling backend ready.
                 continue
         else:
-            print(f"WARNING: Pillow not available, skipping thumbnail generation")
-            # Assume thumbnails already exist or will be generated elsewhere
+            print(f"WARNING: Pillow not available, using original key as fallback for thumbnails")
+            key_m = key
+            key_s = key
 
         print(f"Calling backend ready endpoint")
         _call_backend_ready(event_id, photo_id, key_m, key_s)

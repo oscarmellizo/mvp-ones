@@ -180,7 +180,8 @@ jobs:
               CdnPhotosSigningPublicKeyVersion="${cdnPublicKeyVersion}" \
               LambdaArtifactsBucket="${packageBucket}" \
               CleanupFunctionS3Key="${cleanupKey}" \
-              PhotoThumbnailsZipS3Key="${thumbnailsKey}"
+              PhotoThumbnailsZipS3Key="${thumbnailsKey}" \
+              PillowLayerArn="arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p312-Pillow:9"
 
       - name: Debug CloudFormation (on failure)
         if: ${{ steps.deploy_cfn.outcome != 'success' }}
