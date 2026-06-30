@@ -96,6 +96,7 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(new AntPathRequestMatcher("/internal/events/*/photos/*/ready")).permitAll()
                         .anyRequest().hasRole("INTERNAL")
                 )
                 .httpBasic(Customizer.withDefaults());

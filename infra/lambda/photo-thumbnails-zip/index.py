@@ -64,15 +64,10 @@ def _call_backend_ready(event_id, photo_id, key_m, key_s):
         return
 
     url = f"{base}/internal/events/{urllib.parse.quote(event_id)}/photos/{urllib.parse.quote(photo_id)}/ready"
-    auth = _load_internal_basic_auth()
-    if not auth:
-        print("ERROR: Failed to load internal basic auth")
-        return
 
     body = json.dumps({"s3KeyMedium": key_m, "s3KeySmall": key_s}).encode('utf-8')
     req = urllib.request.Request(url, data=body, method='POST')
     req.add_header('Content-Type', 'application/json')
-    req.add_header('Authorization', auth)
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             resp.read()
