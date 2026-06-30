@@ -103,7 +103,10 @@ jobs:
         run: |
           functionName="ones-${{ inputs.environment }}-photo-thumbnails-zip"
           bucket="ones-dev-events-photos"
+          
+          echo "Getting Lambda ARN for ${functionName}"
           lambdaArn=$(aws lambda get-function --function-name "${functionName}" --query 'Configuration.FunctionArn' --output text)
+          echo "Lambda ARN: ${lambdaArn}"
           
           # Create notification config file
           cat > s3-notification.json << EOF
@@ -117,10 +120,24 @@ jobs:
           }
           EOF
           
+          echo "Notification config file created:"
+          cat s3-notification.json
+          
           # Add S3 notification
+          echo "Configuring S3 notification for bucket ${bucket}"
           aws s3api put-bucket-notification-configuration \
             --bucket "${bucket}" \
             --notification-configuration file://s3-notification.json \
+            --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
+          
+          echo "S3 notification configured successfully"
+
+      - name: Verify S3 trigger
+        run: |
+          bucket="ones-dev-events-photos"
+          echo "Current S3 notification configuration for ${bucket}:"
+          aws s3api get-bucket-notification-configuration \
+            --bucket "${bucket}" \
             --region "${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
 
       - name: Show Lambda info
