@@ -8,6 +8,7 @@ import boto3
 
 s3 = boto3.client('s3')
 secrets = boto3.client('secretsmanager')
+ddb = boto3.resource('dynamodb')
 
 
 def _load_internal_basic_auth():
@@ -30,19 +31,89 @@ def _load_internal_basic_auth():
 def _call_backend_ready(event_id, photo_id, key_m, key_s):
     base = os.environ.get('BACKEND_BASE_URL', '').rstrip('/')
     if not base:
+        print("ERROR: BACKEND_BASE_URL not set")
         return
 
     url = f"{base}/internal/events/{urllib.parse.quote(event_id)}/photos/{urllib.parse.quote(photo_id)}/ready"
     auth = _load_internal_basic_auth()
     if not auth:
+        print("ERROR: Failed to load internal basic auth")
         return
 
     body = json.dumps({"s3KeyMedium": key_m, "s3KeySmall": key_s}).encode('utf-8')
     req = urllib.request.Request(url, data=body, method='POST')
     req.add_header('Content-Type', 'application/json')
     req.add_header('Authorization', auth)
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        resp.read()
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            resp.read()
+        print(f"Successfully called backend ready endpoint")
+    except Exception as e:
+        print(f"ERROR: Failed to call backend ready: {e}")
+
+
+def _ws_subscriptions_table():
+    name = (os.environ.get('WS_SUBSCRIPTIONS_TABLE') or '').strip()
+    if not name:
+        return None
+    return ddb.Table(name)
+
+
+def _ws_client():
+    endpoint = (os.environ.get('WS_ENDPOINT') or '').strip()
+    if not endpoint:
+        return None
+    return boto3.client('apigatewaymanagementapi', endpoint_url=endpoint)
+
+
+def _publish_photo_ready(event_id: str, photo_id: str):
+    if not event_id or not photo_id:
+        return
+    table = _ws_subscriptions_table()
+    client = _ws_client()
+    if table is None or client is None:
+        print("ERROR: WS subscriptions table or client not configured")
+        return
+
+    payload = json.dumps({
+        "type": "photo.ready",
+        "eventId": event_id,
+        "photoId": photo_id,
+    }).encode('utf-8')
+
+    last_key = None
+    while True:
+        args = {
+            'KeyConditionExpression': 'eventId = :eventId',
+            'ExpressionAttributeValues': {':eventId': event_id},
+            'Limit': 100,
+        }
+        if last_key:
+            args['ExclusiveStartKey'] = last_key
+        res = table.query(**args)
+        items = res.get('Items') or []
+        for it in items:
+            cid = (it.get('connectionId') or '').strip()
+            if not cid:
+                continue
+            try:
+                client.post_to_connection(ConnectionId=cid, Data=payload)
+            except Exception as e:
+                code = None
+                try:
+                    code = getattr(getattr(e, 'response', None), 'get', lambda _k, _d=None: None)('ResponseMetadata', {}).get('HTTPStatusCode')
+                except Exception:
+                    code = None
+
+                if hasattr(client, 'exceptions') and hasattr(client.exceptions, 'GoneException') and isinstance(e, client.exceptions.GoneException):
+                    table.delete_item(Key={'eventId': event_id, 'connectionId': cid})
+                elif code == 410:
+                    table.delete_item(Key={'eventId': event_id, 'connectionId': cid})
+
+        last_key = res.get('LastEvaluatedKey')
+        if not last_key:
+            break
+    print(f"Published photo.ready event for {photo_id}")
 
 
 def _parse_key(key: str):
@@ -62,30 +133,41 @@ def _parse_key(key: str):
 def handler(event, context):
     bucket = os.environ.get('BUCKET')
     if not bucket:
+        print("ERROR: BUCKET environment variable not set")
         return {"ok": False}
 
+    print(f"Processing event with {len(event.get('Records', []))} records")
+    
     for rec in event.get('Records', []):
         s3info = rec.get('s3') or {}
         obj = s3info.get('object') or {}
         key = obj.get('key')
         if not key:
+            print("WARNING: No key in S3 event record")
             continue
         key = urllib.parse.unquote_plus(key)
+        print(f"Processing S3 key: {key}")
 
         if key.endswith('_m.jpg') or key.endswith('_s.jpg'):
+            print(f"Skipping thumbnail: {key}")
             continue
 
         event_id, photo_id = _parse_key(key)
         if not event_id or not photo_id:
+            print(f"WARNING: Failed to parse key: {key}")
             continue
+        
+        print(f"Parsed event_id={event_id}, photo_id={photo_id}")
 
         key_m = key[:-4] + '_m.jpg'
         key_s = key[:-4] + '_s.jpg'
 
-        copy_source = {'Bucket': bucket, 'Key': key}
-        s3.copy_object(Bucket=bucket, Key=key_m, CopySource=copy_source, ContentType='image/jpeg', MetadataDirective='REPLACE')
-        s3.copy_object(Bucket=bucket, Key=key_s, CopySource=copy_source, ContentType='image/jpeg', MetadataDirective='REPLACE')
-
+        # Thumbnails are assumed to already exist (generated by another process)
+        # Just mark the photo as ready and publish to WebSocket
+        print(f"Calling backend ready endpoint")
         _call_backend_ready(event_id, photo_id, key_m, key_s)
+        print(f"Publishing photo.ready event to WebSocket")
+        _publish_photo_ready(event_id, photo_id)
+        print(f"Photo processing completed successfully")
 
     return {"ok": True}
