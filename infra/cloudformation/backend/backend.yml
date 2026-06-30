@@ -924,10 +924,6 @@ Resources:
               ValueFrom: !Sub '${ActuatorBasicAuthSecret}:username::'
             - Name: ONES_ACTUATOR_BASIC_PASSWORD
               ValueFrom: !Sub '${ActuatorBasicAuthSecret}:password::'
-            - Name: ONES_INTERNAL_BASIC_USERNAME
-              ValueFrom: !Sub '${InternalBasicAuthSecret}:username::'
-            - Name: ONES_INTERNAL_BASIC_PASSWORD
-              ValueFrom: !Sub '${InternalBasicAuthSecret}:password::'
           Environment:
             - Name: AWS_REGION
               Value: !Ref AWS::Region
