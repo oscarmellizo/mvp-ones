@@ -412,6 +412,9 @@ Resources:
                   - lambda:UntagResource
                   - lambda:ListTags
                   - lambda:ListVersionsByFunction
+                  - lambda:GetLayerVersion
+                  - lambda:ListLayers
+                  - lambda:ListLayerVersions
                 Resource: '*'
 
               - Sid: IAMForEcsTasks
