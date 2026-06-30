@@ -173,7 +173,7 @@ jobs:
               PublicBaseUrl="${appBaseUrl}" \
               EmailLogoUrl="${appBaseUrl}/assets/assets/branding/ones-logo.png" \
               BackendDesiredCount="${{ inputs.backendDesiredCount }}" \
-              UsePhotoThumbnailsImage="false" \
+              UsePhotoThumbnailsImage="${{ inputs.usePhotoThumbnailsImage }}" \
               CdnPhotosEnabled="${CDN_PHOTOS_ENABLED:-false}" \
               CdnPhotosSigningPublicKeyPem="" \
               CdnPhotosSigningPublicKeySsmParamName="${cdnPublicKeySsmParamName}" \
