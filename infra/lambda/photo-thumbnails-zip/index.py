@@ -22,18 +22,38 @@ except ImportError:
 
 def _load_internal_basic_auth():
     arn = os.environ.get('INTERNAL_SECRET_ARN', '')
+    print(f"DEBUG: INTERNAL_SECRET_ARN = {arn}")
     if not arn:
+        print("ERROR: INTERNAL_SECRET_ARN environment variable not set")
         return None
-    v = secrets.get_secret_value(SecretId=arn).get('SecretString', '{}')
+    
+    try:
+        print(f"DEBUG: Attempting to get secret value from ARN: {arn}")
+        response = secrets.get_secret_value(SecretId=arn)
+        print(f"DEBUG: Secret response received")
+        v = response.get('SecretString', '{}')
+        print(f"DEBUG: SecretString length = {len(v)}")
+    except Exception as e:
+        print(f"ERROR: Failed to get secret value: {e}")
+        return None
+    
     try:
         data = json.loads(v)
-    except Exception:
+        print(f"DEBUG: Secret parsed as JSON, keys = {list(data.keys())}")
+    except Exception as e:
+        print(f"ERROR: Failed to parse secret as JSON: {e}")
         data = {}
+    
     u = (data.get('username') or '').strip()
     p = (data.get('password') or '').strip()
+    print(f"DEBUG: username = {u}, password length = {len(p)}")
+    
     if not u or not p:
+        print(f"ERROR: Missing username or password in secret")
         return None
+    
     token = base64.b64encode((u + ':' + p).encode('utf-8')).decode('utf-8')
+    print(f"DEBUG: Basic auth token generated successfully")
     return 'Basic ' + token
 
 
