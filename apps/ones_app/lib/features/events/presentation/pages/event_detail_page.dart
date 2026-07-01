@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -370,6 +371,19 @@ class _GalleryTabState extends State<_GalleryTab> {
 
   Color _badgeTextColor(Color bg) {
     return bg.computeLuminance() > 0.55 ? Colors.black : Colors.white;
+  }
+
+  bool _urlBelongsToEvent(String url, String eventId) {
+    if (url.isEmpty) return false;
+    final trimmed = eventId.trim();
+    if (trimmed.isEmpty) return false;
+
+    final parsed = Uri.tryParse(url);
+    final path = parsed?.path ?? url;
+    final decoded = Uri.decodeFull(path);
+
+    return decoded.contains('/eventos/$trimmed/') ||
+        decoded.contains('eventos/$trimmed/');
   }
 
   @override
@@ -903,11 +917,40 @@ class _GalleryTabState extends State<_GalleryTab> {
 
                         final small = item?.smallUrl;
                         final medium = item?.mediumUrl;
-                        final thumbUrl =
+                        final rawThumbUrl =
                             (small != null && small.isNotEmpty) ? small : null;
-                        final viewerUrl = (medium != null && medium.isNotEmpty)
-                            ? medium
-                            : null;
+                        final rawViewerUrl =
+                            (medium != null && medium.isNotEmpty)
+                                ? medium
+                                : null;
+
+                        final thumbUrl =
+                            (rawThumbUrl != null &&
+                                    _urlBelongsToEvent(
+                                        rawThumbUrl, widget.eventId))
+                                ? rawThumbUrl
+                                : null;
+                        final viewerUrl =
+                            (rawViewerUrl != null &&
+                                    _urlBelongsToEvent(
+                                        rawViewerUrl, widget.eventId))
+                                ? rawViewerUrl
+                                : null;
+
+                        if (kDebugMode &&
+                            rawThumbUrl != null &&
+                            thumbUrl == null) {
+                          debugPrint(
+                            'gallery_url_guard: eventId=${widget.eventId} photoId=$photoId rejectedThumbUrl=$rawThumbUrl',
+                          );
+                        }
+                        if (kDebugMode &&
+                            rawViewerUrl != null &&
+                            viewerUrl == null) {
+                          debugPrint(
+                            'gallery_url_guard: eventId=${widget.eventId} photoId=$photoId rejectedViewerUrl=$rawViewerUrl',
+                          );
+                        }
 
                         final canSelect = (!isLocalPending && item != null)
                             ? _canSelect(item.guestId)
