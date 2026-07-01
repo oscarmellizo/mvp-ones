@@ -427,8 +427,7 @@ class _GalleryTabState extends State<_GalleryTab> {
     if (!mounted) return;
     if (!_gridScrollController.hasClients) return;
 
-    final controller = _galleryController;
-    if (controller == null) return;
+    final controller = context.read<PhotosGalleryController>();
 
     if (controller.loading || !controller.hasMore) return;
 
