@@ -151,9 +151,20 @@ class _EventDetailPageState extends State<EventDetailPage> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.eventId == widget.eventId) return;
     context.read<EventsController>().select(widget.eventId);
+    final api = context.read<EventPhotosApi>();
+    final auth = context.read<AuthController>();
+    final next = PhotosGalleryController(api: api)..setIdToken(auth.idToken);
+    final prev = _galleryController;
+
+    setState(() {
+      _galleryController = next;
+      _openedInitialPhoto = false;
+    });
+    prev?.dispose();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _galleryController?.refresh(eventId: widget.eventId);
+      next.refresh(eventId: widget.eventId);
     });
   }
 
