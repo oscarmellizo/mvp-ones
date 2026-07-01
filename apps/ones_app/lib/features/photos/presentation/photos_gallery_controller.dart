@@ -258,7 +258,8 @@ class PhotosGalleryController extends ChangeNotifier {
 
       final merged = <String, EventPhoto>{
         for (final it in res.items)
-          if (_acceptPhoto(it, trimmedEventId)) it.photoId: it,
+          if (_sanitizePhoto(it, trimmedEventId) case final sanitized?)
+            sanitized.photoId: sanitized,
       };
 
       final list = merged.values.toList(growable: false);
@@ -337,8 +338,9 @@ class PhotosGalleryController extends ChangeNotifier {
         for (final it in _items) it.photoId: it,
       };
       for (final it in res.items) {
-        if (_acceptPhoto(it, trimmedEventId)) {
-          merged[it.photoId] = it;
+        final sanitized = _sanitizePhoto(it, trimmedEventId);
+        if (sanitized != null) {
+          merged[sanitized.photoId] = sanitized;
         }
       }
 
@@ -368,28 +370,63 @@ class PhotosGalleryController extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool _acceptPhoto(EventPhoto it, String eventId) {
-    if (it.photoId.isEmpty) return false;
+  EventPhoto? _sanitizePhoto(EventPhoto it, String eventId) {
+    if (it.photoId.isEmpty) return null;
     final small = it.smallUrl;
     final medium = it.mediumUrl;
     final original = it.originalUrl;
 
-    bool ok = true;
-    if (small != null && small.isNotEmpty) {
-      ok = ok && _urlBelongsToEvent(small, eventId);
-    }
-    if (medium != null && medium.isNotEmpty) {
-      ok = ok && _urlBelongsToEvent(medium, eventId);
-    }
-    if (original != null && original.isNotEmpty) {
-      ok = ok && _urlBelongsToEvent(original, eventId);
+    final smallOk = small == null || small.isEmpty
+        ? true
+        : _urlBelongsToEvent(small, eventId);
+    final mediumOk = medium == null || medium.isEmpty
+        ? true
+        : _urlBelongsToEvent(medium, eventId);
+    final originalOk = original == null || original.isEmpty
+        ? true
+        : _urlBelongsToEvent(original, eventId);
+
+    // If any displayed url (small/medium) mismatches, drop.
+    if (!smallOk || !mediumOk) {
+      if (kDebugMode) {
+        debugPrint(
+          'gallery_event_guard: drop photoId=${it.photoId} eventId=$eventId smallOk=$smallOk mediumOk=$mediumOk originalOk=$originalOk',
+        );
+      }
+      return null;
     }
 
-    if (!ok && kDebugMode) {
-      debugPrint(
-        'gallery_event_guard: drop photoId=${it.photoId} eventId=$eventId smallOk=${small == null || small.isEmpty ? true : _urlBelongsToEvent(small, eventId)} mediumOk=${medium == null || medium.isEmpty ? true : _urlBelongsToEvent(medium, eventId)} originalOk=${original == null || original.isEmpty ? true : _urlBelongsToEvent(original, eventId)}',
+    // If we only have original and it mismatches, drop.
+    final hasSmall = small != null && small.isNotEmpty;
+    final hasMedium = medium != null && medium.isNotEmpty;
+    if (!hasSmall && !hasMedium && !originalOk) {
+      if (kDebugMode) {
+        debugPrint(
+          'gallery_event_guard: drop photoId=${it.photoId} eventId=$eventId smallOk=$smallOk mediumOk=$mediumOk originalOk=$originalOk',
+        );
+      }
+      return null;
+    }
+
+    // Keep the photo, but never keep a suspicious originalUrl.
+    if (!originalOk && original != null && original.isNotEmpty) {
+      return EventPhoto(
+        photoId: it.photoId,
+        guestId: it.guestId,
+        createdAt: it.createdAt,
+        uploadedAt: it.uploadedAt,
+        status: it.status,
+        originalUrl: null,
+        mediumUrl: it.mediumUrl,
+        smallUrl: it.smallUrl,
+        shared: it.shared,
+        ownerName: it.ownerName,
+        sharedByUserId: it.sharedByUserId,
+        sharedByName: it.sharedByName,
+        likedByMe: it.likedByMe,
       );
     }
-    return ok;
+
+    return it;
   }
 }
