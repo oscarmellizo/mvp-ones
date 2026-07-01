@@ -182,16 +182,12 @@ class PhotosGalleryController extends ChangeNotifier {
     final trimmedEventId = eventId.trim();
     if (trimmedEventId.isEmpty) return;
 
-    final eventChanged = _currentEventId != trimmedEventId;
-
     _currentEventId = trimmedEventId;
     _nextToken = null;
     _hasMore = true;
     _error = null;
 
-    if (eventChanged) {
-      _items = const [];
-    }
+    _items = const [];
 
     final epoch = ++_requestEpoch;
     _loading = true;

@@ -253,6 +253,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                               horizontal: horizontalPadding),
                           child: _tabIndex == 0
                               ? _GalleryTab(
+                                  key: ValueKey('gallery:${widget.eventId}'),
                                   eventId: widget.eventId,
                                   currentUserId: currentUserId,
                                   isOwner: auth.user?.userId == event.ownerId,
@@ -304,6 +305,7 @@ class _GalleryTab extends StatefulWidget {
   final Function onOpenedInitialPhoto;
 
   const _GalleryTab({
+    super.key,
     required this.eventId,
     required this.currentUserId,
     required this.isOwner,
@@ -497,7 +499,18 @@ class _GalleryTabState extends State<_GalleryTab> {
     final uploader = context.watch<PhotosUploadController>();
     final t = context.watch<TranslationsService>();
 
-    final remoteItems = controller.items;
+    final isCurrentEvent = controller.currentEventId == widget.eventId;
+    if (!isCurrentEvent && !controller.loading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final c = context.read<PhotosGalleryController>();
+        if (c.currentEventId != widget.eventId) {
+          c.refresh(eventId: widget.eventId);
+        }
+      });
+    }
+
+    final remoteItems = isCurrentEvent ? controller.items : const <EventPhoto>[];
 
     final deepLinkPhotoId = widget.initialPhotoId;
     if (!widget.openedInitialPhoto &&
@@ -584,11 +597,14 @@ class _GalleryTabState extends State<_GalleryTab> {
       return safeB.compareTo(safeA);
     });
 
-    if (controller.loading && remoteItems.isEmpty && localPathById.isEmpty) {
+    if ((!isCurrentEvent || controller.loading) &&
+        remoteItems.isEmpty &&
+        localPathById.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (!controller.loading &&
+    if (isCurrentEvent &&
+        !controller.loading &&
         controller.error == null &&
         remoteItems.isEmpty &&
         localPathById.isEmpty) {
