@@ -430,10 +430,7 @@ class _GalleryTabState extends State<_GalleryTab> {
     if (controller.loading || !controller.hasMore) return;
 
     final pos = _gridScrollController.position;
-    final canScroll = pos.maxScrollExtent > 0;
-    if (!canScroll) return;
-
-    final nearBottom = pos.pixels >= pos.maxScrollExtent - 400;
+    final nearBottom = pos.extentAfter < 600;
     if (!nearBottom) return;
 
     controller.loadMore(eventId: widget.eventId);
@@ -1032,86 +1029,120 @@ class _GalleryTabState extends State<_GalleryTab> {
                 onRefresh: () => controller.refresh(eventId: widget.eventId),
                 child: Container(
                   color: OnesColors.background,
-                  child: GridView.builder(
-                    controller: _gridScrollController,
-                    key: ValueKey('grid:${widget.eventId}'),
-                    padding: EdgeInsets.zero,
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      mainAxisSpacing: 1,
-                      crossAxisSpacing: 1,
-                      childAspectRatio: 0.82,
-                    ),
-                    itemCount: mergedIds.length,
-                    itemBuilder: (context, index) {
-                      final photoId = mergedIds[index];
-                      final localPath = localPathById[photoId];
-                      final remote = remoteById[photoId];
-                      final remoteStatus =
-                          (remote?.status ?? '').trim().toLowerCase();
-                      final isRemoteReady =
-                          remote != null && remoteStatus == 'ready';
-
-                      final isLocalPending = localPath != null &&
-                          localPath.isNotEmpty &&
-                          !isRemoteReady;
-
-                      final item =
-                          !isLocalPending ? remoteById[photoId] : null;
-
-                      final small = item?.smallUrl;
-                      final medium = item?.mediumUrl;
-                      final rawThumbUrl =
-                          (small != null && small.isNotEmpty) ? small : null;
-                      final rawViewerUrl =
-                          (medium != null && medium.isNotEmpty)
-                              ? medium
-                              : null;
-
-                      final thumbUrl =
-                          (rawThumbUrl != null &&
-                                  _urlBelongsToEvent(rawThumbUrl, widget.eventId))
-                              ? rawThumbUrl
-                              : null;
-                      final viewerUrl =
-                          (rawViewerUrl != null &&
-                                  _urlBelongsToEvent(rawViewerUrl, widget.eventId))
-                              ? rawViewerUrl
-                              : null;
-
-                      if (kDebugMode && rawThumbUrl != null && thumbUrl == null) {
-                        debugPrint(
-                          'gallery_url_guard: eventId=${widget.eventId} photoId=$photoId rejectedThumbUrl=$rawThumbUrl',
-                        );
+                  child: NotificationListener<ScrollNotification>(
+                    onNotification: (notification) {
+                      if (notification.metrics.axis != Axis.vertical) {
+                        return false;
                       }
-                      if (kDebugMode && rawViewerUrl != null && viewerUrl == null) {
-                        debugPrint(
-                          'gallery_url_guard: eventId=${widget.eventId} photoId=$photoId rejectedViewerUrl=$rawViewerUrl',
-                        );
+                      if (notification is ScrollUpdateNotification ||
+                          notification is OverscrollNotification ||
+                          notification is UserScrollNotification) {
+                        _maybeLoadMore();
                       }
-
-                      final canSelect = (!isLocalPending && item != null)
-                          ? _canSelect(item.guestId)
-                          : false;
-                      final isSelected = _selectedIds.contains(photoId);
-
-                      void toggleSelected() {
-                        if (!canSelect) return;
-                        setState(() {
-                          _selecting = true;
-                          if (isSelected) {
-                            _selectedIds.remove(photoId);
-                            if (_selectedIds.isEmpty) {
-                              _selecting = false;
+                      return false;
+                    },
+                    child: GridView.builder(
+                      controller: _gridScrollController,
+                      primary: false,
+                      key: ValueKey('grid:${widget.eventId}'),
+                      padding: EdgeInsets.zero,
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 1,
+                        crossAxisSpacing: 1,
+                        childAspectRatio: 0.82,
+                      ),
+                      itemCount: mergedIds.length,
+                      itemBuilder: (context, index) {
+                        final photoId = mergedIds[index];
+                        if (index >= mergedIds.length - 6) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (!mounted) return;
+                            final controller =
+                                context.read<PhotosGalleryController>();
+                            if (controller.loading || !controller.hasMore) {
+                              return;
                             }
-                          } else {
-                            _selectedIds.add(photoId);
-                          }
-                        });
-                      }
+                            if (!_gridScrollController.hasClients) return;
+                            final nearBottom =
+                                _gridScrollController.position.extentAfter <
+                                    900;
+                            if (!nearBottom) return;
+                            controller.loadMore(eventId: widget.eventId);
+                          });
+                        }
+                        final localPath = localPathById[photoId];
+                        final remote = remoteById[photoId];
+                        final remoteStatus =
+                            (remote?.status ?? '').trim().toLowerCase();
+                        final isRemoteReady =
+                            remote != null && remoteStatus == 'ready';
 
-                      return InkWell(
+                        final isLocalPending = localPath != null &&
+                            localPath.isNotEmpty &&
+                            !isRemoteReady;
+
+                        final item =
+                            !isLocalPending ? remoteById[photoId] : null;
+
+                        final small = item?.smallUrl;
+                        final medium = item?.mediumUrl;
+                        final rawThumbUrl = (small != null && small.isNotEmpty)
+                            ? small
+                            : null;
+                        final rawViewerUrl =
+                            (medium != null && medium.isNotEmpty)
+                                ? medium
+                                : null;
+
+                        final thumbUrl = (rawThumbUrl != null &&
+                                _urlBelongsToEvent(
+                                    rawThumbUrl, widget.eventId))
+                            ? rawThumbUrl
+                            : null;
+                        final viewerUrl = (rawViewerUrl != null &&
+                                _urlBelongsToEvent(
+                                    rawViewerUrl, widget.eventId))
+                            ? rawViewerUrl
+                            : null;
+
+                        if (kDebugMode &&
+                            rawThumbUrl != null &&
+                            thumbUrl == null) {
+                          debugPrint(
+                            'gallery_url_guard: eventId=${widget.eventId} photoId=$photoId rejectedThumbUrl=$rawThumbUrl',
+                          );
+                        }
+                        if (kDebugMode &&
+                            rawViewerUrl != null &&
+                            viewerUrl == null) {
+                          debugPrint(
+                            'gallery_url_guard: eventId=${widget.eventId} photoId=$photoId rejectedViewerUrl=$rawViewerUrl',
+                          );
+                        }
+
+                        final canSelect = (!isLocalPending && item != null)
+                            ? _canSelect(item.guestId)
+                            : false;
+                        final isSelected = _selectedIds.contains(photoId);
+
+                        void toggleSelected() {
+                          if (!canSelect) return;
+                          setState(() {
+                            _selecting = true;
+                            if (isSelected) {
+                              _selectedIds.remove(photoId);
+                              if (_selectedIds.isEmpty) {
+                                _selecting = false;
+                              }
+                            } else {
+                              _selectedIds.add(photoId);
+                            }
+                          });
+                        }
+
+                        return InkWell(
                           key: ValueKey('${widget.eventId}:$photoId'),
                           onLongPress: canSelect ? toggleSelected : null,
                           onTap: () {
@@ -1381,6 +1412,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                   ),
                 ),
               ),
+            ),
           ],
         ),
         if (_selecting)
