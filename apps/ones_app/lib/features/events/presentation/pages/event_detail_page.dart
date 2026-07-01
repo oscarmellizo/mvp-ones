@@ -624,12 +624,16 @@ class _GalleryTabState extends State<_GalleryTab> {
           if (!mounted) return;
           if (widget.openedInitialPhoto) return;
           widget.onOpenedInitialPhoto();
+          final gallery = context.read<PhotosGalleryController>();
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => PhotoViewerPage(
-                eventId: widget.eventId,
-                initialIndex: idx,
-                currentUserId: widget.currentUserId,
+              builder: (_) => ChangeNotifierProvider<PhotosGalleryController>.value(
+                value: gallery,
+                child: PhotoViewerPage(
+                  eventId: widget.eventId,
+                  initialIndex: idx,
+                  currentUserId: widget.currentUserId,
+                ),
               ),
             ),
           );
@@ -1096,10 +1100,15 @@ class _GalleryTabState extends State<_GalleryTab> {
 
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => PhotoViewerPage(
-                                  eventId: widget.eventId,
-                                  initialIndex: remoteIndex,
-                                  currentUserId: widget.currentUserId,
+                                builder: (_) =>
+                                    ChangeNotifierProvider<PhotosGalleryController>.value(
+                                  value:
+                                      context.read<PhotosGalleryController>(),
+                                  child: PhotoViewerPage(
+                                    eventId: widget.eventId,
+                                    initialIndex: remoteIndex,
+                                    currentUserId: widget.currentUserId,
+                                  ),
                                 ),
                               ),
                             );
