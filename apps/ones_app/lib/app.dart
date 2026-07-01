@@ -114,6 +114,7 @@ class OnesApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         Provider.value(value: config),
+        Provider.value(value: photoStorage),
         ChangeNotifierProvider(
           create: (_) {
             final ctrl = AuthController(
