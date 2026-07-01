@@ -154,19 +154,22 @@ class PhotosUploadController extends ChangeNotifier {
   }
 
   Future<void> trigger() async {
-    if (_running) return;
+    if (_running) {
+      _triggerAgain = true;
+      return;
+    }
 
     final epoch = _tokenEpoch;
     final token = _idToken;
     if (token == null || token.isEmpty) return;
-
-    await db.purgeStale(olderThan: const Duration(minutes: 10));
 
     _running = true;
     _triggerAgain = false;
     _safeNotify();
 
     try {
+      await db.purgeStale(olderThan: const Duration(minutes: 10));
+
       _lastError = null;
 
       while (true) {
