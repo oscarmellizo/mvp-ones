@@ -515,10 +515,14 @@ class _GalleryTabState extends State<_GalleryTab> {
     final storage = _photoStorage;
     if (storage != null) {
       final uploader = _uploader;
-      final hasActiveUploads =
-          uploader != null && uploader.activeByEvent(widget.eventId).isNotEmpty;
-      if (!hasActiveUploads) {
-        unawaited(storage.deleteEventPhotos(eventId: widget.eventId));
+      if (uploader != null) {
+        unawaited(() async {
+          final active = await uploader.db
+              .listActiveByEvent(eventId: widget.eventId, limit: 1);
+          if (active.isEmpty) {
+            await storage.deleteEventPhotos(eventId: widget.eventId);
+          }
+        }());
       }
     }
 

@@ -308,6 +308,22 @@ class PhotosUploadController extends ChangeNotifier {
           await _refreshActiveForEvent(item.eventId);
           _safeNotify();
         } catch (e) {
+          final isMissingLocalFile = e is FileSystemException &&
+              (e.osError?.errorCode == 2 ||
+                  e.osError?.message.toLowerCase().contains('no such file') ==
+                      true);
+          if (isMissingLocalFile) {
+            if (kDebugMode) {
+              debugPrint(
+                'photo_upload: drop_missing_file_during_upload eventId=${item.eventId} photoId=${item.photoId} path=${item.localPath}',
+              );
+            }
+            await db.deleteByPhotoId(item.photoId);
+            _uploadProgressByPhotoId.remove(item.photoId);
+            await _refreshActiveForEvent(item.eventId);
+            _safeNotify();
+            continue;
+          }
           if (kDebugMode) {
             final extra = e is DioException
                 ? ' type=${e.type} status=${e.response?.statusCode} message=${e.message}'
