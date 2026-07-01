@@ -875,6 +875,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                       return false;
                     },
                     child: GridView.builder(
+                      key: ValueKey('grid:${widget.eventId}'),
                       padding: EdgeInsets.zero,
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
@@ -999,24 +1000,27 @@ class _GalleryTabState extends State<_GalleryTab> {
                                               ),
                                             ),
                                           )
-                                        : CachedNetworkImage(
+                                        : Image(
                                             key: ValueKey(
                                                 'thumb:${widget.eventId}:$photoId'),
-                                            imageUrl: thumbUrl,
-                                            cacheKey:
-                                                '${widget.eventId}:$photoId',
+                                            image: CachedNetworkImageProvider(
+                                              thumbUrl,
+                                              cacheKey:
+                                                  '${widget.eventId}:$photoId',
+                                            ),
                                             fit: BoxFit.cover,
-                                            memCacheWidth: 300,
-                                            memCacheHeight: 300,
-                                            useOldImageOnUrlChange: false,
-                                            placeholder: (context, url) {
+                                            gaplessPlayback: false,
+                                            frameBuilder:
+                                                (context, child, frame, _) {
+                                              if (frame != null) return child;
                                               return const SizedBox.expand(
                                                 child: ColoredBox(
                                                   color: Colors.black12,
                                                 ),
                                               );
                                             },
-                                            errorWidget: (context, url, error) {
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
                                               return const SizedBox.expand();
                                             },
                                           ),
