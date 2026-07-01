@@ -156,14 +156,11 @@ class _EventDetailPageState extends State<EventDetailPage> {
     final next = PhotosGalleryController(api: api)..setIdToken(auth.idToken);
     final prev = _galleryController;
 
-    setState(() {
-      _galleryController = next;
-      _openedInitialPhoto = false;
-    });
-    prev?.dispose();
-
+    _galleryController = next;
+    _openedInitialPhoto = false;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      prev?.dispose();
       next.refresh(eventId: widget.eventId);
     });
   }
@@ -932,7 +929,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                         }
 
                         return InkWell(
-                          key: ValueKey(photoId),
+                          key: ValueKey('${widget.eventId}:$photoId'),
                           onLongPress: canSelect ? toggleSelected : null,
                           onTap: () {
                             if (_selecting) {
@@ -1003,10 +1000,22 @@ class _GalleryTabState extends State<_GalleryTab> {
                                             ),
                                           )
                                         : CachedNetworkImage(
+                                            key: ValueKey(
+                                                'thumb:${widget.eventId}:$photoId'),
                                             imageUrl: thumbUrl,
+                                            cacheKey:
+                                                '${widget.eventId}:$photoId',
                                             fit: BoxFit.cover,
                                             memCacheWidth: 300,
                                             memCacheHeight: 300,
+                                            useOldImageOnUrlChange: false,
+                                            placeholder: (context, url) {
+                                              return const SizedBox.expand(
+                                                child: ColoredBox(
+                                                  color: Colors.black12,
+                                                ),
+                                              );
+                                            },
                                             errorWidget: (context, url, error) {
                                               return const SizedBox.expand();
                                             },
