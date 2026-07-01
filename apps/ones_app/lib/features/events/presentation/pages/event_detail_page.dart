@@ -135,6 +135,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
             page: 'event_detail',
             requiredKeys: _eventDetailRequiredKeys,
           );
+      _galleryController?.refresh(eventId: widget.eventId);
     });
   }
 
@@ -150,7 +151,10 @@ class _EventDetailPageState extends State<EventDetailPage> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.eventId == widget.eventId) return;
     context.read<EventsController>().select(widget.eventId);
-    _galleryController?.refresh(eventId: widget.eventId);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _galleryController?.refresh(eventId: widget.eventId);
+    });
   }
 
   @override
@@ -363,12 +367,17 @@ class _GalleryTabState extends State<_GalleryTab> {
   @override
   void initState() {
     super.initState();
-    context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
-    final ws = context.read<PhotosWsController>();
-    _ws = ws;
-    ws.onPhotoReady = _onWsPhotoReady;
-    ws.subscribe(eventId: widget.eventId);
-    _guestsFuture = context.read<EventsRepository>().listEventGuestsV2(widget.eventId);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final ws = context.read<PhotosWsController>();
+      _ws = ws;
+      ws.onPhotoReady = _onWsPhotoReady;
+      ws.subscribe(eventId: widget.eventId);
+      setState(() {
+        _guestsFuture =
+            context.read<EventsRepository>().listEventGuestsV2(widget.eventId);
+      });
+    });
 
     final palette = <Color>[
       Colors.blue,
@@ -404,27 +413,28 @@ class _GalleryTabState extends State<_GalleryTab> {
     final userChanged = oldWidget.currentUserId != widget.currentUserId;
     if (!eventChanged && !userChanged) return;
 
-    _exitSelectionMode();
-    _badgeColorByIdentity.clear();
-    _nextBadgeColorIndex = 0;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
 
-    if (eventChanged) {
-      _cleanupUploadPhotoIds.clear();
-      _selectedIds.clear();
-    }
+      setState(() {
+        _selecting = false;
+        _selectedIds.clear();
+        if (eventChanged) {
+          _cleanupUploadPhotoIds.clear();
+        }
+        _badgeColorByIdentity.clear();
+        _nextBadgeColorIndex = 0;
+        _guestsFuture =
+            context.read<EventsRepository>().listEventGuestsV2(widget.eventId);
+      });
 
-    context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
-
-    final ws = _ws ?? context.read<PhotosWsController>();
-    _ws = ws;
-    ws.onPhotoReady = _onWsPhotoReady;
-    if (eventChanged) {
-      ws.unsubscribe(eventId: oldWidget.eventId);
-    }
-    ws.subscribe(eventId: widget.eventId);
-    setState(() {
-      _guestsFuture =
-          context.read<EventsRepository>().listEventGuestsV2(widget.eventId);
+      final ws = _ws ?? context.read<PhotosWsController>();
+      _ws = ws;
+      ws.onPhotoReady = _onWsPhotoReady;
+      if (eventChanged) {
+        ws.unsubscribe(eventId: oldWidget.eventId);
+      }
+      ws.subscribe(eventId: widget.eventId);
     });
   }
 
@@ -500,16 +510,6 @@ class _GalleryTabState extends State<_GalleryTab> {
     final t = context.watch<TranslationsService>();
 
     final isCurrentEvent = controller.currentEventId == widget.eventId;
-    if (!isCurrentEvent && !controller.loading) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final c = context.read<PhotosGalleryController>();
-        if (c.currentEventId != widget.eventId) {
-          c.refresh(eventId: widget.eventId);
-        }
-      });
-    }
-
     final remoteItems = isCurrentEvent ? controller.items : const <EventPhoto>[];
 
     final deepLinkPhotoId = widget.initialPhotoId;
