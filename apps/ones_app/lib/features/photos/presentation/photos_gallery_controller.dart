@@ -29,6 +29,17 @@ class PhotosGalleryController extends ChangeNotifier {
 
   PhotosGalleryController({required this.api});
 
+  bool _urlBelongsToEvent(String url, String eventId) {
+    if (url.isEmpty) return false;
+    final trimmed = eventId.trim();
+    if (trimmed.isEmpty) return false;
+    final parsed = Uri.tryParse(url);
+    final path = parsed?.path ?? url;
+    final decoded = Uri.decodeFull(path);
+    return decoded.contains('/eventos/$trimmed/') ||
+        decoded.contains('eventos/$trimmed/');
+  }
+
   bool get loading => _loading;
   bool get loadedOnce => _loadedOnce;
   Object? get error => _error;
@@ -246,7 +257,8 @@ class PhotosGalleryController extends ChangeNotifier {
       }
 
       final merged = <String, EventPhoto>{
-        for (final it in res.items) it.photoId: it,
+        for (final it in res.items)
+          if (_acceptPhoto(it, trimmedEventId)) it.photoId: it,
       };
 
       final list = merged.values.toList(growable: false);
@@ -325,7 +337,9 @@ class PhotosGalleryController extends ChangeNotifier {
         for (final it in _items) it.photoId: it,
       };
       for (final it in res.items) {
-        merged[it.photoId] = it;
+        if (_acceptPhoto(it, trimmedEventId)) {
+          merged[it.photoId] = it;
+        }
       }
 
       final list = merged.values.toList(growable: false);
@@ -352,5 +366,30 @@ class PhotosGalleryController extends ChangeNotifier {
   void _setLoading(bool value) {
     _loading = value;
     notifyListeners();
+  }
+
+  bool _acceptPhoto(EventPhoto it, String eventId) {
+    if (it.photoId.isEmpty) return false;
+    final small = it.smallUrl;
+    final medium = it.mediumUrl;
+    final original = it.originalUrl;
+
+    bool ok = true;
+    if (small != null && small.isNotEmpty) {
+      ok = ok && _urlBelongsToEvent(small, eventId);
+    }
+    if (medium != null && medium.isNotEmpty) {
+      ok = ok && _urlBelongsToEvent(medium, eventId);
+    }
+    if (original != null && original.isNotEmpty) {
+      ok = ok && _urlBelongsToEvent(original, eventId);
+    }
+
+    if (!ok && kDebugMode) {
+      debugPrint(
+        'gallery_event_guard: drop photoId=${it.photoId} eventId=$eventId smallOk=${small == null || small.isEmpty ? true : _urlBelongsToEvent(small, eventId)} mediumOk=${medium == null || medium.isEmpty ? true : _urlBelongsToEvent(medium, eventId)} originalOk=${original == null || original.isEmpty ? true : _urlBelongsToEvent(original, eventId)}',
+      );
+    }
+    return ok;
   }
 }
