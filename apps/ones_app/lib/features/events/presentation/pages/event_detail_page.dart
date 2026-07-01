@@ -622,9 +622,11 @@ class _GalleryTabState extends State<_GalleryTab> {
       return safeB.compareTo(safeA);
     });
 
-    if ((!isCurrentEvent || controller.loading || !controller.loadedOnce) &&
-        remoteItems.isEmpty &&
-        localPathById.isEmpty) {
+    if (!isCurrentEvent || !controller.loadedOnce) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (controller.loading && remoteItems.isEmpty && localPathById.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
