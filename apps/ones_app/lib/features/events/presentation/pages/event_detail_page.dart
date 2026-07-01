@@ -146,6 +146,14 @@ class _EventDetailPageState extends State<EventDetailPage> {
   }
 
   @override
+  void didUpdateWidget(covariant EventDetailPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.eventId == widget.eventId) return;
+    context.read<EventsController>().select(widget.eventId);
+    _galleryController?.refresh(eventId: widget.eventId);
+  }
+
+  @override
   void dispose() {
     _galleryController?.dispose();
     _galleryController = null;
@@ -353,18 +361,12 @@ class _GalleryTabState extends State<_GalleryTab> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
-      final ws = context.read<PhotosWsController>();
-      _ws = ws;
-      ws.onPhotoReady = _onWsPhotoReady;
-      ws.subscribe(eventId: widget.eventId);
-      setState(() {
-        _guestsFuture =
-            context.read<EventsRepository>().listEventGuestsV2(widget.eventId);
-      });
-    });
+    context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
+    final ws = context.read<PhotosWsController>();
+    _ws = ws;
+    ws.onPhotoReady = _onWsPhotoReady;
+    ws.subscribe(eventId: widget.eventId);
+    _guestsFuture = context.read<EventsRepository>().listEventGuestsV2(widget.eventId);
 
     final palette = <Color>[
       Colors.blue,
@@ -404,19 +406,23 @@ class _GalleryTabState extends State<_GalleryTab> {
     _badgeColorByIdentity.clear();
     _nextBadgeColorIndex = 0;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final ws = _ws ?? context.read<PhotosWsController>();
-      _ws = ws;
-      ws.onPhotoReady = _onWsPhotoReady;
-      if (eventChanged) {
-        ws.unsubscribe(eventId: oldWidget.eventId);
-      }
-      ws.subscribe(eventId: widget.eventId);
-      setState(() {
-        _guestsFuture =
-            context.read<EventsRepository>().listEventGuestsV2(widget.eventId);
-      });
+    if (eventChanged) {
+      _cleanupUploadPhotoIds.clear();
+      _selectedIds.clear();
+    }
+
+    context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
+
+    final ws = _ws ?? context.read<PhotosWsController>();
+    _ws = ws;
+    ws.onPhotoReady = _onWsPhotoReady;
+    if (eventChanged) {
+      ws.unsubscribe(eventId: oldWidget.eventId);
+    }
+    ws.subscribe(eventId: widget.eventId);
+    setState(() {
+      _guestsFuture =
+          context.read<EventsRepository>().listEventGuestsV2(widget.eventId);
     });
   }
 
