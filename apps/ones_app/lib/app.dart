@@ -42,7 +42,6 @@ import 'features/invitations/presentation/invitations_controller.dart';
 import 'features/photos/adapters/api/event_photos_api.dart';
 import 'features/photos/adapters/local/photo_storage.dart';
 import 'features/photos/adapters/local/photo_upload_db.dart';
-import 'features/photos/presentation/photos_gallery_controller.dart';
 import 'features/photos/presentation/photos_upload_controller.dart';
 import 'features/photos/presentation/photos_ws_controller.dart';
 import 'features/users/adapters/api/users_api_repository.dart';
@@ -105,6 +104,8 @@ class OnesApp extends StatelessWidget {
 
     final eventPhotosApi = EventPhotosApi(apiFactory);
     final eventPhotosGalleryApi = EventPhotosApi(apiFactory);
+    // NOTE: PhotosGalleryController is NOT registered here as a global singleton.
+    // Each EventDetailPage creates its own instance to guarantee per-event isolation.
     final photoUploadDb = PhotoUploadDb();
     final photoStorage = PhotoStorage();
     final photosWsController =
@@ -317,17 +318,10 @@ class OnesApp extends StatelessWidget {
             return controller;
           },
         ),
-        ChangeNotifierProxyProvider<AuthController, PhotosGalleryController>(
-          create: (_) => PhotosGalleryController(
-            api: eventPhotosGalleryApi,
-          ),
-          update: (_, auth, ctrl) {
-            final controller = ctrl ??
-                PhotosGalleryController(
-                  api: eventPhotosGalleryApi,
-                );
-            controller.setIdToken(auth.idToken);
-            return controller;
+        ProxyProvider<AuthController, EventPhotosApi>(
+          update: (_, auth, __) {
+            eventPhotosGalleryApi.setIdToken(auth.idToken);
+            return eventPhotosGalleryApi;
           },
         ),
         ChangeNotifierProxyProvider<AuthController, PhotosWsController>(

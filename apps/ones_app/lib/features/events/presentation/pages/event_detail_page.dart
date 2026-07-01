@@ -16,6 +16,7 @@ import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/widgets/ones_text_field.dart';
 import '../../../auth/presentation/auth_controller.dart';
 import '../../../photos/presentation/pages/photo_viewer_page.dart';
+import '../../../photos/adapters/api/event_photos_api.dart';
 import '../../../photos/presentation/photos_gallery_controller.dart';
 import '../../../photos/presentation/photos_upload_controller.dart';
 import '../../../photos/presentation/photos_ws_controller.dart';
@@ -54,6 +55,8 @@ class _EventDetailPageState extends State<EventDetailPage> {
   int _tabIndex = 0;
   final _searchController = TextEditingController();
   bool _openedInitialPhoto = false;
+
+  PhotosGalleryController? _galleryController;
 
   String? _lastLanguage;
 
@@ -120,6 +123,10 @@ class _EventDetailPageState extends State<EventDetailPage> {
         widget.initialPhotoId!.trim().isNotEmpty) {
       _tabIndex = 0;
     }
+    final api = context.read<EventPhotosApi>();
+    final auth = context.read<AuthController>();
+    _galleryController = PhotosGalleryController(api: api)
+      ..setIdToken(auth.idToken);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<TranslationsService>().ensurePageTranslations(
@@ -131,7 +138,16 @@ class _EventDetailPageState extends State<EventDetailPage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final token = context.read<AuthController>().idToken;
+    _galleryController?.setIdToken(token);
+  }
+
+  @override
   void dispose() {
+    _galleryController?.dispose();
+    _galleryController = null;
     _searchController.dispose();
     super.dispose();
   }
@@ -161,7 +177,12 @@ class _EventDetailPageState extends State<EventDetailPage> {
     final size = MediaQuery.sizeOf(context);
     final horizontalPadding = size.width >= 520 ? 28.0 : 16.0;
 
-    return Scaffold(
+    final galleryController = _galleryController;
+    if (galleryController == null) return const SizedBox.shrink();
+
+    return ChangeNotifierProvider<PhotosGalleryController>.value(
+      value: galleryController,
+      child: Scaffold(
       backgroundColor: OnesColors.background,
       floatingActionButton: FloatingActionButton(
         backgroundColor: OnesColors.purpleMid,
@@ -253,7 +274,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                     ],
                   ),
       ),
-    );
+    ));
   }
 }
 
@@ -287,7 +308,6 @@ class _GalleryTab extends StatefulWidget {
 }
 
 class _GalleryTabState extends State<_GalleryTab> {
-  bool _requested = false;
   bool _selecting = false;
   final Set<String> _selectedIds = {};
 
@@ -328,6 +348,18 @@ class _GalleryTabState extends State<_GalleryTab> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
+      final ws = context.read<PhotosWsController>();
+      _ws = ws;
+      ws.onPhotoReady = _onWsPhotoReady;
+      ws.subscribe(eventId: widget.eventId);
+      setState(() {
+        _guestsFuture =
+            context.read<EventsRepository>().listEventGuestsV2(widget.eventId);
+      });
+    });
 
     final palette = <Color>[
       Colors.blue,
@@ -349,27 +381,6 @@ class _GalleryTabState extends State<_GalleryTab> {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_requested) return;
-    _requested = true;
-    context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final ws = context.read<PhotosWsController>();
-      _ws = ws;
-      ws.onPhotoReady = _onWsPhotoReady;
-      ws.subscribe(eventId: widget.eventId);
-
-      // Reuse existing guests listing used in Details tab, but load it here for filters.
-      setState(() {
-        _guestsFuture =
-            context.read<EventsRepository>().listEventGuestsV2(widget.eventId);
-      });
-    });
-  }
-
-  @override
   void didUpdateWidget(covariant _GalleryTab oldWidget) {
     super.didUpdateWidget(oldWidget);
 
@@ -378,11 +389,9 @@ class _GalleryTabState extends State<_GalleryTab> {
     if (!eventChanged && !userChanged) return;
 
     _exitSelectionMode();
-
     _badgeColorByIdentity.clear();
     _nextBadgeColorIndex = 0;
 
-    context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final ws = _ws ?? context.read<PhotosWsController>();
@@ -392,7 +401,6 @@ class _GalleryTabState extends State<_GalleryTab> {
         ws.unsubscribe(eventId: oldWidget.eventId);
       }
       ws.subscribe(eventId: widget.eventId);
-
       setState(() {
         _guestsFuture =
             context.read<EventsRepository>().listEventGuestsV2(widget.eventId);
@@ -469,8 +477,7 @@ class _GalleryTabState extends State<_GalleryTab> {
     final uploader = context.watch<PhotosUploadController>();
     final t = context.watch<TranslationsService>();
 
-    final isCurrentEvent = controller.currentEventId == widget.eventId;
-    final remoteItems = isCurrentEvent ? controller.items : const <EventPhoto>[];
+    final remoteItems = controller.items;
 
     final deepLinkPhotoId = widget.initialPhotoId;
     if (!widget.openedInitialPhoto &&
@@ -557,14 +564,11 @@ class _GalleryTabState extends State<_GalleryTab> {
       return safeB.compareTo(safeA);
     });
 
-    if ((!isCurrentEvent || controller.loading) &&
-        remoteItems.isEmpty &&
-        localPathById.isEmpty) {
+    if (controller.loading && remoteItems.isEmpty && localPathById.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (isCurrentEvent &&
-        !controller.loading &&
+    if (!controller.loading &&
         controller.error == null &&
         remoteItems.isEmpty &&
         localPathById.isEmpty) {
