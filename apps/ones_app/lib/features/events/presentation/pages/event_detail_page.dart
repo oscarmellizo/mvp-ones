@@ -127,7 +127,8 @@ class _EventDetailPageState extends State<EventDetailPage> {
     final api = context.read<EventPhotosApi>();
     final auth = context.read<AuthController>();
     _galleryController = PhotosGalleryController(api: api)
-      ..setIdToken(auth.idToken);
+      ..setIdToken(auth.idToken)
+      ..prepare(eventId: widget.eventId);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -153,7 +154,9 @@ class _EventDetailPageState extends State<EventDetailPage> {
     if (oldWidget.eventId == widget.eventId) return;
     final api = context.read<EventPhotosApi>();
     final auth = context.read<AuthController>();
-    final next = PhotosGalleryController(api: api)..setIdToken(auth.idToken);
+    final next = PhotosGalleryController(api: api)
+      ..setIdToken(auth.idToken)
+      ..prepare(eventId: widget.eventId);
     final prev = _galleryController;
 
     _galleryController = next;
@@ -619,13 +622,14 @@ class _GalleryTabState extends State<_GalleryTab> {
       return safeB.compareTo(safeA);
     });
 
-    if ((!isCurrentEvent || controller.loading) &&
+    if ((!isCurrentEvent || controller.loading || !controller.loadedOnce) &&
         remoteItems.isEmpty &&
         localPathById.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
     if (isCurrentEvent &&
+        controller.loadedOnce &&
         !controller.loading &&
         controller.error == null &&
         remoteItems.isEmpty &&

@@ -14,6 +14,7 @@ class PhotosGalleryController extends ChangeNotifier {
 
   String? _idToken;
   bool _loading = false;
+  bool _loadedOnce = false;
   Object? _error;
   List<EventPhoto> _items = const [];
 
@@ -29,6 +30,7 @@ class PhotosGalleryController extends ChangeNotifier {
   PhotosGalleryController({required this.api});
 
   bool get loading => _loading;
+  bool get loadedOnce => _loadedOnce;
   Object? get error => _error;
   String? get currentEventId => _currentEventId;
 
@@ -48,12 +50,29 @@ class PhotosGalleryController extends ChangeNotifier {
     api.setIdToken(token);
 
     _loading = false;
+    _loadedOnce = false;
     _error = null;
     _items = const [];
     _nextToken = null;
     _hasMore = true;
     _currentEventId = null;
     _requestEpoch++;
+    notifyListeners();
+  }
+
+  void prepare({required String eventId}) {
+    final trimmedEventId = eventId.trim();
+    if (trimmedEventId.isEmpty) return;
+
+    _currentEventId = trimmedEventId;
+    _nextToken = null;
+    _hasMore = true;
+    _error = null;
+    _items = const [];
+
+    _loadedOnce = false;
+    _requestEpoch++;
+    _loading = true;
     notifyListeners();
   }
 
@@ -188,6 +207,7 @@ class PhotosGalleryController extends ChangeNotifier {
     _error = null;
 
     _items = const [];
+    _loadedOnce = false;
 
     final epoch = ++_requestEpoch;
     _loading = true;
@@ -201,6 +221,7 @@ class PhotosGalleryController extends ChangeNotifier {
         _nextToken = null;
         _hasMore = false;
         _loading = false;
+        _loadedOnce = true;
         notifyListeners();
       }
       return;
@@ -248,6 +269,7 @@ class PhotosGalleryController extends ChangeNotifier {
     } finally {
       if (epoch == _requestEpoch) {
         _loading = false;
+        _loadedOnce = true;
         notifyListeners();
       }
     }
