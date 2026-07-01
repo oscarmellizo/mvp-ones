@@ -309,9 +309,12 @@ class PhotosUploadController extends ChangeNotifier {
           _safeNotify();
         } catch (e) {
           final isMissingLocalFile = e is FileSystemException &&
-              (e.osError?.errorCode == 2 ||
-                  e.osError?.message.toLowerCase().contains('no such file') ==
-                      true);
+              (() {
+                final osError = e.osError;
+                if (osError?.errorCode == 2) return true;
+                final msg = osError?.message;
+                return msg != null && msg.toLowerCase().contains('no such file');
+              })();
           if (isMissingLocalFile) {
             if (kDebugMode) {
               debugPrint(
