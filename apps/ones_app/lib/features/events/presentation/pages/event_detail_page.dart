@@ -364,6 +364,11 @@ class _GalleryTabState extends State<_GalleryTab> {
 
   final Set<String> _cleanupUploadPhotoIds = {};
 
+  final ScrollController _gridScrollController = ScrollController();
+
+  int _autoFillLoadMoreAttempts = 0;
+  String? _autoFillEventId;
+
   Timer? _pendingUploadsPoll;
   int _pendingUploadsPollTicks = 0;
   String? _pendingUploadsEventId;
@@ -418,9 +423,29 @@ class _GalleryTabState extends State<_GalleryTab> {
         decoded.contains('eventos/$trimmed/');
   }
 
+  void _maybeLoadMore() {
+    if (!mounted) return;
+    if (!_gridScrollController.hasClients) return;
+
+    final controller = _galleryController;
+    if (controller == null) return;
+
+    if (controller.loading || !controller.hasMore) return;
+
+    final pos = _gridScrollController.position;
+    final canScroll = pos.maxScrollExtent > 0;
+    if (!canScroll) return;
+
+    final nearBottom = pos.pixels >= pos.maxScrollExtent - 400;
+    if (!nearBottom) return;
+
+    controller.loadMore(eventId: widget.eventId);
+  }
+
   @override
   void initState() {
     super.initState();
+    _gridScrollController.addListener(_maybeLoadMore);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final ws = context.read<PhotosWsController>();
@@ -469,6 +494,14 @@ class _GalleryTabState extends State<_GalleryTab> {
     final userChanged = oldWidget.currentUserId != widget.currentUserId;
     if (!eventChanged && !userChanged) return;
 
+    if (eventChanged) {
+      _autoFillEventId = null;
+      _autoFillLoadMoreAttempts = 0;
+      if (_gridScrollController.hasClients) {
+        _gridScrollController.jumpTo(0);
+      }
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
@@ -502,6 +535,9 @@ class _GalleryTabState extends State<_GalleryTab> {
 
     _pendingUploadsPoll?.cancel();
     _pendingUploadsPoll = null;
+
+    _gridScrollController.removeListener(_maybeLoadMore);
+    _gridScrollController.dispose();
 
     final ws = _ws;
     if (ws != null) {
@@ -723,6 +759,28 @@ class _GalleryTabState extends State<_GalleryTab> {
     if (!isCurrentEvent || !controller.loadedOnce) {
       return const Center(child: CircularProgressIndicator());
     }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!isCurrentEvent) return;
+      if (!controller.loadedOnce) return;
+      if (controller.loading) return;
+      if (!controller.hasMore) return;
+
+      if (_autoFillEventId != widget.eventId) {
+        _autoFillEventId = widget.eventId;
+        _autoFillLoadMoreAttempts = 0;
+      }
+      if (_autoFillLoadMoreAttempts >= 4) return;
+
+      if (!_gridScrollController.hasClients) return;
+      final pos = _gridScrollController.position;
+      final canScroll = pos.maxScrollExtent > 0;
+      if (!canScroll) {
+        _autoFillLoadMoreAttempts++;
+        controller.loadMore(eventId: widget.eventId);
+      }
+    });
 
     if (controller.loading && remoteItems.isEmpty && localPathById.isEmpty) {
       return const Center(child: CircularProgressIndicator());
@@ -977,106 +1035,86 @@ class _GalleryTabState extends State<_GalleryTab> {
                 onRefresh: () => controller.refresh(eventId: widget.eventId),
                 child: Container(
                   color: OnesColors.background,
-                  child: NotificationListener<ScrollNotification>(
-                    onNotification: (n) {
-                      if (n is ScrollUpdateNotification) {
-                        final m = n.metrics;
-                        final nearBottom = m.pixels >= m.maxScrollExtent - 400;
-                        final canScroll = m.maxScrollExtent > 0;
-                        if (canScroll &&
-                            nearBottom &&
-                            !controller.loading &&
-                            controller.hasMore) {
-                          controller.loadMore(eventId: widget.eventId);
-                        }
+                  child: GridView.builder(
+                    controller: _gridScrollController,
+                    key: ValueKey('grid:${widget.eventId}'),
+                    padding: EdgeInsets.zero,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      mainAxisSpacing: 1,
+                      crossAxisSpacing: 1,
+                      childAspectRatio: 1,
+                    ),
+                    itemCount: mergedIds.length,
+                    itemBuilder: (context, index) {
+                      final photoId = mergedIds[index];
+                      final localPath = localPathById[photoId];
+                      final remote = remoteById[photoId];
+                      final remoteStatus =
+                          (remote?.status ?? '').trim().toLowerCase();
+                      final isRemoteReady =
+                          remote != null && remoteStatus == 'ready';
+
+                      final isLocalPending = localPath != null &&
+                          localPath.isNotEmpty &&
+                          !isRemoteReady;
+
+                      final item =
+                          !isLocalPending ? remoteById[photoId] : null;
+
+                      final small = item?.smallUrl;
+                      final medium = item?.mediumUrl;
+                      final rawThumbUrl =
+                          (small != null && small.isNotEmpty) ? small : null;
+                      final rawViewerUrl =
+                          (medium != null && medium.isNotEmpty)
+                              ? medium
+                              : null;
+
+                      final thumbUrl =
+                          (rawThumbUrl != null &&
+                                  _urlBelongsToEvent(rawThumbUrl, widget.eventId))
+                              ? rawThumbUrl
+                              : null;
+                      final viewerUrl =
+                          (rawViewerUrl != null &&
+                                  _urlBelongsToEvent(rawViewerUrl, widget.eventId))
+                              ? rawViewerUrl
+                              : null;
+
+                      if (kDebugMode && rawThumbUrl != null && thumbUrl == null) {
+                        debugPrint(
+                          'gallery_url_guard: eventId=${widget.eventId} photoId=$photoId rejectedThumbUrl=$rawThumbUrl',
+                        );
                       }
-                      return false;
-                    },
-                    child: GridView.builder(
-                      key: ValueKey('grid:${widget.eventId}'),
-                      padding: EdgeInsets.zero,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        mainAxisSpacing: 1,
-                        crossAxisSpacing: 1,
-                        childAspectRatio: 1,
-                      ),
-                      itemCount: mergedIds.length,
-                      itemBuilder: (context, index) {
-                        final photoId = mergedIds[index];
-                        final localPath = localPathById[photoId];
-                        final remote = remoteById[photoId];
-                        final remoteStatus =
-                            (remote?.status ?? '').trim().toLowerCase();
-                        final isRemoteReady =
-                            remote != null && remoteStatus == 'ready';
+                      if (kDebugMode && rawViewerUrl != null && viewerUrl == null) {
+                        debugPrint(
+                          'gallery_url_guard: eventId=${widget.eventId} photoId=$photoId rejectedViewerUrl=$rawViewerUrl',
+                        );
+                      }
 
-                        final isLocalPending = localPath != null &&
-                            localPath.isNotEmpty &&
-                            !isRemoteReady;
+                      final canSelect = (!isLocalPending && item != null)
+                          ? _canSelect(item.guestId)
+                          : false;
+                      final isSelected = _selectedIds.contains(photoId);
 
-                        final item =
-                            !isLocalPending ? remoteById[photoId] : null;
-
-                        final small = item?.smallUrl;
-                        final medium = item?.mediumUrl;
-                        final rawThumbUrl =
-                            (small != null && small.isNotEmpty) ? small : null;
-                        final rawViewerUrl =
-                            (medium != null && medium.isNotEmpty)
-                                ? medium
-                                : null;
-
-                        final thumbUrl =
-                            (rawThumbUrl != null &&
-                                    _urlBelongsToEvent(
-                                        rawThumbUrl, widget.eventId))
-                                ? rawThumbUrl
-                                : null;
-                        final viewerUrl =
-                            (rawViewerUrl != null &&
-                                    _urlBelongsToEvent(
-                                        rawViewerUrl, widget.eventId))
-                                ? rawViewerUrl
-                                : null;
-
-                        if (kDebugMode &&
-                            rawThumbUrl != null &&
-                            thumbUrl == null) {
-                          debugPrint(
-                            'gallery_url_guard: eventId=${widget.eventId} photoId=$photoId rejectedThumbUrl=$rawThumbUrl',
-                          );
-                        }
-                        if (kDebugMode &&
-                            rawViewerUrl != null &&
-                            viewerUrl == null) {
-                          debugPrint(
-                            'gallery_url_guard: eventId=${widget.eventId} photoId=$photoId rejectedViewerUrl=$rawViewerUrl',
-                          );
-                        }
-
-                        final canSelect = (!isLocalPending && item != null)
-                            ? _canSelect(item.guestId)
-                            : false;
-                        final isSelected = _selectedIds.contains(photoId);
-
-                        void toggleSelected() {
-                          if (!canSelect) return;
-                          setState(() {
-                            _selecting = true;
-                            if (isSelected) {
-                              _selectedIds.remove(photoId);
-                              if (_selectedIds.isEmpty) {
-                                _selecting = false;
-                              }
-                            } else {
-                              _selectedIds.add(photoId);
+                      void toggleSelected() {
+                        if (!canSelect) return;
+                        setState(() {
+                          _selecting = true;
+                          if (isSelected) {
+                            _selectedIds.remove(photoId);
+                            if (_selectedIds.isEmpty) {
+                              _selecting = false;
                             }
-                          });
-                        }
+                          } else {
+                            _selectedIds.add(photoId);
+                          }
+                        });
+                      }
 
-                        return InkWell(
+                      return InkWell(
                           key: ValueKey('${widget.eventId}:$photoId'),
                           onLongPress: canSelect ? toggleSelected : null,
                           onTap: () {
@@ -1346,7 +1384,6 @@ class _GalleryTabState extends State<_GalleryTab> {
                   ),
                 ),
               ),
-            ),
           ],
         ),
         if (_selecting)
