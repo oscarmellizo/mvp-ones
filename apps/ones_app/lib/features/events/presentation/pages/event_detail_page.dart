@@ -279,28 +279,26 @@ class _EventDetailPageState extends State<EventDetailPage> {
                             ),
                             const SizedBox(height: 12),
                             Expanded(
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(
-                                    horizontal: horizontalPadding),
-                                child: _tabIndex == 0
-                                    ? _GalleryTab(
-                                        key: ValueKey(
-                                            'gallery:${widget.eventId}'),
-                                        eventId: widget.eventId,
-                                        currentUserId: currentUserId,
-                                        isOwner: auth.user?.userId ==
-                                            event.ownerId,
-                                        searchController: _searchController,
-                                        initialPhotoId: deepLinkPhotoId,
-                                        openedInitialPhoto: _openedInitialPhoto,
-                                        onOpenedInitialPhoto: () {
-                                          if (_openedInitialPhoto) return;
-                                          setState(() {
-                                            _openedInitialPhoto = true;
-                                          });
-                                        },
-                                      )
-                                    : _DetailsTab(
+                              child: _tabIndex == 0
+                                  ? _GalleryTab(
+                                      key: ValueKey('gallery:${widget.eventId}'),
+                                      eventId: widget.eventId,
+                                      currentUserId: currentUserId,
+                                      isOwner: auth.user?.userId == event.ownerId,
+                                      searchController: _searchController,
+                                      initialPhotoId: deepLinkPhotoId,
+                                      openedInitialPhoto: _openedInitialPhoto,
+                                      onOpenedInitialPhoto: () {
+                                        if (_openedInitialPhoto) return;
+                                        setState(() {
+                                          _openedInitialPhoto = true;
+                                        });
+                                      },
+                                    )
+                                  : Padding(
+                                      padding: EdgeInsets.symmetric(
+                                          horizontal: horizontalPadding),
+                                      child: _DetailsTab(
                                         eventId: event.id,
                                         coverKey: event.coverKey,
                                         title: event.title,
@@ -309,14 +307,14 @@ class _EventDetailPageState extends State<EventDetailPage> {
                                         endAt: event.endAt,
                                         location: event.location,
                                         frameIds: event.frameIds,
-                                        isOwner: auth.user?.userId ==
-                                            event.ownerId,
+                                        isOwner:
+                                            auth.user?.userId == event.ownerId,
                                         allowGuestInvites:
                                             event.allowGuestInvites,
                                         inviteLinkEnabled:
                                             event.inviteLinkEnabled,
                                       ),
-                              ),
+                                    ),
                             ),
                           ],
                         ),
@@ -1043,7 +1041,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                       crossAxisCount: 3,
                       mainAxisSpacing: 1,
                       crossAxisSpacing: 1,
-                      childAspectRatio: 1,
+                      childAspectRatio: 0.82,
                     ),
                     itemCount: mergedIds.length,
                     itemBuilder: (context, index) {
