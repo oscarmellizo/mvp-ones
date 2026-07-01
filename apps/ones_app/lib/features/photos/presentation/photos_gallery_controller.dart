@@ -179,13 +179,6 @@ class PhotosGalleryController extends ChangeNotifier {
   }
 
   Future<void> refresh({required String eventId}) async {
-    final token = _idToken;
-    if (token == null || token.isEmpty) {
-      _error = StateError('Missing idToken');
-      notifyListeners();
-      return;
-    }
-
     final trimmedEventId = eventId.trim();
     if (trimmedEventId.isEmpty) return;
 
@@ -203,6 +196,19 @@ class PhotosGalleryController extends ChangeNotifier {
     final epoch = ++_requestEpoch;
     _loading = true;
     notifyListeners();
+
+    final token = _idToken;
+    if (token == null || token.isEmpty) {
+      if (epoch == _requestEpoch) {
+        _error = StateError('Missing idToken');
+        _items = const [];
+        _nextToken = null;
+        _hasMore = false;
+        _loading = false;
+        notifyListeners();
+      }
+      return;
+    }
 
     try {
       final res = await api.list(
