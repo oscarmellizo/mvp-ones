@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -32,6 +33,8 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
   bool _likeBusy = false;
   bool _shareBusy = false;
 
+  CacheManager? _mediaCache;
+
   String? _lastLanguage;
 
   static const Set<String> _photoViewerRequiredKeys = {
@@ -46,6 +49,13 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
   void initState() {
     super.initState();
     _lastLanguage = context.read<TranslationsService>().getCurrentLanguage();
+    _mediaCache = CacheManager(
+      Config(
+        'ones_viewer_media_${widget.eventId}',
+        stalePeriod: const Duration(days: 7),
+        maxNrOfCacheObjects: 200,
+      ),
+    );
     final initial = widget.initialIndex < 0 ? 0 : widget.initialIndex;
     _currentIndex = initial;
     _pageController = PageController(initialPage: initial);
@@ -62,6 +72,7 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
   @override
   void dispose() {
     _pageController.dispose();
+    _mediaCache?.emptyCache();
     super.dispose();
   }
 
@@ -75,7 +86,14 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
       final it = items[i];
       final url = it.mediumUrl;
       if (url == null || url.trim().isEmpty) continue;
-      precacheImage(CachedNetworkImageProvider(url), context);
+      precacheImage(
+        CachedNetworkImageProvider(
+          url,
+          cacheKey: '${widget.eventId}:${it.photoId}:m',
+          cacheManager: _mediaCache,
+        ),
+        context,
+      );
     }
   }
 
@@ -241,26 +259,34 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
 
                         return InteractiveViewer(
                           child: Center(
-                            child: CachedNetworkImage(
-                              imageUrl: url,
+                            child: Image(
+                              image: CachedNetworkImageProvider(
+                                url.trim(),
+                                cacheKey: '${widget.eventId}:${it.photoId}:m',
+                                cacheManager: _mediaCache,
+                              ),
                               fit: BoxFit.contain,
-                              memCacheWidth: 1920,
-                              memCacheHeight: 1920,
-                              placeholder: (context, url) => const Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                              errorWidget: (context, url, error) => Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(24),
-                                  child: Text(
-                                    '${t.translate('photo_viewer.error_loading_image', fallback: 'Error cargando imagen')}: $error',
-                                    style: const TextStyle(
-                                      color: Colors.white,
+                              gaplessPlayback: false,
+                              frameBuilder: (context, child, frame, _) {
+                                if (frame != null) return child;
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
+                              },
+                              errorBuilder: (context, error, stack) {
+                                return Center(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(24),
+                                    child: Text(
+                                      '${t.translate('photo_viewer.error_loading_image', fallback: 'Error cargando imagen')}: $error',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                      ),
+                                      textAlign: TextAlign.center,
                                     ),
-                                    textAlign: TextAlign.center,
                                   ),
-                                ),
-                              ),
+                                );
+                              },
                             ),
                           ),
                         );
