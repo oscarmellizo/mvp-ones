@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../application/create_event_use_case.dart';
@@ -11,6 +13,8 @@ class EventsController extends ChangeNotifier {
   final GetEventUseCase getEvent;
   final CreateEventUseCase createEvent;
   final UpdateEventUseCase updateEventUseCase;
+
+  bool _notifyScheduled = false;
 
   String? _idToken;
   bool _loading = false;
@@ -31,6 +35,15 @@ class EventsController extends ChangeNotifier {
   List<Event> get events => _events;
   Event? get selected => _selected;
 
+  void _safeNotify() {
+    if (_notifyScheduled) return;
+    _notifyScheduled = true;
+    scheduleMicrotask(() {
+      _notifyScheduled = false;
+      notifyListeners();
+    });
+  }
+
   void setIdToken(String? token) {
     if (_idToken == token) {
       return;
@@ -41,7 +54,7 @@ class EventsController extends ChangeNotifier {
     _error = null;
     _events = const [];
     _selected = null;
-    notifyListeners();
+    _safeNotify();
   }
 
   Future<void> refresh() async {
@@ -150,6 +163,6 @@ class EventsController extends ChangeNotifier {
 
   void _setLoading(bool value) {
     _loading = value;
-    notifyListeners();
+    _safeNotify();
   }
 }
