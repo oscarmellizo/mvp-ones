@@ -116,9 +116,16 @@ class _EventDetailPageState extends State<EventDetailPage> {
     'event_detail.guest_status_invited',
   };
 
+  void _purgeFlutterImageCache() {
+    final cache = PaintingBinding.instance.imageCache;
+    cache.clear();
+    cache.clearLiveImages();
+  }
+
   @override
   void initState() {
     super.initState();
+    _purgeFlutterImageCache();
     _lastLanguage = context.read<TranslationsService>().getCurrentLanguage();
     if (widget.initialPhotoId != null &&
         widget.initialPhotoId!.trim().isNotEmpty) {
@@ -152,6 +159,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
   void didUpdateWidget(covariant EventDetailPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.eventId == widget.eventId) return;
+    _purgeFlutterImageCache();
     final api = context.read<EventPhotosApi>();
     final auth = context.read<AuthController>();
     final next = PhotosGalleryController(api: api)
