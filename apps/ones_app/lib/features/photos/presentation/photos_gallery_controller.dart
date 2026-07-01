@@ -30,6 +30,8 @@ class PhotosGalleryController extends ChangeNotifier {
 
   bool get loading => _loading;
   Object? get error => _error;
+  String? get currentEventId => _currentEventId;
+
   List<EventPhoto> get items => _items;
 
   PhotosGalleryFilter get filter => _filter;
@@ -187,25 +189,22 @@ class PhotosGalleryController extends ChangeNotifier {
     final trimmedEventId = eventId.trim();
     if (trimmedEventId.isEmpty) return;
 
-    if (_currentEventId != trimmedEventId) {
-      _currentEventId = trimmedEventId;
+    final eventChanged = _currentEventId != trimmedEventId;
+
+    _currentEventId = trimmedEventId;
+    _nextToken = null;
+    _hasMore = true;
+    _error = null;
+
+    if (eventChanged) {
       _items = const [];
-      _nextToken = null;
-      _hasMore = true;
-      _error = null;
-      _requestEpoch++;
-      notifyListeners();
     }
 
     final epoch = ++_requestEpoch;
+    _loading = true;
+    notifyListeners();
 
-    _setLoading(true);
     try {
-      _error = null;
-
-      _nextToken = null;
-      _hasMore = true;
-
       final res = await api.list(
         eventId: trimmedEventId,
         limit: 9,
@@ -246,7 +245,8 @@ class PhotosGalleryController extends ChangeNotifier {
       }
     } finally {
       if (epoch == _requestEpoch) {
-        _setLoading(false);
+        _loading = false;
+        notifyListeners();
       }
     }
   }

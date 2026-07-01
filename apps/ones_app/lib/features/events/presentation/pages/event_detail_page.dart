@@ -353,10 +353,9 @@ class _GalleryTabState extends State<_GalleryTab> {
     super.didChangeDependencies();
     if (_requested) return;
     _requested = true;
+    context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
-
       final ws = context.read<PhotosWsController>();
       _ws = ws;
       ws.onPhotoReady = _onWsPhotoReady;
@@ -383,10 +382,9 @@ class _GalleryTabState extends State<_GalleryTab> {
     _badgeColorByIdentity.clear();
     _nextBadgeColorIndex = 0;
 
+    context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
-
       final ws = _ws ?? context.read<PhotosWsController>();
       _ws = ws;
       ws.onPhotoReady = _onWsPhotoReady;
@@ -471,7 +469,8 @@ class _GalleryTabState extends State<_GalleryTab> {
     final uploader = context.watch<PhotosUploadController>();
     final t = context.watch<TranslationsService>();
 
-    final remoteItems = controller.items;
+    final isCurrentEvent = controller.currentEventId == widget.eventId;
+    final remoteItems = isCurrentEvent ? controller.items : const <EventPhoto>[];
 
     final deepLinkPhotoId = widget.initialPhotoId;
     if (!widget.openedInitialPhoto &&
@@ -558,13 +557,17 @@ class _GalleryTabState extends State<_GalleryTab> {
       return safeB.compareTo(safeA);
     });
 
-    if (controller.loading && remoteItems.isEmpty && localPathById.isEmpty) {
+    if ((!isCurrentEvent || controller.loading) &&
+        remoteItems.isEmpty &&
+        localPathById.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (!controller.loading &&
+    if (isCurrentEvent &&
+        !controller.loading &&
         controller.error == null &&
-        controller.items.isEmpty) {
+        remoteItems.isEmpty &&
+        localPathById.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
