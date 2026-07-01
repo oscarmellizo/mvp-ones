@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -515,12 +516,10 @@ class _GalleryTabState extends State<_GalleryTab> {
     final items = controller?.items ?? const <EventPhoto>[];
 
     for (final photo in items) {
-      if (photo.smallUrl != null && photo.smallUrl!.isNotEmpty) {
-        DefaultCacheManager().removeFile(photo.smallUrl!);
-      }
-      if (photo.mediumUrl != null && photo.mediumUrl!.isNotEmpty) {
-        DefaultCacheManager().removeFile(photo.mediumUrl!);
-      }
+      final pid = photo.photoId.trim();
+      if (pid.isEmpty) continue;
+      DefaultCacheManager().removeFile('${widget.eventId}:$pid:s');
+      DefaultCacheManager().removeFile('${widget.eventId}:$pid:m');
     }
   }
 
