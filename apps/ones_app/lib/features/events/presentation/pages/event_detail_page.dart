@@ -127,13 +127,14 @@ class _EventDetailPageState extends State<EventDetailPage> {
     final auth = context.read<AuthController>();
     _galleryController = PhotosGalleryController(api: api)
       ..setIdToken(auth.idToken);
+
+    context.read<EventsController>().select(widget.eventId);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<TranslationsService>().ensurePageTranslations(
             page: 'event_detail',
             requiredKeys: _eventDetailRequiredKeys,
           );
-      context.read<EventsController>().select(widget.eventId);
     });
   }
 
@@ -169,7 +170,8 @@ class _EventDetailPageState extends State<EventDetailPage> {
             );
       });
     }
-    final event = controller.selected;
+    final selected = controller.selected;
+    final event = selected != null && selected.id == widget.eventId ? selected : null;
     final currentUserId = auth.user?.userId;
 
     final deepLinkPhotoId = widget.initialPhotoId;
@@ -206,7 +208,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
         child: const Icon(Icons.photo_camera),
       ),
       body: SafeArea(
-        child: controller.loading
+        child: controller.loading || controller.selected?.id != widget.eventId
             ? const Center(child: CircularProgressIndicator())
             : event == null
                 ? Padding(
@@ -243,7 +245,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                               horizontal: horizontalPadding),
                           child: _tabIndex == 0
                               ? _GalleryTab(
-                                  eventId: event.id,
+                                  eventId: widget.eventId,
                                   currentUserId: currentUserId,
                                   isOwner: auth.user?.userId == event.ownerId,
                                   searchController: _searchController,
@@ -322,6 +324,9 @@ class _GalleryTabState extends State<_GalleryTab> {
   PhotosWsController? _ws;
   Timer? _wsDebounce;
 
+  PhotoStorage? _photoStorage;
+  PhotosGalleryController? _galleryController;
+
   Color _badgeColorForIdentity(String identity) {
     final trimmed = identity.trim();
     if (trimmed.isEmpty) {
@@ -381,6 +386,13 @@ class _GalleryTabState extends State<_GalleryTab> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _photoStorage ??= context.read<PhotoStorage>();
+    _galleryController ??= context.read<PhotosGalleryController>();
+  }
+
+  @override
   void didUpdateWidget(covariant _GalleryTab oldWidget) {
     super.didUpdateWidget(oldWidget);
 
@@ -422,8 +434,10 @@ class _GalleryTabState extends State<_GalleryTab> {
     }
 
     // Limpiar fotos locales del evento
-    final storage = context.read<PhotoStorage>();
-    unawaited(storage.deleteEventPhotos(eventId: widget.eventId));
+    final storage = _photoStorage;
+    if (storage != null) {
+      unawaited(storage.deleteEventPhotos(eventId: widget.eventId));
+    }
 
     // Limpiar cache de fotos remotas del evento
     _clearEventImageCache();
@@ -432,8 +446,8 @@ class _GalleryTabState extends State<_GalleryTab> {
   }
 
   void _clearEventImageCache() {
-    final controller = context.read<PhotosGalleryController>();
-    final items = controller.items;
+    final controller = _galleryController;
+    final items = controller?.items ?? const <EventPhoto>[];
 
     for (final photo in items) {
       if (photo.smallUrl != null && photo.smallUrl!.isNotEmpty) {
