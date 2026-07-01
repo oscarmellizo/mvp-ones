@@ -376,6 +376,8 @@ class _GalleryTabState extends State<_GalleryTab> {
   PhotoStorage? _photoStorage;
   PhotosGalleryController? _galleryController;
 
+  CacheManager? _thumbCache;
+
   Color _badgeColorForIdentity(String identity) {
     final trimmed = identity.trim();
     if (trimmed.isEmpty) {
@@ -415,6 +417,13 @@ class _GalleryTabState extends State<_GalleryTab> {
   @override
   void initState() {
     super.initState();
+    _thumbCache = CacheManager(
+      Config(
+        'ones_gallery_thumbs_${widget.eventId}',
+        stalePeriod: const Duration(days: 7),
+        maxNrOfCacheObjects: 500,
+      ),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final ws = context.read<PhotosWsController>();
@@ -507,6 +516,8 @@ class _GalleryTabState extends State<_GalleryTab> {
 
     // Limpiar cache de fotos remotas del evento
     _clearEventImageCache();
+
+    _thumbCache?.emptyCache();
 
     super.dispose();
   }
@@ -1078,7 +1089,8 @@ class _GalleryTabState extends State<_GalleryTab> {
                                             image: CachedNetworkImageProvider(
                                               thumbUrl,
                                               cacheKey:
-                                                  '${widget.eventId}:$photoId',
+                                                  '${widget.eventId}:$photoId:s',
+                                              cacheManager: _thumbCache,
                                             ),
                                             fit: BoxFit.cover,
                                             gaplessPlayback: false,
