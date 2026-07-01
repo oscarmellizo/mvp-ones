@@ -61,6 +61,7 @@ class PhotosUploadController extends ChangeNotifier {
   }
 
   Future<void> rehydrateActive() async {
+    await db.purgeStale();
     final items = await db.listActive();
     final next = <String, List<PhotoUploadItem>>{};
     for (final it in items) {

@@ -202,6 +202,10 @@ public class PhotosService {
             List<Photo> selected = new ArrayList<>(remaining);
 
             for (Photo p : page.items()) {
+                if (p.getEventId() == null || !p.getEventId().equals(eventId)) {
+                    continue;
+                }
+
                 boolean isShared = isShared(p);
 
                 if (!isShared && (p.getGuestId() == null || !p.getGuestId().equals(requesterUserId))) {
@@ -359,6 +363,10 @@ public class PhotosService {
             List<Photo> selected = new ArrayList<>(remaining);
 
             for (Photo p : page.items()) {
+                if (p.getEventId() == null || !p.getEventId().equals(eventId)) {
+                    continue;
+                }
+
                 boolean isShared = isShared(p);
 
                 if (!isShared && (p.getGuestId() == null || !p.getGuestId().equals(requesterUserId))) {
@@ -909,6 +917,10 @@ public class PhotosService {
 
         Photo existing = photosRepository.findById(photoId).orElse(null);
         Instant now = Instant.now(clock);
+
+        if (existing != null && !eventId.trim().equals(existing.getEventId())) {
+            throw new IllegalArgumentException("Photo does not belong to event");
+        }
 
         if (existing == null) {
             Photo created = new Photo(

@@ -191,6 +191,16 @@ CREATE TABLE $_table (
     );
   }
 
+  Future<int> purgeStale({Duration olderThan = const Duration(hours: 1)}) async {
+    final db = await _open();
+    final cutoff = DateTime.now().toUtc().subtract(olderThan).toIso8601String();
+    return db.delete(
+      _table,
+      where: "status IN ('processing','uploading') AND updatedAt < ?",
+      whereArgs: [cutoff],
+    );
+  }
+
   Future<void> deleteByPhotoId(String photoId) async {
     if (photoId.isEmpty) return;
     final db = await _open();

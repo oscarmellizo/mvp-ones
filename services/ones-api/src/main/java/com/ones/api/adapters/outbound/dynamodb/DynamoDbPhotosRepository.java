@@ -101,6 +101,57 @@ public class DynamoDbPhotosRepository implements PhotosRepository {
         return new PageResult<>(out, outNextToken);
     }
 
+    @Override
+    public PageResult<Photo> listAll(int limit, String nextToken) {
+        int resolvedLimit = limit <= 0 ? 100 : Math.min(limit, 100);
+
+        software.amazon.awssdk.enhanced.dynamodb.model.ScanEnhancedRequest.Builder req = 
+            software.amazon.awssdk.enhanced.dynamodb.model.ScanEnhancedRequest.builder()
+                .limit(resolvedLimit);
+
+        List<Photo> out = new ArrayList<>();
+        String outNextToken = null;
+
+        for (Page<DynamoPhotoItem> page : table.scan(req.build())) {
+            for (DynamoPhotoItem item : page.items()) {
+                out.add(toDomain(item));
+            }
+            Map<String, AttributeValue> lek = page.lastEvaluatedKey();
+            if (lek != null && !lek.isEmpty()) {
+                outNextToken = encodeScanExclusiveStartKey(lek);
+            }
+            break;
+        }
+
+        return new PageResult<>(out, outNextToken);
+    }
+
+    private static String encodeScanExclusiveStartKey(Map<String, AttributeValue> key) {
+        String photoId = s(key.get("photoId"));
+        String raw = photoId == null ? "" : photoId;
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static Map<String, AttributeValue> decodeScanExclusiveStartKey(String nextToken) {
+        if (nextToken == null || nextToken.isBlank()) {
+            return null;
+        }
+
+        byte[] decoded;
+        try {
+            decoded = Base64.getUrlDecoder().decode(nextToken.trim());
+        } catch (Exception e) {
+            return null;
+        }
+
+        String photoId = new String(decoded, StandardCharsets.UTF_8);
+        if (photoId.isBlank()) {
+            return null;
+        }
+
+        return Map.of("photoId", AttributeValue.builder().s(photoId).build());
+    }
+
     private static String encodeExclusiveStartKey(Map<String, AttributeValue> key) {
         String photoId = s(key.get("photoId"));
         String eventId = s(key.get("eventId"));
