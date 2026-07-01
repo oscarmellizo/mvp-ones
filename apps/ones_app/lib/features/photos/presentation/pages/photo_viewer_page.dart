@@ -72,7 +72,7 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
   @override
   void dispose() {
     _pageController.dispose();
-    _mediaCache?.emptyCache();
+    _mediaCache?.dispose();
     super.dispose();
   }
 

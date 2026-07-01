@@ -517,7 +517,7 @@ class _GalleryTabState extends State<_GalleryTab> {
     // Limpiar cache de fotos remotas del evento
     _clearEventImageCache();
 
-    _thumbCache?.emptyCache();
+    _thumbCache?.dispose();
 
     super.dispose();
   }
