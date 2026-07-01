@@ -129,9 +129,9 @@ class _EventDetailPageState extends State<EventDetailPage> {
     _galleryController = PhotosGalleryController(api: api)
       ..setIdToken(auth.idToken);
 
-    context.read<EventsController>().select(widget.eventId);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      context.read<EventsController>().select(widget.eventId);
       context.read<TranslationsService>().ensurePageTranslations(
             page: 'event_detail',
             requiredKeys: _eventDetailRequiredKeys,
@@ -151,7 +151,6 @@ class _EventDetailPageState extends State<EventDetailPage> {
   void didUpdateWidget(covariant EventDetailPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.eventId == widget.eventId) return;
-    context.read<EventsController>().select(widget.eventId);
     final api = context.read<EventPhotosApi>();
     final auth = context.read<AuthController>();
     final next = PhotosGalleryController(api: api)..setIdToken(auth.idToken);
@@ -161,6 +160,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
     _openedInitialPhoto = false;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      context.read<EventsController>().select(widget.eventId);
       prev?.dispose();
       next.refresh(eventId: widget.eventId);
     });
