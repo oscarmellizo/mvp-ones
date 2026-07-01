@@ -16,6 +16,8 @@ class PhotosWsController extends ChangeNotifier {
   String? _idToken;
   String? _subscribedEventId;
 
+  bool _notifyScheduled = false;
+
   void Function(String eventId, String photoId)? onPhotoReady;
 
   PhotosWsController({required this.wsUrl});
@@ -27,6 +29,15 @@ class PhotosWsController extends ChangeNotifier {
     _idToken = token;
   }
 
+  void _safeNotify() {
+    if (_notifyScheduled) return;
+    _notifyScheduled = true;
+    scheduleMicrotask(() {
+      _notifyScheduled = false;
+      notifyListeners();
+    });
+  }
+
   Future<void> connect() async {
     if (_connecting || _connected) return;
 
@@ -36,7 +47,7 @@ class PhotosWsController extends ChangeNotifier {
     if (token == null || token.isEmpty) return;
 
     _connecting = true;
-    notifyListeners();
+    _safeNotify();
 
     try {
       final uri = Uri.parse(wsUrl).replace(queryParameters: {'token': token});
@@ -65,21 +76,21 @@ class PhotosWsController extends ChangeNotifier {
           _connecting = false;
           _channel = null;
           _sub = null;
-          notifyListeners();
+          _safeNotify();
         },
         onError: (_) {
           _connected = false;
           _connecting = false;
           _channel = null;
           _sub = null;
-          notifyListeners();
+          _safeNotify();
         },
       );
 
       _connected = true;
     } finally {
       _connecting = false;
-      notifyListeners();
+      _safeNotify();
     }
 
     final eventId = _subscribedEventId;
@@ -124,7 +135,7 @@ class PhotosWsController extends ChangeNotifier {
     _channel = null;
     _connected = false;
     _connecting = false;
-    notifyListeners();
+    _safeNotify();
   }
 
   @override

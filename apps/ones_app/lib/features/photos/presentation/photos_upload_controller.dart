@@ -27,6 +27,8 @@ class PhotosUploadController extends ChangeNotifier {
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
+  bool _notifyScheduled = false;
+
   PhotosUploadController({
     required this.api,
     required this.db,
@@ -34,6 +36,15 @@ class PhotosUploadController extends ChangeNotifier {
   }) {
     _connectivitySub =
         Connectivity().onConnectivityChanged.listen((_) => trigger());
+  }
+
+  void _safeNotify() {
+    if (_notifyScheduled) return;
+    _notifyScheduled = true;
+    scheduleMicrotask(() {
+      _notifyScheduled = false;
+      notifyListeners();
+    });
   }
 
   bool get running => _running;
@@ -57,7 +68,7 @@ class PhotosUploadController extends ChangeNotifier {
     await db.deleteByPhotoId(photoId);
     _uploadProgressByPhotoId.remove(photoId);
     await _refreshActiveForEvent(eventId);
-    notifyListeners();
+    _safeNotify();
   }
 
   Future<void> rehydrateActive() async {
@@ -71,7 +82,7 @@ class PhotosUploadController extends ChangeNotifier {
     _activeByEvent
       ..clear()
       ..addAll(next);
-    notifyListeners();
+    _safeNotify();
   }
 
   void setIdToken(String? token) {
@@ -92,13 +103,13 @@ class PhotosUploadController extends ChangeNotifier {
       _activeByEvent.clear();
       unawaited(db.clearAll());
       _triggerAgain = false;
-      notifyListeners();
+      _safeNotify();
       return;
     }
 
     unawaited(rehydrateActive());
     _triggerAgain = true;
-    notifyListeners();
+    _safeNotify();
     unawaited(trigger());
   }
 
@@ -130,7 +141,7 @@ class PhotosUploadController extends ChangeNotifier {
     );
 
     await _refreshActiveForEvent(eventId);
-    notifyListeners();
+    _safeNotify();
 
     unawaited(trigger());
   }
@@ -150,7 +161,7 @@ class PhotosUploadController extends ChangeNotifier {
 
     _running = true;
     _triggerAgain = false;
-    notifyListeners();
+    _safeNotify();
 
     try {
       _lastError = null;
@@ -178,7 +189,7 @@ class PhotosUploadController extends ChangeNotifier {
         try {
           await db.markUploading(item.id);
           await _refreshActiveForEvent(item.eventId);
-          notifyListeners();
+          _safeNotify();
 
           final presign = await api.presignPut(
             eventId: item.eventId,
@@ -188,7 +199,7 @@ class PhotosUploadController extends ChangeNotifier {
 
           await db.markPresigned(item.id, s3KeyOriginal: presign.s3KeyOriginal);
           await _refreshActiveForEvent(item.eventId);
-          notifyListeners();
+          _safeNotify();
 
           final file = File(item.localPath);
           await api.uploadToPresignedUrl(
@@ -200,7 +211,7 @@ class PhotosUploadController extends ChangeNotifier {
               final p = sent / total;
               final clamped = p < 0 ? 0.0 : (p > 1 ? 1.0 : p);
               _uploadProgressByPhotoId[item.photoId] = clamped;
-              notifyListeners();
+              _safeNotify();
             },
           );
 
@@ -213,20 +224,20 @@ class PhotosUploadController extends ChangeNotifier {
 
           await db.markProcessing(item.id);
           await _refreshActiveForEvent(item.eventId);
-          notifyListeners();
+          _safeNotify();
         } catch (e) {
           await db.markFailed(item.id, error: e.toString());
           _lastError = e;
 
           await _refreshActiveForEvent(item.eventId);
-          notifyListeners();
+          _safeNotify();
 
           await Future<void>.delayed(const Duration(seconds: 2));
         }
       }
     } finally {
       _running = false;
-      notifyListeners();
+      _safeNotify();
 
       if (_triggerAgain) {
         _triggerAgain = false;
