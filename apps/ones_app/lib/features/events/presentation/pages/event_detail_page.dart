@@ -208,100 +208,115 @@ class _EventDetailPageState extends State<EventDetailPage> {
 
     return ChangeNotifierProvider<PhotosGalleryController>.value(
       value: galleryController,
-      child: Scaffold(
-      backgroundColor: OnesColors.background,
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: OnesColors.purpleMid,
-        foregroundColor: OnesColors.white,
-        onPressed: event == null
-            ? null
-            : () async {
-                await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => PhotoCapturePage(
-                      eventId: event.id,
-                      frameIds: event.frameIds,
-                    ),
-                  ),
-                );
-                if (!context.mounted) return;
-                await context
-                    .read<PhotosGalleryController>()
-                    .refresh(eventId: event.id);
-              },
-        child: const Icon(Icons.photo_camera),
+      child: Consumer<PhotosGalleryController>(
+        builder: (context, photos, _) {
+          final eventReady =
+              !controller.loading && controller.selected?.id == widget.eventId;
+          final photosReady =
+              photos.currentEventId == widget.eventId && photos.loadedOnce;
+
+          return Scaffold(
+            backgroundColor: OnesColors.background,
+            floatingActionButton: FloatingActionButton(
+              backgroundColor: OnesColors.purpleMid,
+              foregroundColor: OnesColors.white,
+              onPressed: event == null || !eventReady || !photosReady
+                  ? null
+                  : () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => PhotoCapturePage(
+                            eventId: event.id,
+                            frameIds: event.frameIds,
+                          ),
+                        ),
+                      );
+                      if (!context.mounted) return;
+                      await context
+                          .read<PhotosGalleryController>()
+                          .refresh(eventId: event.id);
+                    },
+              child: const Icon(Icons.photo_camera),
+            ),
+            body: SafeArea(
+              child: !eventReady || !photosReady
+                  ? const Center(child: CircularProgressIndicator())
+                  : event == null
+                      ? Padding(
+                          padding: EdgeInsets.all(horizontalPadding),
+                          child: Text(
+                            '${t.translate('event_detail.no_event', fallback: 'No event')} (error: ${controller.error})',
+                          ),
+                        )
+                      : Column(
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.fromLTRB(
+                                  horizontalPadding, 6, horizontalPadding, 10),
+                              child: EventDetailHeader(
+                                title: event.title,
+                                subtitle: _eventSubtitle(
+                                    event.startAt, event.location),
+                                onBack: () => Navigator.of(context).pop(),
+                                onBell: () => showInvitationsSheet(context),
+                              ),
+                            ),
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: horizontalPadding),
+                              child: EventDetailTabs(
+                                index: _tabIndex,
+                                onChanged: (i) => setState(() => _tabIndex = i),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: horizontalPadding),
+                                child: _tabIndex == 0
+                                    ? _GalleryTab(
+                                        key: ValueKey(
+                                            'gallery:${widget.eventId}'),
+                                        eventId: widget.eventId,
+                                        currentUserId: currentUserId,
+                                        isOwner: auth.user?.userId ==
+                                            event.ownerId,
+                                        searchController: _searchController,
+                                        initialPhotoId: deepLinkPhotoId,
+                                        openedInitialPhoto: _openedInitialPhoto,
+                                        onOpenedInitialPhoto: () {
+                                          if (_openedInitialPhoto) return;
+                                          setState(() {
+                                            _openedInitialPhoto = true;
+                                          });
+                                        },
+                                      )
+                                    : _DetailsTab(
+                                        eventId: event.id,
+                                        coverKey: event.coverKey,
+                                        title: event.title,
+                                        eventType: event.objective,
+                                        startAt: event.startAt,
+                                        endAt: event.endAt,
+                                        location: event.location,
+                                        frameIds: event.frameIds,
+                                        isOwner: auth.user?.userId ==
+                                            event.ownerId,
+                                        allowGuestInvites:
+                                            event.allowGuestInvites,
+                                        inviteLinkEnabled:
+                                            event.inviteLinkEnabled,
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
+            ),
+          );
+        },
       ),
-      body: SafeArea(
-        child: controller.loading || controller.selected?.id != widget.eventId
-            ? const Center(child: CircularProgressIndicator())
-            : event == null
-                ? Padding(
-                    padding: EdgeInsets.all(horizontalPadding),
-                    child: Text(
-                      '${t.translate('event_detail.no_event', fallback: 'No event')} (error: ${controller.error})',
-                    ),
-                  )
-                : Column(
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.fromLTRB(
-                            horizontalPadding, 6, horizontalPadding, 10),
-                        child: EventDetailHeader(
-                          title: event.title,
-                          subtitle:
-                              _eventSubtitle(event.startAt, event.location),
-                          onBack: () => Navigator.of(context).pop(),
-                          onBell: () => showInvitationsSheet(context),
-                        ),
-                      ),
-                      Padding(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: horizontalPadding),
-                        child: EventDetailTabs(
-                          index: _tabIndex,
-                          onChanged: (i) => setState(() => _tabIndex = i),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: horizontalPadding),
-                          child: _tabIndex == 0
-                              ? _GalleryTab(
-                                  key: ValueKey('gallery:${widget.eventId}'),
-                                  eventId: widget.eventId,
-                                  currentUserId: currentUserId,
-                                  isOwner: auth.user?.userId == event.ownerId,
-                                  searchController: _searchController,
-                                  initialPhotoId: deepLinkPhotoId,
-                                  openedInitialPhoto: _openedInitialPhoto,
-                                  onOpenedInitialPhoto: () {
-                                    if (_openedInitialPhoto) return;
-                                    setState(() {
-                                      _openedInitialPhoto = true;
-                                    });
-                                  },
-                                )
-                              : _DetailsTab(
-                                  eventId: event.id,
-                                  coverKey: event.coverKey,
-                                  title: event.title,
-                                  eventType: event.objective,
-                                  startAt: event.startAt,
-                                  endAt: event.endAt,
-                                  location: event.location,
-                                  frameIds: event.frameIds,
-                                  isOwner: auth.user?.userId == event.ownerId,
-                                  allowGuestInvites: event.allowGuestInvites,
-                                  inviteLinkEnabled: event.inviteLinkEnabled,
-                                ),
-                        ),
-                      ),
-                    ],
-                  ),
-      ),
-    ));
+    );
   }
 }
 
