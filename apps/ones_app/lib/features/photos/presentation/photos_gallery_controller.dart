@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../adapters/api/event_photos_api.dart';
@@ -26,6 +28,8 @@ class PhotosGalleryController extends ChangeNotifier {
   bool _hasMore = true;
 
   String? _currentEventId;
+
+  String? _pendingRefreshEventId;
 
   PhotosGalleryController({required this.api});
 
@@ -60,14 +64,32 @@ class PhotosGalleryController extends ChangeNotifier {
     _idToken = token;
     api.setIdToken(token);
 
-    _loading = false;
-    _loadedOnce = false;
-    _error = null;
-    _items = const [];
-    _nextToken = null;
-    _hasMore = true;
-    _currentEventId = null;
-    _requestEpoch++;
+    final hasToken = token != null && token.isNotEmpty;
+    if (!hasToken) {
+      _loading = false;
+      _loadedOnce = false;
+      _error = null;
+      _items = const [];
+      _nextToken = null;
+      _hasMore = true;
+      _currentEventId = null;
+      _pendingRefreshEventId = null;
+      _requestEpoch++;
+      notifyListeners();
+      return;
+    }
+
+    // Token became available: if we were waiting to refresh for an event,
+    // trigger it automatically.
+    final pending = _pendingRefreshEventId;
+    final current = _currentEventId;
+    if (pending != null && pending.isNotEmpty && pending == current) {
+      _pendingRefreshEventId = null;
+      notifyListeners();
+      unawaited(refresh(eventId: pending));
+      return;
+    }
+
     notifyListeners();
   }
 
@@ -231,8 +253,9 @@ class PhotosGalleryController extends ChangeNotifier {
         _items = const [];
         _nextToken = null;
         _hasMore = false;
-        _loading = false;
-        _loadedOnce = true;
+        _loading = true;
+        _loadedOnce = false;
+        _pendingRefreshEventId = trimmedEventId;
         notifyListeners();
       }
       return;
@@ -409,7 +432,7 @@ class PhotosGalleryController extends ChangeNotifier {
     }
 
     // Keep the photo, but never keep a suspicious originalUrl.
-    if (!originalOk && original != null && original.isNotEmpty) {
+    if (!originalOk) {
       return EventPhoto(
         photoId: it.photoId,
         guestId: it.guestId,

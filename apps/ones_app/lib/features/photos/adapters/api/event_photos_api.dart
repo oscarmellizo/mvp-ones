@@ -226,6 +226,7 @@ class EventPhotosApi {
     final dio = Dio(
       BaseOptions(
         connectTimeout: const Duration(seconds: 15),
+        sendTimeout: const Duration(minutes: 2),
         receiveTimeout: const Duration(minutes: 2),
       ),
     );

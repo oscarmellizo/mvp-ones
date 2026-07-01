@@ -72,7 +72,7 @@ class PhotosUploadController extends ChangeNotifier {
   }
 
   Future<void> rehydrateActive() async {
-    await db.purgeStale();
+    await db.purgeStale(olderThan: const Duration(minutes: 10));
     final items = await db.listActive();
     final next = <String, List<PhotoUploadItem>>{};
     for (final it in items) {
@@ -159,6 +159,8 @@ class PhotosUploadController extends ChangeNotifier {
     final token = _idToken;
     if (token == null || token.isEmpty) return;
 
+    await db.purgeStale(olderThan: const Duration(minutes: 10));
+
     _running = true;
     _triggerAgain = false;
     _safeNotify();
@@ -227,6 +229,7 @@ class PhotosUploadController extends ChangeNotifier {
           _safeNotify();
         } catch (e) {
           await db.markFailed(item.id, error: e.toString());
+          _uploadProgressByPhotoId.remove(item.photoId);
           _lastError = e;
 
           await _refreshActiveForEvent(item.eventId);

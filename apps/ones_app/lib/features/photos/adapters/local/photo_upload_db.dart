@@ -194,8 +194,13 @@ CREATE TABLE $_table (
   Future<int> purgeStale({Duration olderThan = const Duration(hours: 1)}) async {
     final db = await _open();
     final cutoff = DateTime.now().toUtc().subtract(olderThan).toIso8601String();
-    return db.delete(
+    return db.update(
       _table,
+      {
+        'status': 'pending',
+        'lastError': 'stale_upload_requeued',
+        'updatedAt': DateTime.now().toUtc().toIso8601String(),
+      },
       where: "status IN ('processing','uploading') AND updatedAt < ?",
       whereArgs: [cutoff],
     );
