@@ -221,7 +221,8 @@ class EventPhotosApi {
     required String contentType,
     void Function(int sent, int total)? onProgress,
   }) async {
-    final bytes = await file.readAsBytes();
+    final length = await file.length();
+    final stream = file.openRead();
 
     final dio = Dio(
       BaseOptions(
@@ -233,11 +234,11 @@ class EventPhotosApi {
 
     await dio.put(
       putUrl,
-      data: bytes,
+      data: stream,
       options: Options(
         headers: {
           HttpHeaders.contentTypeHeader: contentType,
-          HttpHeaders.contentLengthHeader: bytes.length,
+          HttpHeaders.contentLengthHeader: length,
         },
       ),
       onSendProgress: onProgress,

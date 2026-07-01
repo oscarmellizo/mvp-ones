@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../adapters/api/event_photos_api.dart';
@@ -188,6 +189,12 @@ class PhotosUploadController extends ChangeNotifier {
 
         final item = next.first;
 
+        if (kDebugMode) {
+          debugPrint(
+            'photo_upload: start eventId=${item.eventId} photoId=${item.photoId} status=${item.status} attempts=${item.attempts}',
+          );
+        }
+
         try {
           await db.markUploading(item.id);
           await _refreshActiveForEvent(item.eventId);
@@ -199,11 +206,23 @@ class PhotosUploadController extends ChangeNotifier {
             contentType: item.contentType,
           );
 
+          if (kDebugMode) {
+            debugPrint(
+              'photo_upload: presign_ok eventId=${item.eventId} photoId=${item.photoId} s3KeyOriginal=${presign.s3KeyOriginal}',
+            );
+          }
+
           await db.markPresigned(item.id, s3KeyOriginal: presign.s3KeyOriginal);
           await _refreshActiveForEvent(item.eventId);
           _safeNotify();
 
           final file = File(item.localPath);
+          if (kDebugMode) {
+            final len = await file.length();
+            debugPrint(
+              'photo_upload: put_start eventId=${item.eventId} photoId=${item.photoId} bytes=$len',
+            );
+          }
           await api.uploadToPresignedUrl(
             putUrl: presign.putUrl,
             file: file,
@@ -217,6 +236,12 @@ class PhotosUploadController extends ChangeNotifier {
             },
           );
 
+          if (kDebugMode) {
+            debugPrint(
+              'photo_upload: put_ok eventId=${item.eventId} photoId=${item.photoId}',
+            );
+          }
+
           await api.complete(
             eventId: item.eventId,
             photoId: item.photoId,
@@ -224,10 +249,24 @@ class PhotosUploadController extends ChangeNotifier {
             createdAt: item.createdAt,
           );
 
+          if (kDebugMode) {
+            debugPrint(
+              'photo_upload: complete_ok eventId=${item.eventId} photoId=${item.photoId}',
+            );
+          }
+
           await db.markProcessing(item.id);
           await _refreshActiveForEvent(item.eventId);
           _safeNotify();
         } catch (e) {
+          if (kDebugMode) {
+            final extra = e is DioException
+                ? ' type=${e.type} status=${e.response?.statusCode} message=${e.message}'
+                : '';
+            debugPrint(
+              'photo_upload: fail eventId=${item.eventId} photoId=${item.photoId} error=$e$extra',
+            );
+          }
           await db.markFailed(item.id, error: e.toString());
           _uploadProgressByPhotoId.remove(item.photoId);
           _lastError = e;

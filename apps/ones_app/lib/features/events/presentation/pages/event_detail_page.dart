@@ -364,6 +364,11 @@ class _GalleryTabState extends State<_GalleryTab> {
 
   final Set<String> _cleanupUploadPhotoIds = {};
 
+  Timer? _pendingUploadsPoll;
+  int _pendingUploadsPollTicks = 0;
+  String? _pendingUploadsEventId;
+  Set<String> _pendingUploadsPhotoIds = <String>{};
+
   Future<List<EventGuest>>? _guestsFuture;
 
   late final List<Color> _badgePalette;
@@ -421,6 +426,7 @@ class _GalleryTabState extends State<_GalleryTab> {
       _ws = ws;
       ws.onPhotoReady = _onWsPhotoReady;
       ws.subscribe(eventId: widget.eventId);
+      unawaited(ws.connect());
       setState(() {
         _guestsFuture =
             context.read<EventsRepository>().listEventGuestsV2(widget.eventId);
@@ -483,6 +489,7 @@ class _GalleryTabState extends State<_GalleryTab> {
         ws.unsubscribe(eventId: oldWidget.eventId);
       }
       ws.subscribe(eventId: widget.eventId);
+      unawaited(ws.connect());
     });
   }
 
@@ -490,6 +497,9 @@ class _GalleryTabState extends State<_GalleryTab> {
   void dispose() {
     _wsDebounce?.cancel();
     _wsDebounce = null;
+
+    _pendingUploadsPoll?.cancel();
+    _pendingUploadsPoll = null;
 
     final ws = _ws;
     if (ws != null) {
@@ -531,6 +541,50 @@ class _GalleryTabState extends State<_GalleryTab> {
     _wsDebounce = Timer(const Duration(milliseconds: 350), () {
       if (!mounted) return;
       context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
+    });
+  }
+
+  void _syncPendingUploadsPolling(Set<String> pendingPhotoIds) {
+    if (pendingPhotoIds.isEmpty) {
+      _pendingUploadsPoll?.cancel();
+      _pendingUploadsPoll = null;
+      _pendingUploadsPollTicks = 0;
+      _pendingUploadsEventId = null;
+      _pendingUploadsPhotoIds = <String>{};
+      return;
+    }
+
+    final sameEvent = _pendingUploadsEventId == widget.eventId;
+    final sameIds = setEquals(_pendingUploadsPhotoIds, pendingPhotoIds);
+    if (sameEvent && sameIds && _pendingUploadsPoll != null) return;
+
+    _pendingUploadsPoll?.cancel();
+    _pendingUploadsPollTicks = 0;
+    _pendingUploadsEventId = widget.eventId;
+    _pendingUploadsPhotoIds = {...pendingPhotoIds};
+
+    _pendingUploadsPoll =
+        Timer.periodic(const Duration(seconds: 2), (Timer timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      _pendingUploadsPollTicks++;
+      if (_pendingUploadsPollTicks > 30) {
+        timer.cancel();
+        _pendingUploadsPoll = null;
+        return;
+      }
+
+      final current = context.read<PhotosGalleryController>();
+      if (current.currentEventId != widget.eventId) return;
+      if (current.loading) return;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
+      });
     });
   }
 
@@ -595,6 +649,14 @@ class _GalleryTabState extends State<_GalleryTab> {
     }
 
     final localActive = uploader.activeByEvent(widget.eventId);
+    final pendingUploadIds = <String>{
+      for (final it in localActive)
+        if (it.photoId.trim().isNotEmpty) it.photoId.trim(),
+    };
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _syncPendingUploadsPolling(pendingUploadIds);
+    });
     final localPathById = <String, String>{};
     final localCreatedAtById = <String, DateTime>{};
     final localById = <String, dynamic>{};
@@ -669,7 +731,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                   fallback: 'Aún no hay fotos en este evento.',
                 ),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontWeight: FontWeight.w800),
+                style: const TextStyle(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 12),
               FilledButton.tonal(
@@ -796,7 +858,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                                                 'event_detail.guests_title',
                                                 fallback: 'Invitados',
                                               ),
-                                              style: TextStyle(
+                                              style: const TextStyle(
                                                 fontWeight: FontWeight.w900,
                                               ),
                                             ),
@@ -1194,7 +1256,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                                         'event_detail.shared',
                                         fallback: 'Shared',
                                       ),
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         color: OnesColors.black,
                                         fontSize: 11,
                                         fontWeight: FontWeight.w900,

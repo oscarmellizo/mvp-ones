@@ -262,28 +262,69 @@ class PhotosGalleryController extends ChangeNotifier {
     }
 
     try {
-      final res = await api.list(
-        eventId: trimmedEventId,
-        limit: 9,
-        filter: switch (_filter) {
-          PhotosGalleryFilter.all => 'all',
-          PhotosGalleryFilter.mine => 'mine',
-          PhotosGalleryFilter.sharedByMe => 'shared_by_me',
-        },
-        guestIds: _filter == PhotosGalleryFilter.all && _guestIds.isNotEmpty
-            ? _guestIds.toList(growable: false)
-            : null,
-      );
+      final allowRetry =
+          _filter == PhotosGalleryFilter.all && _guestIds.isEmpty;
+
+      ListPhotosPage? res;
+      final attempts = allowRetry ? 2 : 1;
+
+      for (var attempt = 0; attempt < attempts; attempt++) {
+        res = await api.list(
+          eventId: trimmedEventId,
+          limit: 9,
+          filter: switch (_filter) {
+            PhotosGalleryFilter.all => 'all',
+            PhotosGalleryFilter.mine => 'mine',
+            PhotosGalleryFilter.sharedByMe => 'shared_by_me',
+          },
+          guestIds: _filter == PhotosGalleryFilter.all && _guestIds.isNotEmpty
+              ? _guestIds.toList(growable: false)
+              : null,
+        );
+
+        if (epoch != _requestEpoch || _currentEventId != trimmedEventId) {
+          return;
+        }
+
+        if (kDebugMode) {
+          debugPrint(
+            'gallery_list: eventId=$trimmedEventId attempt=${attempt + 1}/$attempts filter=$_filter guestIds=${_guestIds.length} items=${res.items.length} nextToken=${res.nextToken ?? '-'}',
+          );
+        }
+
+        if (res.items.isNotEmpty || attempt == attempts - 1) {
+          break;
+        }
+
+        await Future<void>.delayed(const Duration(milliseconds: 650));
+        if (epoch != _requestEpoch || _currentEventId != trimmedEventId) {
+          return;
+        }
+      }
+
+      final nonNullRes = res;
+      if (nonNullRes == null) {
+        throw StateError('Missing list response');
+      }
 
       if (epoch != _requestEpoch || _currentEventId != trimmedEventId) {
         return;
       }
 
       final merged = <String, EventPhoto>{
-        for (final it in res.items)
+        for (final it in nonNullRes.items)
           if (_sanitizePhoto(it, trimmedEventId) case final sanitized?)
             sanitized.photoId: sanitized,
       };
+
+      if (kDebugMode && nonNullRes.items.isNotEmpty) {
+        final dropped = nonNullRes.items.length - merged.length;
+        if (dropped > 0) {
+          debugPrint(
+            'gallery_list: eventId=$trimmedEventId dropped=$dropped kept=${merged.length}',
+          );
+        }
+      }
 
       final list = merged.values.toList(growable: false);
       list.sort((a, b) {
@@ -293,7 +334,7 @@ class PhotosGalleryController extends ChangeNotifier {
       });
 
       _items = list;
-      _nextToken = res.nextToken;
+      _nextToken = nonNullRes.nextToken;
       _hasMore = _nextToken != null && _nextToken!.isNotEmpty;
     } catch (e) {
       if (epoch == _requestEpoch) {
