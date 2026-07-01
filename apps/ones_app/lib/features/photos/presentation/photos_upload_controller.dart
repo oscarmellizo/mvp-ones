@@ -66,6 +66,14 @@ class PhotosUploadController extends ChangeNotifier {
     required String photoId,
   }) async {
     if (eventId.isEmpty || photoId.isEmpty) return;
+    try {
+      final file = await storage.getFile(eventId: eventId, photoId: photoId);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (_) {
+      // ignore
+    }
     await db.deleteByPhotoId(photoId);
     _uploadProgressByPhotoId.remove(photoId);
     await _refreshActiveForEvent(eventId);
@@ -130,6 +138,16 @@ class PhotosUploadController extends ChangeNotifier {
       source: capturedFile,
     );
 
+    final exists = await saved.exists();
+    if (!exists) {
+      throw StateError('Saved photo file not found: ${saved.path}');
+    }
+
+    final len = await saved.length();
+    if (len <= 0) {
+      throw StateError('Saved photo file is empty: ${saved.path}');
+    }
+
     await db.enqueue(
       eventId: eventId,
       photoId: photoId,
@@ -192,6 +210,35 @@ class PhotosUploadController extends ChangeNotifier {
 
         final item = next.first;
 
+        final local = File(item.localPath);
+        final localExists = await local.exists();
+        if (!localExists) {
+          if (kDebugMode) {
+            debugPrint(
+              'photo_upload: drop_missing_file eventId=${item.eventId} photoId=${item.photoId} path=${item.localPath}',
+            );
+          }
+          await db.deleteByPhotoId(item.photoId);
+          _uploadProgressByPhotoId.remove(item.photoId);
+          await _refreshActiveForEvent(item.eventId);
+          _safeNotify();
+          continue;
+        }
+
+        final localLen = await local.length();
+        if (localLen <= 0) {
+          if (kDebugMode) {
+            debugPrint(
+              'photo_upload: drop_empty_file eventId=${item.eventId} photoId=${item.photoId} path=${item.localPath}',
+            );
+          }
+          await db.deleteByPhotoId(item.photoId);
+          _uploadProgressByPhotoId.remove(item.photoId);
+          await _refreshActiveForEvent(item.eventId);
+          _safeNotify();
+          continue;
+        }
+
         if (kDebugMode) {
           debugPrint(
             'photo_upload: start eventId=${item.eventId} photoId=${item.photoId} status=${item.status} attempts=${item.attempts}',
@@ -219,11 +266,10 @@ class PhotosUploadController extends ChangeNotifier {
           await _refreshActiveForEvent(item.eventId);
           _safeNotify();
 
-          final file = File(item.localPath);
+          final file = local;
           if (kDebugMode) {
-            final len = await file.length();
             debugPrint(
-              'photo_upload: put_start eventId=${item.eventId} photoId=${item.photoId} bytes=$len',
+              'photo_upload: put_start eventId=${item.eventId} photoId=${item.photoId} bytes=$localLen',
             );
           }
           await api.uploadToPresignedUrl(

@@ -380,6 +380,7 @@ class _GalleryTabState extends State<_GalleryTab> {
 
   PhotoStorage? _photoStorage;
   PhotosGalleryController? _galleryController;
+  PhotosUploadController? _uploader;
 
   Color _badgeColorForIdentity(String identity) {
     final trimmed = identity.trim();
@@ -457,6 +458,7 @@ class _GalleryTabState extends State<_GalleryTab> {
     super.didChangeDependencies();
     _photoStorage ??= context.read<PhotoStorage>();
     _galleryController ??= context.read<PhotosGalleryController>();
+    _uploader ??= context.read<PhotosUploadController>();
   }
 
   @override
@@ -512,7 +514,12 @@ class _GalleryTabState extends State<_GalleryTab> {
     // Limpiar fotos locales del evento
     final storage = _photoStorage;
     if (storage != null) {
-      unawaited(storage.deleteEventPhotos(eventId: widget.eventId));
+      final uploader = _uploader;
+      final hasActiveUploads =
+          uploader != null && uploader.activeByEvent(widget.eventId).isNotEmpty;
+      if (!hasActiveUploads) {
+        unawaited(storage.deleteEventPhotos(eventId: widget.eventId));
+      }
     }
 
     // Limpiar cache de fotos remotas del evento
