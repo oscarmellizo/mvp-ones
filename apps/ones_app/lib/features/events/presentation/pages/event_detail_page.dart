@@ -56,6 +56,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
   int _tabIndex = 0;
   final _searchController = TextEditingController();
   bool _openedInitialPhoto = false;
+  bool _gallerySelecting = false;
 
   PhotosGalleryController? _galleryController;
 
@@ -169,6 +170,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
 
     _galleryController = next;
     _openedInitialPhoto = false;
+    _gallerySelecting = false;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<EventsController>().select(widget.eventId);
@@ -225,26 +227,31 @@ class _EventDetailPageState extends State<EventDetailPage> {
 
           return Scaffold(
             backgroundColor: OnesColors.background,
-            floatingActionButton: FloatingActionButton(
-              backgroundColor: OnesColors.purpleMid,
-              foregroundColor: OnesColors.white,
-              onPressed: event == null || !eventReady || !photosReady
-                  ? null
-                  : () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => PhotoCapturePage(
-                            eventId: event.id,
-                            frameIds: event.frameIds,
+            floatingActionButton: AnimatedPadding(
+              duration: const Duration(milliseconds: 200),
+              padding: EdgeInsets.only(
+                  bottom: _gallerySelecting ? 68.0 : 0.0),
+              child: FloatingActionButton(
+                backgroundColor: OnesColors.purpleMid,
+                foregroundColor: OnesColors.white,
+                onPressed: event == null || !eventReady || !photosReady
+                    ? null
+                    : () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => PhotoCapturePage(
+                              eventId: event.id,
+                              frameIds: event.frameIds,
+                            ),
                           ),
-                        ),
-                      );
-                      if (!context.mounted) return;
-                      await context
-                          .read<PhotosGalleryController>()
-                          .refresh(eventId: event.id);
-                    },
-              child: const Icon(Icons.photo_camera),
+                        );
+                        if (!context.mounted) return;
+                        await context
+                            .read<PhotosGalleryController>()
+                            .refresh(eventId: event.id);
+                      },
+                child: const Icon(Icons.photo_camera),
+              ),
             ),
             body: SafeArea(
               child: !eventReady || !photosReady
@@ -310,6 +317,12 @@ class _EventDetailPageState extends State<EventDetailPage> {
                                             _openedInitialPhoto = true;
                                           });
                                         },
+                                        onSelectionChanged: (selecting) {
+                                          if (_gallerySelecting == selecting) return;
+                                          setState(() {
+                                            _gallerySelecting = selecting;
+                                          });
+                                        },
                                       )
                                     : Padding(
                                         padding: EdgeInsets.symmetric(
@@ -357,6 +370,7 @@ class _GalleryTab extends StatefulWidget {
   final String? initialPhotoId;
   final bool openedInitialPhoto;
   final Function onOpenedInitialPhoto;
+  final void Function(bool selecting)? onSelectionChanged;
 
   const _GalleryTab({
     super.key,
@@ -367,6 +381,7 @@ class _GalleryTab extends StatefulWidget {
     this.initialPhotoId,
     required this.openedInitialPhoto,
     required this.onOpenedInitialPhoto,
+    this.onSelectionChanged,
   });
 
   @override
@@ -654,6 +669,7 @@ class _GalleryTabState extends State<_GalleryTab> {
       _selecting = false;
       _selectedIds.clear();
     });
+    widget.onSelectionChanged?.call(false);
   }
 
   bool _canSelect(String photoOwnerId) {
@@ -1191,6 +1207,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                         void toggleSelected() {
                           if (!canSelect) return;
                           setState(() {
+                            final wasSelecting = _selecting;
                             _selecting = true;
                             if (isSelected) {
                               _selectedIds.remove(photoId);
@@ -1199,6 +1216,13 @@ class _GalleryTabState extends State<_GalleryTab> {
                               }
                             } else {
                               _selectedIds.add(photoId);
+                            }
+                            if (!wasSelecting && _selecting) {
+                              WidgetsBinding.instance.addPostFrameCallback(
+                                  (_) => widget.onSelectionChanged?.call(true));
+                            } else if (wasSelecting && !_selecting) {
+                              WidgetsBinding.instance.addPostFrameCallback(
+                                  (_) => widget.onSelectionChanged?.call(false));
                             }
                           });
                         }
@@ -1491,8 +1515,11 @@ class _GalleryTabState extends State<_GalleryTab> {
                       .toList(growable: false);
                   final anyShared = selected.any((it) => it.shared);
                   final anyNotShared = selected.any((it) => !it.shared);
-                  final allOwnUnshared =
-                      _selectedIds.isNotEmpty && !anyShared;
+                  final me = widget.currentUserId;
+                  final allOwnUnshared = _selectedIds.isNotEmpty &&
+                      !anyShared &&
+                      me != null &&
+                      selected.every((it) => it.guestId == me);
 
                   return Row(
                     children: [
