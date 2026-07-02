@@ -258,63 +258,80 @@ class _EventDetailPageState extends State<EventDetailPage> {
                         )
                       : Column(
                           children: [
-                            Padding(
-                              padding: EdgeInsets.fromLTRB(
-                                  horizontalPadding, 6, horizontalPadding, 10),
-                              child: EventDetailHeader(
-                                title: event.title,
-                                subtitle: _eventSubtitle(
-                                    event.startAt, event.location),
-                                onBack: () => Navigator.of(context).pop(),
-                                onBell: () => showInvitationsSheet(context),
+                            ColoredBox(
+                              color: OnesColors.background,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Padding(
+                                    padding: EdgeInsets.fromLTRB(
+                                        horizontalPadding,
+                                        6,
+                                        horizontalPadding,
+                                        10),
+                                    child: EventDetailHeader(
+                                      title: event.title,
+                                      subtitle: _eventSubtitle(
+                                          event.startAt, event.location),
+                                      onBack: () => Navigator.of(context).pop(),
+                                      onBell: () =>
+                                          showInvitationsSheet(context),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: horizontalPadding),
+                                    child: EventDetailTabs(
+                                      index: _tabIndex,
+                                      onChanged: (i) =>
+                                          setState(() => _tabIndex = i),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                ],
                               ),
                             ),
-                            Padding(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: horizontalPadding),
-                              child: EventDetailTabs(
-                                index: _tabIndex,
-                                onChanged: (i) => setState(() => _tabIndex = i),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
                             Expanded(
-                              child: _tabIndex == 0
-                                  ? _GalleryTab(
-                                      key: ValueKey('gallery:${widget.eventId}'),
-                                      eventId: widget.eventId,
-                                      currentUserId: currentUserId,
-                                      isOwner: auth.user?.userId == event.ownerId,
-                                      searchController: _searchController,
-                                      initialPhotoId: deepLinkPhotoId,
-                                      openedInitialPhoto: _openedInitialPhoto,
-                                      onOpenedInitialPhoto: () {
-                                        if (_openedInitialPhoto) return;
-                                        setState(() {
-                                          _openedInitialPhoto = true;
-                                        });
-                                      },
-                                    )
-                                  : Padding(
-                                      padding: EdgeInsets.symmetric(
-                                          horizontal: horizontalPadding),
-                                      child: _DetailsTab(
-                                        eventId: event.id,
-                                        coverKey: event.coverKey,
-                                        title: event.title,
-                                        eventType: event.objective,
-                                        startAt: event.startAt,
-                                        endAt: event.endAt,
-                                        location: event.location,
-                                        frameIds: event.frameIds,
+                              child: ClipRect(
+                                child: _tabIndex == 0
+                                    ? _GalleryTab(
+                                        key:
+                                            ValueKey('gallery:${widget.eventId}'),
+                                        eventId: widget.eventId,
+                                        currentUserId: currentUserId,
                                         isOwner:
                                             auth.user?.userId == event.ownerId,
-                                        allowGuestInvites:
-                                            event.allowGuestInvites,
-                                        inviteLinkEnabled:
-                                            event.inviteLinkEnabled,
+                                        searchController: _searchController,
+                                        initialPhotoId: deepLinkPhotoId,
+                                        openedInitialPhoto: _openedInitialPhoto,
+                                        onOpenedInitialPhoto: () {
+                                          if (_openedInitialPhoto) return;
+                                          setState(() {
+                                            _openedInitialPhoto = true;
+                                          });
+                                        },
+                                      )
+                                    : Padding(
+                                        padding: EdgeInsets.symmetric(
+                                            horizontal: horizontalPadding),
+                                        child: _DetailsTab(
+                                          eventId: event.id,
+                                          coverKey: event.coverKey,
+                                          title: event.title,
+                                          eventType: event.objective,
+                                          startAt: event.startAt,
+                                          endAt: event.endAt,
+                                          location: event.location,
+                                          frameIds: event.frameIds,
+                                          isOwner: auth.user?.userId ==
+                                              event.ownerId,
+                                          allowGuestInvites:
+                                              event.allowGuestInvites,
+                                          inviteLinkEnabled:
+                                              event.inviteLinkEnabled,
+                                        ),
                                       ),
-                                    ),
+                              ),
                             ),
                           ],
                         ),
@@ -430,7 +447,9 @@ class _GalleryTabState extends State<_GalleryTab> {
     if (controller.loading || !controller.hasMore) return;
 
     final pos = _gridScrollController.position;
-    final nearBottom = pos.extentAfter < 600;
+    final threshold =
+        (pos.viewportDimension * 2.0).clamp(1200.0, 3500.0).toDouble();
+    final nearBottom = pos.extentAfter < threshold;
     if (!nearBottom) return;
 
     controller.loadMore(eventId: widget.eventId);
@@ -848,180 +867,184 @@ class _GalleryTabState extends State<_GalleryTab> {
       children: [
         Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: SegmentedButton<PhotosGalleryFilter>(
-                      segments: <ButtonSegment<PhotosGalleryFilter>>[
-                        ButtonSegment(
-                          value: PhotosGalleryFilter.all,
-                          label: Text(
-                            t.translate(
-                              'event_detail.filter_all',
-                              fallback: 'All',
+            ColoredBox(
+              color: OnesColors.background,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: SegmentedButton<PhotosGalleryFilter>(
+                        segments: <ButtonSegment<PhotosGalleryFilter>>[
+                          ButtonSegment(
+                            value: PhotosGalleryFilter.all,
+                            label: Text(
+                              t.translate(
+                                'event_detail.filter_all',
+                                fallback: 'All',
+                              ),
                             ),
                           ),
-                        ),
-                        ButtonSegment(
-                          value: PhotosGalleryFilter.sharedByMe,
-                          label: Text(
-                            t.translate(
-                              'event_detail.filter_shared',
-                              fallback: 'Shared',
+                          ButtonSegment(
+                            value: PhotosGalleryFilter.sharedByMe,
+                            label: Text(
+                              t.translate(
+                                'event_detail.filter_shared',
+                                fallback: 'Shared',
+                              ),
                             ),
                           ),
-                        ),
-                        ButtonSegment(
-                          value: PhotosGalleryFilter.mine,
-                          label: Text(
-                            t.translate(
-                              'event_detail.filter_mine',
-                              fallback: 'Propias',
+                          ButtonSegment(
+                            value: PhotosGalleryFilter.mine,
+                            label: Text(
+                              t.translate(
+                                'event_detail.filter_mine',
+                                fallback: 'Propias',
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                      selected: <PhotosGalleryFilter>{controller.filter},
-                      showSelectedIcon: false,
-                      onSelectionChanged: (value) async {
-                        final next = value.isEmpty
-                            ? PhotosGalleryFilter.all
-                            : value.first;
-                        controller.setFilter(next);
-                        controller.setGuestIds(<String>{});
-                        await controller.refresh(eventId: widget.eventId);
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  FilledButton.tonal(
-                    onPressed: controller.filter != PhotosGalleryFilter.all
-                        ? null
-                        : () async {
-                            final guests = await _guestsFuture;
-                            if (!context.mounted) return;
-                            if (guests == null || guests.isEmpty) return;
-
-                            final initial = controller.guestIds;
-                            final selected =
-                                await showModalBottomSheet<Set<String>>(
-                              context: context,
-                              isScrollControlled: true,
-                              builder: (ctx) {
-                                final tmp = <String>{...initial};
-                                return StatefulBuilder(
-                                  builder: (ctx, setModalState) {
-                                    return SafeArea(
-                                      child: Padding(
-                                        padding: const EdgeInsets.fromLTRB(
-                                            16, 12, 16, 12),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              t.translate(
-                                                'event_detail.guests_title',
-                                                fallback: 'Invitados',
-                                              ),
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w900,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Flexible(
-                                              child: ListView.builder(
-                                                shrinkWrap: true,
-                                                itemCount: guests.length,
-                                                itemBuilder: (ctx, i) {
-                                                  final g = guests[i];
-                                                  final title =
-                                                      (g.displayName != null &&
-                                                              g.displayName!
-                                                                  .trim()
-                                                                  .isNotEmpty)
-                                                          ? g.displayName!
-                                                              .trim()
-                                                          : (g.email ?? '-');
-
-                                                  final gid = g.userId ?? '';
-                                                  final enabled =
-                                                      gid.isNotEmpty;
-                                                  final checked =
-                                                      tmp.contains(gid);
-
-                                                  return CheckboxListTile(
-                                                    value: checked,
-                                                    onChanged: !enabled
-                                                        ? null
-                                                        : (v) {
-                                                            setModalState(() {
-                                                              if (v == true) {
-                                                                tmp.add(gid);
-                                                              } else {
-                                                                tmp.remove(gid);
-                                                              }
-                                                            });
-                                                          },
-                                                    title: Text(title),
-                                                    subtitle: g.email != null
-                                                        ? Text(g.email!)
-                                                        : null,
-                                                  );
-                                                },
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Row(
-                                              children: [
-                                                TextButton(
-                                                  onPressed: () {
-                                                    Navigator.of(ctx)
-                                                        .pop(<String>{});
-                                                  },
-                                                  child: Text(
-                                                    t.translate(
-                                                      'event_detail.action_clear',
-                                                      fallback: 'Clear',
-                                                    ),
-                                                  ),
-                                                ),
-                                                const Spacer(),
-                                                FilledButton(
-                                                  onPressed: () {
-                                                    Navigator.of(ctx).pop(tmp);
-                                                  },
-                                                  child: Text(
-                                                    t.translate(
-                                                      'event_detail.action_apply',
-                                                      fallback: 'Apply',
-                                                    ),
-                                                  ),
-                                                )
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                );
-                              },
-                            );
-
-                            if (selected == null) return;
-                            controller.setGuestIds(selected);
-                            await controller.refresh(eventId: widget.eventId);
-                          },
-                    child: Text(
-                      t.translate(
-                        'event_detail.guests',
-                        fallback: 'Invitados',
+                        ],
+                        selected: <PhotosGalleryFilter>{controller.filter},
+                        showSelectedIcon: false,
+                        onSelectionChanged: (value) async {
+                          final next = value.isEmpty
+                              ? PhotosGalleryFilter.all
+                              : value.first;
+                          controller.setFilter(next);
+                          controller.setGuestIds(<String>{});
+                          await controller.refresh(eventId: widget.eventId);
+                        },
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 10),
+                    FilledButton.tonal(
+                      onPressed: controller.filter != PhotosGalleryFilter.all
+                          ? null
+                          : () async {
+                              final guests = await _guestsFuture;
+                              if (!context.mounted) return;
+                              if (guests == null || guests.isEmpty) return;
+
+                              final initial = controller.guestIds;
+                              final selected =
+                                  await showModalBottomSheet<Set<String>>(
+                                context: context,
+                                isScrollControlled: true,
+                                builder: (ctx) {
+                                  final tmp = <String>{...initial};
+                                  return StatefulBuilder(
+                                    builder: (ctx, setModalState) {
+                                      return SafeArea(
+                                        child: Padding(
+                                          padding: const EdgeInsets.fromLTRB(
+                                              16, 12, 16, 12),
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                t.translate(
+                                                  'event_detail.guests_title',
+                                                  fallback: 'Invitados',
+                                                ),
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w900,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Flexible(
+                                                child: ListView.builder(
+                                                  shrinkWrap: true,
+                                                  itemCount: guests.length,
+                                                  itemBuilder: (ctx, i) {
+                                                    final g = guests[i];
+                                                    final title = (g.displayName !=
+                                                                null &&
+                                                            g.displayName!
+                                                                .trim()
+                                                                .isNotEmpty)
+                                                        ? g.displayName!.trim()
+                                                        : (g.email ?? '-');
+
+                                                    final gid = g.userId ?? '';
+                                                    final enabled =
+                                                        gid.isNotEmpty;
+                                                    final checked =
+                                                        tmp.contains(gid);
+
+                                                    return CheckboxListTile(
+                                                      value: checked,
+                                                      onChanged: !enabled
+                                                          ? null
+                                                          : (v) {
+                                                              setModalState(() {
+                                                                if (v == true) {
+                                                                  tmp.add(gid);
+                                                                } else {
+                                                                  tmp.remove(gid);
+                                                                }
+                                                              });
+                                                            },
+                                                      title: Text(title),
+                                                      subtitle: g.email != null
+                                                          ? Text(g.email!)
+                                                          : null,
+                                                    );
+                                                  },
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Row(
+                                                children: [
+                                                  TextButton(
+                                                    onPressed: () {
+                                                      Navigator.of(ctx)
+                                                          .pop(<String>{});
+                                                    },
+                                                    child: Text(
+                                                      t.translate(
+                                                        'event_detail.action_clear',
+                                                        fallback: 'Clear',
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const Spacer(),
+                                                  FilledButton(
+                                                    onPressed: () {
+                                                      Navigator.of(ctx)
+                                                          .pop(tmp);
+                                                    },
+                                                    child: Text(
+                                                      t.translate(
+                                                        'event_detail.action_apply',
+                                                        fallback: 'Apply',
+                                                      ),
+                                                    ),
+                                                  )
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                              );
+
+                              if (selected == null) return;
+                              controller.setGuestIds(selected);
+                              await controller.refresh(
+                                  eventId: widget.eventId);
+                            },
+                      child: Text(
+                        t.translate(
+                          'event_detail.guests',
+                          fallback: 'Invitados',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             Expanded(
@@ -1044,6 +1067,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                     child: GridView.builder(
                       controller: _gridScrollController,
                       primary: false,
+                      clipBehavior: Clip.hardEdge,
                       key: ValueKey('grid:${widget.eventId}'),
                       padding: EdgeInsets.zero,
                       gridDelegate:
@@ -1065,9 +1089,11 @@ class _GalleryTabState extends State<_GalleryTab> {
                               return;
                             }
                             if (!_gridScrollController.hasClients) return;
-                            final nearBottom =
-                                _gridScrollController.position.extentAfter <
-                                    900;
+                            final pos = _gridScrollController.position;
+                            final threshold = (pos.viewportDimension * 2.0)
+                                .clamp(1200.0, 3500.0)
+                                .toDouble();
+                            final nearBottom = pos.extentAfter < threshold;
                             if (!nearBottom) return;
                             controller.loadMore(eventId: widget.eventId);
                           });

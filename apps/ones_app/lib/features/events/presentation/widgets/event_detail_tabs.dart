@@ -17,10 +17,11 @@ class EventDetailTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.watch<TranslationsService>();
+    final bg = OnesColors.background;
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: OnesColors.black.withOpacity(0.04),
+        color: Color.alphaBlend(OnesColors.black.withOpacity(0.04), bg),
         borderRadius: BorderRadius.zero,
       ),
       child: Row(

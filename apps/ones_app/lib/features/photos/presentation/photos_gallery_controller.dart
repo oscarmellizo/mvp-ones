@@ -271,7 +271,7 @@ class PhotosGalleryController extends ChangeNotifier {
       for (var attempt = 0; attempt < attempts; attempt++) {
         res = await api.list(
           eventId: trimmedEventId,
-          limit: 9,
+          limit: 24,
           filter: switch (_filter) {
             PhotosGalleryFilter.all => 'all',
             PhotosGalleryFilter.mine => 'mine',
@@ -382,7 +382,7 @@ class PhotosGalleryController extends ChangeNotifier {
       _error = null;
       final res = await api.list(
         eventId: trimmedEventId,
-        limit: 9,
+        limit: 24,
         nextToken: cursor,
         filter: switch (_filter) {
           PhotosGalleryFilter.all => 'all',
