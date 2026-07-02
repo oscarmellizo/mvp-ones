@@ -36,6 +36,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
   bool _initializing = true;
   Object? _error;
   bool _disposed = false;
+  int _controllerEpoch = 0;
   bool _switchingCamera = false;
   bool _capturing = false;
 
@@ -405,9 +406,15 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
 
   Future<void> _startController(CameraDescription description) async {
     if (_disposed) return;
+    final epoch = ++_controllerEpoch;
+
     final old = _controller;
     _controller = null;
+    if (mounted && !_disposed) {
+      setState(() {});
+    }
     await old?.dispose();
+    if (_disposed || epoch != _controllerEpoch) return;
 
     final next = CameraController(
       description,
@@ -416,7 +423,28 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
     );
 
     _controller = next;
-    await next.initialize();
+    try {
+      await next.initialize();
+    } catch (e) {
+      final cancelled = _disposed || epoch != _controllerEpoch;
+      if (epoch == _controllerEpoch) {
+        _controller = null;
+      }
+      await next.dispose();
+      if (cancelled) {
+        return;
+      }
+      rethrow;
+    }
+
+    if (_disposed || epoch != _controllerEpoch) {
+      await next.dispose();
+      return;
+    }
+
+    if (mounted && !_disposed) {
+      setState(() {});
+    }
   }
 
   Future<void> _switchCamera() async {
@@ -460,9 +488,16 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (kIsWeb) return;
     if (state == AppLifecycleState.inactive) {
+      _controllerEpoch++;
       final controller = _controller;
       _controller = null;
-      controller?.dispose();
+      if (mounted && !_disposed) {
+        setState(() {
+          _initializing = true;
+          _error = null;
+        });
+      }
+      unawaited(controller?.dispose());
     } else if (state == AppLifecycleState.resumed) {
       _init();
     }
@@ -471,8 +506,11 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
   @override
   void dispose() {
     _disposed = true;
+    _controllerEpoch++;
     WidgetsBinding.instance.removeObserver(this);
-    _controller?.dispose();
+    final controller = _controller;
+    _controller = null;
+    controller?.dispose();
     _shutterAnimationController.dispose();
     super.dispose();
   }
