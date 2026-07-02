@@ -2573,12 +2573,23 @@ class _DetailsTabState extends State<_DetailsTab> {
     if (confirmed != true) return;
     if (!context.mounted) return;
 
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const PopScope(
+        canPop: false,
+        child: Center(child: CircularProgressIndicator()),
+      ),
+    );
+
     try {
       await context.read<EventsController>().deleteEvent(widget.eventId);
       if (!context.mounted) return;
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      Navigator.of(context).pop();
+      Navigator.of(context).pop();
     } on EventHasGuestPhotosException {
       if (!context.mounted) return;
+      Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -2592,6 +2603,7 @@ class _DetailsTabState extends State<_DetailsTab> {
       );
     } catch (_) {
       if (!context.mounted) return;
+      Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(

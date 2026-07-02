@@ -165,7 +165,6 @@ class EventsController extends ChangeNotifier {
   }
 
   Future<void> deleteEvent(String eventId) async {
-    _setLoading(true);
     try {
       _error = null;
       await eventsRepository.deleteEvent(eventId);
@@ -173,11 +172,10 @@ class EventsController extends ChangeNotifier {
       if (_selected?.id == eventId) {
         _selected = null;
       }
+      _safeNotify();
     } catch (e) {
       _error = e;
       rethrow;
-    } finally {
-      _setLoading(false);
     }
   }
 
