@@ -5,8 +5,10 @@ import java.util.List;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -163,6 +165,18 @@ public class EventPhotosController {
 
         return photosService.createSocialShareLink(userId, email, eventId, photoId, request.variant());
     }
+
+    @DeleteMapping("/{eventId}/photos")
+    public ResponseEntity<Void> deletePhotos(
+            Authentication authentication,
+            @PathVariable("eventId") String eventId,
+            @Valid @RequestBody DeletePhotosRequest request
+    ) {
+        String userId = authentication.getName();
+        String email = AuthClaims.requireEmail(authentication);
+        photosService.deletePhotos(userId, email, eventId, request.photoIds());
+        return ResponseEntity.noContent().build();
+    }
 }
 
 record LikeResponse(boolean liked) {
@@ -194,5 +208,10 @@ record SharePhotosRequest(
 
 record SocialShareRequest(
         String variant
+) {
+}
+
+record DeletePhotosRequest(
+        @NotEmpty List<String> photoIds
 ) {
 }

@@ -10,4 +10,6 @@ public interface PhotoLikesRepository {
     void like(String eventId, String photoId, String userId, Instant createdAt);
 
     void unlike(String photoId, String userId);
+
+    void deleteAllByPhotoId(String photoId);
 }

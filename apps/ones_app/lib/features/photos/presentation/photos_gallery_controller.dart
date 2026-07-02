@@ -218,6 +218,35 @@ class PhotosGalleryController extends ChangeNotifier {
     }
   }
 
+  Future<void> deletePhotos({
+    required String eventId,
+    required List<String> photoIds,
+  }) async {
+    final token = _idToken;
+    if (token == null || token.isEmpty) {
+      _error = StateError('Missing idToken');
+      notifyListeners();
+      return;
+    }
+    if (photoIds.isEmpty) return;
+
+    _setLoading(true);
+    try {
+      _error = null;
+      await api.deletePhotos(eventId: eventId, photoIds: photoIds);
+      final deletedSet = photoIds.toSet();
+      _items = _items
+          .where((it) => !deletedSet.contains(it.photoId))
+          .toList(growable: false);
+      notifyListeners();
+    } catch (e) {
+      _error = e;
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   void setFilter(PhotosGalleryFilter value) {
     if (_filter == value) return;
     _filter = value;

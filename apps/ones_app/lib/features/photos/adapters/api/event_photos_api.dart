@@ -192,6 +192,29 @@ class EventPhotosApi {
     );
   }
 
+  Future<void> deletePhotos({
+    required String eventId,
+    required List<String> photoIds,
+  }) async {
+    await _dioFactory(_idToken).delete(
+      '/v1/events/$eventId/photos',
+      data: {
+        'photoIds': photoIds,
+      },
+      options: Options(
+        extra: {
+          'secure': [
+            {
+              'type': 'http',
+              'scheme': 'bearer',
+              'name': 'bearerAuth',
+            }
+          ],
+        },
+      ),
+    );
+  }
+
   Future<void> unsharePhotos({
     required String eventId,
     required List<String> photoIds,

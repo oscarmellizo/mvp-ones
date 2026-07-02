@@ -31,6 +31,9 @@ import com.ones.api.application.frames.FrameNotFoundException;
 import com.ones.api.application.events.invitelink.EventInviteLinkClosedException;
 import com.ones.api.application.invitations.InvitationClosedException;
 import com.ones.api.application.invitations.InvitationNotFoundException;
+import com.ones.api.application.photos.PhotoNotFoundException;
+import com.ones.api.application.photos.PhotoNotOwnedException;
+import com.ones.api.application.photos.PhotoSharedException;
 
 import software.amazon.awssdk.services.dynamodb.model.DynamoDbException;
 
@@ -100,6 +103,30 @@ public class ApiExceptionHandler {
     public ResponseEntity<Map<String, Object>> invitationClosed(InvitationClosedException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
                 "error", "bad_request",
+                "message", ex.getMessage()
+        ));
+    }
+
+    @ExceptionHandler(PhotoNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> photoNotFound(PhotoNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "error", "not_found",
+                "message", ex.getMessage()
+        ));
+    }
+
+    @ExceptionHandler(PhotoNotOwnedException.class)
+    public ResponseEntity<Map<String, Object>> photoNotOwned(PhotoNotOwnedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                "error", "photo_not_owned",
+                "message", ex.getMessage()
+        ));
+    }
+
+    @ExceptionHandler(PhotoSharedException.class)
+    public ResponseEntity<Map<String, Object>> photoShared(PhotoSharedException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                "error", "photo_is_shared",
                 "message", ex.getMessage()
         ));
     }

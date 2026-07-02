@@ -59,6 +59,18 @@ public class DynamoDbPhotosRepository implements PhotosRepository {
     }
 
     @Override
+    @CacheEvict(
+            cacheNames = CacheConfig.PHOTOS_BY_EVENT_FIRST_PAGE_CACHE,
+            allEntries = true
+    )
+    public void deleteById(String photoId) {
+        if (photoId == null || photoId.isBlank()) {
+            return;
+        }
+        table.deleteItem(Key.builder().partitionValue(photoId.trim()).build());
+    }
+
+    @Override
     @Cacheable(
             cacheNames = CacheConfig.PHOTOS_BY_EVENT_FIRST_PAGE_CACHE,
             key = "#eventId + ':' + #limit",

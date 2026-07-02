@@ -15,6 +15,8 @@ public interface PhotosRepository {
 
     PageResult<Photo> listAll(int limit, String nextToken);
 
+    void deleteById(String photoId);
+
     record PageResult<T>(List<T> items, String nextToken) {
     }
 }

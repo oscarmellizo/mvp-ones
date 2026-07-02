@@ -17,6 +17,8 @@ import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 import software.amazon.awssdk.enhanced.dynamodb.model.BatchGetItemEnhancedRequest;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
 import software.amazon.awssdk.enhanced.dynamodb.model.ReadBatch;
 
 @Repository
@@ -132,6 +134,31 @@ public class DynamoDbPhotoLikesRepository implements PhotoLikesRepository {
                     photoId,
                     userId,
                     e.toString());
+        }
+    }
+
+    @Override
+    public void deleteAllByPhotoId(String photoId) {
+        if (photoId == null || photoId.isBlank()) return;
+        try {
+            QueryEnhancedRequest req = QueryEnhancedRequest.builder()
+                    .queryConditional(QueryConditional.keyEqualTo(
+                            Key.builder().partitionValue(photoId.trim()).build()))
+                    .build();
+            table.query(req).items().forEach(item -> {
+                try {
+                    table.deleteItem(Key.builder()
+                            .partitionValue(item.getPhotoId())
+                            .sortValue(item.getUserId())
+                            .build());
+                } catch (Exception e) {
+                    log.warn("[DynamoDbPhotoLikesRepository.deleteAllByPhotoId] delete item failed photoId={} userId={} err={}",
+                            item.getPhotoId(), item.getUserId(), e.toString());
+                }
+            });
+        } catch (Exception e) {
+            log.warn("[DynamoDbPhotoLikesRepository.deleteAllByPhotoId] failed photoId={} err={}",
+                    photoId, e.toString());
         }
     }
 }

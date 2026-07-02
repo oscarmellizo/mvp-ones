@@ -963,6 +963,71 @@ public class PhotosService {
         return photosRepository.upsert(updated);
     }
 
+    public void deletePhotos(
+            String requesterUserId,
+            String requesterEmail,
+            String eventId,
+            List<String> photoIds
+    ) {
+        require(eventId, "eventId");
+        if (photoIds == null || photoIds.isEmpty()) {
+            throw new IllegalArgumentException("photoIds must not be empty");
+        }
+        if (photoIds.size() > 50) {
+            throw new IllegalArgumentException("Cannot delete more than 50 photos at once");
+        }
+
+        getEventUseCase.execute(requesterUserId, requesterEmail, eventId);
+
+        List<Photo> resolved = new ArrayList<>(photoIds.size());
+        for (String rawId : photoIds) {
+            if (rawId == null || rawId.isBlank()) continue;
+            String photoId = rawId.trim();
+            Photo photo = photosRepository.findById(photoId)
+                    .orElseThrow(() -> new PhotoNotFoundException(photoId));
+            if (!requesterUserId.equals(photo.getGuestId())) {
+                throw new PhotoNotOwnedException(photoId);
+            }
+            if (isShared(photo)) {
+                throw new PhotoSharedException(photoId);
+            }
+            resolved.add(photo);
+        }
+
+        for (Photo photo : resolved) {
+            String keyOrig = photo.getS3KeyOriginal();
+            String keyMedium = photo.getS3KeyMedium();
+            String keySmall = photo.getS3KeySmall();
+            if ((keyMedium == null || keyMedium.isBlank()) && keyOrig != null && !keyOrig.isBlank()) {
+                keyMedium = variantKeyFromOriginal(keyOrig, "_m");
+            }
+            if ((keySmall == null || keySmall.isBlank()) && keyOrig != null && !keyOrig.isBlank()) {
+                keySmall = variantKeyFromOriginal(keyOrig, "_s");
+            }
+            deleteS3KeyBestEffort(keyOrig);
+            deleteS3KeyBestEffort(keyMedium);
+            deleteS3KeyBestEffort(keySmall);
+
+            try {
+                photoLikesRepository.deleteAllByPhotoId(photo.getPhotoId());
+            } catch (Exception e) {
+                log.warn("[PhotosService.deletePhotos] failed to delete likes for photoId={} err={}",
+                        photo.getPhotoId(), e.toString());
+            }
+
+            photosRepository.deleteById(photo.getPhotoId());
+        }
+    }
+
+    private void deleteS3KeyBestEffort(String key) {
+        if (key == null || key.isBlank()) return;
+        try {
+            objectStorage.delete(photosBucket, key.trim());
+        } catch (Exception e) {
+            log.warn("[PhotosService.deletePhotos] S3 delete best-effort failed key={} err={}", key, e.toString());
+        }
+    }
+
     private String signedCdnUrlIfAny(String key) {
         if (key == null || key.isBlank()) {
             return null;

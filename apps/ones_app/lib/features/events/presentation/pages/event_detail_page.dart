@@ -1484,124 +1484,231 @@ class _GalleryTabState extends State<_GalleryTab> {
             child: Container(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
               color: OnesColors.white,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: controller.loading ? null : _exitSelectionMode,
-                      child: Text(
-                        t.translate(
-                          'event_detail.action_cancel',
-                          fallback: 'Cancel',
+              child: Builder(
+                builder: (context) {
+                  final selected = controller.items
+                      .where((it) => _selectedIds.contains(it.photoId))
+                      .toList(growable: false);
+                  final anyShared = selected.any((it) => it.shared);
+                  final anyNotShared = selected.any((it) => !it.shared);
+                  final allOwnUnshared =
+                      _selectedIds.isNotEmpty && !anyShared;
+
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: Tooltip(
+                          message: t.translate(
+                            'event_detail.action_cancel',
+                            fallback: 'Cancelar',
+                          ),
+                          child: OutlinedButton(
+                            onPressed:
+                                controller.loading ? null : _exitSelectionMode,
+                            child: const Icon(Icons.close),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: OnesColors.purpleMid,
-                        foregroundColor: OnesColors.white,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Tooltip(
+                          message: anyShared && !anyNotShared
+                              ? t.translate(
+                                  'event_detail.action_unshare',
+                                  fallback: 'Descompartir',
+                                )
+                              : t.translate(
+                                  'event_detail.action_share',
+                                  fallback: 'Compartir',
+                                ),
+                          child: FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: OnesColors.purpleMid,
+                              foregroundColor: OnesColors.white,
+                            ),
+                            onPressed:
+                                (controller.loading || _selectedIds.isEmpty)
+                                    ? null
+                                    : () async {
+                                        final messenger =
+                                            ScaffoldMessenger.of(context);
+                                        final ids = _selectedIds
+                                            .toList(growable: false);
+
+                                        if (anyShared && anyNotShared) {
+                                          messenger.showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                t.translate(
+                                                  'event_detail.error_mix_shared_private',
+                                                  fallback:
+                                                      'No puedes mezclar fotos compartidas y privadas.',
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                          return;
+                                        }
+
+                                        try {
+                                          if (anyShared) {
+                                            await context
+                                                .read<PhotosGalleryController>()
+                                                .unsharePhotos(
+                                                  eventId: widget.eventId,
+                                                  photoIds: ids,
+                                                );
+                                            if (!mounted) return;
+                                            messenger.showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  t.translate(
+                                                    'event_detail.photos_unshared',
+                                                    fallback:
+                                                        'Fotos descompartidas.',
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          } else {
+                                            await context
+                                                .read<PhotosGalleryController>()
+                                                .sharePhotos(
+                                                  eventId: widget.eventId,
+                                                  photoIds: ids,
+                                                );
+                                            if (!mounted) return;
+                                            messenger.showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  t.translate(
+                                                    'event_detail.photos_shared',
+                                                    fallback:
+                                                        'Fotos compartidas.',
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                          _exitSelectionMode();
+                                        } catch (e) {
+                                          if (!mounted) return;
+                                          messenger.showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                '${t.translate('event_detail.error_update_failed', fallback: 'No se pudo actualizar')}: $e',
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      },
+                            child: anyShared && !anyNotShared
+                                ? const Icon(Icons.remove_circle_outline)
+                                : const Icon(Icons.ios_share_outlined),
+                          ),
+                        ),
                       ),
-                      onPressed: (controller.loading || _selectedIds.isEmpty)
-                          ? null
-                          : () async {
-                              final messenger = ScaffoldMessenger.of(context);
-                              final ids = _selectedIds.toList(growable: false);
-
-                              final selected = controller.items
-                                  .where(
-                                      (it) => _selectedIds.contains(it.photoId))
-                                  .toList(growable: false);
-                              final anyShared = selected.any((it) => it.shared);
-                              final anyNotShared =
-                                  selected.any((it) => !it.shared);
-
-                              if (anyShared && anyNotShared) {
-                                messenger.showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      t.translate(
-                                        'event_detail.error_mix_shared_private',
-                                        fallback:
-                                            'No puedes mezclar fotos compartidas y privadas.',
-                                      ),
-                                    ),
-                                  ),
-                                );
-                                return;
-                              }
-
-                              try {
-                                if (anyShared) {
-                                  await context
-                                      .read<PhotosGalleryController>()
-                                      .unsharePhotos(
-                                        eventId: widget.eventId,
-                                        photoIds: ids,
-                                      );
-                                  if (!mounted) return;
-                                  messenger.showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        t.translate(
-                                          'event_detail.photos_unshared',
-                                          fallback: 'Fotos descompartidas.',
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Tooltip(
+                          message: t.translate(
+                            'event_detail.action_delete',
+                            fallback: 'Eliminar',
+                          ),
+                          child: FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.red.shade700,
+                              foregroundColor: OnesColors.white,
+                            ),
+                            onPressed: (controller.loading || !allOwnUnshared)
+                                ? null
+                                : () async {
+                                    final messenger =
+                                        ScaffoldMessenger.of(context);
+                                    final ids = _selectedIds
+                                        .toList(growable: false);
+                                    final confirmed = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: Text(
+                                          t.translate(
+                                            'event_detail.delete_confirm_title',
+                                            fallback: 'Eliminar fotos',
+                                          ),
                                         ),
-                                      ),
-                                    ),
-                                  );
-                                } else {
-                                  await context
-                                      .read<PhotosGalleryController>()
-                                      .sharePhotos(
-                                        eventId: widget.eventId,
-                                        photoIds: ids,
-                                      );
-                                  if (!mounted) return;
-                                  messenger.showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        t.translate(
-                                          'event_detail.photos_shared',
-                                          fallback: 'Fotos compartidas.',
+                                        content: Text(
+                                          t.translate(
+                                            'event_detail.delete_confirm_body',
+                                            fallback:
+                                                '¿Eliminar ${ids.length} foto(s)? Esta acción no se puede deshacer.',
+                                          ),
                                         ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(ctx).pop(false),
+                                            child: Text(
+                                              t.translate(
+                                                'event_detail.action_cancel',
+                                                fallback: 'Cancelar',
+                                              ),
+                                            ),
+                                          ),
+                                          FilledButton(
+                                            style: FilledButton.styleFrom(
+                                              backgroundColor:
+                                                  Colors.red.shade700,
+                                            ),
+                                            onPressed: () =>
+                                                Navigator.of(ctx).pop(true),
+                                            child: Text(
+                                              t.translate(
+                                                'event_detail.action_delete',
+                                                fallback: 'Eliminar',
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ),
-                                  );
-                                }
-
-                                _exitSelectionMode();
-                              } catch (e) {
-                                if (!mounted) return;
-                                messenger.showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      '${t.translate('event_detail.error_update_failed', fallback: 'No se pudo actualizar')}: $e',
-                                    ),
-                                  ),
-                                );
-                              }
-                            },
-                      child: Text(
-                        (() {
-                          final selected = controller.items
-                              .where((it) => _selectedIds.contains(it.photoId))
-                              .toList(growable: false);
-                          final anyShared = selected.any((it) => it.shared);
-                          final anyNotShared = selected.any((it) => !it.shared);
-
-                          if (anyShared && !anyNotShared) {
-                            return '${t.translate('event_detail.action_unshare', fallback: 'Unshare')} (${_selectedIds.length})';
-                          }
-                          return '${t.translate('event_detail.action_share', fallback: 'Share')} (${_selectedIds.length})';
-                        })(),
-                        style: const TextStyle(fontWeight: FontWeight.w900),
+                                    );
+                                    if (confirmed != true) return;
+                                    try {
+                                      await context
+                                          .read<PhotosGalleryController>()
+                                          .deletePhotos(
+                                            eventId: widget.eventId,
+                                            photoIds: ids,
+                                          );
+                                      if (!mounted) return;
+                                      _exitSelectionMode();
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            t.translate(
+                                              'event_detail.photos_deleted',
+                                              fallback: 'Fotos eliminadas.',
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    } catch (e) {
+                                      if (!mounted) return;
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            '${t.translate('event_detail.error_update_failed', fallback: 'No se pudo eliminar')}: $e',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
+                            child: const Icon(Icons.delete_outline),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ],
+                    ],
+                  );
+                },
               ),
             ),
           ),
