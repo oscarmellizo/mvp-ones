@@ -31,6 +31,7 @@ import '../widgets/event_detail_tabs.dart';
 import 'photo_capture_page.dart';
 import 'edit_event_page.dart';
 import '../../../invitations/presentation/widgets/invitations_sheet.dart';
+import '../../domain/event_exceptions.dart';
 import '../../domain/events_repository.dart';
 import '../../adapters/api/frames_api_repository.dart';
 
@@ -2501,8 +2502,106 @@ class _DetailsTabState extends State<_DetailsTab> {
             ),
           ],
         ),
+        if (widget.isOwner) ...[
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: OnesColors.danger,
+                  side: const BorderSide(color: OnesColors.danger),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                icon: const Icon(Icons.delete_forever_outlined),
+                label: Text(
+                  t.translate(
+                    'event_detail.action_delete_event',
+                    fallback: 'Eliminar evento',
+                  ),
+                ),
+                onPressed: () => _confirmDeleteEvent(context),
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 100),
       ],
     );
+  }
+
+  Future<void> _confirmDeleteEvent(BuildContext context) async {
+    final t = context.read<TranslationsService>();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(
+          t.translate(
+            'event_detail.delete_event_title',
+            fallback: 'Eliminar evento',
+          ),
+        ),
+        content: Text(
+          t.translate(
+            'event_detail.delete_event_body',
+            fallback:
+                'Se eliminarán todas las fotos, invitaciones y datos del evento. Esta acción no se puede deshacer.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(
+              t.translate('event_detail.action_cancel', fallback: 'Cancelar'),
+            ),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: OnesColors.danger),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(
+              t.translate(
+                'event_detail.action_delete_event',
+                fallback: 'Eliminar',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    if (!context.mounted) return;
+
+    try {
+      await context.read<EventsController>().deleteEvent(widget.eventId);
+      if (!context.mounted) return;
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } on EventHasGuestPhotosException {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            t.translate(
+              'event_detail.delete_event_error_guest_photos',
+              fallback:
+                  'No puedes eliminar el evento porque hay fotos de otros invitados.',
+            ),
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            t.translate(
+              'event_detail.delete_event_error_generic',
+              fallback: 'Error al eliminar el evento. Intenta de nuevo.',
+            ),
+          ),
+        ),
+      );
+    }
   }
 }

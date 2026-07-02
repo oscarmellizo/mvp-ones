@@ -43,6 +43,8 @@ abstract interface class EventsRepository {
     required List<String> frameIds,
     String? coverReservationId,
   });
+
+  Future<void> deleteEvent(String eventId);
 }
 
 class EventInviteLink {

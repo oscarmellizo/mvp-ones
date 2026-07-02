@@ -7,12 +7,14 @@ import '../application/get_event_use_case.dart';
 import '../application/list_events_use_case.dart';
 import '../application/update_event_use_case.dart';
 import '../domain/event.dart';
+import '../domain/events_repository.dart';
 
 class EventsController extends ChangeNotifier {
   final ListEventsUseCase listEvents;
   final GetEventUseCase getEvent;
   final CreateEventUseCase createEvent;
   final UpdateEventUseCase updateEventUseCase;
+  final EventsRepository eventsRepository;
 
   bool _notifyScheduled = false;
 
@@ -28,6 +30,7 @@ class EventsController extends ChangeNotifier {
     required this.getEvent,
     required this.createEvent,
     required this.updateEventUseCase,
+    required this.eventsRepository,
   });
 
   bool get loading => _loading;
@@ -153,6 +156,23 @@ class EventsController extends ChangeNotifier {
         frameIds,
       );
       _events = [created, ..._events];
+    } catch (e) {
+      _error = e;
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> deleteEvent(String eventId) async {
+    _setLoading(true);
+    try {
+      _error = null;
+      await eventsRepository.deleteEvent(eventId);
+      _events = _events.where((e) => e.id != eventId).toList(growable: false);
+      if (_selected?.id == eventId) {
+        _selected = null;
+      }
     } catch (e) {
       _error = e;
       rethrow;

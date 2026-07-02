@@ -25,6 +25,7 @@ import com.ones.api.application.events.AiConfigurationException;
 import com.ones.api.application.events.AiImageGenerationException;
 import com.ones.api.application.events.EventCoverNotFoundException;
 import com.ones.api.application.events.EventForbiddenException;
+import com.ones.api.application.events.EventHasGuestPhotosException;
 import com.ones.api.application.events.EventNotFoundException;
 import com.ones.api.application.frames.FrameAssetNotFoundException;
 import com.ones.api.application.frames.FrameNotFoundException;
@@ -127,6 +128,14 @@ public class ApiExceptionHandler {
     public ResponseEntity<Map<String, Object>> photoShared(PhotoSharedException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
                 "error", "photo_is_shared",
+                "message", ex.getMessage()
+        ));
+    }
+
+    @ExceptionHandler(EventHasGuestPhotosException.class)
+    public ResponseEntity<Map<String, Object>> eventHasGuestPhotos(EventHasGuestPhotosException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                "error", "event_has_guest_photos",
                 "message", ex.getMessage()
         ));
     }

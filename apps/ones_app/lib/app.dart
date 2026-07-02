@@ -181,6 +181,7 @@ class OnesApp extends StatelessWidget {
             getEvent: getEvent,
             createEvent: createEvent,
             updateEventUseCase: updateEvent,
+            eventsRepository: eventsRepository,
           ),
           update: (_, auth, events) {
             apiFactory.setTokenRefresher(auth.refreshIdToken);
@@ -190,6 +191,7 @@ class OnesApp extends StatelessWidget {
                   getEvent: getEvent,
                   createEvent: createEvent,
                   updateEventUseCase: updateEvent,
+                  eventsRepository: eventsRepository,
                 );
             eventsRepository.setIdToken(auth.idToken);
             controller.setIdToken(auth.idToken);

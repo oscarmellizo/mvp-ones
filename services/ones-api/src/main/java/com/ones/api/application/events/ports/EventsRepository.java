@@ -14,4 +14,6 @@ public interface EventsRepository {
     List<Event> findByIds(List<String> eventIds);
 
     List<Event> listByOwnerId(String ownerId, int limit);
+
+    void deleteById(String eventId);
 }

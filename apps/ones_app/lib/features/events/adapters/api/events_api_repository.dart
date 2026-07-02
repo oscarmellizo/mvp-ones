@@ -5,6 +5,7 @@ import 'package:ones_api_client/ones_api_client.dart' as api;
 import '../../../../core/config/app_config.dart';
 import '../../../../core/http/ones_api_factory.dart';
 import '../../domain/event.dart';
+import '../../domain/event_exceptions.dart';
 import '../../domain/events_repository.dart';
 
 class EventsApiRepository implements EventsRepository {
@@ -368,6 +369,37 @@ class EventsApiRepository implements EventsRepository {
       throw StateError('Invalid update event response');
     }
     return _mapEventJson(data);
+  }
+
+  @override
+  Future<void> deleteEvent(String eventId) async {
+    try {
+      await _apiFactory.create(idToken: _idToken).dio.delete(
+        '/v1/events/$eventId',
+        options: Options(
+          extra: {
+            'secure': [
+              {
+                'type': 'http',
+                'scheme': 'bearer',
+                'name': 'bearerAuth',
+              }
+            ],
+          },
+        ),
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        throw EventNotFoundException(eventId);
+      }
+      if (e.response?.statusCode == 403) {
+        throw EventForbiddenException(eventId);
+      }
+      if (e.response?.statusCode == 409) {
+        throw EventHasGuestPhotosException(eventId);
+      }
+      rethrow;
+    }
   }
 
   static Event _mapEventJson(Map<String, dynamic> data) {

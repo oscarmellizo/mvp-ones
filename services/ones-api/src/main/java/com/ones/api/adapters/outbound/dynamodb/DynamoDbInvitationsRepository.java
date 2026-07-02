@@ -172,6 +172,36 @@ public class DynamoDbInvitationsRepository implements InvitationsRepository {
     }
 
     @Override
+    @CacheEvict(
+            cacheNames = CacheConfig.INVITATIONS_BY_EVENT_CACHE,
+            allEntries = true
+    )
+    public void deleteAllByEventId(String eventId) {
+        if (eventId == null || eventId.isBlank()) {
+            return;
+        }
+        String normalizedEventId = eventId.trim();
+        try {
+            DynamoDbIndex<DynamoInvitationItem> index = table.index("byEventId");
+            QueryEnhancedRequest request = QueryEnhancedRequest.builder()
+                    .queryConditional(QueryConditional.keyEqualTo(Key.builder()
+                            .partitionValue(normalizedEventId)
+                            .build()))
+                    .build();
+            for (var page : index.query(request)) {
+                for (var item : page.items()) {
+                    table.deleteItem(Key.builder()
+                            .partitionValue(item.getInviteeEmail())
+                            .sortValue(item.getEventId())
+                            .build());
+                }
+            }
+        } catch (ResourceNotFoundException e) {
+            log.warn("[deleteAllByEventId] GSI byEventId not found, skipping deletion for eventId={}", normalizedEventId);
+        }
+    }
+
+    @Override
     public List<Invitation> listAcceptedByInviteeEmail(String inviteeEmail, int limit) {
         return listByInviteeEmail(inviteeEmail, limit).stream()
                 .filter(i -> i.getStatus() == Invitation.Status.accepted)

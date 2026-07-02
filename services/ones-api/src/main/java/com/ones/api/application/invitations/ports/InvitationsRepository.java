@@ -16,4 +16,6 @@ public interface InvitationsRepository {
     List<Invitation> listByEventId(String eventId, int limit);
 
     List<Invitation> listAcceptedByInviteeEmail(String inviteeEmail, int limit);
+
+    void deleteAllByEventId(String eventId);
 }

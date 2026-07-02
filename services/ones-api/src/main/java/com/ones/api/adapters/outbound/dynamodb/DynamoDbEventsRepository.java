@@ -90,6 +90,14 @@ public class DynamoDbEventsRepository implements EventsRepository {
     }
 
     @Override
+    public void deleteById(String eventId) {
+        if (eventId == null || eventId.isBlank()) {
+            return;
+        }
+        table.deleteItem(Key.builder().partitionValue(eventId.trim()).build());
+    }
+
+    @Override
     public List<Event> listByOwnerId(String ownerId, int limit) {
         int resolvedLimit = limit <= 0 ? 50 : Math.min(limit, 200);
         DynamoDbIndex<DynamoEventItem> index = table.index(GSI1_NAME);

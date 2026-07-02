@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.ones.api.adapters.inbound.rest.AuthClaims;
 import com.ones.api.application.events.CreateEventUseCase;
+import com.ones.api.application.events.DeleteEventUseCase;
 import com.ones.api.application.events.EventForbiddenException;
 import com.ones.api.application.events.EventsMetadataService;
 import com.ones.api.application.events.GetEventUseCase;
@@ -43,6 +45,7 @@ public class EventsController {
     private final InviteEventGuestsUseCase inviteEventGuestsUseCase;
     private final ListEventGuestsUseCase listEventGuestsUseCase;
     private final UpdateEventUseCase updateEventUseCase;
+    private final DeleteEventUseCase deleteEventUseCase;
 
     public EventsController(
             CreateEventUseCase createEventUseCase,
@@ -53,7 +56,8 @@ public class EventsController {
             UsersRepository usersRepository,
             InviteEventGuestsUseCase inviteEventGuestsUseCase,
             ListEventGuestsUseCase listEventGuestsUseCase,
-            UpdateEventUseCase updateEventUseCase
+            UpdateEventUseCase updateEventUseCase,
+            DeleteEventUseCase deleteEventUseCase
     ) {
         this.createEventUseCase = createEventUseCase;
         this.listEventsUseCase = listEventsUseCase;
@@ -64,6 +68,7 @@ public class EventsController {
         this.inviteEventGuestsUseCase = inviteEventGuestsUseCase;
         this.listEventGuestsUseCase = listEventGuestsUseCase;
         this.updateEventUseCase = updateEventUseCase;
+        this.deleteEventUseCase = deleteEventUseCase;
     }
 
     @GetMapping
@@ -103,6 +108,13 @@ public class EventsController {
         String email = resolveEmail(authentication);
         Event event = getEventUseCase.execute(ownerId, email, id);
         return toResponse(event);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(Authentication authentication, @PathVariable("id") String id) {
+        String requesterUserId = authentication.getName();
+        deleteEventUseCase.execute(requesterUserId, id);
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{id}")
