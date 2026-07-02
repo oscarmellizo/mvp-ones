@@ -409,5 +409,10 @@ class EventCoversServiceTest {
         public java.util.List<Event> listByOwnerId(String ownerId, int limit) {
             return items.values().stream().filter(e -> ownerId.equals(e.getOwnerId())).limit(limit).toList();
         }
+
+        @Override
+        public void deleteById(String eventId) {
+            items.remove(eventId);
+        }
     }
 }

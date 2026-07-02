@@ -63,5 +63,10 @@ class CreateEventUseCaseTest {
         public java.util.List<Event> listByOwnerId(String ownerId, int limit) {
             return last != null && last.getOwnerId().equals(ownerId) ? java.util.List.of(last) : java.util.List.of();
         }
+
+        @Override
+        public void deleteById(String eventId) {
+            if (last != null && last.getEventId().equals(eventId)) last = null;
+        }
     }
 }

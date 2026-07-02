@@ -95,6 +95,11 @@ class ListEventsUseCaseTest {
                     .limit(limit)
                     .toList();
         }
+
+        @Override
+        public void deleteById(String eventId) {
+            items.remove(eventId);
+        }
     }
 
     private record InMemoryInvitationsRepository(List<Invitation> items) implements InvitationsRepository {
@@ -129,6 +134,10 @@ class ListEventsUseCaseTest {
                     .filter(i -> i.getStatus() == Invitation.Status.accepted)
                     .limit(limit)
                     .toList();
+        }
+
+        @Override
+        public void deleteAllByEventId(String eventId) {
         }
     }
 }

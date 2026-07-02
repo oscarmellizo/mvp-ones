@@ -121,6 +121,11 @@ class ListEventGuestsUseCaseTest {
         }
 
         @Override
+        public void deleteAllByEventId(String eventId) {
+            items.removeIf(i -> i.getEventId().equals(eventId));
+        }
+
+        @Override
         public List<Invitation> listAcceptedByInviteeEmail(String inviteeEmail, int limit) {
             return items.stream()
                     .filter(i -> i.getInviteeEmail().equals(inviteeEmail) && i.getStatus() == Invitation.Status.accepted)
