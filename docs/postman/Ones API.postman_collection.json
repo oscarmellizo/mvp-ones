@@ -1,0 +1,795 @@
+{
+  "info": {
+    "_postman_id": "c8f6b7c0-2d0f-4e71-9e1b-5e3f2d0e8e8f",
+    "name": "Ones API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "token", "value": "" },
+    { "key": "googleClientId", "value": "" },
+    { "key": "googleClientSecret", "value": "" },
+    { "key": "googleRedirectUri", "value": "https://oauth.pstmn.io/v1/callback" },
+    { "key": "googleAuthCode", "value": "" },
+    { "key": "eventId", "value": "" },
+    { "key": "photoId", "value": "" },
+    { "key": "frameId", "value": "" },
+    { "key": "eventTemplateId", "value": "" },
+    { "key": "translationKey", "value": "" },
+    { "key": "languageCode", "value": "es" },
+    { "key": "inviteToken", "value": "" },
+    { "key": "inviteSig", "value": "" },
+    { "key": "inviteLinkEventId", "value": "" },
+    { "key": "shortCode", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{token}}", "type": "string" }
+    ]
+  },
+  "item": [
+    {
+      "name": "00 - Auth (Google)",
+      "item": [
+        {
+          "name": "Google OAuth Token (exchange auth code)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "url": {
+              "raw": "https://oauth2.googleapis.com/token",
+              "protocol": "https",
+              "host": ["oauth2", "googleapis", "com"],
+              "path": ["token"]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "authorization_code" },
+                { "key": "client_id", "value": "{{googleClientId}}" },
+                { "key": "client_secret", "value": "{{googleClientSecret}}" },
+                { "key": "redirect_uri", "value": "{{googleRedirectUri}}" },
+                { "key": "code", "value": "{{googleAuthCode}}" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "const idToken = data && data.id_token ? data.id_token : null;",
+                  "const accessToken = data && data.access_token ? data.access_token : null;",
+                  "if (idToken) { pm.collectionVariables.set('token', idToken); }",
+                  "else if (accessToken) { pm.collectionVariables.set('token', accessToken); }",
+                  "pm.collectionVariables.set('google_id_token', idToken || '');",
+                  "pm.collectionVariables.set('google_access_token', accessToken || '');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set Token (manual)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Use this request to paste your token into the collection variable 'token' manually.",
+                  "// In Postman UI: Collection -> Variables -> token"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 - Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Users",
+      "item": [
+        {
+          "name": "POST /v1/users/ensure",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/v1/users/ensure", "host": ["{{baseUrl}}"], "path": ["v1", "users", "ensure"] }
+          }
+        },
+        {
+          "name": "GET /v1/users/me",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/v1/users/me", "host": ["{{baseUrl}}"], "path": ["v1", "users", "me"] }
+          }
+        },
+        {
+          "name": "GET /v1/users/lookup?email=",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/users/lookup?email=test@example.com",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "users", "lookup"],
+              "query": [
+                { "key": "email", "value": "test@example.com" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "PUT /v1/users/preferences",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"preferredName\": \"Oscar\",\n  \"languagePreference\": \"es\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/v1/users/preferences", "host": ["{{baseUrl}}"], "path": ["v1", "users", "preferences"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Events",
+      "item": [
+        {
+          "name": "GET /v1/events",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/v1/events", "host": ["{{baseUrl}}"], "path": ["v1", "events"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const arr = pm.response.json();",
+                  "  if (Array.isArray(arr) && arr.length > 0 && arr[0].id) {",
+                  "    pm.collectionVariables.set('eventId', arr[0].id);",
+                  "  }",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /v1/events/metadata",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/v1/events/metadata", "host": ["{{baseUrl}}"], "path": ["v1", "events", "metadata"] }
+          }
+        },
+        {
+          "name": "POST /v1/events",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Evento de prueba\",\n  \"objective\": \"Probar API\",\n  \"location\": \"Medellín\",\n  \"startAt\": \"2026-02-19T01:00:00Z\",\n  \"endAt\": \"2026-02-19T03:00:00Z\",\n  \"inviteeEmails\": [],\n  \"allowGuestInvites\": true,\n  \"frameIds\": []\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/v1/events", "host": ["{{baseUrl}}"], "path": ["v1", "events"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const obj = pm.response.json();",
+                  "  if (obj && obj.id) pm.collectionVariables.set('eventId', obj.id);",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /v1/events/{{eventId}}",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/v1/events/{{eventId}}", "host": ["{{baseUrl}}"], "path": ["v1", "events", "{{eventId}}"] }
+          }
+        },
+        {
+          "name": "PUT /v1/events/{{eventId}}",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Evento actualizado\",\n  \"objective\": \"Probar API update\",\n  \"location\": \"Medellín\",\n  \"startAt\": \"2026-02-19T01:00:00Z\",\n  \"endAt\": \"2026-02-19T03:00:00Z\",\n  \"coverReservationId\": null,\n  \"allowGuestInvites\": true,\n  \"frameIds\": []\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/v1/events/{{eventId}}", "host": ["{{baseUrl}}"], "path": ["v1", "events", "{{eventId}}"] }
+          }
+        },
+        {
+          "name": "GET /v1/events/{{eventId}}/guests",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/v1/events/{{eventId}}/guests", "host": ["{{baseUrl}}"], "path": ["v1", "events", "{{eventId}}", "guests"] }
+          }
+        },
+        {
+          "name": "GET /v1/events/{{eventId}}/guests/v2",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/v1/events/{{eventId}}/guests/v2", "host": ["{{baseUrl}}"], "path": ["v1", "events", "{{eventId}}", "guests", "v2"] }
+          }
+        },
+        {
+          "name": "POST /v1/events/{{eventId}}/invitees",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inviteeEmails\": [\"guest1@example.com\"]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/v1/events/{{eventId}}/invitees", "host": ["{{baseUrl}}"], "path": ["v1", "events", "{{eventId}}", "invitees"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Event Invite Links",
+      "item": [
+        {
+          "name": "GET /v1/events/{{eventId}}/invite-link",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/v1/events/{{eventId}}/invite-link", "host": ["{{baseUrl}}"], "path": ["v1", "events", "{{eventId}}", "invite-link"] }
+          }
+        },
+        {
+          "name": "PUT /v1/events/{{eventId}}/invite-link",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"enabled\": true\n}" },
+            "url": { "raw": "{{baseUrl}}/v1/events/{{eventId}}/invite-link", "host": ["{{baseUrl}}"], "path": ["v1", "events", "{{eventId}}", "invite-link"] }
+          }
+        },
+        {
+          "name": "GET /v1/events/{{inviteLinkEventId}}/invite-link/preview?sig=",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{baseUrl}}/v1/events/{{inviteLinkEventId}}/invite-link/preview?sig={{inviteSig}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "events", "{{inviteLinkEventId}}", "invite-link", "preview"],
+              "query": [
+                { "key": "sig", "value": "{{inviteSig}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /v1/events/{{inviteLinkEventId}}/invite-link/accept?sig=",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/v1/events/{{inviteLinkEventId}}/invite-link/accept?sig={{inviteSig}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "events", "{{inviteLinkEventId}}", "invite-link", "accept"],
+              "query": [
+                { "key": "sig", "value": "{{inviteSig}}" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Event Covers (AI)",
+      "item": [
+        {
+          "name": "POST /v1/events/covers/generate",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventName\": \"Cena en casa\",\n  \"objective\": \"Probar cover AI\",\n  \"location\": \"Medellín\",\n  \"size\": \"512x512\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/v1/events/covers/generate", "host": ["{{baseUrl}}"], "path": ["v1", "events", "covers", "generate"] }
+          }
+        },
+        {
+          "name": "POST /v1/events/covers/{coverId}/accept",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/v1/events/covers/{{coverId}}/accept", "host": ["{{baseUrl}}"], "path": ["v1", "events", "covers", "{{coverId}}", "accept"] }
+          }
+        },
+        {
+          "name": "POST /v1/events/covers/{coverId}/cancel",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/v1/events/covers/{{coverId}}/cancel", "host": ["{{baseUrl}}"], "path": ["v1", "events", "covers", "{{coverId}}", "cancel"] }
+          }
+        },
+        {
+          "name": "GET /v1/events/{{eventId}}/cover-url",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/v1/events/{{eventId}}/cover-url", "host": ["{{baseUrl}}"], "path": ["v1", "events", "{{eventId}}", "cover-url"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Photos",
+      "item": [
+        {
+          "name": "POST /v1/events/{{eventId}}/photos/presign",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"photoId\": \"{{photoId}}\",\n  \"contentType\": \"image/jpeg\"\n}" },
+            "url": { "raw": "{{baseUrl}}/v1/events/{{eventId}}/photos/presign", "host": ["{{baseUrl}}"], "path": ["v1", "events", "{{eventId}}", "photos", "presign"] }
+          }
+        },
+        {
+          "name": "POST /v1/events/{{eventId}}/photos/complete",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"photoId\": \"{{photoId}}\",\n  \"s3KeyOriginal\": \"ones/dev/photos/original.jpg\",\n  \"createdAt\": null\n}" },
+            "url": { "raw": "{{baseUrl}}/v1/events/{{eventId}}/photos/complete", "host": ["{{baseUrl}}"], "path": ["v1", "events", "{{eventId}}", "photos", "complete"] }
+          }
+        },
+        {
+          "name": "GET /v1/events/{{eventId}}/photos",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/events/{{eventId}}/photos?limit=9",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "events", "{{eventId}}", "photos"],
+              "query": [
+                { "key": "limit", "value": "9" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /v1/events/{{eventId}}/photos/{{photoId}}/ready",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"s3KeyMedium\": \"ones/dev/photos/medium.jpg\",\n  \"s3KeySmall\": \"ones/dev/photos/small.jpg\"\n}" },
+            "url": { "raw": "{{baseUrl}}/v1/events/{{eventId}}/photos/{{photoId}}/ready", "host": ["{{baseUrl}}"], "path": ["v1", "events", "{{eventId}}", "photos", "{{photoId}}", "ready"] }
+          }
+        },
+        {
+          "name": "POST /v1/events/{{eventId}}/photos/share",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"photoIds\": [\"{{photoId}}\"]\n}" },
+            "url": { "raw": "{{baseUrl}}/v1/events/{{eventId}}/photos/share", "host": ["{{baseUrl}}"], "path": ["v1", "events", "{{eventId}}", "photos", "share"] }
+          }
+        },
+        {
+          "name": "POST /v1/events/{{eventId}}/photos/unshare",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"photoIds\": [\"{{photoId}}\"]\n}" },
+            "url": { "raw": "{{baseUrl}}/v1/events/{{eventId}}/photos/unshare", "host": ["{{baseUrl}}"], "path": ["v1", "events", "{{eventId}}", "photos", "unshare"] }
+          }
+        },
+        {
+          "name": "PUT /v1/events/{{eventId}}/photos/{{photoId}}/like",
+          "request": {
+            "method": "PUT",
+            "url": { "raw": "{{baseUrl}}/v1/events/{{eventId}}/photos/{{photoId}}/like", "host": ["{{baseUrl}}"], "path": ["v1", "events", "{{eventId}}", "photos", "{{photoId}}", "like"] }
+          }
+        },
+        {
+          "name": "DELETE /v1/events/{{eventId}}/photos/{{photoId}}/like",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/v1/events/{{eventId}}/photos/{{photoId}}/like", "host": ["{{baseUrl}}"], "path": ["v1", "events", "{{eventId}}", "photos", "{{photoId}}", "like"] }
+          }
+        },
+        {
+          "name": "POST /v1/events/{{eventId}}/photos/{{photoId}}/social-share",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"variant\": \"small\"\n}" },
+            "url": { "raw": "{{baseUrl}}/v1/events/{{eventId}}/photos/{{photoId}}/social-share", "host": ["{{baseUrl}}"], "path": ["v1", "events", "{{eventId}}", "photos", "{{photoId}}", "social-share"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - Invitations",
+      "item": [
+        {
+          "name": "GET /v1/invitations",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/v1/invitations", "host": ["{{baseUrl}}"], "path": ["v1", "invitations"] }
+          }
+        },
+        {
+          "name": "GET /v1/invitations/resolve?token=",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/invitations/resolve?token={{inviteToken}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "invitations", "resolve"],
+              "query": [
+                { "key": "token", "value": "{{inviteToken}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /v1/invitations/{{eventId}}/accept",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/v1/invitations/{{eventId}}/accept", "host": ["{{baseUrl}}"], "path": ["v1", "invitations", "{{eventId}}", "accept"] }
+          }
+        },
+        {
+          "name": "POST /v1/invitations/{{eventId}}/reject",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/v1/invitations/{{eventId}}/reject", "host": ["{{baseUrl}}"], "path": ["v1", "invitations", "{{eventId}}", "reject"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 - Catalog",
+      "item": [
+        {
+          "name": "GET /v1/event-templates",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/v1/event-templates", "host": ["{{baseUrl}}"], "path": ["v1", "event-templates"] }
+          }
+        },
+        {
+          "name": "GET /v1/frames",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/frames?status=active&limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "frames"],
+              "query": [
+                { "key": "status", "value": "active" },
+                { "key": "limit", "value": "50" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 - Translations",
+      "item": [
+        {
+          "name": "GET /v1/translations?languageCode=",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/translations?languageCode={{languageCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "translations"],
+              "query": [
+                { "key": "languageCode", "value": "{{languageCode}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /v1/translations/page?page=home&languageCode=",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{baseUrl}}/v1/translations/page?page=home&languageCode={{languageCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "translations", "page"],
+              "query": [
+                { "key": "page", "value": "home" },
+                { "key": "languageCode", "value": "{{languageCode}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /v1/translations/key?translationKey=&languageCode=",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{baseUrl}}/v1/translations/key?translationKey={{translationKey}}&languageCode={{languageCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "translations", "key"],
+              "query": [
+                { "key": "translationKey", "value": "{{translationKey}}" },
+                { "key": "languageCode", "value": "{{languageCode}}" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 - Admin",
+      "item": [
+        {
+          "name": "GET /v1/admin/me",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/v1/admin/me", "host": ["{{baseUrl}}"], "path": ["v1", "admin", "me"] }
+          }
+        },
+        {
+          "name": "Admin - Translations",
+          "item": [
+            {
+              "name": "GET /v1/admin/translations",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/v1/admin/translations?languageCode={{languageCode}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["v1", "admin", "translations"],
+                  "query": [
+                    { "key": "languageCode", "value": "{{languageCode}}" }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "POST /v1/admin/translations",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"translationKey\": \"common.ok\",\n  \"languageCode\": \"es\",\n  \"value\": \"OK\",\n  \"context\": \"postman\"\n}"
+                },
+                "url": { "raw": "{{baseUrl}}/v1/admin/translations", "host": ["{{baseUrl}}"], "path": ["v1", "admin", "translations"] }
+              }
+            },
+            {
+              "name": "GET /v1/admin/translations/{{translationKey}}/{{languageCode}}",
+              "request": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/v1/admin/translations/{{translationKey}}/{{languageCode}}", "host": ["{{baseUrl}}"], "path": ["v1", "admin", "translations", "{{translationKey}}", "{{languageCode}}"] }
+              }
+            },
+            {
+              "name": "DELETE /v1/admin/translations/{{translationKey}}/{{languageCode}}",
+              "request": {
+                "method": "DELETE",
+                "url": { "raw": "{{baseUrl}}/v1/admin/translations/{{translationKey}}/{{languageCode}}", "host": ["{{baseUrl}}"], "path": ["v1", "admin", "translations", "{{translationKey}}", "{{languageCode}}"] }
+              }
+            },
+            {
+              "name": "POST /v1/admin/translations/cache/evict",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/v1/admin/translations/cache/evict?languageCode={{languageCode}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["v1", "admin", "translations", "cache", "evict"],
+                  "query": [
+                    { "key": "languageCode", "value": "{{languageCode}}" }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "POST /v1/admin/translations/cache/refresh",
+              "request": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/v1/admin/translations/cache/refresh?languageCode={{languageCode}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["v1", "admin", "translations", "cache", "refresh"],
+                  "query": [
+                    { "key": "languageCode", "value": "{{languageCode}}" }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin - Frames",
+          "item": [
+            {
+              "name": "GET /v1/admin/frames",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/v1/admin/frames?status=active&limit=50",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["v1", "admin", "frames"],
+                  "query": [
+                    { "key": "status", "value": "active" },
+                    { "key": "limit", "value": "50" }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "POST /v1/admin/frames",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"frameId\": null,\n  \"name\": \"Frame test\",\n  \"status\": \"active\",\n  \"sortOrder\": 1\n}" },
+                "url": { "raw": "{{baseUrl}}/v1/admin/frames", "host": ["{{baseUrl}}"], "path": ["v1", "admin", "frames"] }
+              }
+            },
+            {
+              "name": "DELETE /v1/admin/frames/{{frameId}}",
+              "request": {
+                "method": "DELETE",
+                "url": { "raw": "{{baseUrl}}/v1/admin/frames/{{frameId}}", "host": ["{{baseUrl}}"], "path": ["v1", "admin", "frames", "{{frameId}}"] }
+              }
+            },
+            {
+              "name": "POST /v1/admin/frames/{{frameId}}/asset/presign",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"contentType\": \"image/png\",\n  \"variant\": \"vertical\"\n}" },
+                "url": { "raw": "{{baseUrl}}/v1/admin/frames/{{frameId}}/asset/presign", "host": ["{{baseUrl}}"], "path": ["v1", "admin", "frames", "{{frameId}}", "asset", "presign"] }
+              }
+            },
+            {
+              "name": "GET /v1/admin/frames/{{frameId}}/asset-url?variant=vertical",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/v1/admin/frames/{{frameId}}/asset-url?variant=vertical",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["v1", "admin", "frames", "{{frameId}}", "asset-url"],
+                  "query": [
+                    { "key": "variant", "value": "vertical" }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin - Event Templates",
+          "item": [
+            {
+              "name": "GET /v1/admin/event-templates",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/v1/admin/event-templates?status=active",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["v1", "admin", "event-templates"],
+                  "query": [
+                    { "key": "status", "value": "active" }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "POST /v1/admin/event-templates",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"name\": \"Template test\",\n  \"status\": \"active\",\n  \"sortOrder\": 1,\n  \"frameIds\": []\n}" },
+                "url": { "raw": "{{baseUrl}}/v1/admin/event-templates", "host": ["{{baseUrl}}"], "path": ["v1", "admin", "event-templates"] }
+              }
+            },
+            {
+              "name": "PUT /v1/admin/event-templates/{{eventTemplateId}}",
+              "request": {
+                "method": "PUT",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"name\": \"Template updated\",\n  \"status\": \"active\",\n  \"sortOrder\": 1,\n  \"frameIds\": []\n}" },
+                "url": { "raw": "{{baseUrl}}/v1/admin/event-templates/{{eventTemplateId}}", "host": ["{{baseUrl}}"], "path": ["v1", "admin", "event-templates", "{{eventTemplateId}}"] }
+              }
+            },
+            {
+              "name": "DELETE /v1/admin/event-templates/{{eventTemplateId}}",
+              "request": {
+                "method": "DELETE",
+                "url": { "raw": "{{baseUrl}}/v1/admin/event-templates/{{eventTemplateId}}", "host": ["{{baseUrl}}"], "path": ["v1", "admin", "event-templates", "{{eventTemplateId}}"] }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin - Admins",
+          "item": [
+            {
+              "name": "GET /v1/admin/admins",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/v1/admin/admins?limit=50",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["v1", "admin", "admins"],
+                  "query": [
+                    { "key": "limit", "value": "50" }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "POST /v1/admin/admins",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@example.com\",\n  \"status\": \"active\"\n}" },
+                "url": { "raw": "{{baseUrl}}/v1/admin/admins", "host": ["{{baseUrl}}"], "path": ["v1", "admin", "admins"] }
+              }
+            },
+            {
+              "name": "POST /v1/admin/admins/status",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@example.com\",\n  \"status\": \"inactive\"\n}" },
+                "url": { "raw": "{{baseUrl}}/v1/admin/admins/status", "host": ["{{baseUrl}}"], "path": ["v1", "admin", "admins", "status"] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "11 - Public",
+      "item": [
+        {
+          "name": "GET /p/{{shortCode}}",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{baseUrl}}/p/{{shortCode}}", "host": ["{{baseUrl}}"], "path": ["p", "{{shortCode}}"] }
+          }
+        }
+      ]
+    }
+  ]
+}
