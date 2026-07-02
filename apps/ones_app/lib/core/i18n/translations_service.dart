@@ -55,7 +55,8 @@ class TranslationsService extends ChangeNotifier {
 
   Future<void> init() async {
     if (_prefs == null) return;
-    _currentLanguage = _prefs!.getString(_languageKey) ?? 'es';
+    _currentLanguage = 'es';
+    await _prefs!.setString(_languageKey, 'es');
 
     // Apply saved language immediately, even if we can't fetch translations yet.
     notifyListeners();
@@ -68,6 +69,7 @@ class TranslationsService extends ChangeNotifier {
   void syncLanguageFromUserPreference(String? languageCode) {
     if (languageCode == null || languageCode.trim().isEmpty) return;
     final normalized = languageCode.trim().toLowerCase();
+    if (normalized != 'es') return;
     if (!['es', 'en', 'pt'].contains(normalized)) return;
     if (_lastSyncedUserLanguage == normalized) return;
     _lastSyncedUserLanguage = normalized;

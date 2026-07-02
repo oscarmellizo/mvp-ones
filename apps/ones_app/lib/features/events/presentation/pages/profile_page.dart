@@ -29,10 +29,6 @@ class _ProfilePageState extends State<ProfilePage> {
     'profile.preferred_name_question',
     'profile.preferred_name_label',
     'profile.preferred_name_description',
-    'profile.language',
-    'profile.language_es',
-    'profile.language_en',
-    'profile.language_pt',
     'profile.error_preferred_name_required',
     'profile.success_preferences_saved',
     'profile.error_save_failed',
@@ -44,7 +40,6 @@ class _ProfilePageState extends State<ProfilePage> {
   };
 
   String? _seedUserId;
-  String _selectedLanguage = 'es';
   String? _lastLanguage;
 
   @override
@@ -91,10 +86,14 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _loadLanguagePreference() async {
     final translationsService = context.read<TranslationsService>();
     await translationsService.ensureInitialized();
+
+    if (translationsService.getCurrentLanguage() != 'es') {
+      await translationsService.setLanguage('es');
+    }
+
     if (mounted) {
       setState(() {
-        _selectedLanguage = translationsService.getCurrentLanguage();
-        _lastLanguage = _selectedLanguage;
+        _lastLanguage = 'es';
       });
     }
   }
@@ -109,11 +108,6 @@ class _ProfilePageState extends State<ProfilePage> {
       _lastLanguage = lang;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        if (_selectedLanguage != lang) {
-          setState(() {
-            _selectedLanguage = lang;
-          });
-        }
         context.read<TranslationsService>().ensurePageTranslations(
               page: 'profile',
               requiredKeys: _profileRequiredKeys,
@@ -241,48 +235,6 @@ class _ProfilePageState extends State<ProfilePage> {
                         fontSize: 12,
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      translationsService.translate('profile.language'),
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      value: _selectedLanguage,
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: OnesColors.yellowLight.withOpacity(0.35),
-                        border: OutlineInputBorder(
-                          borderSide: BorderSide.none,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
-                      ),
-                      items: [
-                        DropdownMenuItem(
-                            value: 'es',
-                            child: Text(translationsService
-                                .translate('profile.language_es'))),
-                        DropdownMenuItem(
-                            value: 'en',
-                            child: Text(translationsService
-                                .translate('profile.language_en'))),
-                        DropdownMenuItem(
-                            value: 'pt',
-                            child: Text(translationsService
-                                .translate('profile.language_pt'))),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() {
-                            _selectedLanguage = value;
-                          });
-                        }
-                      },
-                    ),
                     const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
@@ -300,7 +252,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             : () async {
                                 final value =
                                     _preferredNameController.text.trim();
-                                final selectedLanguage = _selectedLanguage;
+                                const selectedLanguage = 'es';
                                 FocusScope.of(context).unfocus();
                                 if (value.isEmpty) {
                                   ScaffoldMessenger.of(context).showSnackBar(
