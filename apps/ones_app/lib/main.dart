@@ -1,10 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:workmanager/workmanager.dart';
 
 import 'app.dart';
 import 'core/config/app_config.dart';
+import 'core/services/live_event_notification_service.dart';
+
+const String _kLiveCheckTask = 'com.ones.liveEventCheck';
+
+@pragma('vm:entry-point')
+void callbackDispatcher() {
+  Workmanager().executeTask((taskName, inputData) async {
+    if (taskName == _kLiveCheckTask) {
+      final notifService = LiveEventNotificationService();
+      await notifService.initialize();
+      final events = await LiveEventNotificationService.loadCachedEvents();
+      await notifService.checkAndUpdate(events);
+    }
+    return Future.value(true);
+  });
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  final notifService = LiveEventNotificationService();
+  await notifService.initialize();
+
+  await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
+  await Workmanager().registerPeriodicTask(
+    _kLiveCheckTask,
+    _kLiveCheckTask,
+    frequency: const Duration(minutes: 15),
+    existingWorkPolicy: ExistingWorkPolicy.keep,
+    constraints: Constraints(networkType: NetworkType.not_required),
+  );
+
   final config = await AppConfig.load();
   runApp(OnesApp(config: config));
 }

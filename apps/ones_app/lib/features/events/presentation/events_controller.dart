@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../core/services/live_event_notification_service.dart';
 import '../application/create_event_use_case.dart';
 import '../application/get_event_use_case.dart';
 import '../application/list_events_use_case.dart';
@@ -65,6 +66,7 @@ class EventsController extends ChangeNotifier {
     try {
       _error = null;
       _events = await listEvents.execute();
+      _updateLiveNotification();
     } catch (e) {
       _error = e;
       _events = const [];
@@ -72,6 +74,12 @@ class EventsController extends ChangeNotifier {
     } finally {
       _setLoading(false);
     }
+  }
+
+  void _updateLiveNotification() {
+    final notifService = LiveEventNotificationService();
+    notifService.checkAndUpdate(_events);
+    LiveEventNotificationService.cacheEvents(_events);
   }
 
   Future<void> updateEvent({

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
@@ -46,11 +48,14 @@ import 'features/photos/presentation/photos_upload_controller.dart';
 import 'features/photos/presentation/photos_ws_controller.dart';
 import 'features/users/adapters/api/users_api_repository.dart';
 import 'features/users/application/ensure_user_use_case.dart';
+import 'core/services/live_event_notification_service.dart';
+import 'core/widgets/live_events_selector.dart';
+import 'features/auth/presentation/pages/login_page.dart';
 import 'features/events/presentation/pages/event_detail_page.dart';
 import 'features/events/presentation/pages/home_shell_page.dart';
 import 'features/events/presentation/pages/events_list_page.dart';
 import 'features/events/presentation/pages/create_event_page.dart';
-import 'features/auth/presentation/pages/login_page.dart';
+import 'features/events/presentation/pages/photo_capture_page.dart';
 import 'features/invitations/presentation/pages/invitation_link_page.dart';
 import 'features/events/presentation/pages/event_invite_link_page.dart';
 
@@ -423,8 +428,102 @@ class OnesApp extends StatelessWidget {
   }
 }
 
-class _RootRouter extends StatelessWidget {
+class _RootRouter extends StatefulWidget {
   const _RootRouter();
+
+  @override
+  State<_RootRouter> createState() => _RootRouterState();
+}
+
+class _RootRouterState extends State<_RootRouter> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkPendingNotif());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkPendingNotif();
+    }
+  }
+
+  bool _permissionRequested = false;
+
+  void _checkPendingNotif() {
+    final pending = LiveEventNotificationService.consumePending();
+    if (pending == null) return;
+    if (!mounted) return;
+    _handleNotifPayload(pending.payload, pending.actionId);
+  }
+
+  void _maybeRequestPermission() {
+    if (_permissionRequested) return;
+    _permissionRequested = true;
+    LiveEventNotificationService().requestPermission();
+  }
+
+  void _handleNotifPayload(String? payload, String? actionId) {
+    if (payload == null || payload.isEmpty) return;
+    try {
+      final map = jsonDecode(payload) as Map<String, dynamic>;
+      final isMulti = map['multi'] == true;
+
+      if (isMulti || actionId == kActionSelect) {
+        final events = context.read<EventsController>().events;
+        final now = DateTime.now();
+        final liveEvents = events.where((e) {
+          final start = e.startAt.toLocal();
+          final end = e.endAt.toLocal();
+          return (now.isAfter(start) || now.isAtSameMomentAs(start)) &&
+              now.isBefore(end);
+        }).toList(growable: false);
+        if (liveEvents.isEmpty) return;
+        LiveEventsSelector.show(
+          context: context,
+          liveEvents: liveEvents,
+          onSelect: (eventId, openCamera) =>
+              _navigateToEvent(eventId, openCamera),
+        );
+        return;
+      }
+
+      final eventId = map['eventId'] as String?;
+      if (eventId == null || eventId.isEmpty) return;
+      final openCamera = actionId == kActionCamera;
+      _navigateToEvent(eventId, openCamera);
+    } catch (_) {}
+  }
+
+  void _navigateToEvent(String eventId, bool openCamera) {
+    final nav = Navigator.of(context);
+    nav.pushNamed(
+      EventDetailPage.routeName,
+      arguments: eventId,
+    ).then((_) {
+      if (openCamera && mounted) {
+        final events = context.read<EventsController>().events;
+        final event = events.where((e) => e.id == eventId).firstOrNull;
+        if (event == null) return;
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => PhotoCapturePage(
+              eventId: eventId,
+              frameIds: event.frameIds,
+            ),
+          ),
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -457,6 +556,7 @@ class _RootRouter extends StatelessWidget {
       return const LoginPage();
     }
 
+    _maybeRequestPermission();
     return const HomeShellPage();
   }
 }
