@@ -51,6 +51,12 @@ public class TranslationsMigration implements CommandLineRunner {
                     String languageCode = languageCodes.next();
                     String value = languageNode.get(languageCode).asText();
 
+                    // Check if translation already exists
+                    if (translationsRepository.getTranslation(translationKey, languageCode).isPresent()) {
+                        log.info("Skipping existing: {} ({})", translationKey, languageCode);
+                        continue;
+                    }
+
                     Translation translation = new Translation(
                         translationKey,
                         languageCode,

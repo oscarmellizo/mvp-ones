@@ -13,6 +13,8 @@ public interface PhotosRepository {
 
     PageResult<Photo> listByEventId(String eventId, int limit, String nextToken);
 
+    PageResult<Photo> listAll(int limit, String nextToken);
+
     record PageResult<T>(List<T> items, String nextToken) {
     }
 }
