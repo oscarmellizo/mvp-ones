@@ -15,6 +15,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.ones.api.application.events.CoverPreviewNotFoundException;
 import com.ones.api.application.events.CoverReservationExpiredException;
 import com.ones.api.application.events.CoverReservationNotFoundException;
@@ -33,6 +36,8 @@ import software.amazon.awssdk.services.dynamodb.model.DynamoDbException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
     @ExceptionHandler(EventNotFoundException.class)
     public ResponseEntity<Map<String, Object>> notFound(EventNotFoundException ex) {
@@ -76,6 +81,7 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler({AiConfigurationException.class, AiImageGenerationException.class})
     public ResponseEntity<Map<String, Object>> aiUnavailable(RuntimeException ex) {
+        log.warn("AI unavailable", ex);
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
                 "error", "ai_unavailable",
                 "message", ex.getMessage()

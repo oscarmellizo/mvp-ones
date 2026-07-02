@@ -1054,7 +1054,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
         eventName: eventName,
         objective: objective,
         location: coverLocation,
-        size: '1792x1024',
+        size: null,
       );
     } on DioException catch (e) {
       final status = e.response?.statusCode;

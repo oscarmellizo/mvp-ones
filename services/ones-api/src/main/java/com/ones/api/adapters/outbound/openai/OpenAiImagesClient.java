@@ -22,6 +22,9 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ones.api.application.events.AiImageGenerationException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @Component
 public class OpenAiImagesClient {
 
@@ -29,10 +32,12 @@ public class OpenAiImagesClient {
     private final String imageModel;
     private static final Duration OPENAI_TIMEOUT = Duration.ofSeconds(110);
     private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final String DEFAULT_MODEL = "gpt-image-2";
+    private static final Logger log = LoggerFactory.getLogger(OpenAiImagesClient.class);
 
     public OpenAiImagesClient(
             WebClient.Builder builder,
-            @Value("${ones.ai.openai.image-model:dall-e-3}") String imageModel
+            @Value("${ones.ai.openai.image-model:gpt-image-2}") String imageModel
     ) {
         HttpClient httpClient = HttpClient.create()
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10_000)
@@ -49,15 +54,15 @@ public class OpenAiImagesClient {
     }
 
     public byte[] generatePng(String apiKey, String prompt, String size) {
-        String resolvedModel = (imageModel == null || imageModel.isBlank()) ? "dall-e-3" : imageModel.trim();
+        String resolvedModel = (imageModel == null || imageModel.isBlank()) ? DEFAULT_MODEL : imageModel.trim();
+        if (resolvedModel.equalsIgnoreCase("dall-e-3") || resolvedModel.equalsIgnoreCase("dall-e-2")) {
+            log.warn("OpenAI model {} is deprecated/removed; falling back to {}", resolvedModel, DEFAULT_MODEL);
+            resolvedModel = DEFAULT_MODEL;
+        }
         String normalizedSize = normalizeSize(resolvedModel, size);
-        OpenAiImageRequest req = new OpenAiImageRequest(
-                resolvedModel,
-                prompt,
-                normalizedSize,
-                "b64_json",
-                1
-        );
+        Object req = resolvedModel.toLowerCase().contains("gpt-image")
+                ? new OpenAiGptImageRequest(resolvedModel, prompt, normalizedSize, 1)
+                : new OpenAiDalleImageRequest(resolvedModel, prompt, normalizedSize, "b64_json", 1);
 
         OpenAiImageResponse resp;
         try {
@@ -73,6 +78,13 @@ public class OpenAiImagesClient {
         } catch (WebClientResponseException e) {
             String body = e.getResponseBodyAsString();
             String trimmed = formatOpenAiError(body);
+            log.error(
+                    "OpenAI image generation failed: model={}, size={}, status={}, body={}",
+                    resolvedModel,
+                    normalizedSize,
+                    e.getStatusCode().value(),
+                    trimmed
+            );
             throw new AiImageGenerationException(
                     "OpenAI image generation failed: model=" + resolvedModel + ", size=" + normalizedSize + ", status=" + e.getStatusCode().value() + ", body=" + trimmed,
                     e
@@ -89,12 +101,51 @@ public class OpenAiImagesClient {
     }
 
     private String normalizeSize(String model, String size) {
-        String resolvedModel = (model == null || model.isBlank()) ? "dall-e-3" : model.trim().toLowerCase();
+        String resolvedModel = (model == null || model.isBlank()) ? DEFAULT_MODEL : model.trim().toLowerCase();
+
         if (size == null || size.isBlank()) {
-            return resolvedModel.equals("dall-e-2") ? "1024x1024" : "1024x1024";
+            return resolvedModel.contains("gpt-image") ? "auto" : "1024x1024";
         }
 
         String s = size.trim();
+
+        // GPT image models (gpt-image-2, gpt-image-1, gpt-image-1-mini)
+        if (resolvedModel.contains("gpt-image")) {
+            if (s.equalsIgnoreCase("auto")) return "auto";
+
+            // gpt-image-2 accepts any resolution within constraints
+            // - Maximum edge length <= 3840
+            // - Both edges multiple of 16
+            // - Long:short ratio <= 3:1
+            // - Total pixels between 655,360 and 8,294,400
+            String[] parts = s.split("x");
+            if (parts.length == 2) {
+                try {
+                    int w = Integer.parseInt(parts[0]);
+                    int h = Integer.parseInt(parts[1]);
+
+                    int longEdge = Math.max(w, h);
+                    int shortEdge = Math.min(w, h);
+                    long pixels = (long) w * (long) h;
+
+                    boolean ok = longEdge <= 3840
+                            && (w % 16 == 0)
+                            && (h % 16 == 0)
+                            && ((double) longEdge / (double) shortEdge) <= 3.0
+                            && pixels >= 655_360L
+                            && pixels <= 8_294_400L;
+
+                    if (ok) return s;
+                    if (w > h) return "1536x1024";
+                    if (h > w) return "1024x1536";
+                } catch (Exception ignored) {
+                }
+            }
+
+            return "1024x1024";
+        }
+
+        // dall-e-2 supported sizes
         if (resolvedModel.equals("dall-e-2")) {
             return switch (s) {
                 case "1024x1024", "512x512", "256x256" -> s;
@@ -102,6 +153,7 @@ public class OpenAiImagesClient {
             };
         }
 
+        // dall-e-3 supported sizes (legacy)
         return switch (s) {
             case "1024x1024", "1792x1024", "1024x1792" -> s;
             default -> "1024x1024";
@@ -138,11 +190,19 @@ public class OpenAiImagesClient {
         return trimmed;
     }
 
-    private record OpenAiImageRequest(
+    private record OpenAiDalleImageRequest(
             String model,
             String prompt,
             String size,
             @JsonProperty("response_format") String responseFormat,
+            int n
+    ) {
+    }
+
+    private record OpenAiGptImageRequest(
+            String model,
+            String prompt,
+            String size,
             int n
     ) {
     }
