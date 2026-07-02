@@ -76,11 +76,11 @@ class CreateEventDateTimeCard extends StatelessWidget {
   }
 
   String _formatDate(DateTime? date) {
-    if (date == null) return 'mm/dd/yyyy';
-    final mm = date.month.toString().padLeft(2, '0');
+    if (date == null) return 'dd/mm/aaaa';
     final dd = date.day.toString().padLeft(2, '0');
+    final mm = date.month.toString().padLeft(2, '0');
     final yyyy = date.year.toString();
-    return '$mm/$dd/$yyyy';
+    return '$dd/$mm/$yyyy';
   }
 
   String _formatTime(BuildContext context, TimeOfDay? time) {

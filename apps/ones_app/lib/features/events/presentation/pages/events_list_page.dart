@@ -31,7 +31,6 @@ class _EventsListPageState extends State<EventsListPage> {
 
   static const Set<String> _homeRequiredKeys = {
     'nav.home',
-    'nav.discover',
     'nav.galleries',
     'nav.profile',
     'home.search_events',
@@ -96,7 +95,7 @@ class _EventsListPageState extends State<EventsListPage> {
         (a, b) => a.startAt.toLocal().compareTo(b.startAt.toLocal()),
       );
 
-    final todayCards = todayEvents.take(3).toList(growable: false);
+    final todayCards = todayEvents;
 
     final nextEvents = events
         .where((e) =>
@@ -119,7 +118,6 @@ class _EventsListPageState extends State<EventsListPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: _Header(
                   onBell: () => showInvitationsSheet(context),
-                  onDevice: () {},
                 ),
               ),
               const SizedBox(height: 14),
@@ -303,9 +301,8 @@ class _EventsListPageState extends State<EventsListPage> {
 
 class _Header extends StatelessWidget {
   final VoidCallback onBell;
-  final VoidCallback onDevice;
 
-  const _Header({required this.onBell, required this.onDevice});
+  const _Header({required this.onBell});
 
   @override
   Widget build(BuildContext context) {
@@ -357,11 +354,6 @@ class _Header extends StatelessWidget {
                         ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 4),
-                IconButton(
-                  onPressed: onDevice,
-                  icon: const Icon(Icons.phone_android),
                 ),
               ],
             ),

@@ -4,6 +4,9 @@ import java.util.Base64;
 import java.time.Duration;
 import java.util.List;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -23,13 +26,19 @@ import com.ones.api.application.events.AiImageGenerationException;
 public class OpenAiImagesClient {
 
     private final WebClient webClient;
+    private final String imageModel;
     private static final Duration OPENAI_TIMEOUT = Duration.ofSeconds(110);
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    public OpenAiImagesClient(WebClient.Builder builder) {
+    public OpenAiImagesClient(
+            WebClient.Builder builder,
+            @Value("${ones.ai.openai.image-model:dall-e-3}") String imageModel
+    ) {
         HttpClient httpClient = HttpClient.create()
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10_000)
                 .responseTimeout(OPENAI_TIMEOUT);
 
+        this.imageModel = imageModel;
         this.webClient = builder
                 .baseUrl("https://api.openai.com")
                 .clientConnector(new ReactorClientHttpConnector(httpClient))
@@ -40,9 +49,10 @@ public class OpenAiImagesClient {
     }
 
     public byte[] generatePng(String apiKey, String prompt, String size) {
-        String normalizedSize = normalizeSize(size);
+        String resolvedModel = (imageModel == null || imageModel.isBlank()) ? "dall-e-3" : imageModel.trim();
+        String normalizedSize = normalizeSize(resolvedModel, size);
         OpenAiImageRequest req = new OpenAiImageRequest(
-                "dall-e-3",
+                resolvedModel,
                 prompt,
                 normalizedSize,
                 "b64_json",
@@ -62,12 +72,9 @@ public class OpenAiImagesClient {
                     .block(OPENAI_TIMEOUT);
         } catch (WebClientResponseException e) {
             String body = e.getResponseBodyAsString();
-            String trimmed = body == null ? "" : body.trim();
-            if (trimmed.length() > 800) {
-                trimmed = trimmed.substring(0, 800) + "...";
-            }
+            String trimmed = formatOpenAiError(body);
             throw new AiImageGenerationException(
-                    "OpenAI image generation failed: status=" + e.getStatusCode().value() + ", body=" + trimmed,
+                    "OpenAI image generation failed: model=" + resolvedModel + ", size=" + normalizedSize + ", status=" + e.getStatusCode().value() + ", body=" + trimmed,
                     e
             );
         } catch (Exception e) {
@@ -81,16 +88,54 @@ public class OpenAiImagesClient {
         return Base64.getDecoder().decode(resp.data.get(0).b64Json);
     }
 
-    private String normalizeSize(String size) {
+    private String normalizeSize(String model, String size) {
+        String resolvedModel = (model == null || model.isBlank()) ? "dall-e-3" : model.trim().toLowerCase();
         if (size == null || size.isBlank()) {
-            return "1024x1024";
+            return resolvedModel.equals("dall-e-2") ? "1024x1024" : "1024x1024";
         }
 
-        // dall-e-3 supported sizes
-        return switch (size.trim()) {
-            case "1024x1024", "1792x1024", "1024x1792" -> size.trim();
+        String s = size.trim();
+        if (resolvedModel.equals("dall-e-2")) {
+            return switch (s) {
+                case "1024x1024", "512x512", "256x256" -> s;
+                default -> "1024x1024";
+            };
+        }
+
+        return switch (s) {
+            case "1024x1024", "1792x1024", "1024x1792" -> s;
             default -> "1024x1024";
         };
+    }
+
+    private String formatOpenAiError(String body) {
+        String trimmed = body == null ? "" : body.trim();
+        if (trimmed.isEmpty()) return trimmed;
+        try {
+            JsonNode root = MAPPER.readTree(trimmed);
+            JsonNode err = root.get("error");
+            if (err != null && err.isObject()) {
+                String message = err.path("message").asText("");
+                String type = err.path("type").asText("");
+                String code = err.path("code").asText("");
+                String param = err.path("param").asText("");
+
+                String compact = (type.isBlank() ? "" : type + ": ") + message;
+                if (!code.isBlank()) {
+                    compact = compact + " (code=" + code + ")";
+                }
+                if (!param.isBlank()) {
+                    compact = compact + " (param=" + param + ")";
+                }
+                trimmed = compact.isBlank() ? trimmed : compact;
+            }
+        } catch (Exception ignored) {
+        }
+
+        if (trimmed.length() > 800) {
+            trimmed = trimmed.substring(0, 800) + "...";
+        }
+        return trimmed;
     }
 
     private record OpenAiImageRequest(

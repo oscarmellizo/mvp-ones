@@ -43,13 +43,6 @@ class EventDetailHeader extends StatelessWidget {
                       letterSpacing: 0.6,
                     ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: OnesColors.black.withOpacity(0.55),
-                    ),
-              ),
             ],
           ),
         ),

@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/ui/ones_colors.dart';
 import 'create_event_page.dart';
-import 'discover_page.dart';
 import 'events_list_page.dart';
 import 'galleries_page.dart';
 import 'profile_page.dart';
@@ -22,7 +21,6 @@ class _HomeShellPageState extends State<HomeShellPage> {
 
   static const Set<String> _homeRequiredKeys = {
     'nav.home',
-    'nav.discover',
     'nav.galleries',
     'nav.profile',
     'home.search_events',
@@ -35,7 +33,6 @@ class _HomeShellPageState extends State<HomeShellPage> {
 
   static const _pages = [
     EventsListPage(),
-    DiscoverPage(),
     GalleriesPage(),
     ProfilePage(),
   ];
@@ -102,11 +99,6 @@ class _HomeShellPageState extends State<HomeShellPage> {
               icon: const Icon(Icons.home_outlined),
               selectedIcon: const Icon(Icons.home),
               label: translationsService.translate('nav.home'),
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.explore_outlined),
-              selectedIcon: const Icon(Icons.explore),
-              label: translationsService.translate('nav.discover'),
             ),
             NavigationDestination(
               icon: const Icon(Icons.photo_library_outlined),

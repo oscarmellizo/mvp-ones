@@ -47,6 +47,7 @@ ones:
   ai:
     openai:
       api-key-secret-name: ${OPENAI_API_KEY_SECRET_NAME:ones/dev/openai-api-key}
+      image-model: ${OPENAI_IMAGE_MODEL:dall-e-3}
       image-size: ${OPENAI_IMAGE_SIZE:1792x1024}
   s3:
     events:

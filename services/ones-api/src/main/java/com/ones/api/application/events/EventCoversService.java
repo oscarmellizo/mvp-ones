@@ -216,9 +216,9 @@ public class EventCoversService {
     }
 
     private static String buildPrompt(String eventName, String objective, String location) {
-        String name = safe(eventName);
-        String obj = safe(objective);
-        String loc = safe(location);
+        String name = safe(eventName, 80);
+        String obj = safe(objective, 240);
+        String loc = safe(location, 80);
 
         String theme = inferTheme(obj, name);
         String iconConcept = inferIconConcept(obj, name);
@@ -335,7 +335,18 @@ public class EventCoversService {
     }
 
     private static String safe(String value) {
-        return value == null ? "" : value.trim();
+        return safe(value, 400);
+    }
+
+    private static String safe(String value, int maxChars) {
+        if (value == null) return "";
+        String v = value.trim();
+        if (v.isEmpty()) return "";
+        v = v.replaceAll("\\s+", " ");
+        if (maxChars > 0 && v.length() > maxChars) {
+            v = v.substring(0, maxChars);
+        }
+        return v;
     }
 
     private static String tempKey(String ownerId, String coverId) {

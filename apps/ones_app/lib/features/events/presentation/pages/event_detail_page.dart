@@ -878,28 +878,49 @@ class _GalleryTabState extends State<_GalleryTab> {
                         segments: <ButtonSegment<PhotosGalleryFilter>>[
                           ButtonSegment(
                             value: PhotosGalleryFilter.all,
-                            label: Text(
-                              t.translate(
+                            label: Tooltip(
+                              message: t.translate(
                                 'event_detail.filter_all',
-                                fallback: 'All',
+                                fallback: 'Todas',
+                              ),
+                              child: Semantics(
+                                label: t.translate(
+                                  'event_detail.filter_all',
+                                  fallback: 'Todas',
+                                ),
+                                child: const Icon(Icons.photo_library_outlined),
                               ),
                             ),
                           ),
                           ButtonSegment(
                             value: PhotosGalleryFilter.sharedByMe,
-                            label: Text(
-                              t.translate(
+                            label: Tooltip(
+                              message: t.translate(
                                 'event_detail.filter_shared',
-                                fallback: 'Shared',
+                                fallback: 'Compartidas',
+                              ),
+                              child: Semantics(
+                                label: t.translate(
+                                  'event_detail.filter_shared',
+                                  fallback: 'Compartidas',
+                                ),
+                                child: const Icon(Icons.ios_share_outlined),
                               ),
                             ),
                           ),
                           ButtonSegment(
                             value: PhotosGalleryFilter.mine,
-                            label: Text(
-                              t.translate(
+                            label: Tooltip(
+                              message: t.translate(
                                 'event_detail.filter_mine',
-                                fallback: 'Propias',
+                                fallback: 'Mías',
+                              ),
+                              child: Semantics(
+                                label: t.translate(
+                                  'event_detail.filter_mine',
+                                  fallback: 'Mías',
+                                ),
+                                child: const Icon(Icons.person_outline),
                               ),
                             ),
                           ),
@@ -1036,10 +1057,24 @@ class _GalleryTabState extends State<_GalleryTab> {
                               await controller.refresh(
                                   eventId: widget.eventId);
                             },
-                      child: Text(
-                        t.translate(
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        minimumSize: const Size(48, 44),
+                      ),
+                      child: Tooltip(
+                        message: t.translate(
                           'event_detail.guests',
                           fallback: 'Invitados',
+                        ),
+                        child: Semantics(
+                          label: t.translate(
+                            'event_detail.guests',
+                            fallback: 'Invitados',
+                          ),
+                          child: const Icon(Icons.groups_outlined),
                         ),
                       ),
                     ),
@@ -2189,12 +2224,18 @@ class _DetailsTabState extends State<_DetailsTab> {
               ),
             ],
             const SizedBox(height: 14),
-            Text(
-              t.translate(
-                'event_detail.guests',
-                fallback: 'Guests',
-              ),
-              style: const TextStyle(fontWeight: FontWeight.w900),
+            Row(
+              children: [
+                const Icon(Icons.groups_outlined, size: 18),
+                const SizedBox(width: 6),
+                Text(
+                  t.translate(
+                    'event_detail.guests',
+                    fallback: 'Guests',
+                  ),
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             FutureBuilder<List<EventGuest>>(

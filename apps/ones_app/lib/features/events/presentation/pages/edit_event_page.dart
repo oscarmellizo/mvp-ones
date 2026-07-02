@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/ui/ones_colors.dart';
+import '../../../../core/ui/ones_typography.dart';
 import '../../../../core/utils/datetime_formatters.dart';
 import '../../domain/event.dart';
 import '../event_covers_controller.dart';
@@ -157,30 +158,122 @@ class _EditEventPageState extends State<EditEventPage> {
     }
   }
 
-  Future<void> _pickStartDateTime() async {
+  ThemeData _pickerTheme(BuildContext context) {
+    final base = Theme.of(context);
+    const pickerFontFamily = 'Arial';
+    final pickerTextTheme = base.textTheme
+        .copyWith(
+          displayLarge: base.textTheme.displayLarge?.copyWith(
+            fontFamily: pickerFontFamily,
+            fontFamilyFallback: OnesTypography.bodyFallbacks,
+            letterSpacing: 0,
+            height: 1.0,
+          ),
+          displayMedium: base.textTheme.displayMedium?.copyWith(
+            fontFamily: pickerFontFamily,
+            fontFamilyFallback: OnesTypography.bodyFallbacks,
+            letterSpacing: 0,
+            height: 1.0,
+          ),
+          displaySmall: base.textTheme.displaySmall?.copyWith(
+            fontFamily: pickerFontFamily,
+            fontFamilyFallback: OnesTypography.bodyFallbacks,
+            letterSpacing: 0,
+            height: 1.0,
+          ),
+          headlineLarge: base.textTheme.headlineLarge?.copyWith(
+            fontFamily: pickerFontFamily,
+            fontFamilyFallback: OnesTypography.bodyFallbacks,
+            letterSpacing: 0,
+            height: 1.0,
+          ),
+          headlineMedium: base.textTheme.headlineMedium?.copyWith(
+            fontFamily: pickerFontFamily,
+            fontFamilyFallback: OnesTypography.bodyFallbacks,
+            letterSpacing: 0,
+            height: 1.0,
+          ),
+        )
+        .apply(
+          bodyColor: OnesColors.black,
+          displayColor: OnesColors.black,
+        );
+    final scheme = base.colorScheme.copyWith(
+      primary: OnesColors.purpleMid,
+      secondary: OnesColors.purpleMid,
+      surface: OnesColors.white,
+      onPrimary: OnesColors.white,
+      onSecondary: OnesColors.white,
+      onSurface: OnesColors.black,
+      onSurfaceVariant: OnesColors.black,
+    );
+
+    return base.copyWith(
+      colorScheme: scheme,
+      dialogBackgroundColor: OnesColors.white,
+      textTheme: pickerTextTheme,
+      datePickerTheme: base.datePickerTheme.copyWith(
+        headerHeadlineStyle: pickerTextTheme.headlineMedium?.copyWith(
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: OnesColors.purpleMid,
+        ),
+      ),
+      timePickerTheme: base.timePickerTheme.copyWith(
+        dialTextColor: OnesColors.black,
+        hourMinuteTextStyle: pickerTextTheme.displayLarge?.copyWith(
+          fontWeight: FontWeight.w800,
+        ),
+        helpTextStyle: pickerTextTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w800,
+        ),
+        hourMinuteTextColor: OnesColors.black,
+        dayPeriodTextColor: OnesColors.black,
+      ),
+    );
+  }
+
+  Future<void> _pickStartDate() async {
     final now = DateTime.now();
     final pickedDate = await showDatePicker(
       context: context,
       initialDate: _startDate ?? now,
       firstDate: DateTime(now.year - 1),
       lastDate: DateTime(now.year + 5),
+      builder: (context, child) => Theme(
+        data: _pickerTheme(context),
+        child: child!,
+      ),
     );
     if (!mounted || pickedDate == null) return;
 
+    setState(() {
+      _startDate = pickedDate;
+    });
+    _validateDateTimes();
+  }
+
+  Future<void> _pickStartTime() async {
     final pickedTime = await showTimePicker(
       context: context,
       initialTime: _startTime ?? TimeOfDay.now(),
+      builder: (context, child) => Theme(
+        data: _pickerTheme(context),
+        child: child!,
+      ),
     );
     if (!mounted || pickedTime == null) return;
 
     setState(() {
-      _startDate = pickedDate;
       _startTime = pickedTime;
     });
     _validateDateTimes();
   }
 
-  Future<void> _pickEndDateTime() async {
+  Future<void> _pickEndDate() async {
     final now = DateTime.now();
     final initialEnd = _combineLocal(_endDate, _endTime);
     final initialDate =
@@ -192,17 +285,31 @@ class _EditEventPageState extends State<EditEventPage> {
           DateTime(initialDate.year, initialDate.month, initialDate.day),
       firstDate: DateTime(now.year - 1),
       lastDate: DateTime(now.year + 5),
+      builder: (context, child) => Theme(
+        data: _pickerTheme(context),
+        child: child!,
+      ),
     );
     if (!mounted || pickedDate == null) return;
 
+    setState(() {
+      _endDate = pickedDate;
+    });
+    _validateDateTimes();
+  }
+
+  Future<void> _pickEndTime() async {
     final pickedTime = await showTimePicker(
       context: context,
       initialTime: _endTime ?? _startTime ?? TimeOfDay.now(),
+      builder: (context, child) => Theme(
+        data: _pickerTheme(context),
+        child: child!,
+      ),
     );
     if (!mounted || pickedTime == null) return;
 
     setState(() {
-      _endDate = pickedDate;
       _endTime = pickedTime;
     });
     _validateDateTimes();
@@ -440,10 +547,10 @@ class _EditEventPageState extends State<EditEventPage> {
                   endDate: _endDate,
                   endTime: _endTime,
                   errorText: _dateTimeError,
-                  onPickStartDate: _pickStartDateTime,
-                  onPickStartTime: _pickStartDateTime,
-                  onPickEndDate: _pickEndDateTime,
-                  onPickEndTime: _pickEndDateTime,
+                  onPickStartDate: _pickStartDate,
+                  onPickStartTime: _pickStartTime,
+                  onPickEndDate: _pickEndDate,
+                  onPickEndTime: _pickEndTime,
                 ),
                 const SizedBox(height: 14),
                 CreateEventCoverPicker(
