@@ -16,6 +16,136 @@ import '../../../../core/i18n/translations_service.dart';
 import '../../../photos/presentation/photos_upload_controller.dart';
 import '../../adapters/api/event_templates_api_repository.dart';
 
+class CameraSettingsSheet extends StatelessWidget {
+  const CameraSettingsSheet({
+    super.key,
+    required this.qualityPreset,
+    required this.flashMode,
+    required this.shutterSoundEnabled,
+    required this.shutterHapticEnabled,
+    required this.onQualityChanged,
+    required this.onFlashChanged,
+    required this.onShutterSoundChanged,
+    required this.onShutterHapticChanged,
+  });
+
+  final ResolutionPreset qualityPreset;
+  final FlashMode flashMode;
+  final bool shutterSoundEnabled;
+  final bool shutterHapticEnabled;
+  final Function(ResolutionPreset) onQualityChanged;
+  final Function(FlashMode) onFlashChanged;
+  final Function(bool) onShutterSoundChanged;
+  final Function(bool) onShutterHapticChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Ajustes de cámara',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            // Quality settings
+            const Text(
+              'Calidad de foto',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _buildQualityButton('Baja', ResolutionPreset.low),
+                const SizedBox(width: 8),
+                _buildQualityButton('Media', ResolutionPreset.medium),
+                const SizedBox(width: 8),
+                _buildQualityButton('Alta', ResolutionPreset.high),
+                const SizedBox(width: 8),
+                _buildQualityButton('Máxima', ResolutionPreset.max),
+              ],
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // Shutter settings
+            const Text(
+              'Obturador',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              title: const Text(
+                'Sonido de obturador',
+                style: TextStyle(color: Colors.white),
+              ),
+              subtitle: const Text(
+                'Reproducir sonido al tomar foto',
+                style: TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+              value: shutterSoundEnabled,
+              onChanged: (value) => onShutterSoundChanged(value),
+            ),
+            SwitchListTile(
+              title: const Text(
+                'Vibración (haptic)',
+                style: TextStyle(color: Colors.white),
+              ),
+              subtitle: const Text(
+                'Vibración al tomar foto',
+                style: TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+              value: shutterHapticEnabled,
+              onChanged: (value) => onShutterHapticChanged(value),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQualityButton(String label, ResolutionPreset preset) {
+    final isSelected = qualityPreset == preset;
+    return Expanded(
+      child: ElevatedButton(
+        onPressed: () => onQualityChanged(preset),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: isSelected ? Colors.white : Colors.white.withOpacity(0.2),
+          foregroundColor: isSelected ? Colors.black : Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class PhotoCapturePage extends StatefulWidget {
   final String eventId;
 
@@ -55,6 +185,18 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
 
   bool _shutterSoundEnabled = true;
   bool _shutterHapticEnabled = true;
+
+  // Zoom, flash, and quality settings
+  double _currentZoom = 1.0;
+  double _minZoom = 1.0;
+  double _maxZoom = 1.0;
+  double _lastPointerDistance = 0.0;
+  FlashMode _flashMode = FlashMode.auto;
+  ResolutionPreset _qualityPreset = ResolutionPreset.high;
+  bool _showZoomIndicator = false;
+  
+  // Track two pointers for pinch zoom
+  Map<int, Offset> _pointerPositions = {};
 
   static const Set<String> _photoCaptureRequiredKeys = {
     'photo_capture.error_web_not_supported',
@@ -100,6 +242,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
     _init();
     _loadFrames();
     _loadShutterPreferences();
+    _loadCameraPreferences();
 
     _shutterAnimationController = AnimationController(
       duration: const Duration(milliseconds: 180),
@@ -231,64 +374,128 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
     }
   }
 
+  Future<void> _loadCameraPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!mounted) return;
+      
+      // Load flash mode
+      final flashModeIndex = prefs.getInt('ones.camera.flashMode') ?? 0;
+      _flashMode = FlashMode.values[flashModeIndex.clamp(0, FlashMode.values.length - 1)];
+      
+      // Load quality preset
+      final qualityIndex = prefs.getInt('ones.camera.qualityPreset') ?? 2; // high = 2
+      _qualityPreset = ResolutionPreset.values[qualityIndex.clamp(0, ResolutionPreset.values.length - 1)];
+      
+      setState(() {});
+    } catch (_) {
+      // If SharedPreferences fails, keep defaults
+    }
+  }
+
+  Future<void> _saveCameraPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('ones.camera.flashMode', _flashMode.index);
+      await prefs.setInt('ones.camera.qualityPreset', _qualityPreset.index);
+    } catch (_) {
+      // If SharedPreferences fails, ignore
+    }
+  }
+
+  IconData _getFlashIcon() {
+    if (_flashMode == FlashMode.auto) {
+      return Icons.flash_auto;
+    } else if (_flashMode == FlashMode.always) {
+      return Icons.flash_on;
+    } else {
+      return Icons.flash_off;
+    }
+  }
+
+  Future<void> _cycleFlashMode() async {
+    if (_controller == null || !_controller!.value.isInitialized) return;
+    
+    final hasFlash = _controller!.value.flashMode != null;
+    if (!hasFlash) return;
+
+    // Cycle through: auto -> on -> off -> auto
+    if (_flashMode == FlashMode.auto) {
+      _flashMode = FlashMode.always;
+    } else if (_flashMode == FlashMode.always) {
+      _flashMode = FlashMode.off;
+    } else {
+      _flashMode = FlashMode.auto;
+    }
+
+    try {
+      await _controller!.setFlashMode(_flashMode);
+      setState(() {});
+      await _saveCameraPreferences();
+    } catch (e) {
+      // If setting flash fails, revert to previous mode
+      if (_flashMode == FlashMode.auto) {
+        _flashMode = FlashMode.off;
+      } else if (_flashMode == FlashMode.always) {
+        _flashMode = FlashMode.auto;
+      } else {
+        _flashMode = FlashMode.always;
+      }
+      setState(() {});
+    }
+  }
+
   void _showShutterSettings() {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.black87,
       builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Ajustes de obturador',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                SwitchListTile(
-                  title: const Text(
-                    'Sonido de obturador',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  subtitle: const Text(
-                    'Reproducir sonido al tomar foto',
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                  value: _shutterSoundEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _shutterSoundEnabled = value;
-                    });
-                    _saveShutterPreferences();
-                  },
-                ),
-                SwitchListTile(
-                  title: const Text(
-                    'Vibración (haptic)',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  subtitle: const Text(
-                    'Vibración al tomar foto',
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                  value: _shutterHapticEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _shutterHapticEnabled = value;
-                    });
-                    _saveShutterPreferences();
-                  },
-                ),
-              ],
-            ),
-          ),
+        return CameraSettingsSheet(
+          key: ValueKey('settings_${_qualityPreset}_${_flashMode}'),
+          qualityPreset: _qualityPreset,
+          flashMode: _flashMode,
+          shutterSoundEnabled: _shutterSoundEnabled,
+          shutterHapticEnabled: _shutterHapticEnabled,
+          onQualityChanged: (preset) async {
+            if (_qualityPreset == preset) return;
+            
+            setState(() {
+              _qualityPreset = preset;
+            });
+            
+            await _saveCameraPreferences();
+            
+            // Restart camera with new quality
+            if (_cameras.isNotEmpty) {
+              await _startController(_cameras[_cameraIndex]);
+            }
+            
+            // Force modal rebuild
+            if (mounted) {
+              Navigator.of(context).pop();
+              _showShutterSettings();
+            }
+          },
+          onFlashChanged: (mode) async {
+            _flashMode = mode;
+            await _saveCameraPreferences();
+            if (_controller != null && _controller!.value.isInitialized) {
+              await _controller!.setFlashMode(_flashMode);
+            }
+            setState(() {});
+          },
+          onShutterSoundChanged: (enabled) {
+            setState(() {
+              _shutterSoundEnabled = enabled;
+            });
+            _saveShutterPreferences();
+          },
+          onShutterHapticChanged: (enabled) {
+            setState(() {
+              _shutterHapticEnabled = enabled;
+            });
+            _saveShutterPreferences();
+          },
         );
       },
     );
@@ -418,13 +625,24 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
 
     final next = CameraController(
       description,
-      ResolutionPreset.max,
+      _qualityPreset,
       enableAudio: false,
     );
 
     _controller = next;
     try {
       await next.initialize();
+      
+      // Initialize zoom settings
+      if (mounted && !_disposed && epoch == _controllerEpoch) {
+        _minZoom = 1.0;
+        _maxZoom = await next.getMaxZoomLevel();
+        _currentZoom = 1.0;
+        print('Camera initialized: zoom range $_minZoom - $_maxZoom, current: $_currentZoom');
+        await next.setZoomLevel(_currentZoom);
+        await next.setFlashMode(_flashMode);
+        setState(() {}); // Update UI to show zoom level
+      }
     } catch (e) {
       final cancelled = _disposed || epoch != _controllerEpoch;
       if (epoch == _controllerEpoch) {
@@ -533,55 +751,135 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: _initializing
-                ? const Center(child: CircularProgressIndicator())
-                : (_error != null)
-                    ? _CameraErrorView(
-                        error: _error,
-                        onRetry: _init,
-                      )
-                    : (controller == null || !controller.value.isInitialized)
-                        ? _CameraErrorView(
-                            error: context
-                                .read<TranslationsService>()
-                                .translate(
-                                  'photo_capture.error_camera_not_initialized',
-                                  fallback: 'Camera not initialized',
-                                ),
-                            onRetry: _init,
-                          )
-                        : LayoutBuilder(
-                            builder: (context, constraints) {
-                              final isPortrait =
-                                  MediaQuery.orientationOf(context) ==
-                                      Orientation.portrait;
+      body: Listener(
+        key: ValueKey('camera_gesture_${_qualityPreset}'),
+        onPointerDown: (event) {
+          print('=== POINTER DOWN ===');
+          print('Pointers: ${event.pointer}');
+          _pointerPositions[event.pointer] = event.localPosition;
+          
+          // Start zoom when we have two pointers
+          if (_pointerPositions.length == 2) {
+            final positions = _pointerPositions.values.toList();
+            _lastPointerDistance = (positions[0] - positions[1]).distance;
+            print('Initial distance: $_lastPointerDistance');
+            setState(() {
+              _showZoomIndicator = true;
+            });
+          }
+        },
+        onPointerMove: (event) {
+          print('=== POINTER MOVE ===');
+          print('Pointers: ${event.pointer}');
+          
+          // Update pointer position
+          _pointerPositions[event.pointer] = event.localPosition;
+          
+          // Calculate zoom when we have two pointers
+          if (_pointerPositions.length == 2 && _lastPointerDistance > 0) {
+            final positions = _pointerPositions.values.toList();
+            final currentDistance = (positions[0] - positions[1]).distance;
+            print('Current distance: $currentDistance');
+            
+            final scale = currentDistance / _lastPointerDistance;
+            print('Scale: $scale');
+            
+            if (_controller == null || !_controller!.value.isInitialized) {
+              print('Controller not ready for zoom');
+              return;
+            }
+            
+            final newZoom = (_currentZoom * scale)
+                .clamp(_minZoom, _maxZoom);
+            
+            print('Calculated new zoom: $newZoom');
+            print('Zoom range: $_minZoom - $_maxZoom');
+            
+            if ((newZoom - _currentZoom).abs() > 0.01) {
+              print('Zoom updating: $_currentZoom -> $newZoom');
+              setState(() {
+                _currentZoom = newZoom;
+                _showZoomIndicator = true;
+              });
+              _controller!.setZoomLevel(_currentZoom).then((_) {
+                    print('✅ Zoom set successfully to $_currentZoom');
+                  }).catchError((e) {
+                    print('❌ Zoom error: $e');
+                  });
+            }
+            
+            _lastPointerDistance = currentDistance;
+          }
+        },
+        onPointerUp: (event) {
+          print('=== POINTER UP ===');
+          print('Pointers: ${event.pointer}');
+          _pointerPositions.remove(event.pointer);
+          
+          // Hide zoom indicator when less than 2 pointers
+          if (_pointerPositions.length < 2) {
+            _lastPointerDistance = 0.0;
+            setState(() {
+              _showZoomIndicator = false;
+            });
+          }
+        },
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: _initializing
+                  ? const Center(child: CircularProgressIndicator())
+                  : (_error != null)
+                      ? _CameraErrorView(
+                          error: _error,
+                          onRetry: _init,
+                        )
+                      : (controller == null || !controller.value.isInitialized)
+                          ? _CameraErrorView(
+                              error: context
+                                  .read<TranslationsService>()
+                                  .translate(
+                                    'photo_capture.error_camera_not_initialized',
+                                    fallback: 'Camera not initialized',
+                                  ),
+                              onRetry: _init,
+                            )
+                          : LayoutBuilder(
+                              builder: (context, constraints) {
+                                final isPortrait =
+                                    MediaQuery.orientationOf(context) ==
+                                        Orientation.portrait;
 
-                              final effectiveAspect = isPortrait
-                                  ? (1 / controller.value.aspectRatio)
-                                  : controller.value.aspectRatio;
-                              final screenAspect =
-                                  constraints.maxWidth / constraints.maxHeight;
-                              final rawScale = effectiveAspect / screenAspect;
-                              final scale =
-                                  rawScale < 1 ? 1 / rawScale : rawScale;
+                                final effectiveAspect = isPortrait
+                                    ? (1.0 / controller.value.aspectRatio)
+                                    : controller.value.aspectRatio;
+                                final screenAspect =
+                                    constraints.maxWidth / constraints.maxHeight;
+                                final rawScale = effectiveAspect / screenAspect;
+                                final scale =
+                                    rawScale < 1 ? 1 / rawScale : rawScale;
 
-                              return ClipRect(
-                                child: Transform.scale(
-                                  scale: scale,
-                                  child: Center(
-                                    child: AspectRatio(
-                                      aspectRatio: effectiveAspect,
-                                      child: CameraPreview(controller),
+                                final isFront = _cameras.isNotEmpty ? _cameras[_cameraIndex].lensDirection == CameraLensDirection.front : false;
+
+                                return ClipRect(
+                                  child: Transform.scale(
+                                    scale: scale,
+                                    child: Center(
+                                      child: AspectRatio(
+                                        aspectRatio: effectiveAspect,
+                                        child: Transform(
+                                          alignment: Alignment.center,
+                                          transform: Matrix4.identity()
+                                            ..scale(isFront ? -1.0 : 1.0, 1.0),
+                                          child: CameraPreview(controller),
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
-                              );
-                            },
-                          ),
-          ),
+                                );
+                              },
+                            ),
+            ),
           AnimatedBuilder(
             animation: _shutterAnimationController,
             builder: (context, child) {
@@ -593,6 +891,30 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
               );
             },
           ),
+          // Zoom indicator - always show when not at 1.0x
+          if (_showZoomIndicator || _currentZoom != 1.0)
+            Positioned(
+              top: 100 + MediaQuery.paddingOf(context).top,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${_currentZoom.toStringAsFixed(1)}x',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           if (_framePairs.isNotEmpty && _framesEnabled)
             Positioned.fill(
               child: IgnorePointer(
@@ -642,6 +964,11 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
                 IconButton(
                   onPressed: _showShutterSettings,
                   icon: const Icon(Icons.settings, color: Colors.white),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: _controller?.value.isInitialized == true ? _cycleFlashMode : null,
+                  icon: Icon(_getFlashIcon(), color: Colors.white),
                 ),
                 const SizedBox(width: 8),
                 IconButton(
@@ -826,6 +1153,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
             },
           ),
         ],
+      ),
       ),
     );
   }
