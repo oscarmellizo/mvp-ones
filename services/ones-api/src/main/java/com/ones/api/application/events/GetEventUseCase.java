@@ -22,6 +22,10 @@ public class GetEventUseCase {
             return event;
         }
 
+        if (inviteeEmail == null || inviteeEmail.isBlank()) {
+            throw new EventNotFoundException(eventId);
+        }
+
         Invitation inv = invitationsRepository.findByInviteeEmailAndEventId(inviteeEmail, eventId)
                 .filter(i -> i.getStatus() == Invitation.Status.accepted)
                 .orElseThrow(() -> new EventNotFoundException(eventId));

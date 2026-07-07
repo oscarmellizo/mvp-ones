@@ -145,7 +145,7 @@ public class EventsController {
     @GetMapping("/{id}/guests")
     public List<GuestResponse> guests(Authentication authentication, @PathVariable("id") String id) {
         String ownerId = authentication.getName();
-        String email = resolveEmail(authentication);
+        String email = resolveEmailOrNull(authentication, ownerId);
         Event event = getEventUseCase.execute(ownerId, email, id);
 
         return listEventGuestsUseCase.execute(event, 200)
@@ -157,7 +157,7 @@ public class EventsController {
     @GetMapping("/{id}/guests/v2")
     public List<GuestV2Response> guestsV2(Authentication authentication, @PathVariable("id") String id) {
         String requesterUserId = authentication.getName();
-        String email = resolveEmail(authentication);
+        String email = resolveEmailOrNull(authentication, requesterUserId);
         Event event = getEventUseCase.execute(requesterUserId, email, id);
 
         List<GuestResponse> legacy = guests(authentication, id);
@@ -240,6 +240,32 @@ public class EventsController {
         }
 
         throw new IllegalStateException("Missing email");
+    }
+
+    private String resolveEmailOrNull(Authentication authentication, String userId) {
+        String claimEmail = null;
+        try {
+            claimEmail = AuthClaims.requireEmail(authentication);
+        } catch (Exception ignored) {
+            claimEmail = null;
+        }
+
+        if (claimEmail != null && !claimEmail.isBlank() && claimEmail.contains("@")) {
+            return claimEmail.trim().toLowerCase();
+        }
+
+        if (userId != null && !userId.isBlank() && usersRepository != null) {
+            User u = usersRepository.findById(userId).orElse(null);
+            if (u != null && u.getEmail() != null && !u.getEmail().isBlank() && u.getEmail().contains("@")) {
+                return u.getEmail().trim().toLowerCase();
+            }
+        }
+
+        if (claimEmail != null && !claimEmail.isBlank()) {
+            return claimEmail.trim().toLowerCase();
+        }
+
+        return null;
     }
 
     private static EventResponse toResponse(Event e) {
