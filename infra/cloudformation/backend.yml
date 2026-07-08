@@ -934,6 +934,7 @@ Resources:
                   - !GetAtt EventsTable.Arn
                   - !Sub ${EventsTable.Arn}/index/*
                   - !GetAtt UsersTable.Arn
+                  - !Sub ${UsersTable.Arn}/index/*
                   - !GetAtt InvitationsTable.Arn
                   - !Sub ${InvitationsTable.Arn}/index/*
                   - !GetAtt CoverPreviewsTable.Arn

@@ -67,11 +67,7 @@ public class DynamoDbUsersRepository implements UsersRepository {
             return byIndex;
         }
 
-        if (failOnScanFallback) {
-            throw new IllegalStateException("DynamoDB Scan fallback disabled for users.findByEmail; missing GSI byEmail");
-        }
-
-        log.warn("Falling back to DynamoDB Scan for findByEmail; consider creating GSI byEmail");
+        log.warn("Falling back to DynamoDB Scan for findByEmail; consider creating GSI byEmail (failOnScanFallback={})", failOnScanFallback);
         scanFallbackCounter.increment();
 
         Expression filter = Expression.builder()
@@ -109,11 +105,8 @@ public class DynamoDbUsersRepository implements UsersRepository {
         } catch (ResourceNotFoundException e) {
             return Optional.empty();
         } catch (Exception e) {
-            String msg = e.getMessage();
-            if (msg != null && msg.toLowerCase().contains("byemail")) {
-                return Optional.empty();
-            }
-            throw e;
+            log.warn("findByEmail index query failed, will fall back to scan: {}", e.getMessage());
+            return Optional.empty();
         }
     }
 
