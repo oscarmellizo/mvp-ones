@@ -16,6 +16,17 @@ class OnesApiFactory {
     _tokenRefresher = refresher;
   }
 
+  Future<String?> refreshToken() async {
+    final refresher = _tokenRefresher;
+    if (refresher == null) return null;
+
+    _refreshInFlight ??= Future<String?>.sync(refresher).whenComplete(() {
+      _refreshInFlight = null;
+    });
+
+    return _refreshInFlight;
+  }
+
   OnesApiClient create({String? idToken}) {
     final rawBase = config.apiBaseUrl.trim();
     final resolvedBase =

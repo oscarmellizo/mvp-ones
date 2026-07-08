@@ -188,55 +188,99 @@ class EventsApiRepository implements EventsRepository {
 
   @override
   Future<List<EventGuest>> listEventGuests(String eventId) async {
-    final response = await _defaultApi(_idToken).listEventGuests(id: eventId);
-    final BuiltList<api.Guest>? items = response.data;
-    return (items?.toList() ?? const <api.Guest>[])
-        .map(
-          (g) => EventGuest(
-            userId: null,
-            email: g.email,
-            displayName: g.displayName,
-            role: g.role.name,
-            status: g.status.name,
-          ),
-        )
-        .toList();
+    print('🔍 listEventGuests: eventId=$eventId, Token available=${_idToken != null && _idToken!.isNotEmpty}');
+    if (_idToken == null || _idToken!.isEmpty) {
+      print('❌ listEventGuests: No token available, returning empty list');
+      return const <EventGuest>[];
+    }
+    
+    try {
+      final token = await _ensureFreshToken();
+      print('🔍 listEventGuests: Calling API with token=${token != null && token.isNotEmpty}');
+      final response = await _defaultApi(token).listEventGuests(id: eventId);
+      final BuiltList<api.Guest>? items = response.data;
+      final count = items?.length ?? 0;
+      print('✅ listEventGuests: API returned $count guests');
+      return (items?.toList() ?? const <api.Guest>[])
+          .map(
+            (g) => EventGuest(
+              userId: null,
+              email: g.email,
+              displayName: g.displayName,
+              role: g.role.name,
+              status: g.status.name,
+            ),
+          )
+          .toList();
+    } catch (e) {
+      if (e is DioException && e.response?.statusCode == 401) {
+        print('❌ listEventGuests 401 body: ${e.response?.data}');
+      }
+      print('❌ listEventGuests failed for eventId=$eventId: $e');
+      // Return empty list instead of throwing to prevent app crashes
+      return const <EventGuest>[];
+    }
+  }
+
+  Future<String?> _ensureFreshToken() async {
+    try {
+      final fresh = await _apiFactory.refreshToken();
+      if (fresh != null && fresh.isNotEmpty) {
+        print('🔄 Token refreshed, using fresh token');
+        return fresh;
+      }
+    } catch (e) {
+      print('⚠️ Token refresh failed: $e');
+    }
+    return _idToken;
   }
 
   @override
   Future<List<EventGuest>> listEventGuestsV2(String eventId) async {
-    final res = await _apiFactory.create(idToken: _idToken).dio.get(
-          '/v1/events/$eventId/guests/v2',
-          options: Options(
-            extra: {
-              'secure': [
-                {
-                  'type': 'http',
-                  'scheme': 'bearer',
-                  'name': 'bearerAuth',
-                }
-              ],
-            },
-          ),
-        );
+    return _listEventGuestsV2WithRetry(eventId, maxRetries: 2);
+  }
 
-    final data = res.data;
-    if (data is! List) {
-      throw StateError('Invalid guests v2 response');
+  Future<List<EventGuest>> _listEventGuestsV2WithRetry(String eventId, {int maxRetries = 2, int attempt = 0}) async {
+    print('🔍 listEventGuestsV2: Attempt ${attempt + 1}/$maxRetries, Token available=${_idToken != null && _idToken!.isNotEmpty}');
+    
+    if (_idToken == null || _idToken!.isEmpty) {
+      print('❌ listEventGuestsV2: No token available, falling back to listEventGuests');
+      return listEventGuests(eventId);
     }
-
-    return data
-        .whereType<Map<String, dynamic>>()
-        .map(
-          (row) => EventGuest(
-            userId: row['userId'] as String?,
-            email: row['email'] as String?,
-            displayName: row['displayName'] as String?,
-            role: (row['role'] as String?) ?? 'guest',
-            status: (row['status'] as String?) ?? 'invited',
-          ),
-        )
-        .toList(growable: false);
+    
+    try {
+      final token = await _ensureFreshToken();
+      final response = await _defaultApi(token).listEventGuestsV2(id: eventId);
+      final BuiltList<api.GuestV2>? items = response.data;
+      final guestCount = items?.length ?? 0;
+      print('✅ listEventGuestsV2: Successfully loaded $guestCount guests on attempt ${attempt + 1}');
+      return (items?.toList() ?? const <api.GuestV2>[])
+          .map(
+            (g) => EventGuest(
+              userId: g.userId,
+              email: g.email,
+              displayName: g.displayName,
+              role: g.role.name,
+              status: g.status.name,
+            ),
+          )
+          .toList(growable: false);
+    } catch (e) {
+      if (e is DioException && e.response?.statusCode == 401) {
+        print('⚠️ listEventGuestsV2 401 body: ${e.response?.data}');
+      }
+      print('⚠️ listEventGuestsV2 failed on attempt ${attempt + 1}: $e');
+      
+      // Retry on 401 errors (might be timing issues with token)
+      if (attempt < maxRetries && e.toString().contains('401')) {
+        print('🔄 listEventGuestsV2: Retrying after 500ms delay...');
+        await Future.delayed(const Duration(milliseconds: 500));
+        return _listEventGuestsV2WithRetry(eventId, maxRetries: maxRetries, attempt: attempt + 1);
+      }
+      
+      print('⚠️ listEventGuestsV2: Max retries reached, falling back to listEventGuests');
+      return listEventGuests(eventId);
+    }
   }
 
   @override

@@ -1842,7 +1842,7 @@ class _DetailsTabState extends State<_DetailsTab> {
   void _refreshGuests() {
     setState(() {
       _guestsFuture =
-          context.read<EventsRepository>().listEventGuests(widget.eventId);
+          context.read<EventsRepository>().listEventGuestsV2(widget.eventId);
     });
   }
 
