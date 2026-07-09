@@ -679,50 +679,6 @@ class _GalleryTabState extends State<_GalleryTab> {
     });
   }
 
-  void _syncPendingUploadsPolling(Set<String> pendingPhotoIds) {
-    if (pendingPhotoIds.isEmpty) {
-      _pendingUploadsPoll?.cancel();
-      _pendingUploadsPoll = null;
-      _pendingUploadsPollTicks = 0;
-      _pendingUploadsEventId = null;
-      _pendingUploadsPhotoIds = <String>{};
-      return;
-    }
-
-    final sameEvent = _pendingUploadsEventId == widget.eventId;
-    final sameIds = setEquals(_pendingUploadsPhotoIds, pendingPhotoIds);
-    if (sameEvent && sameIds && _pendingUploadsPoll != null) return;
-
-    _pendingUploadsPoll?.cancel();
-    _pendingUploadsPollTicks = 0;
-    _pendingUploadsEventId = widget.eventId;
-    _pendingUploadsPhotoIds = {...pendingPhotoIds};
-
-    _pendingUploadsPoll =
-        Timer.periodic(const Duration(seconds: 2), (Timer timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-
-      _pendingUploadsPollTicks++;
-      if (_pendingUploadsPollTicks > 30) {
-        timer.cancel();
-        _pendingUploadsPoll = null;
-        return;
-      }
-
-      final current = context.read<PhotosGalleryController>();
-      if (current.currentEventId != widget.eventId) return;
-      if (current.loading) return;
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
-      });
-    });
-  }
-
   void _exitSelectionMode() {
     if (!_selecting && _selectedIds.isEmpty) return;
     setState(() {
