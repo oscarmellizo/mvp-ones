@@ -653,14 +653,18 @@ class _GalleryTabState extends State<_GalleryTab> {
         return;
       }
 
-      final current = context.read<PhotosGalleryController>();
-      if (current.currentEventId != widget.eventId) return;
-      if (current.loading) return;
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
-      });
+      // Sparse safety-net refresh (ticks 1=2s, 5=10s, 15=30s) in case the
+      // WS photo.ready event was missed. All other ticks just setState to
+      // re-evaluate doneLocal without resetting pagination.
+      const sparseRefreshTicks = {1, 5, 15};
+      final gallery = context.read<PhotosGalleryController>();
+      if (sparseRefreshTicks.contains(_pendingUploadsPollTicks) &&
+          !gallery.loading &&
+          gallery.currentEventId == widget.eventId) {
+        gallery.refresh(eventId: widget.eventId);
+      } else if (mounted) {
+        setState(() {});
+      }
     });
   }
 
@@ -756,7 +760,10 @@ class _GalleryTabState extends State<_GalleryTab> {
       final remote = remoteById[pid];
       if (remote == null) continue;
       final status = (remote.status).trim().toLowerCase();
-      if (status == 'ready' && !_cleanupUploadPhotoIds.contains(pid)) {
+      final hasThumb =
+          remote.smallUrl != null && remote.smallUrl!.trim().isNotEmpty;
+      if ((status == 'ready' || hasThumb) &&
+          !_cleanupUploadPhotoIds.contains(pid)) {
         doneLocal.add(pid);
       }
     }
