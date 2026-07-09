@@ -613,6 +613,17 @@ class _GalleryTabState extends State<_GalleryTab> {
     if (!mounted) return;
     if (eventId != widget.eventId) return;
 
+    // Skip refresh if the photo is already in the gallery with thumbnails ready.
+    final gallery = context.read<PhotosGalleryController>();
+    if (gallery.currentEventId == widget.eventId) {
+      final existing = gallery.items.where((p) => p.photoId == photoId).firstOrNull;
+      if (existing != null) {
+        final status = existing.status.trim().toLowerCase();
+        final hasThumb = existing.smallUrl != null && existing.smallUrl!.trim().isNotEmpty;
+        if (status == 'ready' || hasThumb) return;
+      }
+    }
+
     _wsDebounce?.cancel();
     _wsDebounce = Timer(const Duration(milliseconds: 350), () {
       if (!mounted) return;

@@ -8,7 +8,7 @@ import '../../features/events/domain/event.dart';
 const int _kLiveNotifId = 42;
 const String _kChannelId = 'live_event_channel';
 const String _kChannelName = 'Evento en vivo';
-const String _kChannelDesc = 'Notificaci├│n activa mientras un evento est├í en curso';
+const String _kChannelDesc = 'Notificación activa mientras un evento está en curso';
 const String _kEventsKey = 'live_notif_cached_events';
 
 const String kActionGallery = 'ACTION_GALLERY';
@@ -137,7 +137,7 @@ class LiveEventNotificationService {
       actions: [
         const AndroidNotificationAction(
           kActionGallery,
-          'Ver galer├¡a',
+          'Ver galería',
           showsUserInterface: true,
           cancelNotification: false,
         ),
@@ -159,8 +159,8 @@ class LiveEventNotificationService {
 
     await _plugin.show(
       _kLiveNotifId,
-      '­ƒô© ${event.title}',
-      'Evento en vivo ┬À ${_formatTime(event.startAt)} ÔÇô ${_formatTime(event.endAt)}',
+      'Evento en vivo: ${event.title}',
+      '${_formatTime(event.startAt)} - ${_formatTime(event.endAt)}',
       NotificationDetails(android: androidDetails, iOS: iosDetails),
       payload: payload,
     );
@@ -201,7 +201,7 @@ class LiveEventNotificationService {
 
     await _plugin.show(
       _kLiveNotifId,
-      '­ƒô© ${events.length} eventos en vivo',
+      '${events.length} eventos en vivo',
       titles,
       NotificationDetails(android: androidDetails, iOS: iosDetails),
       payload: payload,
