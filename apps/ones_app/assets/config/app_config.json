@@ -1,5 +1,6 @@
 {
   "env": "dev",
   "apiBaseUrl": "https://appdev.ones.events",
-  "googleWebClientId": "403122779240-ahjm73ogughiivnn3o23jfsk25usmfng.apps.googleusercontent.com"
+  "googleWebClientId": "403122779240-ahjm73ogughiivnn3o23jfsk25usmfng.apps.googleusercontent.com",
+  "photosWsUrl": "wss://c9h2nzbu2g.execute-api.us-east-1.amazonaws.com/dev"
 }
