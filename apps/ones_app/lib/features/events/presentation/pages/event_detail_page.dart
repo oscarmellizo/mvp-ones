@@ -650,24 +650,29 @@ class _GalleryTabState extends State<_GalleryTab> {
     _pendingUploadsEventId = widget.eventId;
     _pendingUploadsPhotoIds = {...pendingPhotoIds};
 
-    // Poll only triggers a setState so the build loop can evaluate doneLocal
-    // and clean up items whose remote photo now has smallUrl. No HTTP calls.
     _pendingUploadsPoll =
-        Timer.periodic(const Duration(seconds: 3), (Timer timer) {
+        Timer.periodic(const Duration(seconds: 4), (Timer timer) {
       if (!mounted) {
         timer.cancel();
         return;
       }
 
       _pendingUploadsPollTicks++;
-      if (_pendingUploadsPollTicks > 40) {
+      if (_pendingUploadsPollTicks > 30) {
         timer.cancel();
         _pendingUploadsPoll = null;
         return;
       }
 
-      // Trigger a rebuild so build() re-evaluates doneLocal.
-      setState(() {});
+      final gallery = context.read<PhotosGalleryController>();
+      // Refresh on ticks 1, 4, 8, 16 (exponential backoff, no tight loop).
+      final refreshTicks = const {1, 4, 8, 16};
+      if (refreshTicks.contains(_pendingUploadsPollTicks) && !gallery.loading) {
+        gallery.refresh(eventId: widget.eventId);
+      } else {
+        // Otherwise just rebuild to evaluate doneLocal with current remote data.
+        setState(() {});
+      }
     });
   }
 
