@@ -173,7 +173,7 @@ class PhotosWsController extends ChangeNotifier {
           _connecting = false;
           _channel = null;
           _sub = null;
-          _subscribedEventIds.clear();
+          // Keep _subscribedEventIds so reconnect can re-subscribe.
           _safeNotify();
         },
         onError: (_) {
@@ -181,7 +181,7 @@ class PhotosWsController extends ChangeNotifier {
           _connecting = false;
           _channel = null;
           _sub = null;
-          _subscribedEventIds.clear();
+          // Keep _subscribedEventIds so reconnect can re-subscribe.
           _safeNotify();
         },
       );
@@ -192,8 +192,12 @@ class PhotosWsController extends ChangeNotifier {
       _safeNotify();
     }
 
-    // Re-subscribe to all retained event IDs after reconnect.
-    for (final eventId in _retainedUntil.keys.toList()) {
+    // Re-subscribe to all known event IDs after reconnect.
+    final toResub = <String>{
+      ..._subscribedEventIds,
+      ..._retainedUntil.keys,
+    };
+    for (final eventId in toResub) {
       _sendSubscribe(eventId);
     }
   }
