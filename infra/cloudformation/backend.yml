@@ -75,6 +75,14 @@ Parameters:
     Type: Number
     Default: 7
 
+  WsEndpoint:
+    Type: String
+    Default: ''
+
+  WsSubscriptionsTable:
+    Type: String
+    Default: ''
+
 Conditions:
   UsePhotoThumbnailsImageCond: !Equals [!Ref UsePhotoThumbnailsImage, 'true']
   UsePhotoThumbnailsZipCond: !Not [!Equals [!Ref UsePhotoThumbnailsImage, 'true']]
@@ -948,6 +956,18 @@ Resources:
                   - !GetAtt FramesTable.Arn
                   - !Sub ${FramesTable.Arn}/index/*
                   - !GetAtt TranslationsTable.Arn
+        - PolicyName: ones-photos-ws
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Query
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - execute-api:ManageConnections
+                Resource: '*'
         - PolicyName: ones-s3
           PolicyDocument:
             Version: '2012-10-17'
@@ -1120,6 +1140,10 @@ Resources:
               Value: !Ref CdnPhotosUrlRoundingSeconds
             - Name: ONES_CDN_PHOTOS_SOCIAL_SHARE_TTL_DAYS
               Value: !Ref CdnPhotosSocialShareTtlDays
+            - Name: ONES_WS_ENDPOINT
+              Value: !Ref WsEndpoint
+            - Name: ONES_WS_SUBSCRIPTIONS_TABLE
+              Value: !Ref WsSubscriptionsTable
           LogConfiguration:
             LogDriver: awslogs
             Options:

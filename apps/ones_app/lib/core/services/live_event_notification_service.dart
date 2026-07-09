@@ -6,9 +6,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../features/events/domain/event.dart';
 
 const int _kLiveNotifId = 42;
+const int _kPhotoUploadNotifId = 43;
 const String _kChannelId = 'live_event_channel';
 const String _kChannelName = 'Evento en vivo';
 const String _kChannelDesc = 'Notificación activa mientras un evento está en curso';
+const String _kPhotoUploadChannelId = 'photo_upload_channel';
+const String _kPhotoUploadChannelName = 'Fotos subidas';
+const String _kPhotoUploadChannelDesc = 'Notificación cuando alguien sube fotos a un evento';
 const String _kEventsKey = 'live_notif_cached_events';
 
 const String kActionGallery = 'ACTION_GALLERY';
@@ -43,6 +47,7 @@ class LiveEventNotificationService {
     );
 
     await _createAndroidChannel();
+    await _createPhotoUploadAndroidChannel();
     _initialized = true;
   }
 
@@ -60,6 +65,63 @@ class LiveEventNotificationService {
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
+  }
+
+  Future<void> _createPhotoUploadAndroidChannel() async {
+    const channel = AndroidNotificationChannel(
+      _kPhotoUploadChannelId,
+      _kPhotoUploadChannelName,
+      description: _kPhotoUploadChannelDesc,
+      importance: Importance.high,
+      playSound: true,
+      enableVibration: true,
+      showBadge: true,
+    );
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
+  }
+
+  Future<void> showPhotoUploadedNotification({
+    required String eventId,
+    required String eventTitle,
+    required String uploaderName,
+    required int photoCount,
+  }) async {
+    if (!_initialized) return;
+    final payload = jsonEncode({'eventId': eventId, 'action': kActionGallery});
+
+    final androidDetails = AndroidNotificationDetails(
+      _kPhotoUploadChannelId,
+      _kPhotoUploadChannelName,
+      channelDescription: _kPhotoUploadChannelDesc,
+      importance: Importance.high,
+      priority: Priority.high,
+      ongoing: false,
+      autoCancel: true,
+      playSound: true,
+      enableVibration: true,
+      showWhen: true,
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentSound: true,
+      presentBadge: false,
+    );
+
+    final body = photoCount == 1
+        ? '$uploaderName subió 1 foto al evento $eventTitle'
+        : '$uploaderName subió $photoCount fotos al evento $eventTitle';
+
+    await _plugin.show(
+      _kPhotoUploadNotifId,
+      '📷 Nueva foto',
+      body,
+      NotificationDetails(android: androidDetails, iOS: iosDetails),
+      payload: payload,
+    );
   }
 
   Future<bool> requestPermission() async {

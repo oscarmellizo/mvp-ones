@@ -479,9 +479,15 @@ class _GalleryTabState extends State<_GalleryTab> {
       if (!mounted) return;
       final ws = context.read<PhotosWsController>();
       _ws = ws;
-      ws.onPhotoReady = _onWsPhotoReady;
+      ws.addPhotoReadyListener('gallery_${widget.eventId}', _onWsPhotoReady);
       ws.subscribe(eventId: widget.eventId);
       unawaited(ws.connect());
+      final event = context.read<EventsController>().selected;
+      if (event != null && event.id == widget.eventId) {
+        context
+            .read<PhotosUploadController>()
+            .setEventTitle(widget.eventId, event.title);
+      }
       setState(() {
         _guestsFuture =
             context.read<EventsRepository>().listEventGuestsV2(widget.eventId);
@@ -548,9 +554,13 @@ class _GalleryTabState extends State<_GalleryTab> {
 
       final ws = _ws ?? context.read<PhotosWsController>();
       _ws = ws;
-      ws.onPhotoReady = _onWsPhotoReady;
+      ws.addPhotoReadyListener('gallery_${widget.eventId}', _onWsPhotoReady);
       if (eventChanged) {
-        ws.unsubscribe(eventId: oldWidget.eventId);
+        ws.removePhotoReadyListener('gallery_${oldWidget.eventId}');
+        ws.retainSubscription(
+          oldWidget.eventId,
+          until: DateTime.now().add(const Duration(minutes: 30)),
+        );
       }
       ws.subscribe(eventId: widget.eventId);
       unawaited(ws.connect());
@@ -570,10 +580,11 @@ class _GalleryTabState extends State<_GalleryTab> {
 
     final ws = _ws;
     if (ws != null) {
-      ws.unsubscribe(eventId: widget.eventId);
-      if (ws.onPhotoReady == _onWsPhotoReady) {
-        ws.onPhotoReady = null;
-      }
+      ws.removePhotoReadyListener('gallery_${widget.eventId}');
+      ws.retainSubscription(
+        widget.eventId,
+        until: DateTime.now().add(const Duration(minutes: 30)),
+      );
     }
 
     // Limpiar fotos locales del evento

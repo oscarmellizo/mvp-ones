@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.util.StringUtils;
 
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.apigatewaymanagementapi.ApiGatewayManagementApiClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
@@ -72,5 +73,17 @@ public class AwsConfig {
         return SesV2Client.builder()
                 .region(awsRegion)
                 .build();
+    }
+
+    @Bean
+    ApiGatewayManagementApiClient apiGatewayManagementApiClient(
+            Region awsRegion,
+            @Value("${ones.ws.endpoint:}") String wsEndpoint
+    ) {
+        var builder = ApiGatewayManagementApiClient.builder().region(awsRegion);
+        if (StringUtils.hasText(wsEndpoint)) {
+            builder = builder.endpointOverride(URI.create(wsEndpoint));
+        }
+        return builder.build();
     }
 }

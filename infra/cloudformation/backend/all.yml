@@ -1848,6 +1848,21 @@ Resources:
                   - !GetAtt EventTemplatesTable.Arn
                   - !Sub ${EventTemplatesTable.Arn}/index/*
                   - !GetAtt TranslationsTable.Arn
+        - PolicyName: ones-photos-ws
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt PhotosWsSubscriptionsTable.Arn
+                  - !Sub ${PhotosWsSubscriptionsTable.Arn}/index/*
+              - Effect: Allow
+                Action:
+                  - execute-api:ManageConnections
+                Resource:
+                  - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${PhotosWebSocketApi}/*/POST/@connections/*
         - PolicyName: ones-s3
           PolicyDocument:
             Version: '2012-10-17'
@@ -2063,6 +2078,10 @@ Resources:
               Value: !Ref CdnPhotosUrlRoundingSeconds
             - Name: ONES_CDN_PHOTOS_SOCIAL_SHARE_TTL_DAYS
               Value: !Ref CdnPhotosSocialShareTtlDays
+            - Name: ONES_WS_ENDPOINT
+              Value: !Sub https://${PhotosWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+            - Name: ONES_WS_SUBSCRIPTIONS_TABLE
+              Value: !Ref PhotosWsSubscriptionsTable
           LogConfiguration:
             LogDriver: awslogs
             Options:

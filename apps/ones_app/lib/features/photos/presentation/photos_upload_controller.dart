@@ -28,6 +28,10 @@ class PhotosUploadController extends ChangeNotifier {
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
+  final Map<String, int> _pendingNotifyCount = {};
+  final Map<String, Timer> _notifyDebounce = {};
+  final Map<String, String> _eventTitles = {};
+
   bool _notifyScheduled = false;
 
   PhotosUploadController({
@@ -305,6 +309,7 @@ class PhotosUploadController extends ChangeNotifier {
           }
 
           await db.markProcessing(item.id);
+          _scheduleNotify(item.eventId);
           await _refreshActiveForEvent(item.eventId);
           _safeNotify();
         } catch (e) {
@@ -356,8 +361,46 @@ class PhotosUploadController extends ChangeNotifier {
     }
   }
 
+  void setEventTitle(String eventId, String title) {
+    if (eventId.isEmpty || title.isEmpty) return;
+    _eventTitles[eventId] = title;
+  }
+
+  void _scheduleNotify(String eventId) {
+    _pendingNotifyCount[eventId] = (_pendingNotifyCount[eventId] ?? 0) + 1;
+    _notifyDebounce[eventId]?.cancel();
+    _notifyDebounce[eventId] = Timer(const Duration(milliseconds: 1500), () {
+      final count = _pendingNotifyCount.remove(eventId) ?? 0;
+      _notifyDebounce.remove(eventId);
+      if (count <= 0) return;
+      final title = _eventTitles[eventId] ?? '';
+      if (title.isEmpty) return;
+      unawaited(_fireNotifyUploaded(eventId, count, title));
+    });
+  }
+
+  Future<void> _fireNotifyUploaded(
+    String eventId,
+    int photoCount,
+    String eventTitle,
+  ) async {
+    try {
+      await api.notifyUploaded(
+        eventId: eventId,
+        photoCount: photoCount,
+        eventTitle: eventTitle,
+      );
+    } catch (_) {
+      // fire-and-forget; notification failure must not affect upload flow
+    }
+  }
+
   @override
   void dispose() {
+    for (final t in _notifyDebounce.values) {
+      t.cancel();
+    }
+    _notifyDebounce.clear();
     _connectivitySub?.cancel();
     super.dispose();
   }

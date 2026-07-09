@@ -101,6 +101,10 @@
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>secretsmanager</artifactId>
         </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>apigatewaymanagementapi</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.projectlombok</groupId>

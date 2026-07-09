@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.ones.api.adapters.inbound.rest.AuthClaims;
 import com.ones.api.application.photos.PhotoLikesService;
 import com.ones.api.application.photos.PhotosService;
+import com.ones.api.application.photos.PhotosWsPublisher;
 import com.ones.api.domain.photos.Photo;
 
 @RestController
@@ -30,10 +31,12 @@ public class EventPhotosController {
 
     private final PhotosService photosService;
     private final PhotoLikesService likesService;
+    private final PhotosWsPublisher photosWsPublisher;
 
-    public EventPhotosController(PhotosService photosService, PhotoLikesService likesService) {
+    public EventPhotosController(PhotosService photosService, PhotoLikesService likesService, PhotosWsPublisher photosWsPublisher) {
         this.photosService = photosService;
         this.likesService = likesService;
+        this.photosWsPublisher = photosWsPublisher;
     }
 
     @PostMapping("/{eventId}/photos/presign")
@@ -166,6 +169,22 @@ public class EventPhotosController {
         return photosService.createSocialShareLink(userId, email, eventId, photoId, request.variant());
     }
 
+    @PostMapping("/{eventId}/photos/notify-uploaded")
+    public ResponseEntity<Void> notifyUploaded(
+            Authentication authentication,
+            @PathVariable("eventId") String eventId,
+            @Valid @RequestBody NotifyUploadedRequest request
+    ) {
+        String uploaderName = AuthClaims.preferredName(authentication);
+        photosWsPublisher.publishPhotoUploaded(
+                eventId,
+                uploaderName,
+                request.photoCount(),
+                request.eventTitle()
+        );
+        return ResponseEntity.ok().build();
+    }
+
     @DeleteMapping("/{eventId}/photos")
     public ResponseEntity<Void> deletePhotos(
             Authentication authentication,
@@ -213,5 +232,11 @@ record SocialShareRequest(
 
 record DeletePhotosRequest(
         @NotEmpty List<String> photoIds
+) {
+}
+
+record NotifyUploadedRequest(
+        @jakarta.validation.constraints.Min(1) int photoCount,
+        @NotBlank String eventTitle
 ) {
 }

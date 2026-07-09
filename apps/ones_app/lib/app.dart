@@ -332,15 +332,42 @@ class OnesApp extends StatelessWidget {
             return eventPhotosGalleryApi;
           },
         ),
-        ChangeNotifierProxyProvider<AuthController, PhotosWsController>(
+        ChangeNotifierProxyProvider2<AuthController, EventsController,
+            PhotosWsController>(
           create: (_) => photosWsController,
-          update: (_, auth, ctrl) {
+          update: (_, auth, events, ctrl) {
             final controller = ctrl ?? photosWsController;
             controller.setIdToken(auth.idToken);
             final token = auth.idToken;
             if (token != null && token.isNotEmpty) {
               controller.connect();
+              // Auto-subscribe to currently active events.
+              final now = DateTime.now();
+              for (final e in events.events) {
+                final start = e.startAt.toLocal();
+                final end = e.endAt.toLocal();
+                final isActive =
+                    (now.isAfter(start) || now.isAtSameMomentAs(start)) &&
+                        now.isBefore(end);
+                if (isActive) {
+                  controller.subscribe(eventId: e.id);
+                  controller.retainSubscription(e.id, until: end);
+                }
+              }
+              // Register global photo.uploaded listener once.
+              controller.addPhotoUploadedListener(
+                'global_notif',
+                (eventId, uploaderName, photoCount, eventTitle) {
+                  LiveEventNotificationService().showPhotoUploadedNotification(
+                    eventId: eventId,
+                    eventTitle: eventTitle,
+                    uploaderName: uploaderName,
+                    photoCount: photoCount,
+                  );
+                },
+              );
             } else {
+              controller.removePhotoUploadedListener('global_notif');
               controller.disconnect();
             }
             return controller;
@@ -498,9 +525,21 @@ class _RootRouterState extends State<_RootRouter> with WidgetsBindingObserver {
 
       final eventId = map['eventId'] as String?;
       if (eventId == null || eventId.isEmpty) return;
+      final action = map['action'] as String?;
+      if (action == kActionGallery) {
+        _navigateToEventGallery(eventId);
+        return;
+      }
       final openCamera = actionId == kActionCamera;
       _navigateToEvent(eventId, openCamera);
     } catch (_) {}
+  }
+
+  void _navigateToEventGallery(String eventId) {
+    Navigator.of(context).pushNamed(
+      EventDetailPage.routeName,
+      arguments: eventId,
+    );
   }
 
   void _navigateToEvent(String eventId, bool openCamera) {

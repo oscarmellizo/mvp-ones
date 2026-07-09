@@ -27,6 +27,21 @@ public final class AuthClaims {
         return email;
     }
 
+    public static String preferredName(Authentication authentication) {
+        Jwt jwt = getJwt(authentication);
+        if (jwt != null) {
+            for (String key : new String[]{"name", "given_name", "preferred_username", "cognito:username", "email"}) {
+                Object v = jwt.getClaims().get(key);
+                if (v != null) {
+                    String s = v.toString().trim();
+                    if (!s.isEmpty()) return s;
+                }
+            }
+        }
+        String sub = authentication != null ? authentication.getName() : "";
+        return sub != null && !sub.isBlank() ? sub : "Alguien";
+    }
+
     public static String getClaim(Authentication authentication, String claimName) {
         Jwt jwt = getJwt(authentication);
         if (jwt == null) {

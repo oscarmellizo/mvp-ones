@@ -268,6 +268,31 @@ class EventPhotosApi {
     );
   }
 
+  Future<void> notifyUploaded({
+    required String eventId,
+    required int photoCount,
+    required String eventTitle,
+  }) async {
+    await _dioFactory(_idToken).post(
+      '/v1/events/$eventId/photos/notify-uploaded',
+      data: {
+        'photoCount': photoCount,
+        'eventTitle': eventTitle,
+      },
+      options: Options(
+        extra: {
+          'secure': [
+            {
+              'type': 'http',
+              'scheme': 'bearer',
+              'name': 'bearerAuth',
+            }
+          ],
+        },
+      ),
+    );
+  }
+
   Future<void> complete({
     required String eventId,
     required String photoId,
