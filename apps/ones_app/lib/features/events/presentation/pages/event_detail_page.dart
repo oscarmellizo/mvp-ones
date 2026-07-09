@@ -407,6 +407,7 @@ class _GalleryTabState extends State<_GalleryTab> {
 
   PhotosWsController? _ws;
   Timer? _wsDebounce;
+  Timer? _processingRecheckTimer;
 
   PhotoStorage? _photoStorage;
   PhotosGalleryController? _galleryController;
@@ -552,6 +553,8 @@ class _GalleryTabState extends State<_GalleryTab> {
   void dispose() {
     _wsDebounce?.cancel();
     _wsDebounce = null;
+    _processingRecheckTimer?.cancel();
+    _processingRecheckTimer = null;
 
     _gridScrollController.removeListener(_maybeLoadMore);
     _gridScrollController.dispose();
@@ -715,6 +718,30 @@ class _GalleryTabState extends State<_GalleryTab> {
 
     if (!isCurrentEvent || !controller.loadedOnce) {
       return const Center(child: CircularProgressIndicator());
+    }
+
+    // Schedule a one-shot recheck for photos that are still processing
+    // (no smallUrl yet). Fires 8 s after load; safe because refresh() now
+    // merges instead of replacing, so pagination is preserved.
+    if (isCurrentEvent && controller.loadedOnce && !controller.loading) {
+      final hasProcessing = remoteItems.any((p) {
+        final s = p.status.trim().toLowerCase();
+        final noThumb = p.smallUrl == null || p.smallUrl!.trim().isEmpty;
+        return noThumb && (s == 'processing' || s == 'uploaded');
+      });
+      if (hasProcessing && _processingRecheckTimer == null) {
+        _processingRecheckTimer = Timer(const Duration(seconds: 8), () {
+          _processingRecheckTimer = null;
+          if (!mounted) return;
+          final g = context.read<PhotosGalleryController>();
+          if (!g.loading && g.currentEventId == widget.eventId) {
+            g.refresh(eventId: widget.eventId);
+          }
+        });
+      } else if (!hasProcessing) {
+        _processingRecheckTimer?.cancel();
+        _processingRecheckTimer = null;
+      }
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {

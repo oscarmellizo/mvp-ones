@@ -263,13 +263,18 @@ class PhotosGalleryController extends ChangeNotifier {
     final trimmedEventId = eventId.trim();
     if (trimmedEventId.isEmpty) return;
 
+    final eventChanged = _currentEventId != trimmedEventId;
     _currentEventId = trimmedEventId;
-    _nextToken = null;
-    _hasMore = true;
     _error = null;
 
-    _items = const [];
-    _loadedOnce = false;
+    // Only wipe items when switching events; for same-event refresh keep
+    // existing items visible until the new page arrives (no flicker).
+    if (eventChanged) {
+      _items = const [];
+      _loadedOnce = false;
+      _nextToken = null;
+      _hasMore = true;
+    }
 
     final epoch = ++_requestEpoch;
     _loading = true;
@@ -340,20 +345,27 @@ class PhotosGalleryController extends ChangeNotifier {
         return;
       }
 
-      final merged = <String, EventPhoto>{
+      final incoming = <String, EventPhoto>{
         for (final it in nonNullRes.items)
           if (_sanitizePhoto(it, trimmedEventId) case final sanitized?)
             sanitized.photoId: sanitized,
       };
 
       if (kDebugMode && nonNullRes.items.isNotEmpty) {
-        final dropped = nonNullRes.items.length - merged.length;
+        final dropped = nonNullRes.items.length - incoming.length;
         if (dropped > 0) {
           debugPrint(
-            'gallery_list: eventId=$trimmedEventId dropped=$dropped kept=${merged.length}',
+            'gallery_list: eventId=$trimmedEventId dropped=$dropped kept=${incoming.length}',
           );
         }
       }
+
+      // Merge: incoming page-1 takes precedence; keep existing items not in
+      // page-1 (they are from deeper pages already loaded).
+      final merged = <String, EventPhoto>{
+        for (final it in _items) it.photoId: it,
+        ...incoming,
+      };
 
       final list = merged.values.toList(growable: false);
       list.sort((a, b) {
@@ -368,7 +380,9 @@ class PhotosGalleryController extends ChangeNotifier {
     } catch (e) {
       if (epoch == _requestEpoch) {
         _error = e;
-        _items = const [];
+        if (eventChanged) {
+          _items = const [];
+        }
         _nextToken = null;
         _hasMore = false;
       }
