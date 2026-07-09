@@ -454,54 +454,6 @@ class _GalleryTabState extends State<_GalleryTab> {
         decoded.contains('eventos/$trimmed/');
   }
 
-  void _syncPendingUploadsPolling(Set<String> pendingIds) {
-    if (!mounted) return;
-    final hasProcessing = pendingIds.isNotEmpty;
-
-    if (!hasProcessing) {
-      if (_pendingUploadsPoll != null) {
-        _pendingUploadsPoll!.cancel();
-        _pendingUploadsPoll = null;
-        _pendingUploadsPollTicks = 0;
-        _pendingUploadsPhotoIds = {};
-        _pendingUploadsEventId = null;
-      }
-      return;
-    }
-
-    final eventChanged = _pendingUploadsEventId != widget.eventId;
-    final idsChanged = !_pendingUploadsPhotoIds.containsAll(pendingIds) ||
-        !pendingIds.containsAll(_pendingUploadsPhotoIds);
-
-    if (eventChanged || idsChanged) {
-      _pendingUploadsPhotoIds = Set.of(pendingIds);
-      _pendingUploadsEventId = widget.eventId;
-      _pendingUploadsPollTicks = 0;
-    }
-
-    if (_pendingUploadsPoll != null) return;
-
-    _pendingUploadsPoll = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (!mounted) {
-        _pendingUploadsPoll?.cancel();
-        _pendingUploadsPoll = null;
-        return;
-      }
-      _pendingUploadsPollTicks++;
-      // Stop polling after 3 minutes (36 ticks × 5s)
-      if (_pendingUploadsPollTicks > 36) {
-        _pendingUploadsPoll?.cancel();
-        _pendingUploadsPoll = null;
-        _pendingUploadsPollTicks = 0;
-        return;
-      }
-      final gallery = context.read<PhotosGalleryController>();
-      if (!gallery.loading) {
-        gallery.refresh(eventId: widget.eventId);
-      }
-    });
-  }
-
   void _maybeLoadMore() {
     if (!mounted) return;
     if (!_gridScrollController.hasClients) return;
@@ -676,6 +628,46 @@ class _GalleryTabState extends State<_GalleryTab> {
     _wsDebounce = Timer(const Duration(milliseconds: 350), () {
       if (!mounted) return;
       context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
+    });
+  }
+
+  void _syncPendingUploadsPolling(Set<String> pendingPhotoIds) {
+    if (pendingPhotoIds.isEmpty) {
+      _pendingUploadsPoll?.cancel();
+      _pendingUploadsPoll = null;
+      _pendingUploadsPollTicks = 0;
+      _pendingUploadsEventId = null;
+      _pendingUploadsPhotoIds = <String>{};
+      return;
+    }
+
+    final sameEvent = _pendingUploadsEventId == widget.eventId;
+    final sameIds = setEquals(_pendingUploadsPhotoIds, pendingPhotoIds);
+    if (sameEvent && sameIds && _pendingUploadsPoll != null) return;
+
+    _pendingUploadsPoll?.cancel();
+    _pendingUploadsPollTicks = 0;
+    _pendingUploadsEventId = widget.eventId;
+    _pendingUploadsPhotoIds = {...pendingPhotoIds};
+
+    // Poll only triggers a setState so the build loop can evaluate doneLocal
+    // and clean up items whose remote photo now has smallUrl. No HTTP calls.
+    _pendingUploadsPoll =
+        Timer.periodic(const Duration(seconds: 3), (Timer timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      _pendingUploadsPollTicks++;
+      if (_pendingUploadsPollTicks > 40) {
+        timer.cancel();
+        _pendingUploadsPoll = null;
+        return;
+      }
+
+      // Trigger a rebuild so build() re-evaluates doneLocal.
+      setState(() {});
     });
   }
 
