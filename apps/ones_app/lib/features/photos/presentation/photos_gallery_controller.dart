@@ -14,6 +14,8 @@ enum PhotosGalleryFilter {
 class PhotosGalleryController extends ChangeNotifier {
   final EventPhotosApi api;
 
+  bool _disposed = false;
+
   String? _idToken;
   bool _loading = false;
   bool _loadedOnce = false;
@@ -107,6 +109,18 @@ class PhotosGalleryController extends ChangeNotifier {
     _requestEpoch++;
     _loading = true;
     notifyListeners();
+  }
+
+  @override
+  void notifyListeners() {
+    if (_disposed) return;
+    super.notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 
   Future<void> setLike({

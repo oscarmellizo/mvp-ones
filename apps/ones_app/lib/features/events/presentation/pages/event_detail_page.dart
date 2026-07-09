@@ -393,6 +393,8 @@ class _GalleryTabState extends State<_GalleryTab> {
   bool _selecting = false;
   final Set<String> _selectedIds = {};
 
+  final Set<String> _cleanupUploadPhotoIds = {};
+
   final ScrollController _gridScrollController = ScrollController();
 
   int _autoFillLoadMoreAttempts = 0;
@@ -532,6 +534,9 @@ class _GalleryTabState extends State<_GalleryTab> {
       setState(() {
         _selecting = false;
         _selectedIds.clear();
+        if (eventChanged) {
+          _cleanupUploadPhotoIds.clear();
+        }
         _badgeColorByIdentity.clear();
         _nextBadgeColorIndex = 0;
         _guestsFuture =
@@ -698,6 +703,31 @@ class _GalleryTabState extends State<_GalleryTab> {
       localPathById[it.photoId] = it.localPath;
       localCreatedAtById[it.photoId] = parseIso(it.createdAt);
       localById[it.photoId] = it;
+    }
+
+    final doneLocal = <String>[];
+    for (final it in localActive) {
+      final pid = it.photoId.trim();
+      if (pid.isEmpty) continue;
+      final remote = remoteById[pid];
+      if (remote == null) continue;
+      final status = remote.status.trim().toLowerCase();
+      final hasThumb =
+          remote.smallUrl != null && remote.smallUrl!.trim().isNotEmpty;
+      if ((status == 'ready' || hasThumb) &&
+          !_cleanupUploadPhotoIds.contains(pid)) {
+        doneLocal.add(pid);
+      }
+    }
+    if (doneLocal.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        for (final pid in doneLocal) {
+          if (_cleanupUploadPhotoIds.contains(pid)) continue;
+          _cleanupUploadPhotoIds.add(pid);
+          uploader.markDoneByPhotoId(eventId: widget.eventId, photoId: pid);
+        }
+      });
     }
 
 

@@ -116,7 +116,7 @@ CREATE TABLE $_table (
     final db = await _open();
     final rows = await db.query(
       _table,
-      where: "eventId = ? AND status IN ('pending','uploading','processing')",
+      where: "eventId = ? AND status IN ('pending','uploading','processing','uploaded')",
       whereArgs: [eventId],
       orderBy: 'createdAt DESC',
       limit: limit,
@@ -130,7 +130,7 @@ CREATE TABLE $_table (
     final db = await _open();
     final rows = await db.query(
       _table,
-      where: "status IN ('pending','uploading','processing')",
+      where: "status IN ('pending','uploading','processing','uploaded')",
       orderBy: 'createdAt DESC',
       limit: limit,
     );
@@ -201,7 +201,7 @@ CREATE TABLE $_table (
         'lastError': 'stale_upload_requeued',
         'updatedAt': DateTime.now().toUtc().toIso8601String(),
       },
-      where: "status IN ('processing','uploading') AND updatedAt < ?",
+      where: "status IN ('uploading') AND updatedAt < ?",
       whereArgs: [cutoff],
     );
   }
