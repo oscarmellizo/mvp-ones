@@ -304,7 +304,11 @@ class PhotosUploadController extends ChangeNotifier {
             );
           }
 
-          await db.markProcessing(item.id);
+          // Upload is done: remove the local item immediately.
+          // The backend has the photo; the WS photo.ready event will
+          // trigger a gallery refresh when thumbnails are ready.
+          await db.deleteByPhotoId(item.photoId);
+          _uploadProgressByPhotoId.remove(item.photoId);
           await _refreshActiveForEvent(item.eventId);
           _safeNotify();
         } catch (e) {

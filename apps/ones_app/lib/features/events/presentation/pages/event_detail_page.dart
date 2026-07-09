@@ -393,17 +393,11 @@ class _GalleryTabState extends State<_GalleryTab> {
   bool _selecting = false;
   final Set<String> _selectedIds = {};
 
-  final Set<String> _cleanupUploadPhotoIds = {};
-
   final ScrollController _gridScrollController = ScrollController();
 
   int _autoFillLoadMoreAttempts = 0;
   String? _autoFillEventId;
 
-  Timer? _pendingUploadsPoll;
-  int _pendingUploadsPollTicks = 0;
-  String? _pendingUploadsEventId;
-  Set<String> _pendingUploadsPhotoIds = <String>{};
 
   Future<List<EventGuest>>? _guestsFuture;
 
@@ -537,9 +531,6 @@ class _GalleryTabState extends State<_GalleryTab> {
       setState(() {
         _selecting = false;
         _selectedIds.clear();
-        if (eventChanged) {
-          _cleanupUploadPhotoIds.clear();
-        }
         _badgeColorByIdentity.clear();
         _nextBadgeColorIndex = 0;
         _guestsFuture =
@@ -561,9 +552,6 @@ class _GalleryTabState extends State<_GalleryTab> {
   void dispose() {
     _wsDebounce?.cancel();
     _wsDebounce = null;
-
-    _pendingUploadsPoll?.cancel();
-    _pendingUploadsPoll = null;
 
     _gridScrollController.removeListener(_maybeLoadMore);
     _gridScrollController.dispose();
@@ -631,53 +619,6 @@ class _GalleryTabState extends State<_GalleryTab> {
     });
   }
 
-  void _syncPendingUploadsPolling(Set<String> pendingPhotoIds) {
-    if (pendingPhotoIds.isEmpty) {
-      _pendingUploadsPoll?.cancel();
-      _pendingUploadsPoll = null;
-      _pendingUploadsPollTicks = 0;
-      _pendingUploadsEventId = null;
-      _pendingUploadsPhotoIds = <String>{};
-      return;
-    }
-
-    final sameEvent = _pendingUploadsEventId == widget.eventId;
-    final sameIds = setEquals(_pendingUploadsPhotoIds, pendingPhotoIds);
-    if (sameEvent && sameIds && _pendingUploadsPoll != null) return;
-
-    _pendingUploadsPoll?.cancel();
-    _pendingUploadsPollTicks = 0;
-    _pendingUploadsEventId = widget.eventId;
-    _pendingUploadsPhotoIds = {...pendingPhotoIds};
-
-    _pendingUploadsPoll =
-        Timer.periodic(const Duration(seconds: 2), (Timer timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-
-      _pendingUploadsPollTicks++;
-      if (_pendingUploadsPollTicks > 30) {
-        timer.cancel();
-        _pendingUploadsPoll = null;
-        return;
-      }
-
-      // Sparse safety-net refresh (ticks 1=2s, 5=10s, 15=30s) in case the
-      // WS photo.ready event was missed. All other ticks just setState to
-      // re-evaluate doneLocal without resetting pagination.
-      const sparseRefreshTicks = {1, 5, 15};
-      final gallery = context.read<PhotosGalleryController>();
-      if (sparseRefreshTicks.contains(_pendingUploadsPollTicks) &&
-          !gallery.loading &&
-          gallery.currentEventId == widget.eventId) {
-        gallery.refresh(eventId: widget.eventId);
-      } else if (mounted) {
-        setState(() {});
-      }
-    });
-  }
 
   void _exitSelectionMode() {
     if (!_selecting && _selectedIds.isEmpty) return;
@@ -745,14 +686,6 @@ class _GalleryTabState extends State<_GalleryTab> {
     }
 
     final localActive = uploader.activeByEvent(widget.eventId);
-    final pendingUploadIds = <String>{
-      for (final it in localActive)
-        if (it.photoId.trim().isNotEmpty) it.photoId.trim(),
-    };
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _syncPendingUploadsPolling(pendingUploadIds);
-    });
     final localPathById = <String, String>{};
     final localCreatedAtById = <String, DateTime>{};
     final localById = <String, dynamic>{};
@@ -764,30 +697,6 @@ class _GalleryTabState extends State<_GalleryTab> {
       localById[it.photoId] = it;
     }
 
-    final doneLocal = <String>[];
-    for (final it in localActive) {
-      final pid = it.photoId;
-      if (pid.isEmpty) continue;
-      final remote = remoteById[pid];
-      if (remote == null) continue;
-      final status = (remote.status).trim().toLowerCase();
-      final hasThumb =
-          remote.smallUrl != null && remote.smallUrl!.trim().isNotEmpty;
-      if ((status == 'ready' || hasThumb) &&
-          !_cleanupUploadPhotoIds.contains(pid)) {
-        doneLocal.add(pid);
-      }
-    }
-    if (doneLocal.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        for (final pid in doneLocal) {
-          if (_cleanupUploadPhotoIds.contains(pid)) continue;
-          _cleanupUploadPhotoIds.add(pid);
-          uploader.markDoneByPhotoId(eventId: widget.eventId, photoId: pid);
-        }
-      });
-    }
 
     final allPhotoIds = <String>{
       ...remoteById.keys,
