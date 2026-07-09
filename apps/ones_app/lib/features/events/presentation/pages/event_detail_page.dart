@@ -454,6 +454,54 @@ class _GalleryTabState extends State<_GalleryTab> {
         decoded.contains('eventos/$trimmed/');
   }
 
+  void _syncPendingUploadsPolling(Set<String> pendingIds) {
+    if (!mounted) return;
+    final hasProcessing = pendingIds.isNotEmpty;
+
+    if (!hasProcessing) {
+      if (_pendingUploadsPoll != null) {
+        _pendingUploadsPoll!.cancel();
+        _pendingUploadsPoll = null;
+        _pendingUploadsPollTicks = 0;
+        _pendingUploadsPhotoIds = {};
+        _pendingUploadsEventId = null;
+      }
+      return;
+    }
+
+    final eventChanged = _pendingUploadsEventId != widget.eventId;
+    final idsChanged = !_pendingUploadsPhotoIds.containsAll(pendingIds) ||
+        !pendingIds.containsAll(_pendingUploadsPhotoIds);
+
+    if (eventChanged || idsChanged) {
+      _pendingUploadsPhotoIds = Set.of(pendingIds);
+      _pendingUploadsEventId = widget.eventId;
+      _pendingUploadsPollTicks = 0;
+    }
+
+    if (_pendingUploadsPoll != null) return;
+
+    _pendingUploadsPoll = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted) {
+        _pendingUploadsPoll?.cancel();
+        _pendingUploadsPoll = null;
+        return;
+      }
+      _pendingUploadsPollTicks++;
+      // Stop polling after 3 minutes (36 ticks × 5s)
+      if (_pendingUploadsPollTicks > 36) {
+        _pendingUploadsPoll?.cancel();
+        _pendingUploadsPoll = null;
+        _pendingUploadsPollTicks = 0;
+        return;
+      }
+      final gallery = context.read<PhotosGalleryController>();
+      if (!gallery.loading) {
+        gallery.refresh(eventId: widget.eventId);
+      }
+    });
+  }
+
   void _maybeLoadMore() {
     if (!mounted) return;
     if (!_gridScrollController.hasClients) return;
@@ -766,8 +814,11 @@ class _GalleryTabState extends State<_GalleryTab> {
       if (pid.isEmpty) continue;
       final remote = remoteById[pid];
       if (remote == null) continue;
+      if (_cleanupUploadPhotoIds.contains(pid)) continue;
       final status = (remote.status).trim().toLowerCase();
-      if (status == 'ready' && !_cleanupUploadPhotoIds.contains(pid)) {
+      final hasThumb =
+          remote.smallUrl != null && remote.smallUrl!.trim().isNotEmpty;
+      if (status == 'ready' || hasThumb) {
         doneLocal.add(pid);
       }
     }
