@@ -360,7 +360,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
 String _eventSubtitle(DateTime startAt, String location) {
   final date = formatMonthDayYear(startAt.toLocal());
   final loc = location.trim().isEmpty ? '-' : location.trim();
-  return '$date • $loc';
+  return '$date ÔÇó $loc';
 }
 
 class _GalleryTab extends StatefulWidget {
@@ -479,15 +479,9 @@ class _GalleryTabState extends State<_GalleryTab> {
       if (!mounted) return;
       final ws = context.read<PhotosWsController>();
       _ws = ws;
-      ws.addPhotoReadyListener('gallery_${widget.eventId}', _onWsPhotoReady);
+      ws.onPhotoReady = _onWsPhotoReady;
       ws.subscribe(eventId: widget.eventId);
       unawaited(ws.connect());
-      final event = context.read<EventsController>().selected;
-      if (event != null && event.id == widget.eventId) {
-        context
-            .read<PhotosUploadController>()
-            .setEventTitle(widget.eventId, event.title);
-      }
       setState(() {
         _guestsFuture =
             context.read<EventsRepository>().listEventGuestsV2(widget.eventId);
@@ -554,13 +548,9 @@ class _GalleryTabState extends State<_GalleryTab> {
 
       final ws = _ws ?? context.read<PhotosWsController>();
       _ws = ws;
-      ws.addPhotoReadyListener('gallery_${widget.eventId}', _onWsPhotoReady);
+      ws.onPhotoReady = _onWsPhotoReady;
       if (eventChanged) {
-        ws.removePhotoReadyListener('gallery_${oldWidget.eventId}');
-        ws.retainSubscription(
-          oldWidget.eventId,
-          until: DateTime.now().add(const Duration(minutes: 30)),
-        );
+        ws.unsubscribe(eventId: oldWidget.eventId);
       }
       ws.subscribe(eventId: widget.eventId);
       unawaited(ws.connect());
@@ -580,11 +570,10 @@ class _GalleryTabState extends State<_GalleryTab> {
 
     final ws = _ws;
     if (ws != null) {
-      ws.removePhotoReadyListener('gallery_${widget.eventId}');
-      ws.retainSubscription(
-        widget.eventId,
-        until: DateTime.now().add(const Duration(minutes: 30)),
-      );
+      ws.unsubscribe(eventId: widget.eventId);
+      if (ws.onPhotoReady == _onWsPhotoReady) {
+        ws.onPhotoReady = null;
+      }
     }
 
     // Limpiar fotos locales del evento
@@ -651,7 +640,7 @@ class _GalleryTabState extends State<_GalleryTab> {
     _pendingUploadsPhotoIds = {...pendingPhotoIds};
 
     _pendingUploadsPoll =
-        Timer.periodic(const Duration(seconds: 4), (Timer timer) {
+        Timer.periodic(const Duration(seconds: 2), (Timer timer) {
       if (!mounted) {
         timer.cancel();
         return;
@@ -664,15 +653,14 @@ class _GalleryTabState extends State<_GalleryTab> {
         return;
       }
 
-      final gallery = context.read<PhotosGalleryController>();
-      // Refresh on ticks 1, 4, 8, 16 (exponential backoff, no tight loop).
-      final refreshTicks = const {1, 4, 8, 16};
-      if (refreshTicks.contains(_pendingUploadsPollTicks) && !gallery.loading) {
-        gallery.refresh(eventId: widget.eventId);
-      } else {
-        // Otherwise just rebuild to evaluate doneLocal with current remote data.
-        setState(() {});
-      }
+      final current = context.read<PhotosGalleryController>();
+      if (current.currentEventId != widget.eventId) return;
+      if (current.loading) return;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
+      });
     });
   }
 
@@ -767,11 +755,8 @@ class _GalleryTabState extends State<_GalleryTab> {
       if (pid.isEmpty) continue;
       final remote = remoteById[pid];
       if (remote == null) continue;
-      if (_cleanupUploadPhotoIds.contains(pid)) continue;
       final status = (remote.status).trim().toLowerCase();
-      final hasThumb =
-          remote.smallUrl != null && remote.smallUrl!.trim().isNotEmpty;
-      if (status == 'ready' || hasThumb) {
+      if (status == 'ready' && !_cleanupUploadPhotoIds.contains(pid)) {
         doneLocal.add(pid);
       }
     }
@@ -846,7 +831,7 @@ class _GalleryTabState extends State<_GalleryTab> {
               Text(
                 t.translate(
                   'event_detail.no_photos',
-                  fallback: 'Aún no hay fotos en este evento.',
+                  fallback: 'A├║n no hay fotos en este evento.',
                 ),
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontWeight: FontWeight.w800),
@@ -875,7 +860,7 @@ class _GalleryTabState extends State<_GalleryTab> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '${t.translate('event_detail.error_loading_gallery', fallback: 'Error cargando galería')}: ${controller.error}',
+                '${t.translate('event_detail.error_loading_gallery', fallback: 'Error cargando galer├¡a')}: ${controller.error}',
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
@@ -945,12 +930,12 @@ class _GalleryTabState extends State<_GalleryTab> {
                             label: Tooltip(
                               message: t.translate(
                                 'event_detail.filter_mine',
-                                fallback: 'Mías',
+                                fallback: 'M├¡as',
                               ),
                               child: Semantics(
                                 label: t.translate(
                                   'event_detail.filter_mine',
-                                  fallback: 'Mías',
+                                  fallback: 'M├¡as',
                                 ),
                                 child: const Icon(Icons.person_outline),
                               ),
@@ -1262,7 +1247,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                                     t.translate(
                                       'event_detail.photo_processing',
                                       fallback:
-                                          'La foto aún se está procesando.',
+                                          'La foto a├║n se est├í procesando.',
                                     ),
                                   ),
                                 ),
@@ -1683,7 +1668,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                                           t.translate(
                                             'event_detail.delete_confirm_body',
                                             fallback:
-                                                '¿Eliminar ${ids.length} foto(s)? Esta acción no se puede deshacer.',
+                                                '┬┐Eliminar ${ids.length} foto(s)? Esta acci├│n no se puede deshacer.',
                                           ),
                                         ),
                                         actions: [
@@ -2047,7 +2032,7 @@ class _DetailsTabState extends State<_DetailsTab> {
                       fallback: 'Starts',
                     ),
                     value:
-                        '${formatMonthDayYear(start)} • ${formatTimeOfDay(start)}',
+                        '${formatMonthDayYear(start)} ÔÇó ${formatTimeOfDay(start)}',
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -2058,7 +2043,7 @@ class _DetailsTabState extends State<_DetailsTab> {
                       fallback: 'Ends',
                     ),
                     value:
-                        '${formatMonthDayYear(end)} • ${formatTimeOfDay(end)}',
+                        '${formatMonthDayYear(end)} ÔÇó ${formatTimeOfDay(end)}',
                   ),
                 ),
               ],
@@ -2122,7 +2107,7 @@ class _DetailsTabState extends State<_DetailsTab> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '• ',
+                              'ÔÇó ',
                               style: TextStyle(
                                 fontWeight: FontWeight.w900,
                                 color: OnesColors.black.withOpacity(0.75),
@@ -2561,7 +2546,7 @@ class _DetailsTabState extends State<_DetailsTab> {
           t.translate(
             'event_detail.delete_event_body',
             fallback:
-                'Se eliminarán todas las fotos, invitaciones y datos del evento. Esta acción no se puede deshacer.',
+                'Se eliminar├ín todas las fotos, invitaciones y datos del evento. Esta acci├│n no se puede deshacer.',
           ),
         ),
         actions: [
