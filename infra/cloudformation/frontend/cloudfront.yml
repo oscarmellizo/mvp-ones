@@ -22,6 +22,14 @@ Parameters:
     Type: String
     Default: arn:aws:acm:us-east-1:743338489837:certificate/bc1d3c9f-09a7-4af2-9998-3cbbf1048395
 
+  ProdAppDomainName:
+    Type: String
+    Default: app.ones.events
+
+  ProdAcmCertificateArn:
+    Type: String
+    Default: ''
+
   BackendAlbDnsName:
     Type: String
     Description: DNS name of the backend ALB (without protocol)
@@ -48,6 +56,11 @@ Parameters:
 
 Conditions:
   IsDev: !Equals [!Ref Environment, dev]
+  IsProd: !Equals [!Ref Environment, prod]
+  UseProdCustomDomainCond: !And
+    - !Condition IsProd
+    - !Not [!Equals [!Ref ProdAppDomainName, '']]
+    - !Not [!Equals [!Ref ProdAcmCertificateArn, '']]
   WafEnabledCond: !Equals [!Ref WafEnabled, 'true']
 
 Resources:
@@ -158,13 +171,21 @@ Resources:
         Aliases: !If
           - IsDev
           - - !Ref DevAppDomainName
-          - !Ref AWS::NoValue
+          - !If
+              - UseProdCustomDomainCond
+              - - !Ref ProdAppDomainName
+              - !Ref AWS::NoValue
         ViewerCertificate: !If
           - IsDev
           - AcmCertificateArn: !Ref DevAcmCertificateArn
             SslSupportMethod: sni-only
             MinimumProtocolVersion: TLSv1.2_2021
-          - CloudFrontDefaultCertificate: true
+          - !If
+              - UseProdCustomDomainCond
+              - AcmCertificateArn: !Ref ProdAcmCertificateArn
+                SslSupportMethod: sni-only
+                MinimumProtocolVersion: TLSv1.2_2021
+              - CloudFrontDefaultCertificate: true
         Origins:
           - Id: s3origin
             DomainName: !Ref WebBucketRegionalDomainName

@@ -29,6 +29,14 @@ Parameters:
     Type: Number
     Default: 2000
 
+  ProdAppDomainName:
+    Type: String
+    Default: ''
+
+  ProdAcmCertificateArn:
+    Type: String
+    Default: ''
+
 Resources:
   S3Stack:
     Type: AWS::CloudFormation::Stack
@@ -53,6 +61,8 @@ Resources:
         WebBucketRegionalDomainName: !GetAtt S3Stack.Outputs.BucketRegionalDomainName
         WafEnabled: !Ref WafEnabled
         ShortLinksRateLimitPer5Min: !Ref ShortLinksRateLimitPer5Min
+        ProdAppDomainName: !Ref ProdAppDomainName
+        ProdAcmCertificateArn: !Ref ProdAcmCertificateArn
 
 Outputs:
   CloudFrontUrl:

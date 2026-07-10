@@ -108,7 +108,9 @@ jobs:
               Environment="${{ inputs.environment }}" \
               BackendAlbDnsName="${albDns}" \
               WafEnabled="${wafEnabled}" \
-              ShortLinksRateLimitPer5Min="${shortLinksRateLimit}"
+              ShortLinksRateLimitPer5Min="${shortLinksRateLimit}" \
+              ProdAppDomainName="${{ vars.PROD_APP_DOMAIN_NAME }}" \
+              ProdAcmCertificateArn="${{ vars.PROD_ACM_CERT_ARN }}"
 
       - name: Debug CloudFormation (on failure)
         if: ${{ steps.deploy_cfn.outcome != 'success' }}
