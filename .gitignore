@@ -32,3 +32,6 @@
 
 # Local tools (do not commit)
 /tools/
+
+**/__pycache__/
+**/*.pyc

@@ -1,0 +1,79 @@
+name: Deploy Lambda Photo Thumbnails (Image)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment (dev, stage, prod)'
+        required: false
+        default: 'dev'
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-lambda-thumbnails-image
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  STACK_PREFIX: ones
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_GITHUB_OIDC_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}
+
+      - name: Resolve ECR repository URI
+        id: ecr
+        run: |
+          set -euo pipefail
+          region="${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
+          repoName="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}-${{ inputs.environment }}-photo-thumbnails"
+          repoUri=$(aws ecr describe-repositories --repository-names "${repoName}" --query 'repositories[0].repositoryUri' --output text --region "${region}")
+          echo "repoName=${repoName}"
+          echo "repoUri=${repoUri}"
+          echo "repoUri=${repoUri}" >> $GITHUB_OUTPUT
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        run: |
+          set -euo pipefail
+          repoUri="${{ steps.ecr.outputs.repoUri }}"
+          docker build \
+            -t "${repoUri}:${GITHUB_SHA}" \
+            -t "${repoUri}:latest" \
+            infra/photo-thumbnails-lambda
+          docker push "${repoUri}:${GITHUB_SHA}"
+          docker push "${repoUri}:latest"
+
+      - name: Update Lambda function code (Image)
+        run: |
+          set -euo pipefail
+          region="${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
+          functionName="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}-${{ inputs.environment }}-photo-thumbnails-image"
+          repoUri="${{ steps.ecr.outputs.repoUri }}"
+
+          echo "Updating Lambda function code for ${functionName} using ${repoUri}:latest"
+          aws lambda update-function-code \
+            --function-name "${functionName}" \
+            --image-uri "${repoUri}:latest" \
+            --region "${region}"
+
+      - name: Show Lambda info
+        run: |
+          region="${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
+          functionName="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}-${{ inputs.environment }}-photo-thumbnails-image"
+          aws lambda get-function-configuration --function-name "${functionName}" --region "${region}"

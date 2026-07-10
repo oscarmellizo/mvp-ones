@@ -34,6 +34,17 @@ jobs:
           role-to-assume: ${{ vars.AWS_GITHUB_OIDC_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}
 
+      - name: Verify ZIP Lambda exists
+        run: |
+          functionName="ones-${{ inputs.environment }}-photo-thumbnails-zip"
+          region="${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}"
+          if ! aws lambda get-function --function-name "${functionName}" --region "${region}" >/dev/null 2>&1; then
+            echo "ERROR: Lambda function not found: ${functionName}"
+            echo "This environment likely uses the container-image Lambda: ones-${{ inputs.environment }}-photo-thumbnails-image"
+            echo "Run the 'Deploy Lambda Photo Thumbnails (Image)' workflow (or re-deploy backend stack with usePhotoThumbnailsImage=false to create the ZIP Lambda)."
+            exit 1
+          fi
+
       - name: Create Lambda ZIP
         run: |
           cd infra/lambda/photo-thumbnails-zip
