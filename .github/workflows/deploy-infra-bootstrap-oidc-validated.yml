@@ -2,6 +2,11 @@ name: Deploy Infra (Bootstrap OIDC) [Validated]
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment (dev, stage, prod)'
+        required: false
+        default: 'dev'
 
 permissions:
   id-token: write
@@ -13,15 +18,45 @@ concurrency:
 
 env:
   AWS_REGION: us-east-1
-  BOOTSTRAP_STACK_NAME: ones-bootstrap-oidc
+  STACK_PREFIX: ones
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    environment: ${{ inputs.environment }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Validate environment + branch
+        run: |
+          set -euo pipefail
+          envName="${{ inputs.environment }}"
+          branch="${GITHUB_REF_NAME:-}"
+
+          if [ "${envName}" = "stage" ]; then
+            echo "ERROR: environment 'stage' is disabled."
+            exit 1
+          fi
+
+          if [ "${envName}" = "prod" ] && [ "${branch}" != "main" ]; then
+            echo "ERROR: environment 'prod' must be deployed from branch 'main'. Current: '${branch}'"
+            exit 1
+          fi
+
+          if [ "${envName}" = "dev" ] && [ "${branch}" != "develop" ]; then
+            echo "ERROR: environment 'dev' must be deployed from branch 'develop'. Current: '${branch}'"
+            exit 1
+          fi
+
+          if [ -z "${{ vars.AWS_GITHUB_OIDC_ROLE_ARN }}" ]; then
+            echo "ERROR: Missing GitHub Environment var AWS_GITHUB_OIDC_ROLE_ARN for environment '${envName}'."
+            exit 1
+          fi
+
+          echo "Using role-to-assume: ${{ vars.AWS_GITHUB_OIDC_ROLE_ARN }}"
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -31,8 +66,9 @@ jobs:
 
       - name: Deploy stack (bootstrap OIDC)
         run: |
+          stackName="${STACK_PREFIX}-bootstrap-oidc-${{ inputs.environment }}"
           aws cloudformation deploy \
-            --stack-name "${BOOTSTRAP_STACK_NAME}" \
+            --stack-name "${stackName}" \
             --template-file infra/cloudformation/bootstrap-oidc.yml \
             --capabilities CAPABILITY_NAMED_IAM \
             --no-cli-pager
@@ -43,7 +79,7 @@ jobs:
           set -euo pipefail
 
           status=$(aws cloudformation describe-stacks \
-            --stack-name "${BOOTSTRAP_STACK_NAME}" \
+            --stack-name "${STACK_PREFIX}-bootstrap-oidc-${{ inputs.environment }}" \
             --query "Stacks[0].StackStatus" \
             --output text \
             --no-cli-pager)
@@ -61,7 +97,7 @@ jobs:
           set -euo pipefail
 
           roleArn=$(aws cloudformation describe-stacks \
-            --stack-name "${BOOTSTRAP_STACK_NAME}" \
+            --stack-name "${STACK_PREFIX}-bootstrap-oidc-${{ inputs.environment }}" \
             --query "Stacks[0].Outputs[?OutputKey=='GitHubActionsDeployRoleArn'].OutputValue" \
             --output text \
             --no-cli-pager)
@@ -75,6 +111,6 @@ jobs:
 
       - name: Show outputs
         run: |
-          aws cloudformation describe-stacks --stack-name "${BOOTSTRAP_STACK_NAME}" \
+          aws cloudformation describe-stacks --stack-name "${STACK_PREFIX}-bootstrap-oidc-${{ inputs.environment }}" \
             --query "Stacks[0].Outputs" --output table \
             --no-cli-pager

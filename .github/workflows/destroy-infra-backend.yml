@@ -24,9 +24,39 @@ jobs:
   destroy:
     runs-on: ubuntu-latest
 
+    environment: ${{ inputs.environment }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Validate environment + branch
+        run: |
+          set -euo pipefail
+          envName="${{ inputs.environment }}"
+          branch="${GITHUB_REF_NAME:-}"
+
+          if [ "${envName}" = "stage" ]; then
+            echo "ERROR: environment 'stage' is disabled."
+            exit 1
+          fi
+
+          if [ "${envName}" = "prod" ] && [ "${branch}" != "main" ]; then
+            echo "ERROR: environment 'prod' must be run from branch 'main'. Current: '${branch}'"
+            exit 1
+          fi
+
+          if [ "${envName}" = "dev" ] && [ "${branch}" != "develop" ]; then
+            echo "ERROR: environment 'dev' must be run from branch 'develop'. Current: '${branch}'"
+            exit 1
+          fi
+
+          if [ -z "${{ vars.AWS_GITHUB_OIDC_ROLE_ARN }}" ]; then
+            echo "ERROR: Missing GitHub Environment var AWS_GITHUB_OIDC_ROLE_ARN for environment '${envName}'."
+            exit 1
+          fi
+
+          echo "Using role-to-assume: ${{ vars.AWS_GITHUB_OIDC_ROLE_ARN }}"
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
