@@ -2,6 +2,8 @@ import base64
 import io
 import json
 import os
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -43,22 +45,64 @@ def _load_internal_basic_auth():
     return 'Basic ' + token
 
 
+_INTERNAL_BASIC_AUTH = None
+_INTERNAL_BASIC_AUTH_LOADED = False
+
+
+def _internal_basic_auth_cached():
+    global _INTERNAL_BASIC_AUTH, _INTERNAL_BASIC_AUTH_LOADED
+    if _INTERNAL_BASIC_AUTH_LOADED:
+        return _INTERNAL_BASIC_AUTH
+    _INTERNAL_BASIC_AUTH_LOADED = True
+    _INTERNAL_BASIC_AUTH = _load_internal_basic_auth()
+    return _INTERNAL_BASIC_AUTH
+
+
 def _call_backend_ready(event_id, photo_id, key_m, key_s):
     base = os.environ.get('BACKEND_BASE_URL', '').rstrip('/')
     if not base:
-        return
+        print("ERROR: BACKEND_BASE_URL not set")
+        return False
     url = f"{base}/internal/events/{urllib.parse.quote(event_id)}/photos/{urllib.parse.quote(photo_id)}/ready"
 
-    auth = _load_internal_basic_auth()
-    if not auth:
-        return
+    auth = _internal_basic_auth_cached()
 
     body = json.dumps({"s3KeyMedium": key_m, "s3KeySmall": key_s}).encode('utf-8')
-    req = urllib.request.Request(url, data=body, method='POST')
-    req.add_header('Content-Type', 'application/json')
-    req.add_header('Authorization', auth)
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        resp.read()
+    for attempt in range(1, 4):
+        req = urllib.request.Request(url, data=body, method='POST')
+        req.add_header('Content-Type', 'application/json')
+        req.add_header('User-Agent', 'ones-photo-thumbnails/1.0')
+        if auth:
+            req.add_header('Authorization', auth)
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                resp.read()
+                status = getattr(resp, 'status', None) or resp.getcode()
+            print(
+                f"backend_ready_ok status={status} eventId={event_id} photoId={photo_id} attempt={attempt}/3"
+            )
+            return True
+        except urllib.error.HTTPError as e:
+            body_text = ''
+            try:
+                body_text = e.read().decode('utf-8', errors='replace')
+            except Exception:
+                body_text = ''
+            code = getattr(e, 'code', None)
+            print(
+                f"backend_ready_http_error status={code} eventId={event_id} photoId={photo_id} attempt={attempt}/3 body={body_text[:600]}"
+            )
+            if code is not None and (400 <= int(code) < 500) and int(code) != 429:
+                return False
+        except Exception as e:
+            print(
+                f"backend_ready_error eventId={event_id} photoId={photo_id} attempt={attempt}/3 err={e}"
+            )
+
+        time.sleep(min(4, 0.6 * (2 ** (attempt - 1))))
+
+    print(f"ERROR: backend_ready_failed eventId={event_id} photoId={photo_id}")
+    return False
 
 
 def _ws_subscriptions_table():
@@ -231,7 +275,10 @@ def handler(event, context):
             continue
 
         print(f"Calling backend ready endpoint")
-        _call_backend_ready(event_id, photo_id, key_m, key_s)
-        print(f"Publishing photo.ready event to WebSocket")
-        _publish_photo_ready(event_id, photo_id)
-        print(f"Photo processing completed successfully")
+        ok = _call_backend_ready(event_id, photo_id, key_m, key_s)
+        if ok:
+            print(f"Publishing photo.ready event to WebSocket")
+            _publish_photo_ready(event_id, photo_id)
+            print(f"Photo processing completed successfully")
+        else:
+            print(f"Skipping photo.ready WS publish because backend ready failed")
