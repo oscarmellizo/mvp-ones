@@ -102,7 +102,11 @@ jobs:
           cdnPublicKeyPem=""
           cdnPublicKeySsmParamName=""
           if [ -n "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" ]; then
-            cdnPublicKeyPem="$(printf '%s' "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" | base64 -d | python3 -c "import sys; d=sys.stdin.read(); d=d.lstrip('\\ufeff'); d=d.replace('\\r\\n','\\n').replace('\\r','\\n'); d=d.strip(); sys.stdout.write(d)")"
+            _b64raw="${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}"
+            _b64len="${#_b64raw}"
+            echo "CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64 length=${_b64len} first4=${_b64raw:0:4} last4=${_b64raw: -4}"
+            _b64clean="$(printf '%s' "${_b64raw}" | tr -d '[:space:]')"
+            cdnPublicKeyPem="$(printf '%s' "${_b64clean}" | base64 -d | python3 -c "import sys; d=sys.stdin.read(); d=d.lstrip('\\ufeff'); d=d.replace('\\r\\n','\\n').replace('\\r','\\n'); d=d.strip(); sys.stdout.write(d)")"
 
             if ! printf '%s' "${cdnPublicKeyPem}" | grep -q "BEGIN PUBLIC KEY"; then
               echo "ERROR: CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64 did not decode to a PEM with 'BEGIN PUBLIC KEY'."
@@ -321,7 +325,11 @@ jobs:
           cdnPublicKeyPem=""
           cdnPublicKeySsmParamName=""
           if [ -n "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" ]; then
-            cdnPublicKeyPem="$(printf '%s' "${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}" | base64 -d | python3 -c "import sys; d=sys.stdin.read(); d=d.lstrip('\\ufeff'); d=d.replace('\\r\\n','\\n').replace('\\r','\\n'); d=d.strip(); sys.stdout.write(d)")"
+            _b64raw="${CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64}"
+            _b64len="${#_b64raw}"
+            echo "CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64 length=${_b64len} first4=${_b64raw:0:4} last4=${_b64raw: -4}"
+            _b64clean="$(printf '%s' "${_b64raw}" | tr -d '[:space:]')"
+            cdnPublicKeyPem="$(printf '%s' "${_b64clean}" | base64 -d | python3 -c "import sys; d=sys.stdin.read(); d=d.lstrip('\\ufeff'); d=d.replace('\\r\\n','\\n').replace('\\r','\\n'); d=d.strip(); sys.stdout.write(d)")"
 
             if ! printf '%s' "${cdnPublicKeyPem}" | grep -q "BEGIN PUBLIC KEY"; then
               echo "ERROR: CDN_PHOTOS_SIGNING_PUBLIC_KEY_PEM_B64 did not decode to a PEM with 'BEGIN PUBLIC KEY'."
