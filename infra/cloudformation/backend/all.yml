@@ -103,6 +103,7 @@ Conditions:
   EnablePhotosCdnCond: !And
     - !Equals [!Ref CdnPhotosEnabled, 'true']
     - !Not [!Equals [!Ref CdnPhotosSigningPublicKeySsmParamName, '']]
+  IsNotProdEnv: !Not [!Equals [!Ref Environment, 'prod']]
 
 Resources:
   EventsTable:
@@ -1023,6 +1024,7 @@ Resources:
 
   CloudFrontPrivateKeySecret:
     Type: AWS::SecretsManager::Secret
+    Condition: IsNotProdEnv
     Properties:
       Name: !Sub ${StackPrefix}-${Environment}-cloudfront-private-key
       Description: CloudFront private key for signed URLs (PKCS#8 PEM)
@@ -1046,6 +1048,7 @@ Resources:
 
   SesEmailIdentity:
     Type: AWS::SES::EmailIdentity
+    Condition: IsNotProdEnv
     Properties:
       EmailIdentity: ones.events
       DkimSigningAttributes:
@@ -1796,7 +1799,10 @@ Resources:
                   - !Ref ActuatorBasicAuthSecret
                   - !Ref InternalBasicAuthSecret
                   - !Ref GrafanaAdminSecret
-                  - !Ref CloudFrontPrivateKeySecret
+                  - !If
+                    - IsNotProdEnv
+                    - !Ref CloudFrontPrivateKeySecret
+                    - !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${StackPrefix}-${Environment}-cloudfront-private-key*'
                   - !Ref InvitationEmailActionTokenSecret
 
   TaskRole:
@@ -1887,7 +1893,10 @@ Resources:
                 Resource:
                   - !Ref OpenAiApiKeySecret
                   - !Ref ActuatorBasicAuthSecret
-                  - !Ref CloudFrontPrivateKeySecret
+                  - !If
+                    - IsNotProdEnv
+                    - !Ref CloudFrontPrivateKeySecret
+                    - !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${StackPrefix}-${Environment}-cloudfront-private-key*'
                   - !Ref InvitationEmailActionTokenSecret
 
         - PolicyName: ones-ses
@@ -2071,7 +2080,10 @@ Resources:
             - Name: ONES_CDN_PHOTOS_SIGNING_KEY_PAIR_ID
               Value: !If [EnablePhotosCdnCond, !Ref PhotosCdnPublicKey, '']
             - Name: ONES_CDN_PHOTOS_SIGNING_PRIVATE_KEY_SECRET_NAME
-              Value: !Ref CloudFrontPrivateKeySecret
+              Value: !If
+                - IsNotProdEnv
+                - !Ref CloudFrontPrivateKeySecret
+                - !Sub '${StackPrefix}-${Environment}-cloudfront-private-key'
             - Name: ONES_CDN_PHOTOS_URL_TTL_MINUTES
               Value: !Ref CdnPhotosUrlTtlMinutes
             - Name: ONES_CDN_PHOTOS_URL_ROUNDING_SECONDS

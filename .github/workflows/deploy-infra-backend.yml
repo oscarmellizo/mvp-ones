@@ -191,12 +191,31 @@ jobs:
             fi
           fi
 
+          stackPrefix="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}"
+
+          usePhotoThumbnailsImage="${{ inputs.usePhotoThumbnailsImage }}"
+          if [ "${usePhotoThumbnailsImage}" = "true" ]; then
+            ecrRepoName="${stackPrefix}-${{ inputs.environment }}-photo-thumbnails"
+            echo "Checking ECR repo ${ecrRepoName} for 'latest' image..."
+            latestDigest=$(aws ecr describe-images \
+              --repository-name "${ecrRepoName}" \
+              --image-ids imageTag=latest \
+              --query 'imageDetails[0].imageDigest' \
+              --output text 2>/dev/null || true)
+            if [ -z "${latestDigest}" ] || [ "${latestDigest}" = "None" ]; then
+              echo "WARNING: ECR repo ${ecrRepoName} has no 'latest' image. Falling back to UsePhotoThumbnailsImage=false for this deploy. Push an image first, then re-run with usePhotoThumbnailsImage=true."
+              usePhotoThumbnailsImage="false"
+            else
+              echo "ECR 'latest' image found: ${latestDigest}"
+            fi
+          fi
+
           aws cloudformation deploy \
             --stack-name "${stackName}" \
             --template-file packaged-backend.yml \
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
-              StackPrefix="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}" \
+              StackPrefix="${stackPrefix}" \
               Environment="${{ inputs.environment }}" \
               GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}" \
               AppBaseUrl="${appBaseUrl}" \
@@ -205,7 +224,7 @@ jobs:
               PublicBaseUrl="${appBaseUrl}" \
               EmailLogoUrl="${appBaseUrl}/assets/assets/branding/ones-logo.png" \
               BackendDesiredCount="${{ inputs.backendDesiredCount }}" \
-              UsePhotoThumbnailsImage="${{ inputs.usePhotoThumbnailsImage }}" \
+              UsePhotoThumbnailsImage="${usePhotoThumbnailsImage}" \
               CdnPhotosEnabled="${CDN_PHOTOS_ENABLED:-false}" \
               CdnPhotosSigningPublicKeyPem="" \
               CdnPhotosSigningPublicKeySsmParamName="${cdnPublicKeySsmParamName}" \
@@ -430,12 +449,14 @@ jobs:
             fi
           fi
 
+          stackPrefix="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}"
+
           aws cloudformation deploy \
             --stack-name "${stackName}" \
             --template-file packaged-backend.yml \
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
-              StackPrefix="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}" \
+              StackPrefix="${stackPrefix}" \
               Environment="${{ inputs.environment }}" \
               GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}" \
               AppBaseUrl="${appBaseUrl}" \
