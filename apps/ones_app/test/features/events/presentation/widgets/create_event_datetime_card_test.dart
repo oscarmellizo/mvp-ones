@@ -48,7 +48,7 @@ void main() {
     expect(find.text('Starts'), findsOneWidget);
     expect(find.text('Ends'), findsOneWidget);
 
-    expect(find.text('mm/dd/yyyy'), findsNWidgets(2));
+    expect(find.text('dd/mm/aaaa'), findsNWidgets(2));
     expect(find.text('--:--'), findsNWidgets(2));
   });
 
