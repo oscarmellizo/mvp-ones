@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 class AppConfig {
@@ -61,18 +60,9 @@ class AppConfig {
                   ? fromDefine.photosWsUrl
                   : photosWsUrlFromFile;
 
-      if (kIsWeb) {
-        return AppConfig(
-          env: resolvedEnv,
-          apiBaseUrl: resolvedApiBaseUrl,
-          googleWebClientId: resolvedGoogleWebClientId,
-          photosWsUrl: resolvedPhotosWsUrl,
-        );
-      }
-
       return AppConfig(
-        env: envFromFile ?? resolvedEnv,
-        apiBaseUrl: apiBaseUrlFromFile ?? resolvedApiBaseUrl,
+        env: resolvedEnv,
+        apiBaseUrl: resolvedApiBaseUrl,
         googleWebClientId: resolvedGoogleWebClientId,
         photosWsUrl: resolvedPhotosWsUrl,
       );
