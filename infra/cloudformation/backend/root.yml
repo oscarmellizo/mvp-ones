@@ -34,6 +34,10 @@ Parameters:
     Type: String
     Default: donotreply@ones.events
 
+  EmailLogoUrl:
+    Type: String
+    Default: ''
+
   PublicBaseUrl:
     Type: String
     Default: ''
@@ -97,6 +101,7 @@ Resources:
         AppBaseUrl: !Ref AppBaseUrl
         EmailEnabled: !Ref EmailEnabled
         EmailFrom: !Ref EmailFrom
+        EmailLogoUrl: !Ref EmailLogoUrl
         PublicBaseUrl: !Ref PublicBaseUrl
         BackendDesiredCount: !Ref BackendDesiredCount
         UsePhotoThumbnailsImage: !Ref UsePhotoThumbnailsImage
