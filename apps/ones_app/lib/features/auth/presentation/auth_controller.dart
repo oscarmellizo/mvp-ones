@@ -123,10 +123,14 @@ class AuthController extends ChangeNotifier {
         _isRegistered = true;
       } on DioException catch (e) {
         if (e.response?.statusCode == 404) {
+          _user = null;
+          _idToken = null;
           _preferredName = null;
           _languagePreference = null;
           _isAdmin = false;
           _isRegistered = false;
+          _prefs ??= await SharedPreferences.getInstance();
+          await _prefs!.remove(_lastInteractiveSignInAtKey);
           return;
         }
         rethrow;
