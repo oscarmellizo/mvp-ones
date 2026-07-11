@@ -114,6 +114,8 @@ Outputs:
     Value: !GetAtt AllStack.Outputs.AlbUrl
   AlbDnsName:
     Value: !GetAtt AllStack.Outputs.AlbDnsName
+  PhotosWsUrl:
+    Value: !GetAtt AllStack.Outputs.PhotosWsUrl
   GrafanaUrl:
     Value: !GetAtt AllStack.Outputs.GrafanaUrl
   EcrRepositoryUri:
