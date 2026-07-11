@@ -8,13 +8,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 
 import com.ones.api.application.photos.ports.PhotosRepository;
-import com.ones.api.configuration.CacheConfig;
 import com.ones.api.domain.photos.Photo;
 
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
@@ -49,20 +46,12 @@ public class DynamoDbPhotosRepository implements PhotosRepository {
     }
 
     @Override
-    @CacheEvict(
-            cacheNames = CacheConfig.PHOTOS_BY_EVENT_FIRST_PAGE_CACHE,
-            allEntries = true
-    )
     public Photo upsert(Photo photo) {
         table.putItem(toItem(photo));
         return photo;
     }
 
     @Override
-    @CacheEvict(
-            cacheNames = CacheConfig.PHOTOS_BY_EVENT_FIRST_PAGE_CACHE,
-            allEntries = true
-    )
     public void deleteById(String photoId) {
         if (photoId == null || photoId.isBlank()) {
             return;
@@ -71,12 +60,6 @@ public class DynamoDbPhotosRepository implements PhotosRepository {
     }
 
     @Override
-    @Cacheable(
-            cacheNames = CacheConfig.PHOTOS_BY_EVENT_FIRST_PAGE_CACHE,
-            key = "#eventId + ':' + #limit",
-            condition = "#nextToken == null || #nextToken.isBlank()",
-            sync = true
-    )
     public PageResult<Photo> listByEventId(String eventId, int limit, String nextToken) {
         if (eventId == null || eventId.isBlank()) {
             return new PageResult<>(List.of(), null);
