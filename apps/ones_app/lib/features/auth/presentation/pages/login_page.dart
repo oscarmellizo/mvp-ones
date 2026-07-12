@@ -176,12 +176,9 @@ class _LoginPageState extends State<LoginPage> {
                                 // ignore: avoid_print
                                 print('[LoginPage] signInExisting step=$step error=${auth.error}');
                                 if (!context.mounted) return;
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
-                                  if (!mounted) return;
-                                  setState(() {
-                                    _accountNotFound =
-                                        step == AuthNextStep.needsRegistration;
-                                  });
+                                setState(() {
+                                  _accountNotFound =
+                                      step == AuthNextStep.needsRegistration;
                                 });
                               },
                         style: ElevatedButton.styleFrom(
