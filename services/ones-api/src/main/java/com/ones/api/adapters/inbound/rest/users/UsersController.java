@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.ones.api.adapters.inbound.rest.AuthClaims;
 import com.ones.api.application.users.EnsureUserCommand;
 import com.ones.api.application.users.EnsureUserUseCase;
@@ -21,6 +24,8 @@ import com.ones.api.domain.users.User;
 @RestController
 @RequestMapping("/v1/users")
 public class UsersController {
+
+    private static final Logger log = LoggerFactory.getLogger(UsersController.class);
 
     private final EnsureUserUseCase ensureUserUseCase;
     private final GetUserByIdUseCase getUserByIdUseCase;
@@ -61,9 +66,11 @@ public class UsersController {
     @GetMapping("/me")
     public ResponseEntity<EnsureUserResponse> me(Authentication authentication) {
         String userId = authentication.getName();
+        String email = AuthClaims.getClaim(authentication, "email");
+        log.info("[UsersController] GET /me userId={} email={}", userId, email);
         return getUserByIdUseCase.execute(userId)
-                .map(u -> ResponseEntity.ok(toResponse(u)))
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .map(u -> { log.info("[UsersController] GET /me found user userId={}", userId); return ResponseEntity.ok(toResponse(u)); })
+                .orElseGet(() -> { log.info("[UsersController] GET /me user not found userId={}", userId); return ResponseEntity.notFound().build(); });
     }
 
     @GetMapping("/lookup")
