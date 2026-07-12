@@ -51,8 +51,8 @@ class GoogleAuthRepository implements AuthRepository {
 
     String? idToken = await _getIdTokenWithRetries(
       account,
-      attempts: kIsWeb ? 12 : 1,
-      baseDelayMs: 140,
+      attempts: kIsWeb ? 12 : 5,
+      baseDelayMs: 200,
     );
 
     if (kIsWeb && (idToken == null || idToken.isEmpty)) {
@@ -97,18 +97,11 @@ class GoogleAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async {
-    if (kIsWeb) {
-      await _signIn.signOut();
-      return;
-    }
-
     try {
-      await _signIn.disconnect();
-      return;
+      await _signIn.signOut();
     } catch (_) {
-      // Best-effort: if disconnect fails (e.g. not connected), fall back to signOut.
+      // Best-effort: ignore errors on sign-out.
     }
-    await _signIn.signOut();
   }
 
   @override

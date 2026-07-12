@@ -204,6 +204,8 @@ class AuthController extends ChangeNotifier {
         rethrow;
       }
     } catch (e) {
+      // ignore: avoid_print
+      print('[AuthController] signInExisting FAILED: $e');
       _error = _formatDioOrRawError(e);
       _user = null;
       _idToken = null;
