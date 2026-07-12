@@ -44,6 +44,10 @@ class GoogleAuthRepository implements AuthRepository {
 
   @override
   Future<AuthUser> signInWithGoogle() async {
+    // Always sign out first so the account picker is shown every time.
+    try {
+      await _signIn.signOut();
+    } catch (_) {}
     GoogleSignInAccount? account = await _signIn.signIn();
     if (account == null) {
       throw StateError('Sign-in aborted');
