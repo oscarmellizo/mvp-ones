@@ -356,6 +356,12 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  Future<void> clearGoogleSession() async {
+    try {
+      await signOut.execute();
+    } catch (_) {}
+  }
+
   Future<void> logout() async {
     _setLoading(true);
     try {

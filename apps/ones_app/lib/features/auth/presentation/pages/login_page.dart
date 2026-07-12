@@ -135,6 +135,7 @@ class _LoginPageState extends State<LoginPage> {
                               setState(() {
                                 _accountNotFound = false;
                               });
+                              auth.clearGoogleSession();
                             },
                             child: const Text(
                               'Intentar con otra cuenta',
