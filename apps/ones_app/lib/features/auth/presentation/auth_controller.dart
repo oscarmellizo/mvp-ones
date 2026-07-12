@@ -156,6 +156,8 @@ class AuthController extends ChangeNotifier {
       await signOut.execute();
       _user = await signInWithGoogle.execute();
       _idToken = await getIdToken.execute();
+      // ignore: avoid_print
+      print('[AuthController] signInExisting userId=${_user?.userId} email=${_user?.email}');
 
       final tokenForClaims = _idToken;
       if (_user != null &&

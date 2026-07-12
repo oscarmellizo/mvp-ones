@@ -32,20 +32,47 @@ class UsersApiRepository implements UsersRepository {
 
   @override
   Future<UserPreferences?> getPreferences(String idToken) async {
-    final res = await _dioFactory(idToken).get(
-      '/v1/users/me',
-      options: Options(
-        extra: {
-          'secure': [
-            {
-              'type': 'http',
-              'scheme': 'bearer',
-              'name': 'bearerAuth',
-            }
-          ],
-        },
-      ),
-    );
+    final dio = _dioFactory(idToken);
+    late Response<dynamic> res;
+    try {
+      res = await dio.get(
+        '/v1/users/me',
+        options: Options(
+          headers: {
+            'Cache-Control': 'no-cache, no-store',
+            'Pragma': 'no-cache',
+          },
+          extra: {
+            'secure': [
+              {
+                'type': 'http',
+                'scheme': 'bearer',
+                'name': 'bearerAuth',
+              }
+            ],
+          },
+        ),
+      );
+    } on DioException catch (e) {
+      // ignore: avoid_print
+      print('[UsersApiRepository] getPreferences DioException status=${e.response?.statusCode} type=${e.type}');
+      rethrow;
+    } catch (e) {
+      // ignore: avoid_print
+      print('[UsersApiRepository] getPreferences unexpected error: $e');
+      rethrow;
+    }
+
+    // ignore: avoid_print
+    print('[UsersApiRepository] getPreferences response status=${res.statusCode} url=${res.requestOptions.uri} body=${res.data}');
+
+    if (res.statusCode == 404) {
+      throw DioException(
+        requestOptions: res.requestOptions,
+        response: res,
+        type: DioExceptionType.badResponse,
+      );
+    }
 
     final data = res.data;
     if (data is Map<String, dynamic>) {
