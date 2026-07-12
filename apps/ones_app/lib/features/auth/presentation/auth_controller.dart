@@ -194,8 +194,6 @@ class AuthController extends ChangeNotifier {
         return AuthNextStep.signedIn;
       } on DioException catch (e) {
         if (e.response?.statusCode == 404) {
-          _user = null;
-          _idToken = null;
           _preferredName = null;
           _languagePreference = null;
           _isAdmin = false;
