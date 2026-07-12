@@ -22,6 +22,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController _preferredNameController =
       TextEditingController();
   bool _showValidation = false;
+  AuthController? _authController;
 
   @override
   void initState() {
@@ -30,16 +31,33 @@ class _RegisterPageState extends State<RegisterPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final auth = context.read<AuthController>();
-      final seed =
-          auth.preferredName ?? _guessPreferredName(auth.user?.displayName);
-      if (seed != null && seed.trim().isNotEmpty) {
-        _preferredNameController.text = seed.trim();
-      }
+      _authController = auth;
+      auth.addListener(_onAuthChanged);
+      _maybeSeedPreferredName(auth);
     });
+  }
+
+  void _maybeSeedPreferredName(AuthController auth) {
+    if (_preferredNameController.text.trim().isNotEmpty) return;
+    final seed =
+        auth.preferredName ?? _guessPreferredName(auth.user?.displayName);
+    if (seed != null && seed.trim().isNotEmpty) {
+      _preferredNameController.text = seed.trim();
+    }
+  }
+
+  void _onAuthChanged() {
+    if (!mounted) return;
+    final auth = _authController;
+    if (auth == null) return;
+    if (_preferredNameController.text.trim().isEmpty) {
+      _maybeSeedPreferredName(auth);
+    }
   }
 
   @override
   void dispose() {
+    _authController?.removeListener(_onAuthChanged);
     _preferredNameController.dispose();
     super.dispose();
   }
@@ -161,8 +179,19 @@ class _RegisterPageState extends State<RegisterPage> {
                                       if (step == AuthNextStep.failed) {
                                         return;
                                       }
+                                      final seed = auth.preferredName ??
+                                          _guessPreferredName(
+                                              auth.user?.displayName);
                                       setState(() {
                                         _showValidation = false;
+                                        if (_preferredNameController.text
+                                                .trim()
+                                                .isEmpty &&
+                                            seed != null &&
+                                            seed.trim().isNotEmpty) {
+                                          _preferredNameController.text =
+                                              seed.trim();
+                                        }
                                       });
                                     },
                               style: ElevatedButton.styleFrom(
