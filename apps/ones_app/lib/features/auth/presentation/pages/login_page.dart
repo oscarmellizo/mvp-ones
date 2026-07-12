@@ -176,6 +176,8 @@ class _LoginPageState extends State<LoginPage> {
                                   _accountNotFound = false;
                                 });
                                 final step = await auth.signInExisting();
+                                // ignore: avoid_print
+                                print('[LoginPage] signInExisting step=$step error=${auth.error}');
                                 if (!context.mounted) return;
                                 if (step == AuthNextStep.needsRegistration) {
                                   setState(() {

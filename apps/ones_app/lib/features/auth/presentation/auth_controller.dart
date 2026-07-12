@@ -153,6 +153,7 @@ class AuthController extends ChangeNotifier {
       _error = null;
       _isRegistered = false;
 
+      await signOut.execute();
       _user = await signInWithGoogle.execute();
       _idToken = await getIdToken.execute();
 
