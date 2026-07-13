@@ -50,6 +50,7 @@ class ListEventGuestsUseCaseTest {
                 "Owner",
                 "google",
                 null, // languagePreference
+                false, // termsAccepted
                 now,
                 now
         ));
@@ -78,6 +79,7 @@ class ListEventGuestsUseCaseTest {
                 "Guest",
                 "google",
                 null, // languagePreference
+                false, // termsAccepted
                 now,
                 now
         ));

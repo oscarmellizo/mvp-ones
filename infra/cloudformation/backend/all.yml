@@ -31,6 +31,10 @@ Parameters:
     Type: String
     Default: donotreply@ones.events
 
+  EmailLogoUrl:
+    Type: String
+    Default: ''
+
   PublicBaseUrl:
     Type: String
     Default: ''
@@ -2028,6 +2032,8 @@ Resources:
               Value: !Ref EmailEnabled
             - Name: ONES_EMAIL_FROM
               Value: !Ref EmailFrom
+            - Name: ONES_EMAIL_LOGO_URL
+              Value: !Ref EmailLogoUrl
             - Name: ONES_PUBLIC_BASE_URL
               Value: !Ref PublicBaseUrl
             - Name: ONES_EMAIL_ACTION_TOKEN_SECRET_NAME

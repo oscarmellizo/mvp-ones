@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/ui/ones_colors.dart';
 import '../auth_controller.dart';
 import 'register_page.dart';
 
-class LoginPage extends StatelessWidget {
+class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  bool _accountNotFound = false;
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +53,7 @@ class LoginPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'Welcome back!',
+                    '¡Bienvenido de nuevo!',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.w800,
@@ -54,7 +62,7 @@ class LoginPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Capture moments, share galleries, and\nrelive the event together.',
+                    'Captura momentos, comparte galerías y\nrevive el evento juntos.',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: OnesColors.black.withOpacity(0.7),
@@ -64,82 +72,164 @@ class LoginPage extends StatelessWidget {
                   const SizedBox(height: 24),
                   _HeroStack(height: size.height >= 860 ? 340 : 300),
                   const SizedBox(height: 28),
-                  if (auth.error != null) ...[
+                  if (_accountNotFound) ...[
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: OnesColors.white.withOpacity(0.6),
+                        color: OnesColors.yellowLight.withOpacity(0.6),
                         borderRadius: BorderRadius.zero,
+                        border: Border.all(
+                          color: OnesColors.purpleMid.withOpacity(0.4),
+                        ),
                       ),
-                      child: Text(
-                        'Error: ${auth.error}',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: OnesColors.danger),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Text(
+                            'No encontramos una cuenta con ese correo.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: OnesColors.black,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Crea tu cuenta primero para poder ingresar.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: OnesColors.black,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: OnesColors.purpleMid,
+                              foregroundColor: OnesColors.white,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 12),
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.zero,
+                              ),
+                            ),
+                            onPressed: auth.isLoading
+                                ? null
+                                : () {
+                                    setState(() {
+                                      _accountNotFound = false;
+                                    });
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => const RegisterPage(),
+                                      ),
+                                    );
+                                  },
+                            child: const Text(
+                              'Crear cuenta',
+                              style: TextStyle(fontWeight: FontWeight.w900),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _accountNotFound = false;
+                              });
+                              auth.clearGoogleSession();
+                            },
+                            child: const Text(
+                              'Intentar con otra cuenta',
+                              style: TextStyle(
+                                color: OnesColors.purpleDeep,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 16),
-                  ],
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      onPressed: auth.isLoading
-                          ? null
-                          : () async {
-                              final step = await auth.signInExisting();
-                              if (!context.mounted) return;
-                              if (step == AuthNextStep.needsRegistration) {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const RegisterPage(),
-                                  ),
-                                );
-                              }
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: OnesColors.white,
-                        foregroundColor: OnesColors.black,
-                        shape: const RoundedRectangleBorder(
+                  ] else ...[
+                    if (auth.error != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: OnesColors.white.withOpacity(0.6),
                           borderRadius: BorderRadius.zero,
                         ),
-                        elevation: 0,
-                      ),
-                      child: Text(
-                        auth.isLoading
-                            ? 'Signing in...'
-                            : 'Sign in with Google',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextButton(
-                    onPressed: auth.isLoading
-                        ? null
-                        : () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const RegisterPage(),
-                              ),
-                            );
-                          },
-                    child: const Text(
-                      'Create an account',
-                      style: TextStyle(
-                        color: OnesColors.purpleDeep,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'By continuing, you agree to our Terms of Service\nand Privacy Policy.',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: OnesColors.black.withOpacity(0.55),
-                          height: 1.3,
+                        child: Text(
+                          'Error: ${auth.error}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: OnesColors.danger),
                         ),
-                  ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton(
+                        onPressed: auth.isLoading
+                            ? null
+                            : () async {
+                                final step = await auth.signInExisting();
+                                // ignore: avoid_print
+                                print('[LoginPage] signInExisting step=$step error=${auth.error}');
+                                if (!context.mounted) return;
+                                setState(() {
+                                  _accountNotFound =
+                                      step == AuthNextStep.needsRegistration;
+                                });
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: OnesColors.white,
+                          foregroundColor: OnesColors.black,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.zero,
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            FaIcon(
+                              FontAwesomeIcons.google,
+                              size: 18,
+                              color: OnesColors.black.withOpacity(0.7),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              auth.isLoading
+                                  ? 'Iniciando sesión...'
+                                  : 'Iniciar sesión con Google',
+                              style: const TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: auth.isLoading
+                          ? null
+                          : () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const RegisterPage(),
+                                ),
+                              );
+                            },
+                      child: const Text(
+                        'Crear una cuenta',
+                        style: TextStyle(
+                          color: OnesColors.purpleDeep,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 18),
                 ],
               ),

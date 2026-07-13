@@ -102,7 +102,18 @@ class OnesApiFactory {
               headers: mergedHeaders,
             );
             final response = await client.dio.fetch<dynamic>(newOptions);
-            handler.resolve(response);
+            final statusCode = response.statusCode ?? 0;
+            if (statusCode >= 400) {
+              handler.next(
+                DioException(
+                  requestOptions: newOptions,
+                  response: response,
+                  type: DioExceptionType.badResponse,
+                ),
+              );
+            } else {
+              handler.resolve(response);
+            }
           } catch (err) {
             if (err is DioException) {
               handler.next(err);

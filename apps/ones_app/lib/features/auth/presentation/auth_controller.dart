@@ -33,6 +33,7 @@ class AuthController extends ChangeNotifier {
   String? _idToken;
   String? _preferredName;
   String? _languagePreference;
+  bool _termsAccepted = false;
   bool _isAdmin = false;
   bool _isRegistered = false;
   bool _isLoading = false;
@@ -61,6 +62,7 @@ class AuthController extends ChangeNotifier {
   String? get idToken => _idToken;
   String? get preferredName => _preferredName;
   String? get languagePreference => _languagePreference;
+  bool get termsAccepted => _termsAccepted;
   bool get isAdmin => _isAdmin;
   bool get isSignedIn => _user != null;
   bool get isRegistered => _isRegistered;
@@ -119,14 +121,20 @@ class AuthController extends ChangeNotifier {
         _languagePreference = (lp != null && lp.trim().isNotEmpty)
             ? lp.trim().toLowerCase()
             : 'es';
+        _termsAccepted = prefs?.termsAccepted ?? false;
         _isAdmin = await _safeLoadIsAdmin(token);
         _isRegistered = true;
       } on DioException catch (e) {
         if (e.response?.statusCode == 404) {
+          _user = null;
+          _idToken = null;
           _preferredName = null;
           _languagePreference = null;
+          _termsAccepted = false;
           _isAdmin = false;
           _isRegistered = false;
+          _prefs ??= await SharedPreferences.getInstance();
+          await _prefs!.remove(_lastInteractiveSignInAtKey);
           return;
         }
         rethrow;
@@ -136,6 +144,8 @@ class AuthController extends ChangeNotifier {
       _user = null;
       _idToken = null;
       _preferredName = null;
+      _languagePreference = null;
+      _termsAccepted = false;
       _isAdmin = false;
       _isRegistered = false;
     } finally {
@@ -151,6 +161,8 @@ class AuthController extends ChangeNotifier {
 
       _user = await signInWithGoogle.execute();
       _idToken = await getIdToken.execute();
+      // ignore: avoid_print
+      print('[AuthController] signInExisting userId=${_user?.userId} email=${_user?.email}');
 
       final tokenForClaims = _idToken;
       if (_user != null &&
@@ -182,6 +194,7 @@ class AuthController extends ChangeNotifier {
         _languagePreference = (lp != null && lp.trim().isNotEmpty)
             ? lp.trim().toLowerCase()
             : 'es';
+        _termsAccepted = prefs?.termsAccepted ?? false;
         _isAdmin = await _safeLoadIsAdmin(token);
         _isRegistered = true;
         await _persistInteractiveSignInTimestamp();
@@ -190,6 +203,7 @@ class AuthController extends ChangeNotifier {
         if (e.response?.statusCode == 404) {
           _preferredName = null;
           _languagePreference = null;
+          _termsAccepted = false;
           _isAdmin = false;
           _isRegistered = false;
           return AuthNextStep.needsRegistration;
@@ -197,10 +211,14 @@ class AuthController extends ChangeNotifier {
         rethrow;
       }
     } catch (e) {
+      // ignore: avoid_print
+      print('[AuthController] signInExisting FAILED: $e');
       _error = _formatDioOrRawError(e);
       _user = null;
       _idToken = null;
       _preferredName = null;
+      _languagePreference = null;
+      _termsAccepted = false;
       _isAdmin = false;
       _isRegistered = false;
       return AuthNextStep.failed;
@@ -248,6 +266,8 @@ class AuthController extends ChangeNotifier {
       _user = null;
       _idToken = null;
       _preferredName = null;
+      _languagePreference = null;
+      _termsAccepted = false;
       _isAdmin = false;
       _isRegistered = false;
       return AuthNextStep.failed;
@@ -256,7 +276,10 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  Future<void> completeRegistration(String preferredName) async {
+  Future<void> completeRegistration(
+    String preferredName, {
+    bool termsAccepted = false,
+  }) async {
     final token = _idToken;
     if (token == null || token.isEmpty) {
       throw StateError('Missing idToken');
@@ -273,10 +296,11 @@ class AuthController extends ChangeNotifier {
       await ensureUser.execute(token);
       final lang = _languagePreference ?? 'es';
       final updated =
-          await updateUserPreferences.execute(token, trimmed, lang);
+          await updateUserPreferences.execute(token, trimmed, lang, termsAccepted);
       _preferredName = (updated?.preferredName ?? trimmed).trim();
       _languagePreference =
           (updated?.languagePreference ?? lang).trim().toLowerCase();
+      _termsAccepted = updated?.termsAccepted ?? termsAccepted;
       _isAdmin = await _safeLoadIsAdmin(token);
       _isRegistered = true;
       await _persistInteractiveSignInTimestamp();
@@ -313,10 +337,11 @@ class AuthController extends ChangeNotifier {
     try {
       _error = null;
       final updated =
-          await updateUserPreferences.execute(token, pn, lang);
+          await updateUserPreferences.execute(token, pn, lang, _termsAccepted);
       _preferredName = updated?.preferredName ?? pn;
       _languagePreference =
           (updated?.languagePreference ?? lang).trim().toLowerCase();
+      _termsAccepted = updated?.termsAccepted ?? _termsAccepted;
     } catch (e) {
       _error = e;
       rethrow;
@@ -346,6 +371,12 @@ class AuthController extends ChangeNotifier {
     } catch (_) {
       return null;
     }
+  }
+
+  Future<void> clearGoogleSession() async {
+    try {
+      await signOut.execute();
+    } catch (_) {}
   }
 
   Future<void> logout() async {

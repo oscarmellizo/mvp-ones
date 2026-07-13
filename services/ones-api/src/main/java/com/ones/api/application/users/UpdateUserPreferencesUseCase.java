@@ -29,7 +29,7 @@ public class UpdateUserPreferencesUseCase {
         this.clock = clock;
     }
 
-    public Optional<User> execute(String userId, String preferredName, String languagePreference) {
+    public Optional<User> execute(String userId, String preferredName, String languagePreference, Boolean termsAccepted) {
         return usersRepository.findById(userId)
                 .map(existing -> {
                     Instant now = Instant.now(clock);
@@ -38,6 +38,9 @@ public class UpdateUserPreferencesUseCase {
                             languagePreference,
                             existing.getLanguagePreference()
                     );
+                    boolean effectiveTermsAccepted = termsAccepted != null
+                            ? termsAccepted
+                            : existing.isTermsAccepted();
                     User updated = new User(
                             existing.getUserId(),
                             existing.getEmail(),
@@ -48,6 +51,7 @@ public class UpdateUserPreferencesUseCase {
                             preferredName,
                             existing.getProvider(),
                             effectiveLanguagePreference,
+                            effectiveTermsAccepted,
                             existing.getCreatedAt(),
                             now
                     );

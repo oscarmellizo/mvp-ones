@@ -119,6 +119,7 @@ public class CreateEventUseCase {
                 null,
                 "stub",
                 null, // languagePreference
+                false, // termsAccepted
                 now,
                 now
         );

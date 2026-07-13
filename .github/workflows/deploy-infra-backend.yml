@@ -221,8 +221,8 @@ jobs:
               AppBaseUrl="${appBaseUrl}" \
               EmailEnabled="true" \
               EmailFrom="donotreply@ones.events" \
-              PublicBaseUrl="${appBaseUrl}" \
               EmailLogoUrl="${appBaseUrl}/assets/assets/branding/ones-logo.png" \
+              PublicBaseUrl="${appBaseUrl}" \
               BackendDesiredCount="${{ inputs.backendDesiredCount }}" \
               UsePhotoThumbnailsImage="${usePhotoThumbnailsImage}" \
               CdnPhotosEnabled="${CDN_PHOTOS_ENABLED:-false}" \
@@ -462,8 +462,8 @@ jobs:
               AppBaseUrl="${appBaseUrl}" \
               EmailEnabled="true" \
               EmailFrom="donotreply@ones.events" \
-              PublicBaseUrl="${appBaseUrl}" \
               EmailLogoUrl="${appBaseUrl}/assets/assets/branding/ones-logo.png" \
+              PublicBaseUrl="${appBaseUrl}" \
               BackendDesiredCount="${{ inputs.backendDesiredCount }}" \
               UsePhotoThumbnailsImage="true" \
               CdnPhotosEnabled="${CDN_PHOTOS_ENABLED:-false}" \

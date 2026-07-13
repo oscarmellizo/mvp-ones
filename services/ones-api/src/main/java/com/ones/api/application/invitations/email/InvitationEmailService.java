@@ -115,9 +115,14 @@ public class InvitationEmailService {
 
             ses.sendEmail(req);
             sentCounter.increment();
+        } catch (software.amazon.awssdk.services.sesv2.model.SesV2Exception e) {
+            failedCounter.increment();
+            log.error("[InvitationEmailService] SES error sending to={} eventId={} awsErrorCode={} message={}",
+                    to, invitation.getEventId(), e.awsErrorDetails() != null ? e.awsErrorDetails().errorCode() : "unknown", e.getMessage());
         } catch (Exception e) {
             failedCounter.increment();
-            log.warn("Failed to send invitation email eventId={}, inviteeEmail={}", invitation.getEventId(), invitation.getInviteeEmail(), e);
+            log.error("[InvitationEmailService] Unexpected error sending to={} eventId={} errorType={} message={}",
+                    to, invitation.getEventId(), e.getClass().getSimpleName(), e.getMessage());
         }
     }
 
