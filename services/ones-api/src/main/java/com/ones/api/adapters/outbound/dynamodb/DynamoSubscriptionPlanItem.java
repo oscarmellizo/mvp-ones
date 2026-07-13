@@ -4,6 +4,7 @@ import java.util.Map;
 
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttribute;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbConvertedBy;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
@@ -98,6 +99,7 @@ public class DynamoSubscriptionPlanItem {
     }
 
     @DynamoDbAttribute("features")
+    @DynamoDbConvertedBy(MapAttributeValueConverter.class)
     public Map<String, AttributeValue> getFeatures() {
         return features;
     }
