@@ -467,9 +467,18 @@ Resources:
       AttributeDefinitions:
         - AttributeName: userId
           AttributeType: S
+        - AttributeName: mercadoPagoPreapprovalId
+          AttributeType: S
       KeySchema:
         - AttributeName: userId
           KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: byMercadoPagoPreapprovalId
+          KeySchema:
+            - AttributeName: mercadoPagoPreapprovalId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
 
   PhotosWsConnectionsTable:
     Type: AWS::DynamoDB::Table
@@ -1901,6 +1910,7 @@ Resources:
                   - !GetAtt TranslationsTable.Arn
                   - !GetAtt PlansTable.Arn
                   - !GetAtt UserSubscriptionsTable.Arn
+                  - !Sub ${UserSubscriptionsTable.Arn}/index/*
         - PolicyName: ones-photos-ws
           PolicyDocument:
             Version: '2012-10-17'

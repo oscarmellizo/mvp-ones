@@ -48,10 +48,11 @@ public class ProcessMercadoPagoWebhookUseCase {
         }
 
         String status = mapStatus(preapproval.get().status());
+        String preapprovalId = preapproval.get().id();
 
-        Optional<UserSubscription> existing = subscriptionsRepository.findByUserId(resourceId);
+        Optional<UserSubscription> existing = subscriptionsRepository.findByMercadoPagoPreapprovalId(preapprovalId);
         if (existing.isEmpty()) {
-            log.warn("No subscription found for preapprovalId={}; cannot update status", resourceId);
+            log.warn("No subscription found for preapprovalId={}; cannot update status", preapprovalId);
             return;
         }
 

@@ -92,6 +92,11 @@ class CreateEventUseCaseTest {
         }
 
         @Override
+        public Optional<com.ones.api.domain.subscriptions.UserSubscription> findByMercadoPagoPreapprovalId(String preapprovalId) {
+            return Optional.empty();
+        }
+
+        @Override
         public com.ones.api.domain.subscriptions.UserSubscription upsert(com.ones.api.domain.subscriptions.UserSubscription subscription) {
             return subscription;
         }

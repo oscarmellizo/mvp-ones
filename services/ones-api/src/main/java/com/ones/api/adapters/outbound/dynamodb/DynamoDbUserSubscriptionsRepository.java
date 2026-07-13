@@ -9,10 +9,14 @@ import org.springframework.stereotype.Repository;
 import com.ones.api.application.subscriptions.ports.UserSubscriptionsRepository;
 import com.ones.api.domain.subscriptions.UserSubscription;
 
+import software.amazon.awssdk.core.pagination.sync.SdkIterable;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbIndex;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
+import software.amazon.awssdk.enhanced.dynamodb.model.Page;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 
 @Repository
 public class DynamoDbUserSubscriptionsRepository implements UserSubscriptionsRepository {
@@ -35,6 +39,22 @@ public class DynamoDbUserSubscriptionsRepository implements UserSubscriptionsRep
                 Key.builder().partitionValue(userId.trim()).build()
         );
         return Optional.ofNullable(item).map(DynamoDbUserSubscriptionsRepository::toDomain);
+    }
+
+    @Override
+    public Optional<UserSubscription> findByMercadoPagoPreapprovalId(String preapprovalId) {
+        if (preapprovalId == null || preapprovalId.isBlank()) {
+            return Optional.empty();
+        }
+        DynamoDbIndex<DynamoUserSubscriptionItem> index = table.index("byMercadoPagoPreapprovalId");
+        QueryConditional queryConditional = QueryConditional.keyEqualTo(
+                Key.builder().partitionValue(preapprovalId.trim()).build()
+        );
+        SdkIterable<Page<DynamoUserSubscriptionItem>> pages = index.query(queryConditional);
+        return pages.stream()
+                .flatMap(page -> page.items().stream())
+                .findFirst()
+                .map(DynamoDbUserSubscriptionsRepository::toDomain);
     }
 
     @Override

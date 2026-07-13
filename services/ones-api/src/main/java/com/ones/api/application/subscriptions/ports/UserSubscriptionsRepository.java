@@ -8,6 +8,8 @@ public interface UserSubscriptionsRepository {
 
     Optional<UserSubscription> findByUserId(String userId);
 
+    Optional<UserSubscription> findByMercadoPagoPreapprovalId(String preapprovalId);
+
     UserSubscription upsert(UserSubscription subscription);
 
     void deleteByUserId(String userId);

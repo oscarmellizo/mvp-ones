@@ -3,6 +3,7 @@ package com.ones.api.adapters.outbound.dynamodb;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttribute;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSecondaryPartitionKey;
 
 @DynamoDbBean
 public class DynamoUserSubscriptionItem {
@@ -46,6 +47,7 @@ public class DynamoUserSubscriptionItem {
     }
 
     @DynamoDbAttribute("mercadoPagoPreapprovalId")
+    @DynamoDbSecondaryPartitionKey(indexNames = "byMercadoPagoPreapprovalId")
     public String getMercadoPagoPreapprovalId() {
         return mercadoPagoPreapprovalId;
     }
