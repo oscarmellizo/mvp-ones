@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/ui/ones_colors.dart';
@@ -52,7 +53,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'Welcome back!',
+                    '¡Bienvenido de nuevo!',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.w800,
@@ -61,7 +62,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Capture moments, share galleries, and\nrelive the event together.',
+                    'Captura momentos, comparte galerías y\nrevive el evento juntos.',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: OnesColors.black.withOpacity(0.7),
@@ -190,11 +191,22 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           elevation: 0,
                         ),
-                        child: Text(
-                          auth.isLoading
-                              ? 'Signing in...'
-                              : 'Sign in with Google',
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            FaIcon(
+                              FontAwesomeIcons.google,
+                              size: 18,
+                              color: OnesColors.black.withOpacity(0.7),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              auth.isLoading
+                                  ? 'Iniciando sesión...'
+                                  : 'Iniciar sesión con Google',
+                              style: const TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -210,7 +222,7 @@ class _LoginPageState extends State<LoginPage> {
                               );
                             },
                       child: const Text(
-                        'Create an account',
+                        'Crear una cuenta',
                         style: TextStyle(
                           color: OnesColors.purpleDeep,
                           fontWeight: FontWeight.w700,
@@ -218,15 +230,6 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 8),
-                  Text(
-                    'By continuing, you agree to our Terms of Service\nand Privacy Policy.',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: OnesColors.black.withOpacity(0.55),
-                          height: 1.3,
-                        ),
-                  ),
                   const SizedBox(height: 18),
                 ],
               ),

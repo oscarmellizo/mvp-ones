@@ -12,6 +12,7 @@ public record EnsureUserResponse(
         String preferredName,
         String provider,
         String languagePreference,
+        boolean termsAccepted,
         Instant createdAt,
         Instant updatedAt
 ) {

@@ -14,6 +14,7 @@ public class User {
     private final String preferredName;
     private final String provider;
     private final String languagePreference;
+    private final boolean termsAccepted;
     private final Instant createdAt;
     private final Instant updatedAt;
 
@@ -27,6 +28,7 @@ public class User {
             String preferredName,
             String provider,
             String languagePreference,
+            boolean termsAccepted,
             Instant createdAt,
             Instant updatedAt
     ) {
@@ -39,6 +41,7 @@ public class User {
         this.preferredName = preferredName;
         this.provider = Objects.requireNonNull(provider);
         this.languagePreference = languagePreference;
+        this.termsAccepted = termsAccepted;
         this.createdAt = Objects.requireNonNull(createdAt);
         this.updatedAt = Objects.requireNonNull(updatedAt);
     }
@@ -77,6 +80,10 @@ public class User {
 
     public String getLanguagePreference() {
         return languagePreference;
+    }
+
+    public boolean isTermsAccepted() {
+        return termsAccepted;
     }
 
     public Instant getCreatedAt() {

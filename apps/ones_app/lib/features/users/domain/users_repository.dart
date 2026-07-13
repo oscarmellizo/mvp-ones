@@ -7,6 +7,7 @@ abstract interface class UsersRepository {
     String idToken,
     String preferredName,
     String languagePreference,
+    bool termsAccepted,
   );
 
   Future<UserLookup?> lookupUserByEmail(String idToken, String email);
@@ -15,10 +16,12 @@ abstract interface class UsersRepository {
 class UserPreferences {
   final String? preferredName;
   final String? languagePreference;
+  final bool termsAccepted;
 
   const UserPreferences({
     required this.preferredName,
     required this.languagePreference,
+    this.termsAccepted = false,
   });
 }
 

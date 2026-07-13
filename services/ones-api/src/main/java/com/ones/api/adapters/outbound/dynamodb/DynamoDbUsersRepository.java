@@ -134,6 +134,7 @@ public class DynamoDbUsersRepository implements UsersRepository {
         item.setPicture(u.getPicture());
         item.setPreferredName(u.getPreferredName());
         item.setProvider(u.getProvider());
+        item.setTermsAccepted(u.isTermsAccepted());
         item.setCreatedAt(u.getCreatedAt().toString());
         item.setUpdatedAt(u.getUpdatedAt().toString());
         return item;
@@ -150,6 +151,7 @@ public class DynamoDbUsersRepository implements UsersRepository {
                 item.getPreferredName(),
                 item.getProvider(),
                 null, // languagePreference - will be added to DynamoUserItem later
+                item.isTermsAccepted(),
                 Instant.parse(item.getCreatedAt()),
                 Instant.parse(item.getUpdatedAt())
         );

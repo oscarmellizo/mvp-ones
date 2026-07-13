@@ -52,6 +52,8 @@ dependencies:
   path: ^1.9.0
   file_picker: ^8.1.2
   image: ^4.2.0
+  flutter_markdown: ^0.7.4
+  font_awesome_flutter: ^10.8.0
   share_plus: ^10.0.2
   web_socket_channel: ^3.0.1
   flutter_local_notifications: ^18.0.1
@@ -96,6 +98,7 @@ flutter:
     - assets/auth/
     - assets/config/
     - assets/branding/
+    - assets/legal/
 
   fonts:
     - family: Airstrike

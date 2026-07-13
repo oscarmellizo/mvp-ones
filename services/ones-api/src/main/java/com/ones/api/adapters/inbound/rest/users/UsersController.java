@@ -98,6 +98,7 @@ public class UsersController {
         String userId = authentication.getName();
         String preferredName = request != null ? request.preferredName() : null;
         String languagePreference = request != null ? request.languagePreference() : null;
+        Boolean termsAccepted = request != null ? request.termsAccepted() : null;
 
         if (preferredName == null || preferredName.trim().isEmpty()) {
             throw new IllegalArgumentException("preferredName is required");
@@ -105,7 +106,7 @@ public class UsersController {
 
         preferredName = preferredName.trim();
 
-        return updateUserPreferencesUseCase.execute(userId, preferredName, languagePreference)
+        return updateUserPreferencesUseCase.execute(userId, preferredName, languagePreference, termsAccepted)
                 .map(updated -> ResponseEntity.ok(toResponse(updated)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
@@ -121,13 +122,14 @@ public class UsersController {
                 u.getPreferredName(),
                 u.getProvider(),
                 u.getLanguagePreference(),
+                u.isTermsAccepted(),
                 u.getCreatedAt(),
                 u.getUpdatedAt()
         );
     }
 }
 
-record UpdatePreferencesRequest(String preferredName, String languagePreference) {
+record UpdatePreferencesRequest(String preferredName, String languagePreference, Boolean termsAccepted) {
 }
 
 record UserLookupResponse(String email, String preferredName) {

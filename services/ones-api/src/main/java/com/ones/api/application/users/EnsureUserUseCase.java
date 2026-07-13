@@ -31,6 +31,7 @@ public class EnsureUserUseCase {
                             existing.getPreferredName(),
                             existing.getProvider(),
                             coalesce(command.languagePreference(), existing.getLanguagePreference()),
+                            existing.isTermsAccepted(),
                             existing.getCreatedAt(),
                             now
                     );
@@ -48,6 +49,7 @@ public class EnsureUserUseCase {
                             : defaultPreferredName(command.givenName(), command.name());
                     String languagePref = command.languagePreference() != null ? command.languagePreference() : "es";
                     String existingLanguagePref = existingByEmail != null ? existingByEmail.getLanguagePreference() : languagePref;
+                    boolean existingTermsAccepted = existingByEmail != null && existingByEmail.isTermsAccepted();
                     User created = new User(
                             command.userId(),
                             normalizedEmail,
@@ -58,6 +60,7 @@ public class EnsureUserUseCase {
                             preferredName,
                             command.provider(),
                             existingLanguagePref,
+                            existingTermsAccepted,
                             createdAt,
                             now
                     );

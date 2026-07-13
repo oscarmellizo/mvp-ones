@@ -16,6 +16,7 @@ public class DynamoUserItem {
     private String picture;
     private String preferredName;
     private String provider;
+    private boolean termsAccepted;
     private String createdAt;
     private String updatedAt;
 
@@ -91,6 +92,15 @@ public class DynamoUserItem {
 
     public void setProvider(String provider) {
         this.provider = provider;
+    }
+
+    @DynamoDbAttribute("termsAccepted")
+    public boolean isTermsAccepted() {
+        return termsAccepted;
+    }
+
+    public void setTermsAccepted(boolean termsAccepted) {
+        this.termsAccepted = termsAccepted;
     }
 
     @DynamoDbAttribute("createdAt")

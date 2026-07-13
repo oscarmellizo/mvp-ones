@@ -23,7 +23,7 @@ class UserUseCasesTest {
     void getUserById_returnsUserWhenExists() {
         InMemoryUsersRepository repo = new InMemoryUsersRepository();
         Instant now = Instant.parse("2026-01-01T00:00:00Z");
-        repo.upsert(new User("u1", "a@b.com", null, null, null, null, null, "google", null, now, now));
+        repo.upsert(new User("u1", "a@b.com", null, null, null, null, null, "google", null, false, now, now));
 
         GetUserByIdUseCase useCase = new GetUserByIdUseCase(repo);
         Optional<User> out = useCase.execute("u1");
@@ -36,7 +36,7 @@ class UserUseCasesTest {
     void lookupUserByEmail_normalizesAndFinds() {
         InMemoryUsersRepository repo = new InMemoryUsersRepository();
         Instant now = Instant.parse("2026-01-01T00:00:00Z");
-        repo.upsert(new User("u1", "test@example.com", null, null, null, null, "Test", "google", null, now, now));
+        repo.upsert(new User("u1", "test@example.com", null, null, null, null, "Test", "google", null, false, now, now));
 
         LookupUserByEmailUseCase useCase = new LookupUserByEmailUseCase(repo);
         Optional<User> out = useCase.execute("  TEST@EXAMPLE.COM  ");
@@ -51,7 +51,7 @@ class UserUseCasesTest {
         InMemoryPreferredNamesCacheRepository cache = new InMemoryPreferredNamesCacheRepository();
         Instant t0 = Instant.parse("2026-01-01T00:00:00Z");
         Instant t1 = Instant.parse("2026-01-01T00:10:00Z");
-        repo.upsert(new User("u1", "a@b.com", null, null, null, null, "Old", "google", null, t0, t0));
+        repo.upsert(new User("u1", "a@b.com", null, null, null, null, "Old", "google", null, false, t0, t0));
 
         UpdateUserPreferencesUseCase useCase = new UpdateUserPreferencesUseCase(
                 repo,
@@ -59,7 +59,7 @@ class UserUseCasesTest {
                 Clock.fixed(t1, ZoneOffset.UTC)
         );
 
-        Optional<User> out = useCase.execute("u1", "New", null);
+        Optional<User> out = useCase.execute("u1", "New", null, null);
 
         assertTrue(out.isPresent());
         assertEquals("New", out.get().getPreferredName());

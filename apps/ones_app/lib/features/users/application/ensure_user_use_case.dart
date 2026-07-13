@@ -29,8 +29,9 @@ class UpdateUserPreferencesUseCase {
     String idToken,
     String preferredName,
     String languagePreference,
+    bool termsAccepted,
   ) {
-    return repository.updatePreferences(idToken, preferredName, languagePreference);
+    return repository.updatePreferences(idToken, preferredName, languagePreference, termsAccepted);
   }
 }
 

@@ -78,9 +78,11 @@ class UsersApiRepository implements UsersRepository {
     if (data is Map<String, dynamic>) {
       final pn = data['preferredName'];
       final lp = data['languagePreference'];
+      final ta = data['termsAccepted'];
       return UserPreferences(
         preferredName: pn is String ? pn : null,
         languagePreference: lp is String ? lp : null,
+        termsAccepted: ta is bool ? ta : false,
       );
     }
     return null;
@@ -91,12 +93,14 @@ class UsersApiRepository implements UsersRepository {
     String idToken,
     String preferredName,
     String languagePreference,
+    bool termsAccepted,
   ) async {
     final res = await _dioFactory(idToken).put(
       '/v1/users/preferences',
       data: {
         'preferredName': preferredName,
         'languagePreference': languagePreference,
+        'termsAccepted': termsAccepted,
       },
       options: Options(
         extra: {
@@ -115,9 +119,11 @@ class UsersApiRepository implements UsersRepository {
     if (data is Map<String, dynamic>) {
       final pn = data['preferredName'];
       final lp = data['languagePreference'];
+      final ta = data['termsAccepted'];
       return UserPreferences(
         preferredName: pn is String ? pn : null,
         languagePreference: lp is String ? lp : null,
+        termsAccepted: ta is bool ? ta : termsAccepted,
       );
     }
     return null;
