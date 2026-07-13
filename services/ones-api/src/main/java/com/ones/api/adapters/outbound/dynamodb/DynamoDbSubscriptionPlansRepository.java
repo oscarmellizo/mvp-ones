@@ -95,19 +95,32 @@ public class DynamoDbSubscriptionPlansRepository implements SubscriptionPlansRep
         return item;
     }
 
-    private static Map<String, DynamoPlanFeatureItem> toFeatureItems(Map<String, PlanFeature> features) {
+    private static Map<String, AttributeValue> toFeatureItems(Map<String, PlanFeature> features) {
         if (features == null || features.isEmpty()) {
             return Collections.emptyMap();
         }
-        Map<String, DynamoPlanFeatureItem> items = new HashMap<>();
+        Map<String, AttributeValue> items = new HashMap<>();
         features.forEach((key, feature) -> {
-            DynamoPlanFeatureItem item = new DynamoPlanFeatureItem();
-            item.setValue(feature.value());
-            item.setType(feature.type());
-            item.setLabel(feature.label());
-            items.put(key, item);
+            Map<String, AttributeValue> attributeMap = new HashMap<>();
+            attributeMap.put("type", AttributeValue.builder().s(feature.type()).build());
+            attributeMap.put("label", AttributeValue.builder().s(feature.label()).build());
+            attributeMap.put("value", toFeatureValue(feature.value()));
+            items.put(key, AttributeValue.builder().m(attributeMap).build());
         });
         return items;
+    }
+
+    private static AttributeValue toFeatureValue(Object value) {
+        if (value == null) {
+            return AttributeValue.builder().nul(true).build();
+        }
+        if (value instanceof Number number) {
+            return AttributeValue.builder().n(number.toString()).build();
+        }
+        if (value instanceof Boolean bool) {
+            return AttributeValue.builder().bool(bool).build();
+        }
+        return AttributeValue.builder().s(value.toString()).build();
     }
 
     private static SubscriptionPlan toDomain(DynamoSubscriptionPlanItem item) {
@@ -128,13 +141,41 @@ public class DynamoDbSubscriptionPlansRepository implements SubscriptionPlansRep
         );
     }
 
-    private static Map<String, PlanFeature> toFeatures(Map<String, DynamoPlanFeatureItem> items) {
+    private static Map<String, PlanFeature> toFeatures(Map<String, AttributeValue> items) {
         if (items == null || items.isEmpty()) {
             return Collections.emptyMap();
         }
         Map<String, PlanFeature> features = new HashMap<>();
-        items.forEach((key, item) -> features.put(key,
-                new PlanFeature(item.getValue(), item.getType(), item.getLabel())));
+        items.forEach((key, item) -> {
+            Map<String, AttributeValue> m = item.m();
+            if (m == null) {
+                return;
+            }
+            String type = s(m.get("type"));
+            String label = s(m.get("label"));
+            Object value = fromFeatureValue(m.get("value"));
+            features.put(key, new PlanFeature(value, type, label));
+        });
         return features;
+    }
+
+    private static Object fromFeatureValue(AttributeValue value) {
+        if (value == null) {
+            return null;
+        }
+        if (value.n() != null) {
+            return Long.parseLong(value.n());
+        }
+        if (value.bool() != null) {
+            return value.bool();
+        }
+        if (value.s() != null) {
+            return value.s();
+        }
+        return null;
+    }
+
+    private static String s(AttributeValue value) {
+        return value != null && value.s() != null ? value.s() : "";
     }
 }

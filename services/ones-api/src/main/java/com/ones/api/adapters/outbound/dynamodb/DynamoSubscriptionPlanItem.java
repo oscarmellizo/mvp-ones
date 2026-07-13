@@ -5,6 +5,7 @@ import java.util.Map;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttribute;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 @DynamoDbBean
 public class DynamoSubscriptionPlanItem {
@@ -17,7 +18,7 @@ public class DynamoSubscriptionPlanItem {
     private String currency;
     private String billingInterval;
     private String mercadoPagoPlanId;
-    private Map<String, DynamoPlanFeatureItem> features;
+    private Map<String, AttributeValue> features;
     private boolean active;
     private int sortOrder;
     private String createdAt;
@@ -97,11 +98,11 @@ public class DynamoSubscriptionPlanItem {
     }
 
     @DynamoDbAttribute("features")
-    public Map<String, DynamoPlanFeatureItem> getFeatures() {
+    public Map<String, AttributeValue> getFeatures() {
         return features;
     }
 
-    public void setFeatures(Map<String, DynamoPlanFeatureItem> features) {
+    public void setFeatures(Map<String, AttributeValue> features) {
         this.features = features;
     }
 
