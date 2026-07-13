@@ -1030,8 +1030,8 @@ Resources:
     Type: AWS::SecretsManager::Secret
     Properties:
       Name: !Sub ${StackPrefix}-${Environment}-mercadopago-credentials
-      Description: Mercado Pago access token and public key
-      SecretString: '{"access_token":"","public_key":""}'
+      Description: Mercado Pago access token, public key and webhook secret
+      SecretString: '{"access_token":"","public_key":"","webhook_secret":""}'
       Tags:
         - Key: Environment
           Value: !Ref Environment
@@ -1843,6 +1843,7 @@ Resources:
                   - !Ref ActuatorBasicAuthSecret
                   - !Ref InternalBasicAuthSecret
                   - !Ref GrafanaAdminSecret
+                  - !Ref MercadoPagoCredentialsSecret
                   - !If
                     - IsNotProdEnv
                     - !Ref CloudFrontPrivateKeySecret
@@ -2065,6 +2066,8 @@ Resources:
               ValueFrom: !Sub '${MercadoPagoCredentialsSecret}:access_token::'
             - Name: ONES_MERCADOPAGO_PUBLIC_KEY
               ValueFrom: !Sub '${MercadoPagoCredentialsSecret}:public_key::'
+            - Name: ONES_MERCADOPAGO_WEBHOOK_SECRET
+              ValueFrom: !Sub '${MercadoPagoCredentialsSecret}:webhook_secret::'
           Environment:
             - Name: AWS_REGION
               Value: !Ref AWS::Region
