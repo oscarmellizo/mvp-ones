@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import com.ones.api.application.events.ports.EventsRepository;
 import com.ones.api.application.invitations.ports.InvitationsRepository;
 import com.ones.api.application.invitations.email.InvitationEmailService;
+import com.ones.api.application.subscriptions.CheckPlanLimitUseCase;
 import com.ones.api.application.users.ports.UsersRepository;
 import com.ones.api.domain.events.Event;
 import com.ones.api.domain.invitations.Invitation;
@@ -26,6 +27,7 @@ public class CreateEventUseCase {
     private final Clock clock;
     private final EventCoversService coversService;
     private final InvitationEmailService invitationEmailService;
+    private final CheckPlanLimitUseCase checkPlanLimitUseCase;
 
     public CreateEventUseCase(
             EventsRepository repository,
@@ -33,7 +35,8 @@ public class CreateEventUseCase {
             UsersRepository usersRepository,
             Clock clock,
             EventCoversService coversService,
-            InvitationEmailService invitationEmailService
+            InvitationEmailService invitationEmailService,
+            CheckPlanLimitUseCase checkPlanLimitUseCase
     ) {
         this.repository = repository;
         this.invitationsRepository = invitationsRepository;
@@ -41,6 +44,7 @@ public class CreateEventUseCase {
         this.clock = clock;
         this.coversService = coversService;
         this.invitationEmailService = invitationEmailService;
+        this.checkPlanLimitUseCase = checkPlanLimitUseCase;
     }
 
     public Event execute(
@@ -56,6 +60,9 @@ public class CreateEventUseCase {
             boolean allowGuestInvites,
             List<String> frameIds
     ) {
+        long currentEvents = repository.countByOwnerId(ownerId);
+        checkPlanLimitUseCase.execute(ownerId, "maxActiveEvents", currentEvents);
+
         String eventId = UUID.randomUUID().toString();
         Instant createdAt = Instant.now(clock);
 

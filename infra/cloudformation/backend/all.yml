@@ -441,6 +441,36 @@ Resources:
             ReadCapacityUnits: 5
             WriteCapacityUnits: 1
 
+  PlansTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-plans
+      BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      AttributeDefinitions:
+        - AttributeName: planId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: planId
+          KeyType: HASH
+
+  UserSubscriptionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-user-subscriptions
+      BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+
   PhotosWsConnectionsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -992,6 +1022,16 @@ Resources:
       Name: !Sub ${StackPrefix}-${Environment}-openai-api-key
       Description: OpenAI API key for AI Event Cover generation
       SecretString: '{}'
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  MercadoPagoCredentialsSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ${StackPrefix}-${Environment}-mercadopago-credentials
+      Description: Mercado Pago access token and public key
+      SecretString: '{"access_token":"","public_key":""}'
       Tags:
         - Key: Environment
           Value: !Ref Environment
@@ -1858,6 +1898,8 @@ Resources:
                   - !GetAtt EventTemplatesTable.Arn
                   - !Sub ${EventTemplatesTable.Arn}/index/*
                   - !GetAtt TranslationsTable.Arn
+                  - !GetAtt PlansTable.Arn
+                  - !GetAtt UserSubscriptionsTable.Arn
         - PolicyName: ones-photos-ws
           PolicyDocument:
             Version: '2012-10-17'
@@ -2019,6 +2061,10 @@ Resources:
               ValueFrom: !Sub '${ActuatorBasicAuthSecret}:username::'
             - Name: ONES_ACTUATOR_BASIC_PASSWORD
               ValueFrom: !Sub '${ActuatorBasicAuthSecret}:password::'
+            - Name: ONES_MERCADOPAGO_ACCESS_TOKEN
+              ValueFrom: !Sub '${MercadoPagoCredentialsSecret}:access_token::'
+            - Name: ONES_MERCADOPAGO_PUBLIC_KEY
+              ValueFrom: !Sub '${MercadoPagoCredentialsSecret}:public_key::'
           Environment:
             - Name: AWS_REGION
               Value: !Ref AWS::Region
@@ -2066,6 +2112,12 @@ Resources:
               Value: !Ref EventTemplatesTable
             - Name: ONES_TRANSLATIONS_TABLE
               Value: !Ref TranslationsTable
+            - Name: ONES_PLANS_TABLE
+              Value: !Ref PlansTable
+            - Name: ONES_USER_SUBSCRIPTIONS_TABLE
+              Value: !Ref UserSubscriptionsTable
+            - Name: ONES_MERCADOPAGO_CREDENTIALS_SECRET_NAME
+              Value: !Ref MercadoPagoCredentialsSecret
             - Name: ONES_EVENTS_COVERS_TEMP_BUCKET
               Value: !Ref EventsCoversTempBucket
             - Name: ONES_EVENTS_ASSETS_BUCKET
@@ -2903,6 +2955,12 @@ Outputs:
     Value: !Ref EventTemplatesTable
   TranslationsTableName:
     Value: !Ref TranslationsTable
+  PlansTableName:
+    Value: !Ref PlansTable
+  UserSubscriptionsTableName:
+    Value: !Ref UserSubscriptionsTable
+  MercadoPagoCredentialsSecretName:
+    Value: !Ref MercadoPagoCredentialsSecret
   EventsCoversTempBucketName:
     Value: !Ref EventsCoversTempBucket
   EventsAssetsBucketName:

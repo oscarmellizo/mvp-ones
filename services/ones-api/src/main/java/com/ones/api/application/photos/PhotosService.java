@@ -20,6 +20,7 @@ import com.ones.api.application.events.ports.EventsRepository;
 import com.ones.api.application.events.ports.ObjectStorage;
 import com.ones.api.application.events.ports.ObjectStoragePresigner;
 import com.ones.api.application.photos.ports.PhotosRepository;
+import com.ones.api.application.subscriptions.CheckPlanLimitUseCase;
 import com.ones.api.application.photos.ports.PhotoLikesRepository;
 import com.ones.api.application.users.ports.PreferredNamesCacheRepository;
 import com.ones.api.application.users.GetUserByIdUseCase;
@@ -45,6 +46,7 @@ public class PhotosService {
     private final CloudFrontSignedUrlService cloudFrontSignedUrlService;
     private final ShortPhotoShareLinkService shortPhotoShareLinkService;
     private final Clock clock;
+    private final CheckPlanLimitUseCase checkPlanLimitUseCase;
 
     private final String photosBucket;
     private final long putPresignTtlMinutes;
@@ -63,6 +65,7 @@ public class PhotosService {
             CloudFrontSignedUrlService cloudFrontSignedUrlService,
             ShortPhotoShareLinkService shortPhotoShareLinkService,
             Clock clock,
+            CheckPlanLimitUseCase checkPlanLimitUseCase,
             @Value("${ones.s3.events.photos.bucket}") String photosBucket,
             @Value("${ones.s3.events.photos.put-presign-ttl-minutes:15}") long putPresignTtlMinutes,
             @Value("${ones.photos.debug-list:false}") boolean debugList
@@ -79,6 +82,7 @@ public class PhotosService {
         this.cloudFrontSignedUrlService = cloudFrontSignedUrlService;
         this.shortPhotoShareLinkService = shortPhotoShareLinkService;
         this.clock = clock;
+        this.checkPlanLimitUseCase = checkPlanLimitUseCase;
         this.photosBucket = photosBucket;
         this.putPresignTtlMinutes = putPresignTtlMinutes;
         this.debugList = debugList;
@@ -124,6 +128,9 @@ public class PhotosService {
         require(s3KeyOriginal, "s3KeyOriginal");
 
         Event event = getEventUseCase.execute(requesterUserId, requesterEmail, eventId);
+
+        long currentPhotos = photosRepository.countByEventId(eventId);
+        checkPlanLimitUseCase.execute(requesterUserId, "maxPhotosPerEvent", currentPhotos);
 
         Instant now = Instant.now(clock);
         Instant resolvedCreatedAt = createdAt != null ? createdAt : now;

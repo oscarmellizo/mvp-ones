@@ -48,6 +48,9 @@ import 'features/photos/presentation/photos_upload_controller.dart';
 import 'features/photos/presentation/photos_ws_controller.dart';
 import 'features/users/adapters/api/users_api_repository.dart';
 import 'features/users/application/ensure_user_use_case.dart';
+import 'features/subscriptions/adapters/api/subscriptions_api_repository.dart';
+import 'features/subscriptions/domain/subscriptions_repository.dart';
+import 'features/subscriptions/presentation/subscriptions_controller.dart';
 import 'core/services/live_event_notification_service.dart';
 import 'core/widgets/live_events_selector.dart';
 import 'features/auth/presentation/pages/login_page.dart';
@@ -109,6 +112,7 @@ class OnesApp extends StatelessWidget {
 
     final eventPhotosApi = EventPhotosApi(apiFactory);
     final eventPhotosGalleryApi = EventPhotosApi(apiFactory);
+    final subscriptionsRepository = SubscriptionsApiRepository(apiFactory);
     // NOTE: PhotosGalleryController is NOT registered here as a global singleton.
     // Each EventDetailPage creates its own instance to guarantee per-event isolation.
     final photoUploadDb = PhotoUploadDb();
@@ -343,6 +347,14 @@ class OnesApp extends StatelessWidget {
             } else {
               controller.disconnect();
             }
+            return controller;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthController, SubscriptionsController>(
+          create: (_) => SubscriptionsController(subscriptionsRepository),
+          update: (_, auth, ctrl) {
+            apiFactory.setTokenRefresher(auth.refreshIdToken);
+            final controller = ctrl ?? SubscriptionsController(subscriptionsRepository);
             return controller;
           },
         ),
