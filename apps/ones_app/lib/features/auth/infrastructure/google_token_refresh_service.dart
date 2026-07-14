@@ -1,10 +1,10 @@
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart';
 
+import 'google_sign_in_initializer.dart';
+
 class GoogleTokenRefreshService {
   final String? webClientId;
-
-  bool _initialized = false;
 
   GoogleTokenRefreshService({
     required this.webClientId,
@@ -13,16 +13,11 @@ class GoogleTokenRefreshService {
   GoogleSignIn get _signIn => GoogleSignIn.instance;
 
   Future<void> _ensureInitialized() async {
-    if (_initialized) return;
-    final effectiveWebClientId =
-        (webClientId != null && webClientId!.trim().isNotEmpty)
-            ? webClientId
-            : null;
-    await _signIn.initialize(
-      clientId: kIsWeb ? effectiveWebClientId : null,
-      serverClientId: kIsWeb ? null : effectiveWebClientId,
-    );
-    _initialized = true;
+    await GoogleSignInInitializer.ensureInitialized(webClientId: webClientId);
+  }
+
+  Future<void> ensureInitialized() async {
+    await _ensureInitialized();
   }
 
   /// Refresh the Google ID token using silent sign-in
@@ -33,8 +28,7 @@ class GoogleTokenRefreshService {
       final current = await _signIn.attemptLightweightAuthentication();
       if (current != null) {
         final auth = await current.authentication;
-        final newIdToken = auth.idToken;
-        return newIdToken;
+        return auth.idToken;
       }
 
       return null;

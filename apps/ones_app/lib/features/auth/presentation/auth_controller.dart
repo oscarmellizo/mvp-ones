@@ -73,6 +73,12 @@ class AuthController extends ChangeNotifier {
     await signInExisting();
   }
 
+  Future<void> warmUpGoogleSignIn() async {
+    try {
+      await tokenRefreshService.ensureInitialized();
+    } catch (_) {}
+  }
+
   Future<void> restoreSessionIfPossible() async {
     final existing = _restoreInFlight;
     if (existing != null) {

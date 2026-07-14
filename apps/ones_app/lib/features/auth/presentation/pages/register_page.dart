@@ -1,13 +1,18 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:async';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/widgets/ones_card.dart';
 import '../../../../core/ui/widgets/ones_text_field.dart';
 import '../auth_controller.dart';
+import '../../infrastructure/google_sign_in_initializer.dart';
 import 'legal_markdown_page.dart';
+import '../google_sign_in_button.dart';
 
 class RegisterPage extends StatefulWidget {
   final bool popToRootOnComplete;
@@ -28,17 +33,64 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _termsAccepted = false;
   AuthController? _authController;
 
+  Widget? _webGisButton;
+
+  StreamSubscription<GoogleSignInAuthenticationEvent>? _webAuthSub;
+  bool _webConsumedSignIn = false;
+
+  Future<void> _onWebGoogleSignedIn(BuildContext context) async {
+    final auth = context.read<AuthController>();
+    final step = await auth.beginRegistration();
+    if (!mounted) return;
+    if (step == AuthNextStep.failed) {
+      return;
+    }
+    final seed =
+        auth.preferredName ?? _guessPreferredName(auth.user?.displayName);
+    setState(() {
+      _showValidation = false;
+      if (_preferredNameController.text.trim().isEmpty &&
+          seed != null &&
+          seed.trim().isNotEmpty) {
+        _preferredNameController.text = seed.trim();
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
 
+    if (kIsWeb) {
+      _webGisButton = renderGoogleSignInButton();
+      _webAuthSub = GoogleSignIn.instance.authenticationEvents.listen((e) {
+        if (!mounted) return;
+        if (_webConsumedSignIn) return;
+        if (e is! GoogleSignInAuthenticationEventSignIn) return;
+        GoogleSignInInitializer.recordWebUser(e.user);
+        _webConsumedSignIn = true;
+        _onWebGoogleSignedIn(context);
+      });
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final auth = context.read<AuthController>();
+      if (kIsWeb) {
+        auth.warmUpGoogleSignIn();
+      }
       _authController = auth;
       auth.addListener(_onAuthChanged);
       _maybeSeedPreferredName(auth);
     });
+  }
+
+  @override
+  void dispose() {
+    _webAuthSub?.cancel();
+    _authController?.removeListener(_onAuthChanged);
+    _preferredNameController.dispose();
+    super.dispose();
   }
 
   void _maybeSeedPreferredName(AuthController auth) {
@@ -57,13 +109,6 @@ class _RegisterPageState extends State<RegisterPage> {
     if (_preferredNameController.text.trim().isEmpty) {
       _maybeSeedPreferredName(auth);
     }
-  }
-
-  @override
-  void dispose() {
-    _authController?.removeListener(_onAuthChanged);
-    _preferredNameController.dispose();
-    super.dispose();
   }
 
   String? _guessPreferredName(String? displayName) {
@@ -173,58 +218,106 @@ class _RegisterPageState extends State<RegisterPage> {
                           SizedBox(
                             width: double.infinity,
                             height: 54,
-                            child: ElevatedButton(
-                              onPressed: auth.isLoading
-                                  ? null
-                                  : () async {
-                                      final step =
-                                          await auth.beginRegistration();
-                                      if (!context.mounted) return;
-                                      if (step == AuthNextStep.failed) {
-                                        return;
-                                      }
-                                      final seed = auth.preferredName ??
-                                          _guessPreferredName(
-                                              auth.user?.displayName);
-                                      setState(() {
-                                        _showValidation = false;
-                                        if (_preferredNameController.text
-                                                .trim()
-                                                .isEmpty &&
-                                            seed != null &&
-                                            seed.trim().isNotEmpty) {
-                                          _preferredNameController.text =
-                                              seed.trim();
-                                        }
-                                      });
-                                    },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: OnesColors.white,
-                                foregroundColor: OnesColors.black,
-                                shape: const RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.zero,
-                                ),
-                                elevation: 0,
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  FaIcon(
-                                    FontAwesomeIcons.google,
-                                    size: 18,
-                                    color: OnesColors.black.withOpacity(0.7),
+                            child: kIsWeb
+                                ? Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      Positioned.fill(
+                                        child: IgnorePointer(
+                                          ignoring: auth.isLoading,
+                                          child: SizedBox.expand(
+                                            child: _webGisButton ??
+                                                renderGoogleSignInButton(),
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned.fill(
+                                        child: IgnorePointer(
+                                          ignoring: true,
+                                          child: Container(
+                                            height: 54,
+                                            color: OnesColors.white,
+                                            alignment: Alignment.center,
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                FaIcon(
+                                                  FontAwesomeIcons.google,
+                                                  size: 18,
+                                                  color: OnesColors.black
+                                                      .withOpacity(0.7),
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Text(
+                                                  auth.isLoading
+                                                      ? 'Conectando...'
+                                                      : 'Continuar con Google',
+                                                  style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w700),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : ElevatedButton(
+                                    onPressed: auth.isLoading
+                                        ? null
+                                        : () async {
+                                            final step =
+                                                await auth.beginRegistration();
+                                            if (!context.mounted) return;
+                                            if (step == AuthNextStep.failed) {
+                                              return;
+                                            }
+                                            final seed = auth.preferredName ??
+                                                _guessPreferredName(
+                                                    auth.user?.displayName);
+                                            setState(() {
+                                              _showValidation = false;
+                                              if (_preferredNameController.text
+                                                      .trim()
+                                                      .isEmpty &&
+                                                  seed != null &&
+                                                  seed.trim().isNotEmpty) {
+                                                _preferredNameController.text =
+                                                    seed.trim();
+                                              }
+                                            });
+                                          },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: OnesColors.white,
+                                      foregroundColor: OnesColors.black,
+                                      shape: const RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.zero,
+                                      ),
+                                      elevation: 0,
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        FaIcon(
+                                          FontAwesomeIcons.google,
+                                          size: 18,
+                                          color:
+                                              OnesColors.black.withOpacity(0.7),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Text(
+                                          auth.isLoading
+                                              ? 'Conectando...'
+                                              : 'Continuar con Google',
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w700),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    auth.isLoading
-                                        ? 'Conectando...'
-                                        : 'Continuar con Google',
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w700),
-                                  ),
-                                ],
-                              ),
-                            ),
                           ),
                         ] else ...[
                           Row(
