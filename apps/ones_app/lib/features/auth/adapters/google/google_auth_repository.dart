@@ -7,20 +7,24 @@ import '../../domain/auth_user.dart';
 class GoogleAuthRepository implements AuthRepository {
   final String? webClientId;
 
-  GoogleSignIn? _googleSignIn;
+  bool _initialized = false;
 
   GoogleAuthRepository({required this.webClientId});
 
-  GoogleSignIn get _signIn {
+  GoogleSignIn get _signIn => GoogleSignIn.instance;
+
+  Future<void> _ensureInitialized() async {
+    if (_initialized) return;
     final effectiveWebClientId =
         (webClientId != null && webClientId!.trim().isNotEmpty)
             ? webClientId
             : null;
-    return _googleSignIn ??= GoogleSignIn(
+
+    await _signIn.initialize(
       clientId: kIsWeb ? effectiveWebClientId : null,
       serverClientId: kIsWeb ? null : effectiveWebClientId,
-      scopes: const ['email', 'profile', 'openid'],
     );
+    _initialized = true;
   }
 
   Future<String?> _getIdTokenWithRetries(
@@ -44,23 +48,18 @@ class GoogleAuthRepository implements AuthRepository {
 
   @override
   Future<AuthUser> signInWithGoogle() async {
+    await _ensureInitialized();
+
     GoogleSignInAccount? account;
     if (kIsWeb) {
-      account = _signIn.currentUser;
-      if (account == null) {
-        await _signIn.signInSilently(reAuthenticate: false);
-        account = _signIn.currentUser;
-      }
+      account = await _signIn.attemptLightweightAuthentication();
       if (account == null) {
         throw StateError(
-          'Missing Google session on Web. Use the official Google Sign-In button rendered by the GIS SDK (google_sign_in_web renderButton) before calling signInWithGoogle().',
+          'Missing Google session on Web. Use the official Google Sign-In button rendered by the GIS SDK before calling signInWithGoogle().',
         );
       }
     } else {
-      account = await _signIn.signIn();
-      if (account == null) {
-        throw StateError('Sign-in aborted');
-      }
+      account = await _signIn.authenticate();
     }
 
     String? idToken = await _getIdTokenWithRetries(
@@ -70,20 +69,7 @@ class GoogleAuthRepository implements AuthRepository {
     );
 
     if (kIsWeb && (idToken == null || idToken.isEmpty)) {
-      await _signIn.signInSilently(reAuthenticate: false);
-      final current = _signIn.currentUser;
-      if (current != null) {
-        idToken = await _getIdTokenWithRetries(
-          current,
-          attempts: 12,
-          baseDelayMs: 140,
-        );
-      }
-    }
-
-    if (kIsWeb && (idToken == null || idToken.isEmpty)) {
-      await _signIn.signInSilently(reAuthenticate: true);
-      final current = _signIn.currentUser;
+      final current = await _signIn.attemptLightweightAuthentication();
       if (current != null) {
         idToken = await _getIdTokenWithRetries(
           current,
@@ -112,6 +98,7 @@ class GoogleAuthRepository implements AuthRepository {
   @override
   Future<void> signOut() async {
     try {
+      await _ensureInitialized();
       await _signIn.signOut();
     } catch (_) {
       // Best-effort: ignore errors on sign-out.
@@ -120,10 +107,9 @@ class GoogleAuthRepository implements AuthRepository {
 
   @override
   Future<String?> getIdToken() async {
-    final account = _signIn.currentUser;
-    if (account == null) {
-      return null;
-    }
+    await _ensureInitialized();
+    final account = await _signIn.attemptLightweightAuthentication();
+    if (account == null) return null;
     final auth = await account.authentication;
     return auth.idToken;
   }

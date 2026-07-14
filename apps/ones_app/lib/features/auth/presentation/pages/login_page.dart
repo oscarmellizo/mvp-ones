@@ -19,8 +19,8 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   bool _accountNotFound = false;
 
-  Stream<GoogleSignInAccount?> get _webAuthEvents {
-    return web.authenticationEvents;
+  Stream<GoogleSignInAuthenticationEvent> get _webAuthEvents {
+    return GoogleSignIn.instance.authenticationEvents;
   }
 
   Future<void> _onWebGoogleSignedIn(BuildContext context) async {
@@ -189,10 +189,11 @@ class _LoginPageState extends State<LoginPage> {
                       width: double.infinity,
                       height: 54,
                       child: kIsWeb
-                          ? StreamBuilder<GoogleSignInAccount?>(
+                          ? StreamBuilder<GoogleSignInAuthenticationEvent>(
                               stream: _webAuthEvents,
                               builder: (context, snapshot) {
-                                final hasSignedIn = snapshot.data != null;
+                                final hasSignedIn =
+                                    snapshot.data is GoogleSignInAuthenticationEventSignIn;
                                 if (hasSignedIn && !auth.isLoading) {
                                   WidgetsBinding.instance.addPostFrameCallback((_) {
                                     _onWebGoogleSignedIn(context);
