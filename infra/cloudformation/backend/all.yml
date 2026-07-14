@@ -1546,6 +1546,7 @@ Resources:
 
   PhotoThumbnailsEcrRepository:
     Type: AWS::ECR::Repository
+    Condition: UsePhotoThumbnailsImageCond
     Properties:
       RepositoryName: !Sub ${StackPrefix}-${Environment}-photo-thumbnails
       ImageScanningConfiguration:
@@ -2978,7 +2979,10 @@ Outputs:
   EcrRepositoryUri:
     Value: !GetAtt EcrRepository.RepositoryUri
   PhotoThumbnailsEcrRepositoryUri:
-    Value: !GetAtt PhotoThumbnailsEcrRepository.RepositoryUri
+    Value: !If
+      - UsePhotoThumbnailsImageCond
+      - !GetAtt PhotoThumbnailsEcrRepository.RepositoryUri
+      - ''
   ClusterName:
     Value: !Ref Cluster
   ServiceName:
