@@ -97,6 +97,13 @@ jobs:
             appBaseUrl="${{ vars.APP_BASE_URL_PROD }}"
           fi
 
+          apiAcmCertificateArn=""
+          if [ "${{ inputs.environment }}" = "dev" ]; then
+            apiAcmCertificateArn="arn:aws:acm:us-east-1:743338489837:certificate/06afae83-3df8-44c0-99d9-d60719fcae4c"
+          elif [ "${{ inputs.environment }}" = "prod" ]; then
+            apiAcmCertificateArn="arn:aws:acm:us-east-1:743338489837:certificate/d59aa61f-228a-418c-8660-c2734ce20a26"
+          fi
+
           stackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
 
           cdnPublicKeyPem=""
@@ -219,6 +226,7 @@ jobs:
               Environment="${{ inputs.environment }}" \
               GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}" \
               AppBaseUrl="${appBaseUrl}" \
+              ApiAcmCertificateArn="${apiAcmCertificateArn}" \
               EmailEnabled="true" \
               EmailFrom="donotreply@ones.events" \
               EmailLogoUrl="${appBaseUrl}/assets/assets/branding/ones-logo.png" \
