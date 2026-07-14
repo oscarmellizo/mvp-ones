@@ -74,10 +74,17 @@ jobs:
 
           webStackName="${WEB_STACK_NAME_PREFIX}-${{ inputs.environment }}"
           backendStackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
-          albDns=$(aws cloudformation describe-stacks \
-            --stack-name "${backendStackName}" \
-            --query "Stacks[0].Outputs[?OutputKey=='AlbDnsName'].OutputValue" \
-            --output text)
+          albDns=""
+          if [ "${{ inputs.environment }}" = "dev" ]; then
+            albDns="apidev.ones.events"
+          elif [ "${{ inputs.environment }}" = "prod" ]; then
+            albDns="api.ones.events"
+          else
+            albDns=$(aws cloudformation describe-stacks \
+              --stack-name "${backendStackName}" \
+              --query "Stacks[0].Outputs[?OutputKey=='AlbDnsName'].OutputValue" \
+              --output text)
+          fi
 
           wafEnabled="${{ vars.WAF_ENABLED }}"
           if [ -z "${wafEnabled}" ]; then

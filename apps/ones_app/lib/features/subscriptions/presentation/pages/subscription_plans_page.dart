@@ -202,7 +202,7 @@ class _PlanCard extends StatelessWidget {
       final feature = entry.value;
       final value = feature.value;
       final label = feature.label ?? entry.key;
-      IconData icon;
+      FaIconData icon;
       String text;
 
       if (value is bool) {
