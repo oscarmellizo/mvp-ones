@@ -77,6 +77,17 @@ jobs:
             --stack-name "${webStackName}" \
             --query "Stacks[0].Outputs[?OutputKey=='DistributionId'].OutputValue" \
             --output text)
+
+          if [ -z "${bucket}" ] || [ "${bucket}" = "None" ]; then
+            echo "ERROR: Missing web stack output BucketName for stack '${webStackName}'."
+            exit 1
+          fi
+          if [ -z "${distId}" ] || [ "${distId}" = "None" ]; then
+            echo "ERROR: Missing web stack output DistributionId for stack '${webStackName}'."
+            exit 1
+          fi
+
+          echo "Resolved web outputs: bucket=${bucket} distId=${distId}"
           echo "bucket=${bucket}" >> $GITHUB_OUTPUT
           echo "distId=${distId}" >> $GITHUB_OUTPUT
 
@@ -88,12 +99,38 @@ jobs:
             --stack-name "${backendStackName}" \
             --query "Stacks[0].Outputs[?OutputKey=='AlbUrl'].OutputValue" \
             --output text)
+
+          if [ -z "${albUrl}" ] || [ "${albUrl}" = "None" ]; then
+            echo "ERROR: Missing backend stack output AlbUrl for stack '${backendStackName}'."
+            exit 1
+          fi
           echo "albUrl=${albUrl}" >> $GITHUB_OUTPUT
 
           photosWsUrl=$(aws cloudformation describe-stacks \
             --stack-name "${backendStackName}" \
             --query "Stacks[0].Outputs[?OutputKey=='PhotosWsUrl'].OutputValue" \
             --output text 2>/dev/null || true)
+
+          if [ "${{ inputs.environment }}" = "dev" ] || [ "${{ inputs.environment }}" = "prod" ]; then
+            if [ -z "${photosWsUrl}" ] || [ "${photosWsUrl}" = "None" ]; then
+              echo "ERROR: Missing backend stack output PhotosWsUrl for stack '${backendStackName}'."
+              exit 1
+            fi
+            case "${photosWsUrl}" in
+              wss://*) ;;
+              *)
+                echo "ERROR: PhotosWsUrl must start with wss:// but got '${photosWsUrl}'."
+                exit 1
+                ;;
+            esac
+          fi
+
+          if [ -z "${{ vars.GOOGLE_WEB_CLIENT_ID }}" ]; then
+            echo "ERROR: Missing GitHub Environment var GOOGLE_WEB_CLIENT_ID for environment '${{ inputs.environment }}'."
+            exit 1
+          fi
+
+          echo "Resolved backend outputs: albUrl=${albUrl} photosWsUrl=${photosWsUrl}"
           echo "photosWsUrl=${photosWsUrl}" >> $GITHUB_OUTPUT
 
       - name: Setup Flutter
