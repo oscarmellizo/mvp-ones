@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:google_sign_in_web/web_only.dart' as web;
 import 'package:provider/provider.dart';
 
 import '../../../../core/ui/ones_colors.dart';
@@ -15,6 +18,21 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   bool _accountNotFound = false;
+
+  Stream<GoogleSignInAccount?> get _webAuthEvents {
+    return web.authenticationEvents;
+  }
+
+  Future<void> _onWebGoogleSignedIn(BuildContext context) async {
+    final auth = context.read<AuthController>();
+    final step = await auth.signInExisting();
+    // ignore: avoid_print
+    print('[LoginPage] web signInExisting step=$step error=${auth.error}');
+    if (!mounted) return;
+    setState(() {
+      _accountNotFound = step == AuthNextStep.needsRegistration;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -170,45 +188,62 @@ class _LoginPageState extends State<LoginPage> {
                     SizedBox(
                       width: double.infinity,
                       height: 54,
-                      child: ElevatedButton(
-                        onPressed: auth.isLoading
-                            ? null
-                            : () async {
-                                final step = await auth.signInExisting();
-                                // ignore: avoid_print
-                                print('[LoginPage] signInExisting step=$step error=${auth.error}');
-                                if (!context.mounted) return;
-                                setState(() {
-                                  _accountNotFound =
-                                      step == AuthNextStep.needsRegistration;
-                                });
+                      child: kIsWeb
+                          ? StreamBuilder<GoogleSignInAccount?>(
+                              stream: _webAuthEvents,
+                              builder: (context, snapshot) {
+                                final hasSignedIn = snapshot.data != null;
+                                if (hasSignedIn && !auth.isLoading) {
+                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                    _onWebGoogleSignedIn(context);
+                                  });
+                                }
+
+                                return AbsorbPointer(
+                                  absorbing: auth.isLoading,
+                                  child: web.renderButton(),
+                                );
                               },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: OnesColors.white,
-                          foregroundColor: OnesColors.black,
-                          shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.zero,
-                          ),
-                          elevation: 0,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            FaIcon(
-                              FontAwesomeIcons.google,
-                              size: 18,
-                              color: OnesColors.black.withOpacity(0.7),
+                            )
+                          : ElevatedButton(
+                              onPressed: auth.isLoading
+                                  ? null
+                                  : () async {
+                                      final step = await auth.signInExisting();
+                                      // ignore: avoid_print
+                                      print('[LoginPage] signInExisting step=$step error=${auth.error}');
+                                      if (!context.mounted) return;
+                                      setState(() {
+                                        _accountNotFound =
+                                            step == AuthNextStep.needsRegistration;
+                                      });
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: OnesColors.white,
+                                foregroundColor: OnesColors.black,
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.zero,
+                                ),
+                                elevation: 0,
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  FaIcon(
+                                    FontAwesomeIcons.google,
+                                    size: 18,
+                                    color: OnesColors.black.withOpacity(0.7),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    auth.isLoading
+                                        ? 'Iniciando sesión...'
+                                        : 'Iniciar sesión con Google',
+                                    style: const TextStyle(fontWeight: FontWeight.w700),
+                                  ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(width: 12),
-                            Text(
-                              auth.isLoading
-                                  ? 'Iniciando sesión...'
-                                  : 'Iniciar sesión con Google',
-                              style: const TextStyle(fontWeight: FontWeight.w700),
-                            ),
-                          ],
-                        ),
-                      ),
                     ),
                     const SizedBox(height: 16),
                     TextButton(

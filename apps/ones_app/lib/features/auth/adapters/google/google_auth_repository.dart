@@ -44,9 +44,23 @@ class GoogleAuthRepository implements AuthRepository {
 
   @override
   Future<AuthUser> signInWithGoogle() async {
-    GoogleSignInAccount? account = await _signIn.signIn();
-    if (account == null) {
-      throw StateError('Sign-in aborted');
+    GoogleSignInAccount? account;
+    if (kIsWeb) {
+      account = _signIn.currentUser;
+      if (account == null) {
+        await _signIn.signInSilently(reAuthenticate: false);
+        account = _signIn.currentUser;
+      }
+      if (account == null) {
+        throw StateError(
+          'Missing Google session on Web. Use the official Google Sign-In button rendered by the GIS SDK (google_sign_in_web renderButton) before calling signInWithGoogle().',
+        );
+      }
+    } else {
+      account = await _signIn.signIn();
+      if (account == null) {
+        throw StateError('Sign-in aborted');
+      }
     }
 
     String? idToken = await _getIdTokenWithRetries(
