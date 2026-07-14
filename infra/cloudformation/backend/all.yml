@@ -19,6 +19,10 @@ Parameters:
     Type: String
     Default: ''
 
+  ApiAcmCertificateArn:
+    Type: String
+    Default: ''
+
   # Email invitations (SES)
   EmailEnabled:
     Type: String
@@ -1709,6 +1713,10 @@ Resources:
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
           Value: !Sub ${StackPrefix}-${Environment}-alb-sg
@@ -1800,10 +1808,38 @@ Resources:
         - Type: forward
           TargetGroupArn: !Ref TargetGroup
 
+  HttpsListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref ApiAcmCertificateArn
+      SslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
   GrafanaListenerRule:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
       ListenerArn: !Ref Listener
+      Priority: 10
+      Conditions:
+        - Field: path-pattern
+          PathPatternConfig:
+            Values:
+              - /grafana
+              - /grafana/*
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref GrafanaTargetGroup
+
+  HttpsGrafanaListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref HttpsListener
       Priority: 10
       Conditions:
         - Field: path-pattern
