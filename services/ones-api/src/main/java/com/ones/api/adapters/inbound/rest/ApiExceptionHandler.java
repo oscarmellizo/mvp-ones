@@ -14,6 +14,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -216,6 +217,26 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                 "error", "aws_dynamodb_error",
                 "message", ex.getMessage()
+        ));
+    }
+
+    @ExceptionHandler(WebClientResponseException.class)
+    public ResponseEntity<Map<String, Object>> upstream(WebClientResponseException ex) {
+        String body = ex.getResponseBodyAsString();
+        String suffix = (body == null || body.isBlank()) ? "" : (" Detalle: " + body);
+        log.warn("Upstream HTTP call failed. status={} body={}", ex.getStatusCode().value(), body);
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of(
+                "error", "upstream_error",
+                "message", "Error al comunicarse con un servicio externo (HTTP " + ex.getStatusCode().value() + ")." + suffix
+        ));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> unexpected(Exception ex) {
+        log.error("Unhandled exception", ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "error", "internal_error",
+                "message", "Ocurrió un error inesperado. Intenta nuevamente."
         ));
     }
 

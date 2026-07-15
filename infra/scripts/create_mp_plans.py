@@ -74,7 +74,7 @@ def main():
     }
 
     back_url = f"{ONES_APP_BASE_URL.rstrip('/')}/plans/success"
-    notification_url = f"{ONES_APP_BASE_URL.rstrip('/')}/v1/webhooks/mercadopago"
+    notification_url = f"{ONES_APP_BASE_URL.rstrip('/')}/v1/payments/mercadopago/webhook"
 
     print("Creating MercadoPago preapproval plans...")
     print(f"- back_url={back_url}")

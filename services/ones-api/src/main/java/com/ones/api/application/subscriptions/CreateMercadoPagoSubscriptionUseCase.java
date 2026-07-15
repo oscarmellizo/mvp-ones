@@ -68,6 +68,16 @@ public class CreateMercadoPagoSubscriptionUseCase {
         if (mpPlanId == null || mpPlanId.isBlank()) {
             throw new IllegalArgumentException("Mercado Pago plan id is not configured for plan: " + planId);
         }
+        String mpPlanIdRaw = mpPlanId;
+        mpPlanId = mpPlanId.trim();
+        if (!mpPlanId.equals(mpPlanIdRaw)) {
+            log.warn(
+                    "MercadoPago plan id has leading/trailing whitespace. planId={} mpPlanIdLengthRaw={} mpPlanIdLengthTrimmed={}",
+                    planId,
+                    mpPlanIdRaw.length(),
+                    mpPlanId.length()
+            );
+        }
         if (mpPlanId.startsWith("ONES_")) {
             throw new IllegalArgumentException(
                     "Mercado Pago plan id is a placeholder for plan: " + planId + ". " +

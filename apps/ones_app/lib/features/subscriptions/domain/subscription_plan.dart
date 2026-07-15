@@ -73,7 +73,9 @@ class SubscriptionPlan {
 
   String formattedPrice() {
     if (priceCents == 0) return 'Gratis';
-    final value = priceCents / 100.0;
+    final effectiveCurrency = (currency ?? 'COP').toUpperCase();
+    final divisor = effectiveCurrency == 'COP' ? 1 : 100;
+    final value = priceCents / divisor;
     return '\$ ${value.toStringAsFixed(0).replaceAllMapped(RegExp(r'\\B(?=(\\d{3})+(?!\\d))'), (m) => '.')} ${currency ?? 'COP'}/${billingInterval == 'year' ? 'año' : 'mes'}';
   }
 }

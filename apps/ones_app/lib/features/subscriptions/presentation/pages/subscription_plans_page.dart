@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/ui/ones_colors.dart';
 import '../../domain/subscription_plan.dart';
@@ -67,10 +68,20 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
     final initPoint = await controller.createMercadoPagoSubscription(planId);
     if (!mounted) return;
     if (initPoint != null) {
-      // TODO: open initPoint in WebView or external browser
-      messenger.showSnackBar(
-        SnackBar(content: Text('Abre el enlace para completar el pago: $initPoint')),
-      );
+      final uri = Uri.tryParse(initPoint);
+      if (uri == null) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Enlace de pago inválido: $initPoint')),
+        );
+        return;
+      }
+
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('No se pudo abrir el navegador. Copia y abre este enlace: $initPoint')),
+        );
+      }
     } else if (controller.error != null) {
       messenger.showSnackBar(
         SnackBar(content: Text('Error: ${controller.error}')),
