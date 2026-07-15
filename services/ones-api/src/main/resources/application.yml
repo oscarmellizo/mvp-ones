@@ -255,6 +255,7 @@ ones:
     public-key: ${ONES_MERCADOPAGO_PUBLIC_KEY:}
     webhook-secret: ${ONES_MERCADOPAGO_WEBHOOK_SECRET:}
     app-base-url: ${ONES_APP_BASE_URL:}
+    test-payer-email: ${ONES_MERCADOPAGO_TEST_PAYER_EMAIL:}
 
   photos:
     social-share-ttl-days: ${ONES_PHOTOS_SOCIAL_SHARE_TTL_DAYS:7}

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 
 import '../domain/subscription_plan.dart';
 import '../domain/subscriptions_repository.dart';
@@ -83,10 +84,27 @@ class SubscriptionsController extends ChangeNotifier {
       final initPoint = result?['initPoint'] as String?;
       return initPoint;
     } catch (e) {
-      _error = e.toString();
+      _error = _friendlyError(e);
       return null;
     } finally {
       _setLoading(false);
     }
+  }
+
+  String _friendlyError(Object e) {
+    if (e is DioException) {
+      final data = e.response?.data;
+      if (data is Map) {
+        final message = data['message'];
+        if (message is String && message.trim().isNotEmpty) {
+          return message.trim();
+        }
+      }
+      final msg = e.message;
+      if (msg != null && msg.trim().isNotEmpty) {
+        return msg.trim();
+      }
+    }
+    return e.toString();
   }
 }

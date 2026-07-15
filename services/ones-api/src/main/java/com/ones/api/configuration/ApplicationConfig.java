@@ -168,11 +168,12 @@ public class ApplicationConfig {
             UsersRepository usersRepository,
             MercadoPagoGateway mercadoPagoGateway,
             Clock clock,
-            @Value("${ones.mercadopago.app-base-url:}") String appBaseUrl
+            @Value("${ones.mercadopago.app-base-url:}") String appBaseUrl,
+            @Value("${ones.mercadopago.test-payer-email:}") String testPayerEmail
     ) {
         return new CreateMercadoPagoSubscriptionUseCase(
                 subscriptionsRepository, plansRepository, usersRepository,
-                mercadoPagoGateway, clock, appBaseUrl
+                mercadoPagoGateway, clock, appBaseUrl, testPayerEmail
         );
     }
 

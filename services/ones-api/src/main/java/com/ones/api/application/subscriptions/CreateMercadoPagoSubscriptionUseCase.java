@@ -19,6 +19,7 @@ public class CreateMercadoPagoSubscriptionUseCase {
     private final MercadoPagoGateway mercadoPagoGateway;
     private final Clock clock;
     private final String appBaseUrl;
+    private final String testPayerEmail;
 
     public CreateMercadoPagoSubscriptionUseCase(
             UserSubscriptionsRepository subscriptionsRepository,
@@ -26,7 +27,8 @@ public class CreateMercadoPagoSubscriptionUseCase {
             UsersRepository usersRepository,
             MercadoPagoGateway mercadoPagoGateway,
             Clock clock,
-            String appBaseUrl
+            String appBaseUrl,
+            String testPayerEmail
     ) {
         this.subscriptionsRepository = subscriptionsRepository;
         this.plansRepository = plansRepository;
@@ -34,6 +36,7 @@ public class CreateMercadoPagoSubscriptionUseCase {
         this.mercadoPagoGateway = mercadoPagoGateway;
         this.clock = clock;
         this.appBaseUrl = appBaseUrl;
+        this.testPayerEmail = testPayerEmail;
     }
 
     public Result execute(String userId, String planId) {
@@ -69,11 +72,15 @@ public class CreateMercadoPagoSubscriptionUseCase {
         User user = usersRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
 
+        String payerEmail = (testPayerEmail != null && !testPayerEmail.isBlank())
+                ? testPayerEmail
+                : user.getEmail();
+
         String backUrl = appendPath(appBaseUrl, "/plans/success");
 
         MercadoPagoGateway.Preapproval preapproval = mercadoPagoGateway.createPreapproval(
                 mpPlanId,
-                user.getEmail(),
+                payerEmail,
                 backUrl
         );
 

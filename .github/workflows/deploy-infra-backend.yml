@@ -88,13 +88,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          appBaseUrl=""
-          if [ "${{ inputs.environment }}" = "dev" ]; then
-            appBaseUrl="https://appdev.ones.events"
-          elif [ "${{ inputs.environment }}" = "stage" ]; then
-            appBaseUrl="${{ vars.APP_BASE_URL_STAGE }}"
-          elif [ "${{ inputs.environment }}" = "prod" ]; then
-            appBaseUrl="${{ vars.APP_BASE_URL_PROD }}"
+          appBaseUrl="${{ vars.ONES_APP_BASE_URL }}"
+          if [ -z "${appBaseUrl}" ]; then
+            echo "ERROR: Missing GitHub Environment var ONES_APP_BASE_URL for environment '${{ inputs.environment }}'."
+            exit 1
           fi
 
           apiAcmCertificateArn=""
@@ -340,13 +337,10 @@ jobs:
         run: |
           stackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
 
-          appBaseUrl=""
-          if [ "${{ inputs.environment }}" = "dev" ]; then
-            appBaseUrl="https://appdev.ones.events"
-          elif [ "${{ inputs.environment }}" = "stage" ]; then
-            appBaseUrl="${{ vars.APP_BASE_URL_STAGE }}"
-          elif [ "${{ inputs.environment }}" = "prod" ]; then
-            appBaseUrl="${{ vars.APP_BASE_URL_PROD }}"
+          appBaseUrl="${{ vars.ONES_APP_BASE_URL }}"
+          if [ -z "${appBaseUrl}" ]; then
+            echo "ERROR: Missing GitHub Environment var ONES_APP_BASE_URL for environment '${{ inputs.environment }}'."
+            exit 1
           fi
 
           cdnPublicKeyPem=""
