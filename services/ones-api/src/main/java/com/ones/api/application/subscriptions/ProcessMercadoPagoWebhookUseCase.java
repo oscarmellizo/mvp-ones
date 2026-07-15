@@ -9,7 +9,9 @@ import org.slf4j.LoggerFactory;
 
 import com.ones.api.application.subscriptions.ports.MercadoPagoGateway;
 import com.ones.api.application.subscriptions.ports.UserSubscriptionsRepository;
+import com.ones.api.application.users.ports.UsersRepository;
 import com.ones.api.domain.subscriptions.UserSubscription;
+import com.ones.api.domain.users.User;
 
 public class ProcessMercadoPagoWebhookUseCase {
 
@@ -17,15 +19,18 @@ public class ProcessMercadoPagoWebhookUseCase {
 
     private final UserSubscriptionsRepository subscriptionsRepository;
     private final MercadoPagoGateway mercadoPagoGateway;
+    private final UsersRepository usersRepository;
     private final Clock clock;
 
     public ProcessMercadoPagoWebhookUseCase(
             UserSubscriptionsRepository subscriptionsRepository,
             MercadoPagoGateway mercadoPagoGateway,
+            UsersRepository usersRepository,
             Clock clock
     ) {
         this.subscriptionsRepository = subscriptionsRepository;
         this.mercadoPagoGateway = mercadoPagoGateway;
+        this.usersRepository = usersRepository;
         this.clock = clock;
     }
 
@@ -52,7 +57,30 @@ public class ProcessMercadoPagoWebhookUseCase {
 
         Optional<UserSubscription> existing = subscriptionsRepository.findByMercadoPagoPreapprovalId(preapprovalId);
         if (existing.isEmpty()) {
-            log.warn("No subscription found for preapprovalId={}; cannot update status", preapprovalId);
+            String payerEmail = preapproval.get().payerEmail();
+
+            if (payerEmail == null || payerEmail.isBlank()) {
+                log.warn("No subscription found for preapprovalId={}; cannot resolve payer email", preapprovalId);
+                return;
+            }
+
+            Optional<User> user = usersRepository.findByEmail(payerEmail);
+            if (user.isEmpty()) {
+                log.warn("No subscription found for preapprovalId={}; no user found for payerEmail={}", preapprovalId, payerEmail);
+                return;
+            }
+
+            Optional<UserSubscription> byUser = subscriptionsRepository.findByUserId(user.get().getUserId());
+            if (byUser.isEmpty()) {
+                log.warn("No subscription found for preapprovalId={}; no subscription for userId={} payerEmail={}", preapprovalId, user.get().getUserId(), payerEmail);
+                return;
+            }
+
+            UserSubscription attached = byUser.get()
+                    .withMercadoPagoPreapprovalId(preapprovalId, Instant.now(clock))
+                    .withStatus(status, Instant.now(clock));
+            subscriptionsRepository.upsert(attached);
+            log.info("Attached preapprovalId and updated status for userId={} to {} from MP webhook", user.get().getUserId(), status);
             return;
         }
 

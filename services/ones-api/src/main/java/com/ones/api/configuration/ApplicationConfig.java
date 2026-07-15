@@ -181,8 +181,9 @@ public class ApplicationConfig {
     ProcessMercadoPagoWebhookUseCase processMercadoPagoWebhookUseCase(
             UserSubscriptionsRepository subscriptionsRepository,
             MercadoPagoGateway mercadoPagoGateway,
+            UsersRepository usersRepository,
             Clock clock
     ) {
-        return new ProcessMercadoPagoWebhookUseCase(subscriptionsRepository, mercadoPagoGateway, clock);
+        return new ProcessMercadoPagoWebhookUseCase(subscriptionsRepository, mercadoPagoGateway, usersRepository, clock);
     }
 }

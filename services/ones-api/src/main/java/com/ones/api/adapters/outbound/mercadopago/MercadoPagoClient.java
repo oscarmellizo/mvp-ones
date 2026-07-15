@@ -72,6 +72,36 @@ public class MercadoPagoClient implements MercadoPagoGateway {
     }
 
     @Override
+    public Optional<PreapprovalPlan> getPlan(String preapprovalPlanId) {
+        if (preapprovalPlanId == null || preapprovalPlanId.isBlank()) {
+            return Optional.empty();
+        }
+        if (accessToken == null || accessToken.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Mercado Pago no está configurado en este ambiente (access token faltante)."
+            );
+        }
+        try {
+            PlanResponse resp = webClient.get()
+                    .uri("/preapproval_plan/{id}", preapprovalPlanId)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .bodyToMono(PlanResponse.class)
+                    .block(Duration.ofSeconds(30));
+            if (resp == null) {
+                return Optional.empty();
+            }
+            return Optional.of(new PreapprovalPlan(resp.id, resp.reason, resp.initPoint));
+        } catch (WebClientResponseException.NotFound e) {
+            return Optional.empty();
+        } catch (WebClientResponseException e) {
+            log.warn("MercadoPago getPlan failed with status={} body={}", e.getStatusCode().value(), e.getResponseBodyAsString());
+            throw e;
+        }
+    }
+
+    @Override
     public Preapproval createPreapproval(
             String preapprovalPlanId,
             String payerEmail,
@@ -84,7 +114,7 @@ public class MercadoPagoClient implements MercadoPagoGateway {
         );
 
         PreapprovalResponse resp = post("/preapproval", req, PreapprovalResponse.class);
-        return new Preapproval(resp.id, resp.status, resp.initPoint);
+        return new Preapproval(resp.id, resp.status, resp.initPoint, resp.payerEmail);
     }
 
     @Override
@@ -103,7 +133,7 @@ public class MercadoPagoClient implements MercadoPagoGateway {
             if (resp == null) {
                 return Optional.empty();
             }
-            return Optional.of(new Preapproval(resp.id, resp.status, resp.initPoint));
+            return Optional.of(new Preapproval(resp.id, resp.status, resp.initPoint, resp.payerEmail));
         } catch (WebClientResponseException.NotFound e) {
             return Optional.empty();
         }
@@ -181,5 +211,7 @@ public class MercadoPagoClient implements MercadoPagoGateway {
         public String status;
         @JsonProperty("init_point")
         public String initPoint;
+        @JsonProperty("payer_email")
+        public String payerEmail;
     }
 }
