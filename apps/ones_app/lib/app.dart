@@ -354,6 +354,7 @@ class OnesApp extends StatelessWidget {
           create: (_) => SubscriptionsController(subscriptionsRepository),
           update: (_, auth, ctrl) {
             apiFactory.setTokenRefresher(auth.refreshIdToken);
+            subscriptionsRepository.setIdToken(auth.idToken);
             final controller = ctrl ?? SubscriptionsController(subscriptionsRepository);
             return controller;
           },

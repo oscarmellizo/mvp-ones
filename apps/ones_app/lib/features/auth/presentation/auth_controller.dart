@@ -42,9 +42,11 @@ class AuthController extends ChangeNotifier {
   SharedPreferences? _prefs;
   Future<void>? _restoreInFlight;
 
+  Future<AuthNextStep>? _signInExistingInFlight;
+
   static const String _lastInteractiveSignInAtKey =
       'ones.auth.last_interactive_signin_at_v1';
-  static const Duration _interactiveSessionTtl = Duration(hours: 24);
+  static const Duration _interactiveSessionTtl = Duration(days: 30);
 
   AuthController({
     required this.signInWithGoogle,
@@ -160,6 +162,21 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<AuthNextStep> signInExisting() async {
+    final existing = _signInExistingInFlight;
+    if (existing != null) {
+      return existing;
+    }
+
+    final f = _signInExistingInternal();
+    _signInExistingInFlight = f;
+    try {
+      return await f;
+    } finally {
+      _signInExistingInFlight = null;
+    }
+  }
+
+  Future<AuthNextStep> _signInExistingInternal() async {
     _setLoading(true);
     try {
       _error = null;

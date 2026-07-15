@@ -31,6 +31,15 @@ def _plan_item(
     active: bool = True,
 ):
     now = datetime.now(timezone.utc).isoformat()
+
+    # Defensive: ensure priceCents is an integer. Accidental floats (e.g. 19.900)
+    # will get stored in DynamoDB as decimals and can break backend parsing.
+    if isinstance(price_cents, float):
+        if price_cents.is_integer():
+            price_cents = int(price_cents)
+        else:
+            price_cents = int(round(price_cents))
+
     return {
         "planId": {"S": plan_id},
         "name": {"S": name},
@@ -89,15 +98,15 @@ def main():
         _plan_item(
             plan_id="free",
             name="Free",
-            short_description="Crea hasta 3 eventos activos y sube fotos. Ideal para probar Ones.",
+            short_description="Explora Ones sin costo. Crea hasta 2 eventos y comparte hasta 30 fotos en total para experimentar una nueva forma de conservar recuerdos compartidos.",
             tier="free",
             price_cents=0,
             currency="COP",
             billing_interval=None,
             mercado_pago_plan_id=None,
             features={
-                "maxActiveEvents": {"value": 3, "type": "number", "label": "Eventos activos"},
-                "maxPhotosPerEvent": {"value": 50, "type": "number", "label": "Fotos por evento"},
+                "maxEvents": {"value": 2, "type": "number", "label": "Eventos propios"},
+                "maxPhotos": {"value": 30, "type": "number", "label": "Fotos total"},
             },
             sort_order=1,
         ),
@@ -109,25 +118,25 @@ def main():
             price_cents=19900,
             currency="COP",
             billing_interval="month",
-            mercado_pago_plan_id=monthly_mp_plan_id or "PLACEHOLDER_MONTHLY",
+            mercado_pago_plan_id=monthly_mp_plan_id or "b03d9f007fcc4842a17721dc4e0c73a7",
             features={
-                "maxActiveEvents": {"value": True, "type": "boolean", "label": "Eventos ilimitados"},
-                "maxPhotosPerEvent": {"value": True, "type": "boolean", "label": "Fotos ilimitadas"},
+                "maxEvents": {"value": True, "type": "boolean", "label": "Eventos propios ilimitados"},
+                "maxPhotos": {"value": True, "type": "boolean", "label": "Fotos propias ilimitadas"},
             },
             sort_order=2,
         ),
         _plan_item(
             plan_id="ones-plus-yearly",
             name="Ones Plus Anual",
-            short_description="Todo lo de Ones Plus con 2 meses de descuento.",
+            short_description="Todo lo de Ones Plus con 3 meses de descuento.",
             tier="paid",
-            price_cents=199900,
+            price_cents=179100,
             currency="COP",
             billing_interval="year",
-            mercado_pago_plan_id=yearly_mp_plan_id or "PLACEHOLDER_YEARLY",
+            mercado_pago_plan_id=yearly_mp_plan_id or "f2820b192e974b0d86c013b28c6f16aa",
             features={
-                "maxActiveEvents": {"value": True, "type": "boolean", "label": "Eventos ilimitados"},
-                "maxPhotosPerEvent": {"value": True, "type": "boolean", "label": "Fotos ilimitadas"},
+                "maxEvents": {"value": True, "type": "boolean", "label": "Eventos propios ilimitados"},
+                "maxPhotos": {"value": True, "type": "boolean", "label": "Fotos propias ilimitadas"},
             },
             sort_order=3,
         ),

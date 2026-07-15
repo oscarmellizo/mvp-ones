@@ -6,6 +6,8 @@ import 'google_sign_in_initializer.dart';
 class GoogleTokenRefreshService {
   final String? webClientId;
 
+  Future<String?>? _refreshInFlight;
+
   GoogleTokenRefreshService({
     required this.webClientId,
   });
@@ -22,6 +24,21 @@ class GoogleTokenRefreshService {
 
   /// Refresh the Google ID token using silent sign-in
   Future<String?> refreshIdToken() async {
+    final existing = _refreshInFlight;
+    if (existing != null) {
+      return existing;
+    }
+
+    final f = _refreshIdTokenInternal();
+    _refreshInFlight = f;
+    try {
+      return await f;
+    } finally {
+      _refreshInFlight = null;
+    }
+  }
+
+  Future<String?> _refreshIdTokenInternal() async {
     try {
       await _ensureInitialized();
 

@@ -58,7 +58,10 @@ class GoogleAuthRepository implements AuthRepository {
         );
       }
     } else {
-      account = await _signIn.authenticate();
+      // Mobile: avoid repeated interactive prompts by attempting a lightweight
+      // (silent) authentication first.
+      account = await _signIn.attemptLightweightAuthentication();
+      account ??= await _signIn.authenticate();
     }
 
     String? idToken = await _getIdTokenWithRetries(
@@ -89,7 +92,13 @@ class GoogleAuthRepository implements AuthRepository {
   Future<void> signOut() async {
     try {
       await _ensureInitialized();
-      await _signIn.signOut();
+      // On mobile, disconnect clears the granted scopes and forces the account
+      // chooser next time. On web it can be disruptive, so keep signOut.
+      if (kIsWeb) {
+        await _signIn.signOut();
+      } else {
+        await _signIn.disconnect();
+      }
     } catch (_) {
       // Best-effort: ignore errors on sign-out.
     }

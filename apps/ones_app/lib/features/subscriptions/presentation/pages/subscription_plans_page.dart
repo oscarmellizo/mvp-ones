@@ -3,6 +3,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/ui/ones_colors.dart';
+import '../../domain/subscription_plan.dart';
 import '../subscriptions_controller.dart';
 
 class SubscriptionPlansPage extends StatefulWidget {
@@ -112,7 +113,7 @@ class _Header extends StatelessWidget {
 }
 
 class _PlanCard extends StatelessWidget {
-  final dynamic plan;
+  final SubscriptionPlan plan;
   final bool isCurrent;
   final VoidCallback? onSubscribe;
 
@@ -149,7 +150,11 @@ class _PlanCard extends StatelessWidget {
                 if (isCurrent)
                   Chip(
                     label: const Text('Actual'),
-                    backgroundColor: theme.colorScheme.primaryContainer,
+                    backgroundColor: OnesColors.purpleMid,
+                    labelStyle: const TextStyle(
+                      color: OnesColors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
               ],
             ),
@@ -194,9 +199,13 @@ class _PlanCard extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildFeatures(dynamic plan) {
-    final entries = plan.features.entries.toList()
-      ..sort((a, b) => (a.value.label ?? a.key).compareTo(b.value.label ?? b.key));
+  List<Widget> _buildFeatures(SubscriptionPlan plan) {
+    final entries = plan.features.entries.toList(growable: false)
+      ..sort((MapEntry<String, PlanFeature> a, MapEntry<String, PlanFeature> b) {
+        final aLabel = (a.value.label ?? a.key).toString();
+        final bLabel = (b.value.label ?? b.key).toString();
+        return aLabel.compareTo(bLabel);
+      });
 
     return entries.map((entry) {
       final feature = entry.value;

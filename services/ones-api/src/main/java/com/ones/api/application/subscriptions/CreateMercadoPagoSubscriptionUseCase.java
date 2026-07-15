@@ -55,13 +55,24 @@ public class CreateMercadoPagoSubscriptionUseCase {
             throw new IllegalArgumentException("Plan is not payable: " + planId);
         }
 
+        String mpPlanId = plan.getMercadoPagoPlanId();
+        if (mpPlanId == null || mpPlanId.isBlank()) {
+            throw new IllegalArgumentException("Mercado Pago plan id is not configured for plan: " + planId);
+        }
+        if (mpPlanId.startsWith("ONES_")) {
+            throw new IllegalArgumentException(
+                    "Mercado Pago plan id is a placeholder for plan: " + planId + ". " +
+                            "Set MP_MONTHLY_PLAN_ID / MP_YEARLY_PLAN_ID and re-seed subscription plans."
+            );
+        }
+
         User user = usersRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
 
         String backUrl = appendPath(appBaseUrl, "/plans/success");
 
         MercadoPagoGateway.Preapproval preapproval = mercadoPagoGateway.createPreapproval(
-                plan.getMercadoPagoPlanId(),
+                mpPlanId,
                 user.getEmail(),
                 backUrl
         );
