@@ -118,7 +118,7 @@ def main():
             price_cents=19900,
             currency="COP",
             billing_interval="month",
-            mercado_pago_plan_id=monthly_mp_plan_id or "b03d9f007fcc4842a17721dc4e0c73a7",
+            mercado_pago_plan_id=monthly_mp_plan_id or "ONES_LAUNCHE_MONTHLY",
             features={
                 "maxEvents": {"value": True, "type": "boolean", "label": "Eventos propios ilimitados"},
                 "maxPhotos": {"value": True, "type": "boolean", "label": "Fotos propias ilimitadas"},
@@ -133,7 +133,7 @@ def main():
             price_cents=179100,
             currency="COP",
             billing_interval="year",
-            mercado_pago_plan_id=yearly_mp_plan_id or "f2820b192e974b0d86c013b28c6f16aa",
+            mercado_pago_plan_id=yearly_mp_plan_id or "ONES_LAUNCHE_YEARLY",
             features={
                 "maxEvents": {"value": True, "type": "boolean", "label": "Eventos propios ilimitados"},
                 "maxPhotos": {"value": True, "type": "boolean", "label": "Fotos propias ilimitadas"},
