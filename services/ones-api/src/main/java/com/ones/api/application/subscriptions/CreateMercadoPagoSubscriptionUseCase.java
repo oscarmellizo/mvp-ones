@@ -84,9 +84,14 @@ public class CreateMercadoPagoSubscriptionUseCase {
 
         String backUrl = appendPath(appBaseUrl, "/plans/success");
 
+        String mpPlanIdMasked = mpPlanId == null ? null : (mpPlanId.length() <= 8
+                ? "***"
+                : (mpPlanId.substring(0, 4) + "..." + mpPlanId.substring(mpPlanId.length() - 4)));
+
         log.info(
-                "Creating MercadoPago preapproval. planId={} mpPlanIdPresent={} testPayerOverrideActive={} backUrlPresent={} ",
+                "Creating MercadoPago preapproval. planId={} mpPlanIdMasked={} mpPlanIdPresent={} testPayerOverrideActive={} backUrlPresent={} ",
                 planId,
+                mpPlanIdMasked,
                 mpPlanId != null && !mpPlanId.isBlank(),
                 testPayerOverrideActive,
                 backUrl != null && !backUrl.isBlank()
