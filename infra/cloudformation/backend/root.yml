@@ -22,6 +22,10 @@ Parameters:
     Type: String
     Default: ''
 
+  MercadoPagoTestPayerEmail:
+    Type: String
+    Default: ''
+
   ApiAcmCertificateArn:
     Type: String
     Default: ''
@@ -103,6 +107,7 @@ Resources:
         Environment: !Ref Environment
         GoogleClientId: !Ref GoogleClientId
         AppBaseUrl: !Ref AppBaseUrl
+        MercadoPagoTestPayerEmail: !Ref MercadoPagoTestPayerEmail
         ApiAcmCertificateArn: !Ref ApiAcmCertificateArn
         EmailEnabled: !Ref EmailEnabled
         EmailFrom: !Ref EmailFrom
