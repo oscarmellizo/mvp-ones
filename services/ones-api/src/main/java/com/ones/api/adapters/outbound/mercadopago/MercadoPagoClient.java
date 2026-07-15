@@ -105,15 +105,36 @@ public class MercadoPagoClient implements MercadoPagoGateway {
     }
 
     private <T> T post(String uri, Object body, Class<T> responseType) {
-        return webClient.post()
-                .uri(uri)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON)
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(responseType)
-                .block(Duration.ofSeconds(30));
+        if (accessToken == null || accessToken.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Mercado Pago no está configurado en este ambiente (access token faltante)."
+            );
+        }
+
+        try {
+            return webClient.post()
+                    .uri(uri)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .bodyValue(body)
+                    .retrieve()
+                    .bodyToMono(responseType)
+                    .block(Duration.ofSeconds(30));
+        } catch (WebClientResponseException.Unauthorized | WebClientResponseException.Forbidden e) {
+            throw new IllegalArgumentException(
+                    "No pudimos iniciar la suscripción porque Mercado Pago rechazó las credenciales de este ambiente. " +
+                            "Verifica el access token (sandbox/test) en AWS Secrets Manager y reinicia el servicio.",
+                    e
+            );
+        } catch (WebClientResponseException e) {
+            String bodyText = e.getResponseBodyAsString();
+            String suffix = (bodyText == null || bodyText.isBlank()) ? "" : (" Detalle: " + bodyText);
+            throw new IllegalArgumentException(
+                    "Mercado Pago devolvió un error al iniciar la suscripción (HTTP " + e.getStatusCode().value() + ")." + suffix,
+                    e
+            );
+        }
     }
 
     private record CreatePlanRequest(
