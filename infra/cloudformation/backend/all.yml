@@ -19,6 +19,10 @@ Parameters:
     Type: String
     Default: ''
 
+  MercadoPagoTestPayerEmail:
+    Type: String
+    Default: ''
+
   ApiAcmCertificateArn:
     Type: String
     Default: ''
@@ -2125,6 +2129,8 @@ Resources:
               Value: !Ref Environment
             - Name: ONES_APP_BASE_URL
               Value: !Ref AppBaseUrl
+            - Name: ONES_MERCADOPAGO_TEST_PAYER_EMAIL
+              Value: !Ref MercadoPagoTestPayerEmail
             - Name: ONES_PHOTOS_DEBUG_LIST
               Value: 'false'
             - Name: ONES_EMAIL_ENABLED

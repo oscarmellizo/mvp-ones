@@ -223,6 +223,7 @@ jobs:
               Environment="${{ inputs.environment }}" \
               GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}" \
               AppBaseUrl="${appBaseUrl}" \
+              MercadoPagoTestPayerEmail="${{ vars.ONES_MERCADOPAGO_TEST_PAYER_EMAIL }}" \
               ApiAcmCertificateArn="${apiAcmCertificateArn}" \
               EmailEnabled="true" \
               EmailFrom="donotreply@ones.events" \
@@ -462,6 +463,7 @@ jobs:
               Environment="${{ inputs.environment }}" \
               GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}" \
               AppBaseUrl="${appBaseUrl}" \
+              MercadoPagoTestPayerEmail="${{ vars.ONES_MERCADOPAGO_TEST_PAYER_EMAIL }}" \
               EmailEnabled="true" \
               EmailFrom="donotreply@ones.events" \
               EmailLogoUrl="${appBaseUrl}/assets/assets/branding/ones-logo.png" \

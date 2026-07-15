@@ -11,7 +11,12 @@ import com.ones.api.domain.subscriptions.SubscriptionPlan;
 import com.ones.api.domain.subscriptions.UserSubscription;
 import com.ones.api.domain.users.User;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class CreateMercadoPagoSubscriptionUseCase {
+
+    private static final Logger log = LoggerFactory.getLogger(CreateMercadoPagoSubscriptionUseCase.class);
 
     private final UserSubscriptionsRepository subscriptionsRepository;
     private final SubscriptionPlansRepository plansRepository;
@@ -72,11 +77,20 @@ public class CreateMercadoPagoSubscriptionUseCase {
         User user = usersRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
 
-        String payerEmail = (testPayerEmail != null && !testPayerEmail.isBlank())
+        boolean testPayerOverrideActive = (testPayerEmail != null && !testPayerEmail.isBlank());
+        String payerEmail = testPayerOverrideActive
                 ? testPayerEmail
                 : user.getEmail();
 
         String backUrl = appendPath(appBaseUrl, "/plans/success");
+
+        log.info(
+                "Creating MercadoPago preapproval. planId={} mpPlanIdPresent={} testPayerOverrideActive={} backUrlPresent={} ",
+                planId,
+                mpPlanId != null && !mpPlanId.isBlank(),
+                testPayerOverrideActive,
+                backUrl != null && !backUrl.isBlank()
+        );
 
         MercadoPagoGateway.Preapproval preapproval = mercadoPagoGateway.createPreapproval(
                 mpPlanId,
