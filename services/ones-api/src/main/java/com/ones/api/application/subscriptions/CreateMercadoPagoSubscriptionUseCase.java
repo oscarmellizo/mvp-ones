@@ -2,6 +2,7 @@ package com.ones.api.application.subscriptions;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Optional;
 
 import com.ones.api.application.subscriptions.ports.MercadoPagoGateway;
 import com.ones.api.application.subscriptions.ports.SubscriptionPlansRepository;
@@ -107,9 +108,9 @@ public class CreateMercadoPagoSubscriptionUseCase {
                 backUrl != null && !backUrl.isBlank()
         );
 
-        MercadoPagoGateway.Preapproval preapproval = mercadoPagoGateway.createPreapproval(mpPlanId, payerEmail, backUrl);
-        if (preapproval.initPoint() == null || preapproval.initPoint().isBlank()) {
-            throw new IllegalArgumentException("Mercado Pago preapproval init_point is not available for plan: " + planId);
+        Optional<MercadoPagoGateway.PreapprovalPlan> planDetails = mercadoPagoGateway.getPlan(mpPlanId);
+        if (planDetails.isEmpty() || planDetails.get().initPoint() == null || planDetails.get().initPoint().isBlank()) {
+            throw new IllegalArgumentException("Mercado Pago plan init_point is not available for plan: " + planId);
         }
 
         Instant now = Instant.now(clock);
@@ -118,11 +119,11 @@ public class CreateMercadoPagoSubscriptionUseCase {
 
         UserSubscription updated = subscription
                 .withPlan(planId, "pending", now)
-                .withMercadoPagoPreapprovalId(preapproval.id(), now);
+                .withMercadoPagoPreapprovalId(null, now);
 
         subscriptionsRepository.upsert(updated);
 
-        return new Result(preapproval.id(), preapproval.initPoint(), planId);
+        return new Result(null, planDetails.get().initPoint(), planId);
     }
 
     private static String appendPath(String baseUrl, String path) {

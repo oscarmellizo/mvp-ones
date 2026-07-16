@@ -114,7 +114,7 @@ public class MercadoPagoClient implements MercadoPagoGateway {
         );
 
         PreapprovalResponse resp = post("/preapproval", req, PreapprovalResponse.class);
-        return new Preapproval(resp.id, resp.status, resp.initPoint, resp.payerEmail);
+        return new Preapproval(resp.id, resp.status, resp.initPoint, resp.getResolvedPayerEmail());
     }
 
     @Override
@@ -133,7 +133,7 @@ public class MercadoPagoClient implements MercadoPagoGateway {
             if (resp == null) {
                 return Optional.empty();
             }
-            return Optional.of(new Preapproval(resp.id, resp.status, resp.initPoint, resp.payerEmail));
+            return Optional.of(new Preapproval(resp.id, resp.status, resp.initPoint, resp.getResolvedPayerEmail()));
         } catch (WebClientResponseException.NotFound e) {
             return Optional.empty();
         }
@@ -258,6 +258,23 @@ public class MercadoPagoClient implements MercadoPagoGateway {
         public String initPoint;
         @JsonProperty("payer_email")
         public String payerEmail;
+
+        public Payer payer;
+
+        public String getResolvedPayerEmail() {
+            if (payerEmail != null && !payerEmail.isBlank()) {
+                return payerEmail;
+            }
+            if (payer != null && payer.email != null && !payer.email.isBlank()) {
+                return payer.email;
+            }
+            return null;
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private static class Payer {
+        public String email;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
