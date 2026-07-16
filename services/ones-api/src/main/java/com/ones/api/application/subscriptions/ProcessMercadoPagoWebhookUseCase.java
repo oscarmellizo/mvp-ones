@@ -41,17 +41,31 @@ public class ProcessMercadoPagoWebhookUseCase {
         }
 
         String normalizedTopic = topic != null ? topic.toLowerCase() : "";
-        if (!normalizedTopic.contains("subscription") && !normalizedTopic.contains("preapproval")) {
-            log.info("Ignoring non-subscription Mercado Pago webhook: topic={}", topic);
+        boolean isPaymentTopic = normalizedTopic.contains("payment");
+        boolean isSubscriptionTopic = normalizedTopic.contains("subscription") || normalizedTopic.contains("preapproval");
+        if (!isSubscriptionTopic && !isPaymentTopic) {
+            log.info("Ignoring unsupported Mercado Pago webhook: topic={}", topic);
             return;
         }
 
-        String resolvedPreapprovalId = resourceId;
-        Optional<MercadoPagoGateway.Preapproval> preapproval = mercadoPagoGateway.getPreapproval(resolvedPreapprovalId);
+        String resolvedPreapprovalId = null;
+        Optional<MercadoPagoGateway.Preapproval> preapproval = Optional.empty();
+
+        if (isSubscriptionTopic) {
+            resolvedPreapprovalId = resourceId;
+            preapproval = mercadoPagoGateway.getPreapproval(resolvedPreapprovalId);
+        }
+
         if (preapproval.isEmpty()) {
             Optional<String> maybePreapprovalId = mercadoPagoGateway.resolvePreapprovalIdFromPayment(resourceId);
             if (maybePreapprovalId.isPresent()) {
                 resolvedPreapprovalId = maybePreapprovalId.get();
+                log.info(
+                        "Resolved Mercado Pago preapprovalId from payment. paymentId={} preapprovalId={} topic={}",
+                        resourceId,
+                        resolvedPreapprovalId,
+                        topic
+                );
                 preapproval = mercadoPagoGateway.getPreapproval(resolvedPreapprovalId);
             }
         }
