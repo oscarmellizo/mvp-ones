@@ -411,6 +411,11 @@ class EventCoversServiceTest {
         }
 
         @Override
+        public long countByOwnerId(String ownerId) {
+            return items.values().stream().filter(e -> ownerId.equals(e.getOwnerId())).count();
+        }
+
+        @Override
         public void deleteById(String eventId) {
             items.remove(eventId);
         }

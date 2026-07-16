@@ -121,6 +121,23 @@ public class DynamoDbPhotosRepository implements PhotosRepository {
         return new PageResult<>(out, outNextToken);
     }
 
+    @Override
+    public long countByEventId(String eventId) {
+        if (eventId == null || eventId.isBlank()) {
+            return 0;
+        }
+        DynamoDbIndex<DynamoPhotoItem> index = table.index("byEventId");
+
+        QueryEnhancedRequest request = QueryEnhancedRequest.builder()
+                .queryConditional(QueryConditional.keyEqualTo(Key.builder().partitionValue(eventId.trim()).build()))
+                .limit(10000)
+                .build();
+
+        return index.query(request).stream()
+                .flatMap(page -> page.items().stream())
+                .count();
+    }
+
     private static String encodeScanExclusiveStartKey(Map<String, AttributeValue> key) {
         String photoId = s(key.get("photoId"));
         String raw = photoId == null ? "" : photoId;

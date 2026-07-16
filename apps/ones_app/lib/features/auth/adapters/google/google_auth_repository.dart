@@ -3,24 +3,17 @@ import 'package:flutter/foundation.dart';
 
 import '../../domain/auth_repository.dart';
 import '../../domain/auth_user.dart';
+import '../../infrastructure/google_sign_in_initializer.dart';
 
 class GoogleAuthRepository implements AuthRepository {
   final String? webClientId;
 
-  GoogleSignIn? _googleSignIn;
-
   GoogleAuthRepository({required this.webClientId});
 
-  GoogleSignIn get _signIn {
-    final effectiveWebClientId =
-        (webClientId != null && webClientId!.trim().isNotEmpty)
-            ? webClientId
-            : null;
-    return _googleSignIn ??= GoogleSignIn(
-      clientId: kIsWeb ? effectiveWebClientId : null,
-      serverClientId: kIsWeb ? null : effectiveWebClientId,
-      scopes: const ['email', 'profile', 'openid'],
-    );
+  GoogleSignIn get _signIn => GoogleSignIn.instance;
+
+  Future<void> _ensureInitialized() async {
+    await GoogleSignInInitializer.ensureInitialized(webClientId: webClientId);
   }
 
   Future<String?> _getIdTokenWithRetries(
@@ -44,9 +37,31 @@ class GoogleAuthRepository implements AuthRepository {
 
   @override
   Future<AuthUser> signInWithGoogle() async {
-    GoogleSignInAccount? account = await _signIn.signIn();
-    if (account == null) {
-      throw StateError('Sign-in aborted');
+    await _ensureInitialized();
+
+    GoogleSignInAccount? account;
+    if (kIsWeb) {
+      account = GoogleSignInInitializer.lastWebUser;
+      // Web: interactive sign-in is driven by the GIS button; when this method is
+      // called we expect a session to exist. Allow a short retry window to absorb
+      // race conditions right after the popup completes.
+      if (account == null) {
+        for (var i = 0; i < 12; i++) {
+          account = await _signIn.attemptLightweightAuthentication();
+          if (account != null) break;
+          await Future<void>.delayed(Duration(milliseconds: 120 * (i + 1)));
+        }
+      }
+      if (account == null) {
+        throw StateError(
+          'Missing Google session on Web. Use the official Google Sign-In button rendered by the GIS SDK before calling signInWithGoogle().',
+        );
+      }
+    } else {
+      // Mobile: avoid repeated interactive prompts by attempting a lightweight
+      // (silent) authentication first.
+      account = await _signIn.attemptLightweightAuthentication();
+      account ??= await _signIn.authenticate();
     }
 
     String? idToken = await _getIdTokenWithRetries(
@@ -55,29 +70,7 @@ class GoogleAuthRepository implements AuthRepository {
       baseDelayMs: 200,
     );
 
-    if (kIsWeb && (idToken == null || idToken.isEmpty)) {
-      await _signIn.signInSilently(reAuthenticate: false);
-      final current = _signIn.currentUser;
-      if (current != null) {
-        idToken = await _getIdTokenWithRetries(
-          current,
-          attempts: 12,
-          baseDelayMs: 140,
-        );
-      }
-    }
-
-    if (kIsWeb && (idToken == null || idToken.isEmpty)) {
-      await _signIn.signInSilently(reAuthenticate: true);
-      final current = _signIn.currentUser;
-      if (current != null) {
-        idToken = await _getIdTokenWithRetries(
-          current,
-          attempts: 12,
-          baseDelayMs: 140,
-        );
-      }
-    }
+    // On Web, account.authentication.idToken may arrive slightly delayed.
 
     if (idToken == null || idToken.isEmpty) {
       throw StateError(
@@ -98,7 +91,14 @@ class GoogleAuthRepository implements AuthRepository {
   @override
   Future<void> signOut() async {
     try {
-      await _signIn.signOut();
+      await _ensureInitialized();
+      // On mobile, disconnect clears the granted scopes and forces the account
+      // chooser next time. On web it can be disruptive, so keep signOut.
+      if (kIsWeb) {
+        await _signIn.signOut();
+      } else {
+        await _signIn.disconnect();
+      }
     } catch (_) {
       // Best-effort: ignore errors on sign-out.
     }
@@ -106,11 +106,24 @@ class GoogleAuthRepository implements AuthRepository {
 
   @override
   Future<String?> getIdToken() async {
-    final account = _signIn.currentUser;
-    if (account == null) {
-      return null;
+    await _ensureInitialized();
+
+    GoogleSignInAccount? account;
+    if (kIsWeb) {
+      account = GoogleSignInInitializer.lastWebUser;
+      account ??= await _signIn.attemptLightweightAuthentication();
+    } else {
+      account = await _signIn.attemptLightweightAuthentication();
     }
-    final auth = await account.authentication;
-    return auth.idToken;
+
+    if (account == null) return null;
+
+    final token = await _getIdTokenWithRetries(
+      account,
+      attempts: kIsWeb ? 16 : 6,
+      baseDelayMs: 180,
+    );
+
+    return (token != null && token.isNotEmpty) ? token : null;
   }
 }

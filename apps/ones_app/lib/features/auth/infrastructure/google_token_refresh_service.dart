@@ -1,42 +1,51 @@
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart';
 
+import 'google_sign_in_initializer.dart';
+
 class GoogleTokenRefreshService {
   final String? webClientId;
 
-  GoogleSignIn? _googleSignIn;
+  Future<String?>? _refreshInFlight;
 
   GoogleTokenRefreshService({
     required this.webClientId,
   });
 
-  GoogleSignIn get _signIn {
-    return _googleSignIn ??= GoogleSignIn(
-      clientId: kIsWeb ? webClientId : null,
-      serverClientId: kIsWeb ? null : webClientId,
-      scopes: const ['email', 'profile', 'openid'],
-    );
+  GoogleSignIn get _signIn => GoogleSignIn.instance;
+
+  Future<void> _ensureInitialized() async {
+    await GoogleSignInInitializer.ensureInitialized(webClientId: webClientId);
+  }
+
+  Future<void> ensureInitialized() async {
+    await _ensureInitialized();
   }
 
   /// Refresh the Google ID token using silent sign-in
   Future<String?> refreshIdToken() async {
-    try {
-      // First, try to get a fresh ID token from the current session
-      final account = _signIn.currentUser;
-      if (account != null) {
-        final auth = await account.authentication;
-        if (auth.idToken != null && auth.idToken!.isNotEmpty) {
-          return auth.idToken;
-        }
-      }
+    final existing = _refreshInFlight;
+    if (existing != null) {
+      return existing;
+    }
 
-      // If that fails, try silent sign-in to obtain a new ID token
-      await _signIn.signInSilently(reAuthenticate: false);
-      final current = _signIn.currentUser;
+    final f = _refreshIdTokenInternal();
+    _refreshInFlight = f;
+    try {
+      return await f;
+    } finally {
+      _refreshInFlight = null;
+    }
+  }
+
+  Future<String?> _refreshIdTokenInternal() async {
+    try {
+      await _ensureInitialized();
+
+      final current = await _signIn.attemptLightweightAuthentication();
       if (current != null) {
         final auth = await current.authentication;
-        final newIdToken = auth.idToken;
-        return newIdToken;
+        return auth.idToken;
       }
 
       return null;

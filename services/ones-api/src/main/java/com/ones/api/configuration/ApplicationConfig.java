@@ -26,6 +26,16 @@ import com.ones.api.application.users.LookupUserByEmailUseCase;
 import com.ones.api.application.users.UpdateUserPreferencesUseCase;
 import com.ones.api.application.users.ports.PreferredNamesCacheRepository;
 import com.ones.api.application.users.ports.UsersRepository;
+import com.ones.api.application.subscriptions.CheckPlanLimitUseCase;
+import com.ones.api.application.subscriptions.CreateMercadoPagoSubscriptionUseCase;
+import com.ones.api.application.subscriptions.GetOrCreateUserSubscriptionUseCase;
+import com.ones.api.application.subscriptions.GetSubscriptionPlansUseCase;
+import com.ones.api.application.subscriptions.ProcessMercadoPagoWebhookUseCase;
+import com.ones.api.application.subscriptions.ports.MercadoPagoGateway;
+import com.ones.api.application.subscriptions.ports.SubscriptionPlansRepository;
+import com.ones.api.application.subscriptions.ports.UserSubscriptionsRepository;
+
+import org.springframework.beans.factory.annotation.Value;
 
 @Configuration
 public class ApplicationConfig {
@@ -42,9 +52,10 @@ public class ApplicationConfig {
             UsersRepository usersRepository,
             Clock clock,
             EventCoversService coversService,
-            InvitationEmailService invitationEmailService
+            InvitationEmailService invitationEmailService,
+            CheckPlanLimitUseCase checkPlanLimitUseCase
     ) {
-        return new CreateEventUseCase(repository, invitationsRepository, usersRepository, clock, coversService, invitationEmailService);
+        return new CreateEventUseCase(repository, invitationsRepository, usersRepository, clock, coversService, invitationEmailService, checkPlanLimitUseCase);
     }
 
     @Bean
@@ -127,5 +138,52 @@ public class ApplicationConfig {
             InvitationActionTokenService tokenService
     ) {
         return new InvitationsService(invitationsRepository, clock, tokenService);
+    }
+
+    @Bean
+    GetSubscriptionPlansUseCase getSubscriptionPlansUseCase(SubscriptionPlansRepository plansRepository) {
+        return new GetSubscriptionPlansUseCase(plansRepository);
+    }
+
+    @Bean
+    GetOrCreateUserSubscriptionUseCase getOrCreateUserSubscriptionUseCase(
+            UserSubscriptionsRepository subscriptionsRepository,
+            Clock clock
+    ) {
+        return new GetOrCreateUserSubscriptionUseCase(subscriptionsRepository, clock);
+    }
+
+    @Bean
+    CheckPlanLimitUseCase checkPlanLimitUseCase(
+            UserSubscriptionsRepository subscriptionsRepository,
+            SubscriptionPlansRepository plansRepository
+    ) {
+        return new CheckPlanLimitUseCase(subscriptionsRepository, plansRepository);
+    }
+
+    @Bean
+    CreateMercadoPagoSubscriptionUseCase createMercadoPagoSubscriptionUseCase(
+            UserSubscriptionsRepository subscriptionsRepository,
+            SubscriptionPlansRepository plansRepository,
+            UsersRepository usersRepository,
+            MercadoPagoGateway mercadoPagoGateway,
+            Clock clock,
+            @Value("${ones.mercadopago.app-base-url:}") String appBaseUrl,
+            @Value("${ones.mercadopago.test-payer-email:}") String testPayerEmail
+    ) {
+        return new CreateMercadoPagoSubscriptionUseCase(
+                subscriptionsRepository, plansRepository, usersRepository,
+                mercadoPagoGateway, clock, appBaseUrl, testPayerEmail
+        );
+    }
+
+    @Bean
+    ProcessMercadoPagoWebhookUseCase processMercadoPagoWebhookUseCase(
+            UserSubscriptionsRepository subscriptionsRepository,
+            MercadoPagoGateway mercadoPagoGateway,
+            UsersRepository usersRepository,
+            Clock clock
+    ) {
+        return new ProcessMercadoPagoWebhookUseCase(subscriptionsRepository, mercadoPagoGateway, usersRepository, clock);
     }
 }

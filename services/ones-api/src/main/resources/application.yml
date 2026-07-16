@@ -246,7 +246,16 @@ ones:
     frames-table-name: ${ONES_FRAMES_TABLE:ones-frames}
     event-templates-table-name: ${ONES_EVENT_TEMPLATES_TABLE:ones-event-templates}
     translations-table-name: ${ONES_TRANSLATIONS_TABLE:ones-translations}
+    plans-table-name: ${ONES_PLANS_TABLE:ones-plans}
+    user-subscriptions-table-name: ${ONES_USER_SUBSCRIPTIONS_TABLE:ones-user-subscriptions}
     endpoint: ${DYNAMODB_ENDPOINT:}
+
+  mercadopago:
+    access-token: ${ONES_MERCADOPAGO_ACCESS_TOKEN:}
+    public-key: ${ONES_MERCADOPAGO_PUBLIC_KEY:}
+    webhook-secret: ${ONES_MERCADOPAGO_WEBHOOK_SECRET:}
+    app-base-url: ${ONES_APP_BASE_URL:}
+    test-payer-email: ${ONES_MERCADOPAGO_TEST_PAYER_EMAIL:}
 
   photos:
     social-share-ttl-days: ${ONES_PHOTOS_SOCIAL_SHARE_TTL_DAYS:7}
@@ -254,7 +263,7 @@ ones:
     endpoint: ${ONES_WS_ENDPOINT:}
     subscriptions-table-name: ${ONES_WS_SUBSCRIPTIONS_TABLE:ones-photos-ws-subscriptions}
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000,http://localhost:8080,http://localhost:5000,http://localhost:4000,http://localhost:1234,http://localhost:7357,http://localhost:56321,http://localhost:49234,http://localhost:40233}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:*,http://127.0.0.1:*,http://localhost:5173,http://localhost:3000,http://localhost:8080,http://localhost:5000,http://localhost:4000,http://localhost:1234,http://localhost:7357,http://localhost:56321,http://localhost:49234,http://localhost:40233}
 
 logging:
   level:

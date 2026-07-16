@@ -1,0 +1,112 @@
+{
+  "ones-dev-plans": [
+    {
+      "PutRequest": {
+        "Item": {
+          "planId": { "S": "free" },
+          "name": { "S": "Free" },
+          "shortDescription": { "S": "Crea hasta 3 eventos activos y sube fotos. Ideal para probar Ones." },
+          "tier": { "S": "free" },
+          "priceCents": { "N": "0" },
+          "currency": { "S": "COP" },
+          "billingInterval": { "S": "" },
+          "mercadoPagoPlanId": { "S": "" },
+          "active": { "BOOL": true },
+          "sortOrder": { "N": "1" },
+          "createdAt": { "S": "2026-01-01T00:00:00+00:00" },
+          "updatedAt": { "S": "2026-01-01T00:00:00+00:00" },
+          "features": {
+            "M": {
+              "maxActiveEvents": {
+                "M": {
+                  "type": { "S": "number" },
+                  "label": { "S": "Eventos activos" },
+                  "value": { "N": "3" }
+                }
+              },
+              "maxPhotosPerEvent": {
+                "M": {
+                  "type": { "S": "number" },
+                  "label": { "S": "Fotos por evento" },
+                  "value": { "N": "50" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "planId": { "S": "ones-plus-monthly" },
+          "name": { "S": "Ones Plus Mensual" },
+          "shortDescription": { "S": "Eventos y fotos sin límites. Facturado mensualmente." },
+          "tier": { "S": "paid" },
+          "priceCents": { "N": "19900" },
+          "currency": { "S": "COP" },
+          "billingInterval": { "S": "month" },
+          "mercadoPagoPlanId": { "S": "ONES_LUNCH_MONTHLY" },
+          "active": { "BOOL": true },
+          "sortOrder": { "N": "2" },
+          "createdAt": { "S": "2026-01-01T00:00:00+00:00" },
+          "updatedAt": { "S": "2026-01-01T00:00:00+00:00" },
+          "features": {
+            "M": {
+              "maxActiveEvents": {
+                "M": {
+                  "type": { "S": "boolean" },
+                  "label": { "S": "Eventos ilimitados" },
+                  "value": { "BOOL": true }
+                }
+              },
+              "maxPhotosPerEvent": {
+                "M": {
+                  "type": { "S": "boolean" },
+                  "label": { "S": "Fotos ilimitadas" },
+                  "value": { "BOOL": true }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "planId": { "S": "ones-plus-yearly" },
+          "name": { "S": "Ones Plus Anual" },
+          "shortDescription": { "S": "Todo lo de Ones Plus con 3 meses de descuento." },
+          "tier": { "S": "paid" },
+          "priceCents": { "N": "179100" },
+          "currency": { "S": "COP" },
+          "billingInterval": { "S": "year" },
+          "mercadoPagoPlanId": { "S": "ONES_LUNCH_YEARLY" },
+          "active": { "BOOL": true },
+          "sortOrder": { "N": "3" },
+          "createdAt": { "S": "2026-01-01T00:00:00+00:00" },
+          "updatedAt": { "S": "2026-01-01T00:00:00+00:00" },
+          "features": {
+            "M": {
+              "maxActiveEvents": {
+                "M": {
+                  "type": { "S": "boolean" },
+                  "label": { "S": "Eventos ilimitados" },
+                  "value": { "BOOL": true }
+                }
+              },
+              "maxPhotosPerEvent": {
+                "M": {
+                  "type": { "S": "boolean" },
+                  "label": { "S": "Fotos ilimitadas" },
+                  "value": { "BOOL": true }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -7,6 +7,8 @@ import '../../../../core/ui/widgets/ones_card.dart';
 import '../../../../core/ui/widgets/ones_text_field.dart';
 import '../../../auth/presentation/auth_controller.dart';
 import '../../../admin/presentation/pages/admin_home_page.dart';
+import '../../../subscriptions/presentation/subscriptions_controller.dart';
+import '../../../subscriptions/presentation/pages/subscription_plans_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -53,6 +55,7 @@ class _ProfilePageState extends State<ProfilePage> {
             page: 'profile',
             requiredKeys: _profileRequiredKeys,
           );
+      context.read<SubscriptionsController>().loadAll();
     });
   }
 
@@ -102,6 +105,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
     final translationsService = context.watch<TranslationsService>();
+    final subscriptions = context.watch<SubscriptionsController>();
 
     final lang = translationsService.getCurrentLanguage();
     if (_lastLanguage != lang) {
@@ -130,182 +134,120 @@ class _ProfilePageState extends State<ProfilePage> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (user == null)
-                OnesCard(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    translationsService
-                        .translate('profile.no_authenticated_user'),
-                    style: TextStyle(color: OnesColors.black.withOpacity(0.6)),
-                  ),
-                )
-              else ...[
-                Center(
-                  child: Container(
-                    width: 88,
-                    height: 88,
-                    decoration: const BoxDecoration(
-                      color: OnesColors.white,
-                      shape: BoxShape.circle,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (user == null)
+                  OnesCard(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      translationsService
+                          .translate('profile.no_authenticated_user'),
+                      style:
+                          TextStyle(color: OnesColors.black.withOpacity(0.6)),
                     ),
-                    child: ClipOval(
-                      child: (pictureUrl != null && pictureUrl.isNotEmpty)
-                          ? Image.network(
-                              pictureUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, _, __) => const Center(
+                  )
+                else ...[
+                  Center(
+                    child: Container(
+                      width: 88,
+                      height: 88,
+                      decoration: const BoxDecoration(
+                        color: OnesColors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: ClipOval(
+                        child: (pictureUrl != null && pictureUrl.isNotEmpty)
+                            ? Image.network(
+                                pictureUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, _, __) => const Center(
+                                  child: Icon(
+                                    Icons.person,
+                                    size: 44,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                              )
+                            : const Center(
                                 child: Icon(
                                   Icons.person,
                                   size: 44,
                                   color: Colors.black54,
                                 ),
                               ),
-                            )
-                          : const Center(
-                              child: Icon(
-                                Icons.person,
-                                size: 44,
-                                color: Colors.black54,
-                              ),
-                            ),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 14),
-                _Card(
-                  title: translationsService.translate('profile.account'),
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: _ReadOnlyField(
-                            label: translationsService
-                                .translate('profile.first_name'),
-                            value: firstName,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _ReadOnlyField(
-                            label: translationsService
-                                .translate('profile.last_name'),
-                            value: lastName,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    _ReadOnlyField(
-                        label: translationsService.translate('profile.email'),
-                        value: email ?? ''),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                _Card(
-                  title: translationsService.translate('profile.preferences'),
-                  children: [
-                    Text(
-                      translationsService
-                          .translate('profile.preferred_name_question'),
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 8),
-                    OnesTextField(
-                      controller: _preferredNameController,
-                      hintText: translationsService
-                          .translate('profile.preferred_name_label'),
-                      fillColor: OnesColors.yellowLight.withOpacity(0.35),
-                      borderSide: BorderSide.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 12,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      translationsService
-                          .translate('profile.preferred_name_description'),
-                      style: TextStyle(
-                        color: OnesColors.black.withOpacity(0.55),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: OnesColors.purpleMid,
-                          foregroundColor: OnesColors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.zero,
-                          ),
-                        ),
-                        onPressed: auth.isLoading
-                            ? null
-                            : () async {
-                                final value =
-                                    _preferredNameController.text.trim();
-                                const selectedLanguage = 'es';
-                                FocusScope.of(context).unfocus();
-                                if (value.isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(translationsService.translate(
-                                          'profile.error_preferred_name_required')),
-                                    ),
-                                  );
-                                  return;
-                                }
-                                try {
-                                  await translationsService
-                                      .setLanguage(selectedLanguage);
-                                  await translationsService.ensurePageTranslations(
-                                    page: 'profile',
-                                    requiredKeys: _profileRequiredKeys,
-                                  );
-                                  await auth.savePreferences(
-                                    preferredName: value,
-                                    languagePreference: selectedLanguage,
-                                  );
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(translationsService.translate(
-                                          'profile.success_preferences_saved')),
-                                    ),
-                                  );
-                                } catch (_) {
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                          translationsService.translate(
-                                              'profile.error_save_failed')),
-                                    ),
-                                  );
-                                }
-                              },
-                        child: Text(
-                          translationsService
-                              .translate('profile.save_preferences'),
-                          style: const TextStyle(fontWeight: FontWeight.w900),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                if (auth.isAdmin) ...[
                   const SizedBox(height: 14),
                   _Card(
-                    title: translationsService.translate('profile.admin'),
+                    title: translationsService.translate('profile.account'),
                     children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: _ReadOnlyField(
+                              label: translationsService
+                                  .translate('profile.first_name'),
+                              value: firstName,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _ReadOnlyField(
+                              label: translationsService
+                                  .translate('profile.last_name'),
+                              value: lastName,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _ReadOnlyField(
+                          label: translationsService.translate('profile.email'),
+                          value: email ?? ''),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  _SubscriptionCard(subscriptions: subscriptions),
+                  if (subscriptions.subscription?.isFree == true) ...[
+                    const SizedBox(height: 14),
+                    const _UpgradeBanner(),
+                  ],
+                  const SizedBox(height: 14),
+                  _Card(
+                    title: translationsService.translate('profile.preferences'),
+                    children: [
+                      Text(
+                        translationsService
+                            .translate('profile.preferred_name_question'),
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 8),
+                      OnesTextField(
+                        controller: _preferredNameController,
+                        hintText: translationsService
+                            .translate('profile.preferred_name_label'),
+                        fillColor: OnesColors.yellowLight.withOpacity(0.35),
+                        borderSide: BorderSide.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        translationsService
+                            .translate('profile.preferred_name_description'),
+                        style: TextStyle(
+                          color: OnesColors.black.withOpacity(0.55),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton(
@@ -319,54 +261,133 @@ class _ProfilePageState extends State<ProfilePage> {
                           ),
                           onPressed: auth.isLoading
                               ? null
-                              : () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => const AdminHomePage(),
-                                    ),
-                                  );
+                              : () async {
+                                  final value =
+                                      _preferredNameController.text.trim();
+                                  const selectedLanguage = 'es';
+                                  FocusScope.of(context).unfocus();
+                                  if (value.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                            translationsService.translate(
+                                                'profile.error_preferred_name_required')),
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                  try {
+                                    await translationsService
+                                        .setLanguage(selectedLanguage);
+                                    await translationsService
+                                        .ensurePageTranslations(
+                                      page: 'profile',
+                                      requiredKeys: _profileRequiredKeys,
+                                    );
+                                    await auth.savePreferences(
+                                      preferredName: value,
+                                      languagePreference: selectedLanguage,
+                                    );
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                            translationsService.translate(
+                                                'profile.success_preferences_saved')),
+                                      ),
+                                    );
+                                  } catch (_) {
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(translationsService
+                                            .translate('profile.error_save_failed')),
+                                      ),
+                                    );
+                                  }
                                 },
                           child: Text(
-                            translationsService.translate('profile.open_admin'),
-                            style: const TextStyle(fontWeight: FontWeight.w900),
+                            translationsService
+                                .translate('profile.save_preferences'),
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w900),
                           ),
                         ),
                       ),
                     ],
                   ),
-                ],
-              ],
-              const Spacer(),
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: OnesColors.purpleMid,
-                    foregroundColor: OnesColors.white,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.zero,
-                    ),
-                  ),
-                  onPressed: auth.isLoading
-                      ? null
-                      : () async {
-                          await auth.logout();
-                          if (!context.mounted) return;
-                          Navigator.of(context)
-                              .popUntil((route) => route.isFirst);
-                        },
-                  child: auth.isLoading
-                      ? Text(
-                          translationsService.translate('profile.signing_out'),
-                        )
-                      : Text(
-                          translationsService.translate('profile.logout'),
-                          style: const TextStyle(fontWeight: FontWeight.w900),
+                  if (auth.isAdmin) ...[
+                    const SizedBox(height: 14),
+                    _Card(
+                      title: translationsService.translate('profile.admin'),
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: OnesColors.purpleMid,
+                              foregroundColor: OnesColors.white,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 12),
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.zero,
+                              ),
+                            ),
+                            onPressed: auth.isLoading
+                                ? null
+                                : () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => const AdminHomePage(),
+                                      ),
+                                    );
+                                  },
+                            child: Text(
+                              translationsService
+                                  .translate('profile.open_admin'),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w900),
+                            ),
+                          ),
                         ),
+                      ],
+                    ),
+                  ],
+                ],
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: OnesColors.purpleMid,
+                      foregroundColor: OnesColors.white,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.zero,
+                      ),
+                    ),
+                    onPressed: auth.isLoading
+                        ? null
+                        : () async {
+                            await auth.logout();
+                            if (!context.mounted) return;
+                            Navigator.of(context)
+                                .popUntil((route) => route.isFirst);
+                          },
+                    child: auth.isLoading
+                        ? Text(
+                            translationsService.translate('profile.signing_out'),
+                          )
+                        : Text(
+                            translationsService.translate('profile.logout'),
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w900),
+                          ),
+                  ),
                 ),
-              ),
-            ],
+                SizedBox(height: MediaQuery.of(context).padding.bottom),
+              ],
+            ),
           ),
         ),
       ),
@@ -381,6 +402,172 @@ class _ProfilePageState extends State<ProfilePage> {
   if (parts.isEmpty) return ('', '');
   if (parts.length == 1) return (parts[0], '');
   return (parts.first, parts.sublist(1).join(' '));
+}
+
+class _SubscriptionCard extends StatelessWidget {
+  final SubscriptionsController subscriptions;
+
+  const _SubscriptionCard({required this.subscriptions});
+
+  @override
+  Widget build(BuildContext context) {
+    final plan = subscriptions.currentPlan;
+    final status = subscriptions.subscription?.status ?? 'free';
+
+    return OnesCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Plan actual',
+            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      plan?.name ?? 'Free',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 18,
+                        color: OnesColors.black,
+                      ),
+                    ),
+                    Text(
+                      plan?.formattedPrice() ?? 'Gratis',
+                      style: TextStyle(
+                        color: OnesColors.black.withOpacity(0.6),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: status.toLowerCase() == 'active'
+                      ? OnesColors.green.withOpacity(0.15)
+                      : OnesColors.black.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  status.toUpperCase(),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 10,
+                    color: status.toLowerCase() == 'active'
+                        ? OnesColors.green
+                        : OnesColors.black.withOpacity(0.6),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: OnesColors.purpleMid,
+                side: const BorderSide(color: OnesColors.purpleMid),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.zero,
+                ),
+              ),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const SubscriptionPlansPage(),
+                  ),
+                );
+              },
+              child: const Text(
+                'Ver planes',
+                style: TextStyle(fontWeight: FontWeight.w900),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UpgradeBanner extends StatelessWidget {
+  const _UpgradeBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const SubscriptionPlansPage(),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: OnesColors.purpleMid.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: OnesColors.purpleMid.withOpacity(0.3)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: const BoxDecoration(
+                color: OnesColors.purpleMid,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.star,
+                color: OnesColors.white,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Hazte Ones Plus',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 15,
+                      color: OnesColors.purpleMid,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Eventos ilimitados, más fotos y más funciones.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: OnesColors.black,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: OnesColors.purpleMid,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _Card extends StatelessWidget {

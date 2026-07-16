@@ -19,6 +19,14 @@ Parameters:
     Type: String
     Default: ''
 
+  MercadoPagoTestPayerEmail:
+    Type: String
+    Default: ''
+
+  ApiAcmCertificateArn:
+    Type: String
+    Default: ''
+
   # Email invitations (SES)
   EmailEnabled:
     Type: String
@@ -108,6 +116,7 @@ Conditions:
     - !Equals [!Ref CdnPhotosEnabled, 'true']
     - !Not [!Equals [!Ref CdnPhotosSigningPublicKeySsmParamName, '']]
   IsNotProdEnv: !Not [!Equals [!Ref Environment, 'prod']]
+  HasApiAcmCertificateArn: !Not [!Equals [!Ref ApiAcmCertificateArn, '']]
 
 Resources:
   EventsTable:
@@ -440,6 +449,45 @@ Resources:
           ProvisionedThroughput:
             ReadCapacityUnits: 5
             WriteCapacityUnits: 1
+
+  PlansTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-plans
+      BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      AttributeDefinitions:
+        - AttributeName: planId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: planId
+          KeyType: HASH
+
+  UserSubscriptionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-user-subscriptions
+      BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: mercadoPagoPreapprovalId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: byMercadoPagoPreapprovalId
+          KeySchema:
+            - AttributeName: mercadoPagoPreapprovalId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
 
   PhotosWsConnectionsTable:
     Type: AWS::DynamoDB::Table
@@ -996,6 +1044,16 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
+  MercadoPagoCredentialsSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ${StackPrefix}-${Environment}-mercadopago-credentials
+      Description: Mercado Pago access token, public key and webhook secret
+      SecretString: '{"access_token":"","public_key":"","webhook_secret":""}'
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
   ActuatorBasicAuthSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
@@ -1492,6 +1550,7 @@ Resources:
 
   PhotoThumbnailsEcrRepository:
     Type: AWS::ECR::Repository
+    Condition: UsePhotoThumbnailsImageCond
     Properties:
       RepositoryName: !Sub ${StackPrefix}-${Environment}-photo-thumbnails
       ImageScanningConfiguration:
@@ -1660,6 +1719,10 @@ Resources:
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
           Value: !Sub ${StackPrefix}-${Environment}-alb-sg
@@ -1751,10 +1814,40 @@ Resources:
         - Type: forward
           TargetGroupArn: !Ref TargetGroup
 
+  HttpsListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: HasApiAcmCertificateArn
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref ApiAcmCertificateArn
+      SslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
   GrafanaListenerRule:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
       ListenerArn: !Ref Listener
+      Priority: 10
+      Conditions:
+        - Field: path-pattern
+          PathPatternConfig:
+            Values:
+              - /grafana
+              - /grafana/*
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref GrafanaTargetGroup
+
+  HttpsGrafanaListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Condition: HasApiAcmCertificateArn
+    Properties:
+      ListenerArn: !Ref HttpsListener
       Priority: 10
       Conditions:
         - Field: path-pattern
@@ -1803,6 +1896,7 @@ Resources:
                   - !Ref ActuatorBasicAuthSecret
                   - !Ref InternalBasicAuthSecret
                   - !Ref GrafanaAdminSecret
+                  - !Ref MercadoPagoCredentialsSecret
                   - !If
                     - IsNotProdEnv
                     - !Ref CloudFrontPrivateKeySecret
@@ -1858,6 +1952,9 @@ Resources:
                   - !GetAtt EventTemplatesTable.Arn
                   - !Sub ${EventTemplatesTable.Arn}/index/*
                   - !GetAtt TranslationsTable.Arn
+                  - !GetAtt PlansTable.Arn
+                  - !GetAtt UserSubscriptionsTable.Arn
+                  - !Sub ${UserSubscriptionsTable.Arn}/index/*
         - PolicyName: ones-photos-ws
           PolicyDocument:
             Version: '2012-10-17'
@@ -2019,6 +2116,12 @@ Resources:
               ValueFrom: !Sub '${ActuatorBasicAuthSecret}:username::'
             - Name: ONES_ACTUATOR_BASIC_PASSWORD
               ValueFrom: !Sub '${ActuatorBasicAuthSecret}:password::'
+            - Name: ONES_MERCADOPAGO_ACCESS_TOKEN
+              ValueFrom: !Sub '${MercadoPagoCredentialsSecret}:access_token::'
+            - Name: ONES_MERCADOPAGO_PUBLIC_KEY
+              ValueFrom: !Sub '${MercadoPagoCredentialsSecret}:public_key::'
+            - Name: ONES_MERCADOPAGO_WEBHOOK_SECRET
+              ValueFrom: !Sub '${MercadoPagoCredentialsSecret}:webhook_secret::'
           Environment:
             - Name: AWS_REGION
               Value: !Ref AWS::Region
@@ -2026,6 +2129,8 @@ Resources:
               Value: !Ref Environment
             - Name: ONES_APP_BASE_URL
               Value: !Ref AppBaseUrl
+            - Name: ONES_MERCADOPAGO_TEST_PAYER_EMAIL
+              Value: !Ref MercadoPagoTestPayerEmail
             - Name: ONES_PHOTOS_DEBUG_LIST
               Value: 'false'
             - Name: ONES_EMAIL_ENABLED
@@ -2066,6 +2171,12 @@ Resources:
               Value: !Ref EventTemplatesTable
             - Name: ONES_TRANSLATIONS_TABLE
               Value: !Ref TranslationsTable
+            - Name: ONES_PLANS_TABLE
+              Value: !Ref PlansTable
+            - Name: ONES_USER_SUBSCRIPTIONS_TABLE
+              Value: !Ref UserSubscriptionsTable
+            - Name: ONES_MERCADOPAGO_CREDENTIALS_SECRET_NAME
+              Value: !Ref MercadoPagoCredentialsSecret
             - Name: ONES_EVENTS_COVERS_TEMP_BUCKET
               Value: !Ref EventsCoversTempBucket
             - Name: ONES_EVENTS_ASSETS_BUCKET
@@ -2874,7 +2985,10 @@ Outputs:
   EcrRepositoryUri:
     Value: !GetAtt EcrRepository.RepositoryUri
   PhotoThumbnailsEcrRepositoryUri:
-    Value: !GetAtt PhotoThumbnailsEcrRepository.RepositoryUri
+    Value: !If
+      - UsePhotoThumbnailsImageCond
+      - !GetAtt PhotoThumbnailsEcrRepository.RepositoryUri
+      - ''
   ClusterName:
     Value: !Ref Cluster
   ServiceName:
@@ -2903,6 +3017,12 @@ Outputs:
     Value: !Ref EventTemplatesTable
   TranslationsTableName:
     Value: !Ref TranslationsTable
+  PlansTableName:
+    Value: !Ref PlansTable
+  UserSubscriptionsTableName:
+    Value: !Ref UserSubscriptionsTable
+  MercadoPagoCredentialsSecretName:
+    Value: !Ref MercadoPagoCredentialsSecret
   EventsCoversTempBucketName:
     Value: !Ref EventsCoversTempBucket
   EventsAssetsBucketName:

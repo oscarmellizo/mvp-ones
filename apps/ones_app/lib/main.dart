@@ -33,8 +33,8 @@ Future<void> main() async {
       _kLiveCheckTask,
       _kLiveCheckTask,
       frequency: const Duration(minutes: 15),
-      existingWorkPolicy: ExistingWorkPolicy.keep,
-      constraints: Constraints(networkType: NetworkType.not_required),
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
+      constraints: Constraints(networkType: NetworkType.notRequired),
     );
   }
 

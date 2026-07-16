@@ -112,6 +112,23 @@ public class DynamoDbEventsRepository implements EventsRepository {
         return pages.items().stream().map(DynamoDbEventsRepository::toDomain).toList();
     }
 
+    @Override
+    public long countByOwnerId(String ownerId) {
+        if (ownerId == null || ownerId.isBlank()) {
+            return 0;
+        }
+        DynamoDbIndex<DynamoEventItem> index = table.index(GSI1_NAME);
+
+        QueryEnhancedRequest request = QueryEnhancedRequest.builder()
+                .queryConditional(QueryConditional.keyEqualTo(Key.builder().partitionValue(ownerId).build()))
+                .limit(10000)
+                .build();
+
+        return index.query(request).stream()
+                .flatMap(page -> page.items().stream())
+                .count();
+    }
+
     private static DynamoEventItem toItem(Event e) {
         DynamoEventItem item = new DynamoEventItem();
         item.setEventId(e.getEventId());
