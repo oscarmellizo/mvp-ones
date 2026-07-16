@@ -46,9 +46,18 @@ public class ProcessMercadoPagoWebhookUseCase {
             return;
         }
 
-        Optional<MercadoPagoGateway.Preapproval> preapproval = mercadoPagoGateway.getPreapproval(resourceId);
+        String resolvedPreapprovalId = resourceId;
+        Optional<MercadoPagoGateway.Preapproval> preapproval = mercadoPagoGateway.getPreapproval(resolvedPreapprovalId);
         if (preapproval.isEmpty()) {
-            log.warn("Could not fetch Mercado Pago preapproval: id={}", resourceId);
+            Optional<String> maybePreapprovalId = mercadoPagoGateway.resolvePreapprovalIdFromPayment(resourceId);
+            if (maybePreapprovalId.isPresent()) {
+                resolvedPreapprovalId = maybePreapprovalId.get();
+                preapproval = mercadoPagoGateway.getPreapproval(resolvedPreapprovalId);
+            }
+        }
+
+        if (preapproval.isEmpty()) {
+            log.warn("Could not fetch Mercado Pago preapproval. resourceId={} resolvedPreapprovalId={} topic={}", resourceId, resolvedPreapprovalId, topic);
             return;
         }
 

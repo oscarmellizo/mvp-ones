@@ -12,6 +12,8 @@ public interface MercadoPagoGateway {
 
     Optional<Preapproval> getPreapproval(String preapprovalId);
 
+    Optional<String> resolvePreapprovalIdFromPayment(String paymentId);
+
     record PreapprovalPlan(String id, String reason, String initPoint) {
     }
 

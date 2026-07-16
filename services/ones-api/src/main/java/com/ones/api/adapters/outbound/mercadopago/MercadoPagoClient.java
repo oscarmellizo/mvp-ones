@@ -139,6 +139,51 @@ public class MercadoPagoClient implements MercadoPagoGateway {
         }
     }
 
+    @Override
+    public Optional<String> resolvePreapprovalIdFromPayment(String paymentId) {
+        if (paymentId == null || paymentId.isBlank()) {
+            return Optional.empty();
+        }
+        if (accessToken == null || accessToken.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Mercado Pago no está configurado en este ambiente (access token faltante)."
+            );
+        }
+        try {
+            PaymentResponse resp = webClient.get()
+                    .uri("/v1/payments/{id}", paymentId)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .bodyToMono(PaymentResponse.class)
+                    .block(Duration.ofSeconds(30));
+            if (resp == null) {
+                return Optional.empty();
+            }
+
+            if (resp.preapprovalId != null && !resp.preapprovalId.isBlank()) {
+                return Optional.of(resp.preapprovalId);
+            }
+            if (resp.subscriptionId != null && !resp.subscriptionId.isBlank()) {
+                return Optional.of(resp.subscriptionId);
+            }
+            if (resp.metadata != null && resp.metadata.preapprovalId != null && !resp.metadata.preapprovalId.isBlank()) {
+                return Optional.of(resp.metadata.preapprovalId);
+            }
+
+            return Optional.empty();
+        } catch (WebClientResponseException.NotFound e) {
+            return Optional.empty();
+        } catch (WebClientResponseException e) {
+            log.warn(
+                    "MercadoPago resolvePreapprovalIdFromPayment failed with status={} body={}",
+                    e.getStatusCode().value(),
+                    e.getResponseBodyAsString()
+            );
+            throw e;
+        }
+    }
+
     private <T> T post(String uri, Object body, Class<T> responseType) {
         if (accessToken == null || accessToken.isBlank()) {
             throw new IllegalArgumentException(
@@ -213,5 +258,22 @@ public class MercadoPagoClient implements MercadoPagoGateway {
         public String initPoint;
         @JsonProperty("payer_email")
         public String payerEmail;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private static class PaymentResponse {
+        @JsonProperty("preapproval_id")
+        public String preapprovalId;
+
+        @JsonProperty("subscription_id")
+        public String subscriptionId;
+
+        public PaymentMetadata metadata;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private static class PaymentMetadata {
+        @JsonProperty("preapproval_id")
+        public String preapprovalId;
     }
 }
