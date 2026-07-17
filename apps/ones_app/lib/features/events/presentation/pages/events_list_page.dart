@@ -312,8 +312,10 @@ class _Header extends StatelessWidget {
     final invitations = context.watch<InvitationsController>();
     final unread = invitations.unreadCount;
     final subscriptions = context.watch<SubscriptionsController>();
-    final isPlusActive = (subscriptions.subscription?.status.toLowerCase() == 'active') &&
-        ((subscriptions.subscription?.tier.toLowerCase() ?? 'free') == 'paid');
+    final subscriptionStatus = subscriptions.subscription?.status.toLowerCase();
+    final subscriptionPlanId = subscriptions.subscription?.planId.toLowerCase();
+    final isPlusActive = (subscriptionStatus == 'active') &&
+        (subscriptionPlanId != null && subscriptionPlanId != 'free');
 
     return SizedBox(
       height: 56,
