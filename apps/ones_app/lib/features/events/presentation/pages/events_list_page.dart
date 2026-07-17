@@ -11,6 +11,8 @@ import '../events_controller.dart';
 import 'event_detail_page.dart';
 import '../../../invitations/presentation/widgets/invitations_sheet.dart';
 import '../../../invitations/presentation/invitations_controller.dart';
+import '../../../subscriptions/presentation/subscriptions_controller.dart';
+import '../../../subscriptions/presentation/pages/subscription_plans_page.dart';
 
 const String _defaultEventCoverAsset = 'assets/branding/ones-logo.png';
 
@@ -54,6 +56,7 @@ class _EventsListPageState extends State<EventsListPage> {
           );
       context.read<EventsController>().refresh();
       context.read<InvitationsController>().refresh();
+      context.read<SubscriptionsController>().loadAll();
     });
   }
 
@@ -308,11 +311,69 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final invitations = context.watch<InvitationsController>();
     final unread = invitations.unreadCount;
+    final subscriptions = context.watch<SubscriptionsController>();
+    final subscriptionStatus = subscriptions.subscription?.status.toLowerCase();
+    final subscriptionPlanId = subscriptions.subscription?.planId.toLowerCase();
+    final isPlusActive = (subscriptionStatus == 'active') &&
+        (subscriptionPlanId != null && subscriptionPlanId != 'free');
 
     return SizedBox(
       height: 56,
       child: Stack(
         children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!isPlusActive)
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const SubscriptionPlansPage(),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: OnesColors.purpleMid.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: OnesColors.purpleMid.withOpacity(0.3),
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.star,
+                              size: 16,
+                              color: OnesColors.purpleMid,
+                            ),
+                            SizedBox(width: 6),
+                            Text(
+                              'Hazte Plus',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 12,
+                                color: OnesColors.purpleMid,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
           const Align(
             alignment: Alignment.center,
             child: Image(
