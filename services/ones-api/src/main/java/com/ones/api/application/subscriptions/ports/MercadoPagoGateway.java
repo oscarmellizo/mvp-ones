@@ -18,6 +18,8 @@ public interface MercadoPagoGateway {
 
     Optional<String> resolvePreapprovalIdFromPayment(String paymentId);
 
+    Optional<String> getPayerEmailFromPayment(String paymentId);
+
     record PreapprovalPlan(String id, String reason, String initPoint) {
     }
 

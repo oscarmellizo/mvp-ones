@@ -152,6 +152,42 @@ public class ProcessMercadoPagoWebhookUseCase {
                 }
             }
 
+            if ((payerEmail == null || payerEmail.isBlank()) && isPaymentTopic) {
+                Optional<String> paymentPayerEmail = mercadoPagoGateway.getPayerEmailFromPayment(resourceId);
+                log.info(
+                        "[MP webhook] getPayerEmailFromPayment present={} masked={}"
+                        ,
+                        paymentPayerEmail.isPresent(),
+                        maskEmail(paymentPayerEmail.orElse(null))
+                );
+                if (paymentPayerEmail.isPresent()) {
+                    Optional<User> userByPaymentEmail = usersRepository.findByEmail(paymentPayerEmail.get());
+                    log.info(
+                            "[MP webhook] usersRepository.findByEmail (payment) present={} payerEmailMasked={}"
+                            ,
+                            userByPaymentEmail.isPresent(),
+                            maskEmail(paymentPayerEmail.get())
+                    );
+                    if (userByPaymentEmail.isPresent()) {
+                        Optional<UserSubscription> byUserId = subscriptionsRepository.findByUserId(userByPaymentEmail.get().getUserId());
+                        log.info(
+                                "[MP webhook] subscriptionsRepository.findByUserId (payment) present={} userId={}"
+                                ,
+                                byUserId.isPresent(),
+                                userByPaymentEmail.get().getUserId()
+                        );
+                        if (byUserId.isPresent()) {
+                            UserSubscription attached = byUserId.get()
+                                    .withMercadoPagoPreapprovalId(preapprovalId, Instant.now(clock))
+                                    .withStatus(status, Instant.now(clock));
+                            subscriptionsRepository.upsert(attached);
+                            log.info("Attached preapprovalId and updated status for userId={} to {} from MP webhook (payment payerEmail)", userByPaymentEmail.get().getUserId(), status);
+                            return;
+                        }
+                    }
+                }
+            }
+
             log.info(
                     "[MP webhook] resolved payerEmail after fallback. present={} masked={}",
                     payerEmail != null && !payerEmail.isBlank(),

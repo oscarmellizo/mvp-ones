@@ -107,6 +107,71 @@ public class MercadoPagoClient implements MercadoPagoGateway {
     }
 
     @Override
+    public Optional<String> getPayerEmailFromPayment(String paymentId) {
+        if (paymentId == null || paymentId.isBlank()) {
+            return Optional.empty();
+        }
+        if (accessToken == null || accessToken.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Mercado Pago no está configurado en este ambiente (access token faltante)."
+            );
+        }
+
+        try {
+            String body = webClient.get()
+                    .uri("/v1/payments/{id}", paymentId)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block(Duration.ofSeconds(30));
+
+            if (body == null || body.isBlank()) {
+                return Optional.empty();
+            }
+
+            JsonNode root;
+            try {
+                root = objectMapper.readTree(body);
+            } catch (JsonProcessingException e) {
+                log.warn("MercadoPago getPayerEmailFromPayment: could not parse JSON for paymentId={}", paymentId);
+                return Optional.empty();
+            }
+
+            String payerEmail = text(root, "payer_email");
+            if (payerEmail == null || payerEmail.isBlank()) {
+                payerEmail = text(root.path("payer"), "email");
+            }
+            if (payerEmail == null || payerEmail.isBlank()) {
+                payerEmail = findFirstTextByFieldName(root, "email");
+            }
+
+            if (payerEmail == null || payerEmail.isBlank()) {
+                String snippet = body.length() > 800 ? body.substring(0, 800) + "..." : body;
+                log.warn(
+                        "MercadoPago payment missing payer email. paymentId={} responseSnippet={}"
+                        ,
+                        paymentId,
+                        snippet
+                );
+                return Optional.empty();
+            }
+
+            return Optional.of(payerEmail);
+        } catch (WebClientResponseException.NotFound e) {
+            return Optional.empty();
+        } catch (WebClientResponseException e) {
+            log.warn(
+                    "MercadoPago getPayerEmailFromPayment failed with status={} body={}"
+                    ,
+                    e.getStatusCode().value(),
+                    e.getResponseBodyAsString()
+            );
+            throw e;
+        }
+    }
+
+    @Override
     public Preapproval createPreapproval(
             String preapprovalPlanId,
             String payerEmail,
