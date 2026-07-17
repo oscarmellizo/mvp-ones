@@ -124,10 +124,15 @@ public class CreateMercadoPagoSubscriptionUseCase {
             initPoint = preapproval.initPoint();
             preapprovalId = preapproval.id();
         } else {
-            String externalReference = userId;
-            preapproval = mercadoPagoGateway.createPreapproval(mpPlanId, payerEmail, backUrl, externalReference);
-            initPoint = preapproval.initPoint();
-            preapprovalId = preapproval.id();
+            MercadoPagoGateway.PreapprovalPlan planForCheckout = mercadoPagoGateway.getPlan(mpPlanId)
+                    .orElseThrow(() -> new IllegalArgumentException("Mercado Pago plan not found: " + planId));
+            initPoint = planForCheckout.initPoint();
+            preapprovalId = null;
+
+            if (initPoint != null && !initPoint.isBlank()) {
+                String separator = initPoint.contains("?") ? "&" : "?";
+                initPoint = initPoint + separator + "external_reference=" + userId;
+            }
         }
 
         if (initPoint == null || initPoint.isBlank()) {
@@ -139,8 +144,11 @@ public class CreateMercadoPagoSubscriptionUseCase {
                 .orElse(new UserSubscription(userId, "free", "free", null, now, null, null, null, now));
 
         UserSubscription updated = subscription
-                .withPlan(planId, "pending", now)
-                .withMercadoPagoPreapprovalId(preapprovalId, now);
+                .withPlan(planId, "pending", now);
+
+        if (preapprovalId != null && !preapprovalId.isBlank()) {
+            updated = updated.withMercadoPagoPreapprovalId(preapprovalId, now);
+        }
 
         subscriptionsRepository.upsert(updated);
 
