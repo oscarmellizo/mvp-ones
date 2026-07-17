@@ -359,7 +359,7 @@ class _Header extends StatelessWidget {
                             ),
                             SizedBox(width: 6),
                             Text(
-                              'Hazte Ones Plus',
+                              'Hazte Plus',
                               style: TextStyle(
                                 fontWeight: FontWeight.w900,
                                 fontSize: 12,
