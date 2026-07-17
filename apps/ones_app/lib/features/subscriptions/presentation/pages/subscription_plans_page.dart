@@ -65,7 +65,14 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
   Future<void> _onSubscribe(BuildContext context, String planId) async {
     final controller = context.read<SubscriptionsController>();
     final messenger = ScaffoldMessenger.of(context);
-    final initPoint = await controller.createMercadoPagoSubscription(planId);
+
+    final cardTokenId = await _askForCardTokenId(context);
+    if (!mounted) return;
+
+    final initPoint = await controller.createMercadoPagoSubscription(
+      planId,
+      cardTokenId: cardTokenId,
+    );
     if (!mounted) return;
     if (initPoint != null) {
       final uri = Uri.tryParse(initPoint);
@@ -87,6 +94,48 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
         SnackBar(content: Text('Error: ${controller.error}')),
       );
     }
+  }
+
+  Future<String?> _askForCardTokenId(BuildContext context) async {
+    final controller = TextEditingController();
+    final result = await showDialog<String?>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Token de tarjeta (opcional)'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Si tienes un cardTokenId de Mercado Pago, pégalo aquí para usar el flujo webhook-only.\n\nSi lo dejas vacío, se usará el checkout normal.',
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  labelText: 'cardTokenId',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(null),
+              child: const Text('Continuar sin token'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+              child: const Text('Usar token'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == null || result.trim().isEmpty) {
+      return null;
+    }
+    return result.trim();
   }
 }
 

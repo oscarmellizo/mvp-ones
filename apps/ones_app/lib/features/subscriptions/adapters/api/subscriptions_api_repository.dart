@@ -50,10 +50,13 @@ class SubscriptionsApiRepository implements SubscriptionsRepository {
   }
 
   @override
-  Future<Map<String, dynamic>?> createMercadoPagoSubscription(String planId) async {
+  Future<Map<String, dynamic>?> createMercadoPagoSubscription(String planId, {String? cardTokenId}) async {
     final res = await _dioFactory(_idToken).post(
       '/v1/users/me/subscription/mercadopago',
-      data: {'planId': planId},
+      data: {
+        'planId': planId,
+        if (cardTokenId != null && cardTokenId.trim().isNotEmpty) 'cardTokenId': cardTokenId.trim(),
+      },
       options: _authOptions,
     );
     final data = res.data;

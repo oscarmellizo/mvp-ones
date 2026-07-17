@@ -76,11 +76,11 @@ class SubscriptionsController extends ChangeNotifier {
     }
   }
 
-  Future<String?> createMercadoPagoSubscription(String planId) async {
+  Future<String?> createMercadoPagoSubscription(String planId, {String? cardTokenId}) async {
     _setLoading(true);
     _error = null;
     try {
-      final result = await _repository.createMercadoPagoSubscription(planId);
+      final result = await _repository.createMercadoPagoSubscription(planId, cardTokenId: cardTokenId);
       final initPoint = result?['initPoint'] as String?;
       return initPoint;
     } catch (e) {
