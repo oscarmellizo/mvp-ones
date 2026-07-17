@@ -10,6 +10,8 @@ public interface MercadoPagoGateway {
 
     Preapproval createPreapproval(String preapprovalPlanId, String payerEmail, String backUrl);
 
+    Preapproval createPreapproval(String preapprovalPlanId, String payerEmail, String backUrl, String externalReference, String cardTokenId);
+
     Optional<Preapproval> getPreapproval(String preapprovalId);
 
     Optional<String> resolvePreapprovalIdFromPayment(String paymentId);
@@ -17,6 +19,6 @@ public interface MercadoPagoGateway {
     record PreapprovalPlan(String id, String reason, String initPoint) {
     }
 
-    record Preapproval(String id, String status, String initPoint, String payerEmail) {
+    record Preapproval(String id, String status, String initPoint, String payerEmail, String externalReference) {
     }
 }

@@ -94,13 +94,15 @@ public class ProcessMercadoPagoWebhookUseCase {
         String status = mapStatus(mpStatus);
         String preapprovalId = preapproval.get().id();
         String payerEmailMasked = maskEmail(preapproval.get().payerEmail());
+        String externalReference = preapproval.get().externalReference();
         log.info(
-                "[MP webhook] preapproval fetched. preapprovalId={} mpStatus={} mappedStatus={} initPointPresent={} payerEmailMasked={}",
+                "[MP webhook] preapproval fetched. preapprovalId={} mpStatus={} mappedStatus={} initPointPresent={} payerEmailMasked={} externalReferencePresent={}",
                 preapprovalId,
                 mpStatus,
                 status,
                 preapproval.get().initPoint() != null && !preapproval.get().initPoint().isBlank(),
-                payerEmailMasked
+                payerEmailMasked,
+                externalReference != null && !externalReference.isBlank()
         );
 
         Optional<UserSubscription> existing = subscriptionsRepository.findByMercadoPagoPreapprovalId(preapprovalId);
@@ -111,6 +113,21 @@ public class ProcessMercadoPagoWebhookUseCase {
             if ((payerEmail == null || payerEmail.isBlank()) && testPayerEmail != null && !testPayerEmail.isBlank()) {
                 payerEmail = testPayerEmail;
                 log.info("Using configured test payer email as fallback for MP webhook. preapprovalId={}", preapprovalId);
+            }
+
+            if ((payerEmail == null || payerEmail.isBlank()) && externalReference != null && !externalReference.isBlank()) {
+                String resolvedUserId = externalReference.trim();
+                log.info("[MP webhook] attempting userId match via externalReference. userId={}", resolvedUserId);
+                Optional<UserSubscription> byUserId = subscriptionsRepository.findByUserId(resolvedUserId);
+                log.info("[MP webhook] subscriptionsRepository.findByUserId (externalReference) present={} userId={}", byUserId.isPresent(), resolvedUserId);
+                if (byUserId.isPresent()) {
+                    UserSubscription attached = byUserId.get()
+                            .withMercadoPagoPreapprovalId(preapprovalId, Instant.now(clock))
+                            .withStatus(status, Instant.now(clock));
+                    subscriptionsRepository.upsert(attached);
+                    log.info("Attached preapprovalId and updated status for userId={} to {} from MP webhook (externalReference)", resolvedUserId, status);
+                    return;
+                }
             }
 
             log.info(

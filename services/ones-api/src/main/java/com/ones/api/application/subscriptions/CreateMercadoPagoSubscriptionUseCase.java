@@ -46,6 +46,10 @@ public class CreateMercadoPagoSubscriptionUseCase {
     }
 
     public Result execute(String userId, String planId) {
+        return execute(userId, planId, null);
+    }
+
+    public Result execute(String userId, String planId, String cardTokenId) {
         if (userId == null || userId.isBlank()) {
             throw new IllegalArgumentException("userId is required");
         }
@@ -99,18 +103,37 @@ public class CreateMercadoPagoSubscriptionUseCase {
                 ? "***"
                 : (mpPlanId.substring(0, 4) + "..." + mpPlanId.substring(mpPlanId.length() - 4)));
 
+        boolean cardTokenPresent = cardTokenId != null && !cardTokenId.isBlank();
         log.info(
-                "Creating MercadoPago preapproval. planId={} mpPlanIdMasked={} mpPlanIdPresent={} testPayerOverrideActive={} backUrlPresent={} ",
+                "Creating MercadoPago preapproval. planId={} mpPlanIdMasked={} mpPlanIdPresent={} testPayerOverrideActive={} backUrlPresent={} cardTokenPresent={} ",
                 planId,
                 mpPlanIdMasked,
                 mpPlanId != null && !mpPlanId.isBlank(),
                 testPayerOverrideActive,
-                backUrl != null && !backUrl.isBlank()
+                backUrl != null && !backUrl.isBlank(),
+                cardTokenPresent
         );
 
-        Optional<MercadoPagoGateway.PreapprovalPlan> planDetails = mercadoPagoGateway.getPlan(mpPlanId);
-        if (planDetails.isEmpty() || planDetails.get().initPoint() == null || planDetails.get().initPoint().isBlank()) {
-            throw new IllegalArgumentException("Mercado Pago plan init_point is not available for plan: " + planId);
+        MercadoPagoGateway.Preapproval preapproval = null;
+        String initPoint;
+        String preapprovalId;
+
+        if (cardTokenPresent) {
+            String externalReference = userId;
+            preapproval = mercadoPagoGateway.createPreapproval(mpPlanId, payerEmail, backUrl, externalReference, cardTokenId);
+            initPoint = preapproval.initPoint();
+            preapprovalId = preapproval.id();
+        } else {
+            Optional<MercadoPagoGateway.PreapprovalPlan> planDetails = mercadoPagoGateway.getPlan(mpPlanId);
+            if (planDetails.isEmpty() || planDetails.get().initPoint() == null || planDetails.get().initPoint().isBlank()) {
+                throw new IllegalArgumentException("Mercado Pago plan init_point is not available for plan: " + planId);
+            }
+            initPoint = planDetails.get().initPoint();
+            preapprovalId = null;
+        }
+
+        if (initPoint == null || initPoint.isBlank()) {
+            throw new IllegalArgumentException("Mercado Pago init_point is not available for plan: " + planId);
         }
 
         Instant now = Instant.now(clock);
@@ -119,11 +142,11 @@ public class CreateMercadoPagoSubscriptionUseCase {
 
         UserSubscription updated = subscription
                 .withPlan(planId, "pending", now)
-                .withMercadoPagoPreapprovalId(null, now);
+                .withMercadoPagoPreapprovalId(preapprovalId, now);
 
         subscriptionsRepository.upsert(updated);
 
-        return new Result(null, planDetails.get().initPoint(), planId);
+        return new Result(preapprovalId, initPoint, planId);
     }
 
     private static String appendPath(String baseUrl, String path) {

@@ -119,7 +119,27 @@ public class MercadoPagoClient implements MercadoPagoGateway {
         );
 
         PreapprovalResponse resp = post("/preapproval", req, PreapprovalResponse.class);
-        return new Preapproval(resp.id, resp.status, resp.initPoint, resp.getResolvedPayerEmail());
+        return new Preapproval(resp.id, resp.status, resp.initPoint, resp.getResolvedPayerEmail(), resp.externalReference);
+    }
+
+    @Override
+    public Preapproval createPreapproval(
+            String preapprovalPlanId,
+            String payerEmail,
+            String backUrl,
+            String externalReference,
+            String cardTokenId
+    ) {
+        CreatePreapprovalRequestWithCard req = new CreatePreapprovalRequestWithCard(
+                preapprovalPlanId,
+                payerEmail,
+                backUrl,
+                externalReference,
+                cardTokenId
+        );
+
+        PreapprovalResponse resp = post("/preapproval", req, PreapprovalResponse.class);
+        return new Preapproval(resp.id, resp.status, resp.initPoint, resp.getResolvedPayerEmail(), resp.externalReference);
     }
 
     @Override
@@ -151,6 +171,7 @@ public class MercadoPagoClient implements MercadoPagoGateway {
             String id = text(root, "id");
             String status = text(root, "status");
             String initPoint = text(root, "init_point");
+            String externalReference = text(root, "external_reference");
 
             String payerEmail = text(root, "payer_email");
             if (payerEmail == null || payerEmail.isBlank()) {
@@ -167,7 +188,7 @@ public class MercadoPagoClient implements MercadoPagoGateway {
                 );
             }
 
-            return Optional.of(new Preapproval(id, status, initPoint, payerEmail));
+            return Optional.of(new Preapproval(id, status, initPoint, payerEmail, externalReference));
         } catch (WebClientResponseException.NotFound e) {
             return Optional.empty();
         }
@@ -344,6 +365,15 @@ public class MercadoPagoClient implements MercadoPagoGateway {
     ) {
     }
 
+    private record CreatePreapprovalRequestWithCard(
+            @JsonProperty("preapproval_plan_id") String preapprovalPlanId,
+            @JsonProperty("payer_email") String payerEmail,
+            @JsonProperty("back_url") String backUrl,
+            @JsonProperty("external_reference") String externalReference,
+            @JsonProperty("card_token_id") String cardTokenId
+    ) {
+    }
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     private static class PlanResponse {
         public String id;
@@ -360,6 +390,9 @@ public class MercadoPagoClient implements MercadoPagoGateway {
         public String initPoint;
         @JsonProperty("payer_email")
         public String payerEmail;
+
+        @JsonProperty("external_reference")
+        public String externalReference;
 
         public Payer payer;
 

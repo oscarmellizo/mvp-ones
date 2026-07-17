@@ -60,7 +60,8 @@ public class SubscriptionsController {
     ) {
         String userId = authentication.getName();
         String planId = request != null ? request.planId() : null;
-        CreateMercadoPagoSubscriptionUseCase.Result result = createMercadoPagoSubscriptionUseCase.execute(userId, planId);
+        String cardTokenId = request != null ? request.cardTokenId() : null;
+        CreateMercadoPagoSubscriptionUseCase.Result result = createMercadoPagoSubscriptionUseCase.execute(userId, planId, cardTokenId);
         return ResponseEntity.ok(new CreateSubscriptionResponse(
                 result.preapprovalId(),
                 result.initPoint(),
@@ -108,7 +109,7 @@ public class SubscriptionsController {
         );
     }
 
-    public record CreateSubscriptionRequest(String planId) {
+    public record CreateSubscriptionRequest(String planId, String cardTokenId) {
     }
 
     public record CreateSubscriptionResponse(String preapprovalId, String initPoint, String planId) {
