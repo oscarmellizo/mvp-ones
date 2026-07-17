@@ -196,26 +196,51 @@ public class MercadoPagoClient implements MercadoPagoGateway {
             );
         }
         try {
-            PaymentResponse resp = webClient.get()
+            String body = webClient.get()
                     .uri("/v1/payments/{id}", paymentId)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
-                    .bodyToMono(PaymentResponse.class)
+                    .bodyToMono(String.class)
                     .block(Duration.ofSeconds(30));
-            if (resp == null) {
+
+            if (body == null || body.isBlank()) {
                 return Optional.empty();
             }
 
-            if (resp.preapprovalId != null && !resp.preapprovalId.isBlank()) {
-                return Optional.of(resp.preapprovalId);
+            JsonNode root;
+            try {
+                root = objectMapper.readTree(body);
+            } catch (JsonProcessingException e) {
+                log.warn("MercadoPago resolvePreapprovalIdFromPayment: could not parse JSON for paymentId={}", paymentId);
+                return Optional.empty();
             }
-            if (resp.subscriptionId != null && !resp.subscriptionId.isBlank()) {
-                return Optional.of(resp.subscriptionId);
+
+            String preapprovalId = text(root, "preapproval_id");
+            if (preapprovalId == null || preapprovalId.isBlank()) {
+                preapprovalId = text(root, "subscription_id");
             }
-            if (resp.metadata != null && resp.metadata.preapprovalId != null && !resp.metadata.preapprovalId.isBlank()) {
-                return Optional.of(resp.metadata.preapprovalId);
+            if (preapprovalId == null || preapprovalId.isBlank()) {
+                preapprovalId = text(root.path("metadata"), "preapproval_id");
             }
+
+            if (preapprovalId == null || preapprovalId.isBlank()) {
+                preapprovalId = findFirstTextByFieldName(root, "preapproval_id");
+            }
+            if (preapprovalId == null || preapprovalId.isBlank()) {
+                preapprovalId = findFirstTextByFieldName(root, "subscription_id");
+            }
+
+            if (preapprovalId != null && !preapprovalId.isBlank()) {
+                return Optional.of(preapprovalId);
+            }
+
+            String snippet = body.length() > 800 ? body.substring(0, 800) + "..." : body;
+            log.warn(
+                    "MercadoPago payment missing preapproval/subscription id. paymentId={} responseSnippet={}",
+                    paymentId,
+                    snippet
+            );
 
             return Optional.empty();
         } catch (WebClientResponseException.NotFound e) {
@@ -228,6 +253,37 @@ public class MercadoPagoClient implements MercadoPagoGateway {
             );
             throw e;
         }
+    }
+
+    private static String findFirstTextByFieldName(JsonNode node, String fieldName) {
+        if (node == null || node.isNull() || node.isMissingNode()) {
+            return null;
+        }
+        if (node.isObject()) {
+            JsonNode direct = node.get(fieldName);
+            if (direct != null && !direct.isNull()) {
+                String value = direct.asText();
+                if (value != null && !value.isBlank()) {
+                    return value;
+                }
+            }
+            var it = node.fields();
+            while (it.hasNext()) {
+                var entry = it.next();
+                String found = findFirstTextByFieldName(entry.getValue(), fieldName);
+                if (found != null && !found.isBlank()) {
+                    return found;
+                }
+            }
+        } else if (node.isArray()) {
+            for (JsonNode child : node) {
+                String found = findFirstTextByFieldName(child, fieldName);
+                if (found != null && !found.isBlank()) {
+                    return found;
+                }
+            }
+        }
+        return null;
     }
 
     private <T> T post(String uri, Object body, Class<T> responseType) {
