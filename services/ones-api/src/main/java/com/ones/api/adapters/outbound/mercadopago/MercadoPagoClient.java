@@ -119,7 +119,7 @@ public class MercadoPagoClient implements MercadoPagoGateway {
         );
 
         PreapprovalResponse resp = post("/preapproval", req, PreapprovalResponse.class);
-        return new Preapproval(resp.id, resp.status, resp.initPoint, resp.getResolvedPayerEmail(), resp.externalReference);
+        return new Preapproval(resp.id, resp.status, resp.initPoint, resp.getResolvedPayerEmail(), resp.externalReference, resp.backUrl);
     }
 
     @Override
@@ -137,7 +137,7 @@ public class MercadoPagoClient implements MercadoPagoGateway {
         );
 
         PreapprovalResponse resp = post("/preapproval", req, PreapprovalResponse.class);
-        return new Preapproval(resp.id, resp.status, resp.initPoint, resp.getResolvedPayerEmail(), resp.externalReference);
+        return new Preapproval(resp.id, resp.status, resp.initPoint, resp.getResolvedPayerEmail(), resp.externalReference, resp.backUrl);
     }
 
     @Override
@@ -157,7 +157,7 @@ public class MercadoPagoClient implements MercadoPagoGateway {
         );
 
         PreapprovalResponse resp = post("/preapproval", req, PreapprovalResponse.class);
-        return new Preapproval(resp.id, resp.status, resp.initPoint, resp.getResolvedPayerEmail(), resp.externalReference);
+        return new Preapproval(resp.id, resp.status, resp.initPoint, resp.getResolvedPayerEmail(), resp.externalReference, resp.backUrl);
     }
 
     @Override
@@ -190,6 +190,7 @@ public class MercadoPagoClient implements MercadoPagoGateway {
             String status = text(root, "status");
             String initPoint = text(root, "init_point");
             String externalReference = text(root, "external_reference");
+            String backUrl = text(root, "back_url");
 
             String payerEmail = text(root, "payer_email");
             if (payerEmail == null || payerEmail.isBlank()) {
@@ -206,7 +207,7 @@ public class MercadoPagoClient implements MercadoPagoGateway {
                 );
             }
 
-            return Optional.of(new Preapproval(id, status, initPoint, payerEmail, externalReference));
+            return Optional.of(new Preapproval(id, status, initPoint, payerEmail, externalReference, backUrl));
         } catch (WebClientResponseException.NotFound e) {
             return Optional.empty();
         }
@@ -416,6 +417,9 @@ public class MercadoPagoClient implements MercadoPagoGateway {
         public String initPoint;
         @JsonProperty("payer_email")
         public String payerEmail;
+
+        @JsonProperty("back_url")
+        public String backUrl;
 
         @JsonProperty("external_reference")
         public String externalReference;

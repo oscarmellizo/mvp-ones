@@ -2,6 +2,8 @@ package com.ones.api.application.subscriptions;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 import com.ones.api.application.subscriptions.ports.MercadoPagoGateway;
@@ -131,7 +133,11 @@ public class CreateMercadoPagoSubscriptionUseCase {
 
             if (initPoint != null && !initPoint.isBlank()) {
                 String separator = initPoint.contains("?") ? "&" : "?";
-                initPoint = initPoint + separator + "external_reference=" + userId;
+                String backUrlWithUid = backUrl + (backUrl.contains("?") ? "&" : "?") + "ones_uid=" + userId;
+                initPoint = initPoint
+                        + separator
+                        + "external_reference=" + urlEncode(userId)
+                        + "&back_url=" + urlEncode(backUrlWithUid);
             }
         }
 
@@ -161,6 +167,13 @@ public class CreateMercadoPagoSubscriptionUseCase {
         }
         String normalized = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         return normalized + path;
+    }
+
+    private static String urlEncode(String value) {
+        if (value == null) {
+            return null;
+        }
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
     public record Result(String preapprovalId, String initPoint, String planId) {

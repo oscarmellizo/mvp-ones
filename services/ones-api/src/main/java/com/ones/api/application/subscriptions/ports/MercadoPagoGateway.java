@@ -21,6 +21,6 @@ public interface MercadoPagoGateway {
     record PreapprovalPlan(String id, String reason, String initPoint) {
     }
 
-    record Preapproval(String id, String status, String initPoint, String payerEmail, String externalReference) {
+    record Preapproval(String id, String status, String initPoint, String payerEmail, String externalReference, String backUrl) {
     }
 }

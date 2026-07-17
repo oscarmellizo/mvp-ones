@@ -2,6 +2,9 @@ package com.ones.api.application.subscriptions;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -95,6 +98,7 @@ public class ProcessMercadoPagoWebhookUseCase {
         String preapprovalId = preapproval.get().id();
         String payerEmailMasked = maskEmail(preapproval.get().payerEmail());
         String externalReference = preapproval.get().externalReference();
+        String backUrl = preapproval.get().backUrl();
         log.info(
                 "[MP webhook] preapproval fetched. preapprovalId={} mpStatus={} mappedStatus={} initPointPresent={} payerEmailMasked={} externalReferencePresent={}",
                 preapprovalId,
@@ -127,6 +131,24 @@ public class ProcessMercadoPagoWebhookUseCase {
                     subscriptionsRepository.upsert(attached);
                     log.info("Attached preapprovalId and updated status for userId={} to {} from MP webhook (externalReference)", resolvedUserId, status);
                     return;
+                }
+            }
+
+            if (payerEmail == null || payerEmail.isBlank()) {
+                String onesUid = extractQueryParam(backUrl, "ones_uid");
+                if (onesUid != null && !onesUid.isBlank()) {
+                    String resolvedUserId = onesUid.trim();
+                    log.info("[MP webhook] attempting userId match via backUrl ones_uid. userIdPresent={}", true);
+                    Optional<UserSubscription> byUserId = subscriptionsRepository.findByUserId(resolvedUserId);
+                    log.info("[MP webhook] subscriptionsRepository.findByUserId (backUrl ones_uid) present={} userId={}", byUserId.isPresent(), resolvedUserId);
+                    if (byUserId.isPresent()) {
+                        UserSubscription attached = byUserId.get()
+                                .withMercadoPagoPreapprovalId(preapprovalId, Instant.now(clock))
+                                .withStatus(status, Instant.now(clock));
+                        subscriptionsRepository.upsert(attached);
+                        log.info("Attached preapprovalId and updated status for userId={} to {} from MP webhook (backUrl ones_uid)", resolvedUserId, status);
+                        return;
+                    }
                 }
             }
 
@@ -201,5 +223,32 @@ public class ProcessMercadoPagoWebhookUseCase {
             case "payment_failed", "rejected" -> "past_due";
             default -> "pending";
         };
+    }
+
+    private static String extractQueryParam(String url, String key) {
+        if (url == null || url.isBlank() || key == null || key.isBlank()) {
+            return null;
+        }
+        try {
+            URI uri = URI.create(url);
+            String query = uri.getRawQuery();
+            if (query == null || query.isBlank()) {
+                return null;
+            }
+            for (String part : query.split("&")) {
+                int idx = part.indexOf('=');
+                if (idx <= 0) {
+                    continue;
+                }
+                String k = URLDecoder.decode(part.substring(0, idx), StandardCharsets.UTF_8);
+                if (!key.equals(k)) {
+                    continue;
+                }
+                return URLDecoder.decode(part.substring(idx + 1), StandardCharsets.UTF_8);
+            }
+            return null;
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 }
