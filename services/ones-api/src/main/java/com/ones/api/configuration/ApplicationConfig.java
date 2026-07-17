@@ -182,8 +182,9 @@ public class ApplicationConfig {
             UserSubscriptionsRepository subscriptionsRepository,
             MercadoPagoGateway mercadoPagoGateway,
             UsersRepository usersRepository,
-            Clock clock
+            Clock clock,
+            @Value("${ones.mercadopago.test-payer-email:}") String testPayerEmail
     ) {
-        return new ProcessMercadoPagoWebhookUseCase(subscriptionsRepository, mercadoPagoGateway, usersRepository, clock);
+        return new ProcessMercadoPagoWebhookUseCase(subscriptionsRepository, mercadoPagoGateway, usersRepository, clock, testPayerEmail);
     }
 }
