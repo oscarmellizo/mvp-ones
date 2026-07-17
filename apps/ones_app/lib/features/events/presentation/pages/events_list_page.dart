@@ -11,6 +11,8 @@ import '../events_controller.dart';
 import 'event_detail_page.dart';
 import '../../../invitations/presentation/widgets/invitations_sheet.dart';
 import '../../../invitations/presentation/invitations_controller.dart';
+import '../../../subscriptions/presentation/subscriptions_controller.dart';
+import '../../../subscriptions/presentation/pages/subscription_plans_page.dart';
 
 const String _defaultEventCoverAsset = 'assets/branding/ones-logo.png';
 
@@ -54,6 +56,7 @@ class _EventsListPageState extends State<EventsListPage> {
           );
       context.read<EventsController>().refresh();
       context.read<InvitationsController>().refresh();
+      context.read<SubscriptionsController>().loadAll();
     });
   }
 
@@ -308,6 +311,9 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final invitations = context.watch<InvitationsController>();
     final unread = invitations.unreadCount;
+    final subscriptions = context.watch<SubscriptionsController>();
+    final isPlusActive = (subscriptions.subscription?.status.toLowerCase() == 'active') &&
+        ((subscriptions.subscription?.tier.toLowerCase() ?? 'free') == 'paid');
 
     return SizedBox(
       height: 56,
@@ -325,6 +331,48 @@ class _Header extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (!isPlusActive)
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const SubscriptionPlansPage(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: OnesColors.purpleMid.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: OnesColors.purpleMid.withOpacity(0.3),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.star,
+                            size: 16,
+                            color: OnesColors.purpleMid,
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'Hazte Ones Plus',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 12,
+                              color: OnesColors.purpleMid,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 IconButton(
                   onPressed: onBell,
                   icon: Stack(
