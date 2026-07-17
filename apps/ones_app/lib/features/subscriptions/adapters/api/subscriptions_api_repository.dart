@@ -55,7 +55,6 @@ class SubscriptionsApiRepository implements SubscriptionsRepository {
       '/v1/users/me/subscription/mercadopago',
       data: {
         'planId': planId,
-        if (cardTokenId != null && cardTokenId.trim().isNotEmpty) 'cardTokenId': cardTokenId.trim(),
       },
       options: _authOptions,
     );

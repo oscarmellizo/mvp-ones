@@ -127,6 +127,24 @@ public class MercadoPagoClient implements MercadoPagoGateway {
             String preapprovalPlanId,
             String payerEmail,
             String backUrl,
+            String externalReference
+    ) {
+        CreatePreapprovalRequestWithExternalReference req = new CreatePreapprovalRequestWithExternalReference(
+                preapprovalPlanId,
+                payerEmail,
+                backUrl,
+                externalReference
+        );
+
+        PreapprovalResponse resp = post("/preapproval", req, PreapprovalResponse.class);
+        return new Preapproval(resp.id, resp.status, resp.initPoint, resp.getResolvedPayerEmail(), resp.externalReference);
+    }
+
+    @Override
+    public Preapproval createPreapproval(
+            String preapprovalPlanId,
+            String payerEmail,
+            String backUrl,
             String externalReference,
             String cardTokenId
     ) {
@@ -362,6 +380,14 @@ public class MercadoPagoClient implements MercadoPagoGateway {
             @JsonProperty("preapproval_plan_id") String preapprovalPlanId,
             @JsonProperty("payer_email") String payerEmail,
             @JsonProperty("back_url") String backUrl
+    ) {
+    }
+
+    private record CreatePreapprovalRequestWithExternalReference(
+            @JsonProperty("preapproval_plan_id") String preapprovalPlanId,
+            @JsonProperty("payer_email") String payerEmail,
+            @JsonProperty("back_url") String backUrl,
+            @JsonProperty("external_reference") String externalReference
     ) {
     }
 

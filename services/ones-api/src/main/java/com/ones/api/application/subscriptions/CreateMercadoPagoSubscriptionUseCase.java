@@ -124,12 +124,10 @@ public class CreateMercadoPagoSubscriptionUseCase {
             initPoint = preapproval.initPoint();
             preapprovalId = preapproval.id();
         } else {
-            Optional<MercadoPagoGateway.PreapprovalPlan> planDetails = mercadoPagoGateway.getPlan(mpPlanId);
-            if (planDetails.isEmpty() || planDetails.get().initPoint() == null || planDetails.get().initPoint().isBlank()) {
-                throw new IllegalArgumentException("Mercado Pago plan init_point is not available for plan: " + planId);
-            }
-            initPoint = planDetails.get().initPoint();
-            preapprovalId = null;
+            String externalReference = userId;
+            preapproval = mercadoPagoGateway.createPreapproval(mpPlanId, payerEmail, backUrl, externalReference);
+            initPoint = preapproval.initPoint();
+            preapprovalId = preapproval.id();
         }
 
         if (initPoint == null || initPoint.isBlank()) {

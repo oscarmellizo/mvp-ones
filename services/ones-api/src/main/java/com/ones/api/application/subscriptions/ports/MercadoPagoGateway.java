@@ -10,6 +10,8 @@ public interface MercadoPagoGateway {
 
     Preapproval createPreapproval(String preapprovalPlanId, String payerEmail, String backUrl);
 
+    Preapproval createPreapproval(String preapprovalPlanId, String payerEmail, String backUrl, String externalReference);
+
     Preapproval createPreapproval(String preapprovalPlanId, String payerEmail, String backUrl, String externalReference, String cardTokenId);
 
     Optional<Preapproval> getPreapproval(String preapprovalId);
