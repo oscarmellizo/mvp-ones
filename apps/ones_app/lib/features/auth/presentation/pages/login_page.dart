@@ -1,435 +1,820 @@
 import 'package:flutter/material.dart';
+
 import 'package:flutter/foundation.dart';
+
 import 'dart:async';
+
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
 import 'package:google_sign_in/google_sign_in.dart';
+
 import 'package:provider/provider.dart';
 
+
+
 import '../../../../core/ui/ones_colors.dart';
+
 import '../auth_controller.dart';
+
 import '../../infrastructure/google_sign_in_initializer.dart';
+
 import 'register_page.dart';
+
 import '../google_sign_in_button.dart';
 
+import '../google_sign_in_button.dart';
+
+
+
 class LoginPage extends StatefulWidget {
+
   const LoginPage({super.key});
 
+
+
   @override
+
   State<LoginPage> createState() => _LoginPageState();
+
 }
 
+
+
 class _LoginPageState extends State<LoginPage> {
+
   bool _accountNotFound = false;
+
+
 
   Widget? _webGisButton;
 
+
+
   StreamSubscription<GoogleSignInAuthenticationEvent>? _webAuthSub;
+
+  Stream<GoogleSignInAuthenticationEvent>? _webAuthEvents;
+
   bool _webConsumedSignIn = false;
 
+
+
   Future<void> _onWebGoogleSignedIn(BuildContext context) async {
+
     final auth = context.read<AuthController>();
+
     final step = await auth.signInExisting();
+
     // ignore: avoid_print
+
     print('[LoginPage] web signInExisting step=$step error=${auth.error}');
+
     if (!mounted) return;
+
     setState(() {
+
       _accountNotFound = step == AuthNextStep.needsRegistration;
+
     });
+
   }
 
+
+
   @override
+
   void initState() {
+
     super.initState();
+
     if (kIsWeb) {
+
       _webGisButton = renderGoogleSignInButton();
-      _webAuthSub = GoogleSignIn.instance.authenticationEvents.listen((e) {
+
+      _webAuthEvents = GoogleSignIn.instance.authenticationEvents;
+
+      _webAuthSub = _webAuthEvents!.listen((e) {
+
         if (!mounted) return;
+
         if (_webConsumedSignIn) return;
+
         if (e is! GoogleSignInAuthenticationEventSignIn) return;
+
         GoogleSignInInitializer.recordWebUser(e.user);
+
         _webConsumedSignIn = true;
+
         _onWebGoogleSignedIn(context);
+
       });
+
       WidgetsBinding.instance.addPostFrameCallback((_) {
+
         if (!mounted) return;
+
         context.read<AuthController>().warmUpGoogleSignIn();
+
       });
+
     }
+
   }
 
+
+
   @override
+
   void dispose() {
+
     _webAuthSub?.cancel();
+
     super.dispose();
+
   }
 
+
+
   @override
+
   Widget build(BuildContext context) {
+
     final auth = context.watch<AuthController>();
 
+
+
     final size = MediaQuery.sizeOf(context);
+
     final horizontalPadding = size.width >= 520 ? 32.0 : 20.0;
 
+
+
     return Scaffold(
+
       backgroundColor: OnesColors.background,
+
       body: SafeArea(
+
         child: Center(
+
           child: ConstrainedBox(
+
             constraints: const BoxConstraints(maxWidth: 520),
+
             child: SingleChildScrollView(
+
               padding: EdgeInsets.symmetric(
+
                 horizontal: horizontalPadding,
+
                 vertical: 28,
+
               ),
+
               child: Column(
+
                 crossAxisAlignment: CrossAxisAlignment.center,
+
                 children: [
+
                   const SizedBox(height: 12),
+
                   LayoutBuilder(
+
                     builder: (context, constraints) {
+
                       final w = (constraints.maxWidth * 0.90)
+
                           .clamp(200.0, 340.0)
+
                           .toDouble();
+
                       return Center(
+
                         child: Image.asset(
+
                           'assets/splash/symbol_purple.png',
+
                           width: w,
+
                         ),
+
                       );
+
                     },
+
                   ),
+
                   const SizedBox(height: 24),
+
                   Text(
+
                     '¡Bienvenido de nuevo!',
+
                     textAlign: TextAlign.center,
+
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+
                           fontWeight: FontWeight.w800,
+
                           color: OnesColors.black,
+
                         ),
+
                   ),
+
                   const SizedBox(height: 10),
+
                   Text(
+
                     'Captura momentos, comparte galerías y\nrevive el evento juntos.',
+
                     textAlign: TextAlign.center,
+
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+
                           color: OnesColors.black.withOpacity(0.7),
+
                           height: 1.3,
+
                         ),
+
                   ),
+
                   const SizedBox(height: 24),
+
                   _HeroStack(height: size.height >= 860 ? 340 : 300),
+
                   const SizedBox(height: 28),
+
                   if (_accountNotFound) ...[
+
                     Container(
+
                       padding: const EdgeInsets.all(14),
+
                       decoration: BoxDecoration(
+
                         color: OnesColors.yellowLight.withOpacity(0.6),
+
                         borderRadius: BorderRadius.zero,
+
                         border: Border.all(
+
                           color: OnesColors.purpleMid.withOpacity(0.4),
+
                         ),
+
                       ),
+
                       child: Column(
+
                         crossAxisAlignment: CrossAxisAlignment.stretch,
+
                         children: [
+
                           const Text(
+
                             'No encontramos una cuenta con ese correo.',
+
                             textAlign: TextAlign.center,
+
                             style: TextStyle(
+
                               fontWeight: FontWeight.w700,
+
                               color: OnesColors.black,
+
                             ),
+
                           ),
+
                           const SizedBox(height: 6),
+
                           const Text(
+
                             'Crea tu cuenta primero para poder ingresar.',
+
                             textAlign: TextAlign.center,
+
                             style: TextStyle(
+
                               fontSize: 13,
+
                               color: OnesColors.black,
+
                             ),
+
                           ),
+
                           const SizedBox(height: 12),
+
                           FilledButton(
+
                             style: FilledButton.styleFrom(
+
                               backgroundColor: OnesColors.purpleMid,
+
                               foregroundColor: OnesColors.white,
+
                               padding:
+
                                   const EdgeInsets.symmetric(vertical: 12),
+
                               shape: const RoundedRectangleBorder(
+
                                 borderRadius: BorderRadius.zero,
+
                               ),
+
                             ),
+
                             onPressed: auth.isLoading
+
                                 ? null
+
                                 : () {
+
                                     setState(() {
+
                                       _accountNotFound = false;
+
                                     });
+
                                     Navigator.of(context).push(
+
                                       MaterialPageRoute(
+
                                         builder: (_) => const RegisterPage(),
+
                                       ),
+
                                     );
+
                                   },
+
                             child: const Text(
+
                               'Crear cuenta',
+
                               style: TextStyle(fontWeight: FontWeight.w900),
+
                             ),
+
                           ),
+
                           const SizedBox(height: 8),
+
                           TextButton(
+
                             onPressed: () {
+
                               setState(() {
+
                                 _accountNotFound = false;
+
                               });
+
                               auth.clearGoogleSession();
+
                             },
+
                             child: const Text(
+
                               'Intentar con otra cuenta',
+
                               style: TextStyle(
+
                                 color: OnesColors.purpleDeep,
+
                                 fontWeight: FontWeight.w600,
+
                                 fontSize: 13,
+
                               ),
+
                             ),
+
                           ),
+
                         ],
+
                       ),
+
                     ),
+
                     const SizedBox(height: 16),
+
                   ] else ...[
+
                     if (auth.error != null) ...[
+
                       Container(
+
                         padding: const EdgeInsets.all(12),
+
                         decoration: BoxDecoration(
+
                           color: OnesColors.white.withOpacity(0.6),
+
                           borderRadius: BorderRadius.zero,
+
                         ),
+
                         child: Text(
+
                           'Error: ${auth.error}',
+
                           textAlign: TextAlign.center,
+
                           style: const TextStyle(color: OnesColors.danger),
+
                         ),
+
                       ),
+
                       const SizedBox(height: 16),
+
                     ],
+
                     SizedBox(
+
                       width: double.infinity,
+
                       height: 54,
+
                       child: kIsWeb
-                          ? Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                Positioned.fill(
-                                  child: IgnorePointer(
-                                    ignoring: auth.isLoading,
-                                    child: SizedBox.expand(
-                                      child: _webGisButton ??
-                                          renderGoogleSignInButton(),
-                                    ),
-                                  ),
-                                ),
-                                Positioned.fill(
-                                  child: IgnorePointer(
-                                    ignoring: true,
-                                    child: Container(
-                                      height: 54,
-                                      color: OnesColors.white,
-                                      alignment: Alignment.center,
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          FaIcon(
-                                            FontAwesomeIcons.google,
-                                            size: 18,
-                                            color: OnesColors.black
-                                                .withOpacity(0.7),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Text(
-                                            auth.isLoading
-                                                ? 'Iniciando sesión...'
-                                                : 'Continuar con Google',
-                                            style: const TextStyle(
-                                                fontWeight:
-                                                    FontWeight.w700),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
+
+                          ? StreamBuilder<GoogleSignInAuthenticationEvent>(
+
+                              stream: _webAuthEvents,
+
+                              builder: (context, snapshot) {
+
+                                final hasSignedIn =
+
+                                    snapshot.data is GoogleSignInAuthenticationEventSignIn;
+
+                                if (hasSignedIn && !auth.isLoading) {
+
+                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+
+                                    _onWebGoogleSignedIn(context);
+
+                                  });
+
+                                }
+
+
+
+                                return AbsorbPointer(
+
+                                  absorbing: auth.isLoading,
+
+                                  child: renderGoogleSignInButton(),
+
+                                );
+
+                              },
+
                             )
+
                           : ElevatedButton(
+
                               onPressed: auth.isLoading
+
                                   ? null
+
                                   : () async {
+
                                       final step = await auth.signInExisting();
+
                                       // ignore: avoid_print
+
                                       print(
+
                                           '[LoginPage] signInExisting step=$step error=${auth.error}');
+
                                       if (!context.mounted) return;
+
                                       setState(() {
+
                                         _accountNotFound = step ==
+
                                             AuthNextStep.needsRegistration;
+
                                       });
+
                                     },
+
                               style: ElevatedButton.styleFrom(
+
                                 backgroundColor: OnesColors.white,
+
                                 foregroundColor: OnesColors.black,
+
                                 shape: const RoundedRectangleBorder(
+
                                   borderRadius: BorderRadius.zero,
+
                                 ),
+
                                 elevation: 0,
+
                               ),
+
                               child: Row(
+
                                 mainAxisAlignment: MainAxisAlignment.center,
+
                                 children: [
+
                                   FaIcon(
+
                                     FontAwesomeIcons.google,
+
                                     size: 18,
+
                                     color: OnesColors.black.withOpacity(0.7),
+
                                   ),
+
                                   const SizedBox(width: 12),
+
                                   Text(
+
                                     auth.isLoading
+
                                         ? 'Iniciando sesión...'
+
                                         : 'Continuar con Google',
+
                                     style: const TextStyle(
+
                                         fontWeight: FontWeight.w700),
+
                                   ),
+
                                 ],
+
                               ),
+
                             ),
+
                     ),
+
                     const SizedBox(height: 16),
+
                     TextButton(
+
                       onPressed: auth.isLoading
+
                           ? null
+
                           : () {
+
                               Navigator.of(context).push(
+
                                 MaterialPageRoute(
+
                                   builder: (_) => const RegisterPage(),
+
                                 ),
+
                               );
+
                             },
+
                       child: const Text(
+
                         'Crear una cuenta',
+
                         style: TextStyle(
+
                           color: OnesColors.purpleDeep,
+
                           fontWeight: FontWeight.w700,
+
                         ),
+
                       ),
+
                     ),
+
                   ],
+
                   const SizedBox(height: 18),
+
                 ],
+
               ),
+
             ),
+
           ),
+
         ),
+
       ),
+
     );
+
   }
+
 }
 
+
+
 class _HeroStack extends StatelessWidget {
+
   final double height;
+
+
 
   const _HeroStack({required this.height});
 
+
+
   @override
+
   Widget build(BuildContext context) {
+
     return SizedBox(
+
       height: height,
+
       width: double.infinity,
+
       child: Stack(
+
         clipBehavior: Clip.none,
+
         children: [
+
           Positioned(
+
             right: -28,
+
             bottom: 12,
+
             child: Transform.rotate(
+
               angle: 0.10,
+
               child: Container(
+
                 width: 240,
+
                 height: 190,
+
                 decoration: BoxDecoration(
+
                   color: Colors.black.withOpacity(0.85),
+
                   borderRadius: BorderRadius.zero,
+
                 ),
+
                 child: ClipRRect(
+
                   borderRadius: BorderRadius.zero,
+
                   child: Image.asset(
+
                     'assets/auth/concierto.png',
+
                     fit: BoxFit.cover,
+
                   ),
+
                 ),
+
               ),
+
             ),
+
           ),
+
           Positioned(
+
             left: 22,
+
             bottom: 44,
+
             child: Transform.rotate(
+
               angle: -0.06,
+
               child: Container(
+
                 width: 260,
+
                 height: 210,
+
                 padding: const EdgeInsets.all(4),
+
                 decoration: BoxDecoration(
+
                   color: Colors.white,
+
                   borderRadius: BorderRadius.zero,
+
                   boxShadow: [
+
                     BoxShadow(
+
                       color: Colors.black.withOpacity(0.18),
+
                       blurRadius: 28,
+
                       offset: const Offset(0, 12),
+
                     ),
+
                   ],
+
                 ),
+
                 child: ClipRRect(
+
                   borderRadius: BorderRadius.zero,
+
                   child: Image.asset(
+
                     'assets/auth/amigos.png',
+
                     fit: BoxFit.cover,
+
                   ),
+
                 ),
+
               ),
+
             ),
+
           ),
+
           const Positioned(
+
             right: 14,
+
             top: 32,
+
             child: Opacity(
+
               opacity: 0.9,
+
               child: Icon(Icons.auto_awesome,
+
                   color: OnesColors.purpleDeep, size: 22),
+
             ),
+
           ),
+
           const Positioned(
+
             right: 34,
+
             top: 58,
+
             child: Opacity(
+
               opacity: 0.7,
+
               child: Icon(Icons.auto_awesome,
+
                   color: OnesColors.purpleDeep, size: 16),
+
             ),
+
           ),
+
           const Positioned(
+
             left: 10,
+
             bottom: 14,
+
             child: Opacity(
+
               opacity: 0.9,
+
               child: Icon(Icons.camera_alt,
+
                   color: OnesColors.purpleDeep, size: 22),
+
             ),
+
           ),
+
         ],
+
       ),
+
     );
+
   }
+
 }
+
