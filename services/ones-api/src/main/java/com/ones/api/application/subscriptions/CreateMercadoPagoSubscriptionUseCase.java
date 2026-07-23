@@ -2,8 +2,6 @@ package com.ones.api.application.subscriptions;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 import com.ones.api.application.subscriptions.ports.MercadoPagoGateway;
@@ -116,45 +114,43 @@ public class CreateMercadoPagoSubscriptionUseCase {
                 cardTokenPresent
         );
 
-        MercadoPagoGateway.Preapproval preapproval = null;
-        String initPoint;
-        String preapprovalId;
+        String externalReference = userId;
+        MercadoPagoGateway.Preapproval preapproval;
 
         if (cardTokenPresent) {
-            String externalReference = userId;
-            preapproval = mercadoPagoGateway.createPreapproval(mpPlanId, payerEmail, backUrl, externalReference, cardTokenId);
-            initPoint = preapproval.initPoint();
-            preapprovalId = preapproval.id();
+            preapproval = mercadoPagoGateway.createPreapproval(
+                    mpPlanId, payerEmail, backUrl, externalReference, cardTokenId
+            );
         } else {
-            MercadoPagoGateway.PreapprovalPlan planForCheckout = mercadoPagoGateway.getPlan(mpPlanId)
-                    .orElseThrow(() -> new IllegalArgumentException("Mercado Pago plan not found: " + planId));
-            initPoint = planForCheckout.initPoint();
-            preapprovalId = null;
-
-            if (initPoint != null && !initPoint.isBlank()) {
-                String separator = initPoint.contains("?") ? "&" : "?";
-                String backUrlWithUid = backUrl + (backUrl.contains("?") ? "&" : "?") + "ones_uid=" + userId;
-                initPoint = initPoint
-                        + separator
-                        + "external_reference=" + urlEncode(userId)
-                        + "&back_url=" + urlEncode(backUrlWithUid);
-            }
+            preapproval = mercadoPagoGateway.createPreapproval(
+                    mpPlanId, payerEmail, backUrl, externalReference
+            );
         }
 
+        String initPoint = preapproval.initPoint();
+        String preapprovalId = preapproval.id();
+
+        if (preapprovalId == null || preapprovalId.isBlank()) {
+            throw new IllegalArgumentException("Mercado Pago preapproval id is not available for plan: " + planId);
+        }
         if (initPoint == null || initPoint.isBlank()) {
             throw new IllegalArgumentException("Mercado Pago init_point is not available for plan: " + planId);
         }
+
+        log.info(
+                "Created MercadoPago preapproval. planId={} preapprovalId={} cardTokenPresent={}",
+                planId,
+                preapprovalId,
+                cardTokenPresent
+        );
 
         Instant now = Instant.now(clock);
         UserSubscription subscription = subscriptionsRepository.findByUserId(userId)
                 .orElse(new UserSubscription(userId, "free", "free", null, now, null, null, null, now));
 
         UserSubscription updated = subscription
-                .withPlan(planId, "pending", now);
-
-        if (preapprovalId != null && !preapprovalId.isBlank()) {
-            updated = updated.withMercadoPagoPreapprovalId(preapprovalId, now);
-        }
+                .withPlan(planId, "pending", now)
+                .withMercadoPagoPreapprovalId(preapprovalId, now);
 
         subscriptionsRepository.upsert(updated);
 
@@ -167,13 +163,6 @@ public class CreateMercadoPagoSubscriptionUseCase {
         }
         String normalized = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         return normalized + path;
-    }
-
-    private static String urlEncode(String value) {
-        if (value == null) {
-            return null;
-        }
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
     public record Result(String preapprovalId, String initPoint, String planId) {
