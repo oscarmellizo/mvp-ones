@@ -64,7 +64,7 @@ public class MercadoPagoClient implements MercadoPagoGateway {
             String externalReference
     ) {
         int frequency = "year".equalsIgnoreCase(billingInterval) ? 12 : 1;
-        double amount = priceCents / 100.0;
+        double amount = toMercadoPagoAmount(priceCents, currency);
 
         CreatePlanRequest req = new CreatePlanRequest(
                 reason,
@@ -279,6 +279,10 @@ public class MercadoPagoClient implements MercadoPagoGateway {
         } catch (WebClientResponseException.NotFound e) {
             return Optional.empty();
         }
+    }
+
+    static double toMercadoPagoAmount(long priceCents, String currency) {
+        return "COP".equalsIgnoreCase(currency) ? priceCents : priceCents / 100.0;
     }
 
     private static String text(JsonNode node, String field) {
