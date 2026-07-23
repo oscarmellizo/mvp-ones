@@ -99,14 +99,28 @@ public class ProcessMercadoPagoWebhookUseCase {
         String payerEmailMasked = maskEmail(preapproval.get().payerEmail());
         String externalReference = preapproval.get().externalReference();
         String backUrl = preapproval.get().backUrl();
+        String preapprovalPlanId = preapproval.get().preapprovalPlanId();
+        if ((externalReference == null || externalReference.isBlank())
+                && preapprovalPlanId != null
+                && !preapprovalPlanId.isBlank()) {
+            Optional<MercadoPagoGateway.PreapprovalPlan> checkoutPlan = mercadoPagoGateway.getPlan(preapprovalPlanId);
+            externalReference = checkoutPlan.map(MercadoPagoGateway.PreapprovalPlan::externalReference).orElse(null);
+            log.info(
+                    "[MP webhook] resolved externalReference from checkout plan. preapprovalPlanId={} planFound={} externalReferencePresent={}",
+                    preapprovalPlanId,
+                    checkoutPlan.isPresent(),
+                    externalReference != null && !externalReference.isBlank()
+            );
+        }
         log.info(
-                "[MP webhook] preapproval fetched. preapprovalId={} mpStatus={} mappedStatus={} initPointPresent={} payerEmailMasked={} externalReferencePresent={}",
+                "[MP webhook] preapproval fetched. preapprovalId={} mpStatus={} mappedStatus={} initPointPresent={} payerEmailMasked={} externalReferencePresent={} preapprovalPlanIdPresent={}",
                 preapprovalId,
                 mpStatus,
                 status,
                 preapproval.get().initPoint() != null && !preapproval.get().initPoint().isBlank(),
                 payerEmailMasked,
-                externalReference != null && !externalReference.isBlank()
+                externalReference != null && !externalReference.isBlank(),
+                preapprovalPlanId != null && !preapprovalPlanId.isBlank()
         );
 
         Optional<UserSubscription> existing = subscriptionsRepository.findByMercadoPagoPreapprovalId(preapprovalId);
