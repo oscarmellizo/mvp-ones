@@ -4,7 +4,15 @@ import java.util.Optional;
 
 public interface MercadoPagoGateway {
 
-    PreapprovalPlan createPlan(String reason, String billingInterval, long priceCents, String currency, String backUrl, String notificationUrl);
+    PreapprovalPlan createPlan(
+            String reason,
+            String billingInterval,
+            long priceCents,
+            String currency,
+            String backUrl,
+            String notificationUrl,
+            String externalReference
+    );
 
     Optional<PreapprovalPlan> getPlan(String preapprovalPlanId);
 
@@ -20,9 +28,17 @@ public interface MercadoPagoGateway {
 
     Optional<String> getPayerEmailFromPayment(String paymentId);
 
-    record PreapprovalPlan(String id, String reason, String initPoint) {
+    record PreapprovalPlan(String id, String reason, String initPoint, String externalReference) {
     }
 
-    record Preapproval(String id, String status, String initPoint, String payerEmail, String externalReference, String backUrl) {
+    record Preapproval(
+            String id,
+            String status,
+            String initPoint,
+            String payerEmail,
+            String externalReference,
+            String backUrl,
+            String preapprovalPlanId
+    ) {
     }
 }
