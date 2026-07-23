@@ -198,7 +198,8 @@ public class MercadoPagoClient implements MercadoPagoGateway {
                 preapprovalPlanId,
                 payerEmail,
                 backUrl,
-                externalReference
+                externalReference,
+                "pending"
         );
 
         PreapprovalResponse resp = post("/preapproval", req, PreapprovalResponse.class);
@@ -453,7 +454,8 @@ public class MercadoPagoClient implements MercadoPagoGateway {
             @JsonProperty("preapproval_plan_id") String preapprovalPlanId,
             @JsonProperty("payer_email") String payerEmail,
             @JsonProperty("back_url") String backUrl,
-            @JsonProperty("external_reference") String externalReference
+            @JsonProperty("external_reference") String externalReference,
+            String status
     ) {
     }
 
