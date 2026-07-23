@@ -31,9 +31,16 @@ class PhotosGalleryController extends ChangeNotifier {
 
   String? _currentEventId;
 
+  String? _currentQueryKey;
+
   String? _pendingRefreshEventId;
 
   PhotosGalleryController({required this.api});
+
+  String _buildQueryKey(String eventId) {
+    final guests = _guestIds.toList(growable: false)..sort();
+    return '${eventId.trim()}|${_filter.name}|${guests.join(",")}';
+  }
 
   bool _urlBelongsToEvent(String url, String eventId) {
     if (url.isEmpty) return false;
@@ -100,6 +107,7 @@ class PhotosGalleryController extends ChangeNotifier {
     if (trimmedEventId.isEmpty) return;
 
     _currentEventId = trimmedEventId;
+    _currentQueryKey = _buildQueryKey(trimmedEventId);
     _nextToken = null;
     _hasMore = true;
     _error = null;
@@ -277,13 +285,16 @@ class PhotosGalleryController extends ChangeNotifier {
     final trimmedEventId = eventId.trim();
     if (trimmedEventId.isEmpty) return;
 
+    final nextQueryKey = _buildQueryKey(trimmedEventId);
     final eventChanged = _currentEventId != trimmedEventId;
+    final queryChanged = _currentQueryKey != nextQueryKey;
     _currentEventId = trimmedEventId;
+    _currentQueryKey = nextQueryKey;
     _error = null;
 
     // Only wipe items when switching events; for same-event refresh keep
     // existing items visible until the new page arrives (no flicker).
-    if (eventChanged) {
+    if (eventChanged || queryChanged) {
       _items = const [];
       _loadedOnce = false;
       _nextToken = null;
@@ -415,6 +426,11 @@ class PhotosGalleryController extends ChangeNotifier {
 
     final trimmedEventId = eventId.trim();
     if (_currentEventId == null || _currentEventId != trimmedEventId) {
+      return;
+    }
+
+    final expectedKey = _currentQueryKey;
+    if (expectedKey != null && expectedKey != _buildQueryKey(trimmedEventId)) {
       return;
     }
 
