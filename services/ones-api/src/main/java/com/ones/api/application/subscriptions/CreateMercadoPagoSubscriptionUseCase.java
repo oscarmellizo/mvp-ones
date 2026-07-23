@@ -4,7 +4,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Optional;
 
 import com.ones.api.application.subscriptions.ports.MercadoPagoGateway;
 import com.ones.api.application.subscriptions.ports.SubscriptionPlansRepository;
@@ -100,7 +99,6 @@ public class CreateMercadoPagoSubscriptionUseCase {
                 : user.getEmail();
 
         String backUrl = appendPath(appBaseUrl, "/plans/success");
-        String notificationUrl = appendPath(appBaseUrl, "/v1/payments/mercadopago/webhook");
 
         String mpPlanIdMasked = mpPlanId == null ? null : (mpPlanId.length() <= 8
                 ? "***"
@@ -129,23 +127,14 @@ public class CreateMercadoPagoSubscriptionUseCase {
             preapprovalId = preapproval.id();
         } else {
             String backUrlWithUid = backUrl + (backUrl.contains("?") ? "&" : "?") + "ones_uid=" + urlEncode(userId);
-            MercadoPagoGateway.PreapprovalPlan checkoutPlan = mercadoPagoGateway.createPlan(
-                    plan.getName(),
-                    plan.getBillingInterval(),
-                    plan.getPriceCents(),
-                    plan.getCurrency(),
+            MercadoPagoGateway.Preapproval preapproval = mercadoPagoGateway.createPreapproval(
+                    mpPlanId,
+                    payerEmail,
                     backUrlWithUid,
-                    notificationUrl,
                     externalReference
             );
-            initPoint = checkoutPlan.initPoint();
-            preapprovalId = null;
-            log.info(
-                    "Created MercadoPago checkout plan. planId={} checkoutPlanId={} externalReferencePresent={}",
-                    planId,
-                    checkoutPlan.id(),
-                    checkoutPlan.externalReference() != null && !checkoutPlan.externalReference().isBlank()
-            );
+            initPoint = preapproval.initPoint();
+            preapprovalId = preapproval.id();
         }
 
         if (initPoint == null || initPoint.isBlank()) {
