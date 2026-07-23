@@ -100,6 +100,7 @@ public class CreateMercadoPagoSubscriptionUseCase {
                 : user.getEmail();
 
         String backUrl = appendPath(appBaseUrl, "/plans/success");
+        String notificationUrl = appendPath(appBaseUrl, "/v1/payments/mercadopago/webhook");
 
         String mpPlanIdMasked = mpPlanId == null ? null : (mpPlanId.length() <= 8
                 ? "***"
@@ -116,29 +117,35 @@ public class CreateMercadoPagoSubscriptionUseCase {
                 cardTokenPresent
         );
 
-        MercadoPagoGateway.Preapproval preapproval = null;
+        String externalReference = userId;
         String initPoint;
         String preapprovalId;
 
         if (cardTokenPresent) {
-            String externalReference = userId;
-            preapproval = mercadoPagoGateway.createPreapproval(mpPlanId, payerEmail, backUrl, externalReference, cardTokenId);
+            MercadoPagoGateway.Preapproval preapproval = mercadoPagoGateway.createPreapproval(
+                    mpPlanId, payerEmail, backUrl, externalReference, cardTokenId
+            );
             initPoint = preapproval.initPoint();
             preapprovalId = preapproval.id();
         } else {
-            MercadoPagoGateway.PreapprovalPlan planForCheckout = mercadoPagoGateway.getPlan(mpPlanId)
-                    .orElseThrow(() -> new IllegalArgumentException("Mercado Pago plan not found: " + planId));
-            initPoint = planForCheckout.initPoint();
+            String backUrlWithUid = backUrl + (backUrl.contains("?") ? "&" : "?") + "ones_uid=" + urlEncode(userId);
+            MercadoPagoGateway.PreapprovalPlan checkoutPlan = mercadoPagoGateway.createPlan(
+                    plan.getName(),
+                    plan.getBillingInterval(),
+                    plan.getPriceCents(),
+                    plan.getCurrency(),
+                    backUrlWithUid,
+                    notificationUrl,
+                    externalReference
+            );
+            initPoint = checkoutPlan.initPoint();
             preapprovalId = null;
-
-            if (initPoint != null && !initPoint.isBlank()) {
-                String separator = initPoint.contains("?") ? "&" : "?";
-                String backUrlWithUid = backUrl + (backUrl.contains("?") ? "&" : "?") + "ones_uid=" + userId;
-                initPoint = initPoint
-                        + separator
-                        + "external_reference=" + urlEncode(userId)
-                        + "&back_url=" + urlEncode(backUrlWithUid);
-            }
+            log.info(
+                    "Created MercadoPago checkout plan. planId={} checkoutPlanId={} externalReferencePresent={}",
+                    planId,
+                    checkoutPlan.id(),
+                    checkoutPlan.externalReference() != null && !checkoutPlan.externalReference().isBlank()
+            );
         }
 
         if (initPoint == null || initPoint.isBlank()) {
