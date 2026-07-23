@@ -53,7 +53,14 @@ public class MercadoPagoWebhookController {
             }
         }
 
-        log.info("Received Mercado Pago webhook: topic={} id={} (rawTopic={} rawId={})", resolvedTopic, resolvedId, topic, id);
+        log.info(
+                "[MP webhook inbound] topic={} id={} rawTopic={} rawId={} payload={}",
+                resolvedTopic,
+                resolvedId,
+                topic,
+                id,
+                body
+        );
         processMercadoPagoWebhookUseCase.execute(resolvedTopic, resolvedId);
         return ResponseEntity.ok().build();
     }
