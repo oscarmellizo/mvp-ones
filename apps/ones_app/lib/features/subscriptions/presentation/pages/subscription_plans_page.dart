@@ -17,6 +17,25 @@ class SubscriptionPlansPage extends StatefulWidget {
 }
 
 class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
+  bool _handledPaymentResult = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_handledPaymentResult) return;
+    final result = ModalRoute.of(context)?.settings.arguments as String?;
+    if (result == null) return;
+    _handledPaymentResult = true;
+    final message = switch (result) {
+      'success' => 'Tu pago fue aprobado. Estamos actualizando tu plan.',
+      'pending' => 'Tu pago está pendiente de confirmación.',
+      _ => 'No se completó el pago. Puedes intentarlo nuevamente.',
+    };
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    });
+  }
+
   @override
   void initState() {
     super.initState();
