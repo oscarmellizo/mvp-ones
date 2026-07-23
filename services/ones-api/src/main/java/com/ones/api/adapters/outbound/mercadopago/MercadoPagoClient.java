@@ -64,7 +64,7 @@ public class MercadoPagoClient implements MercadoPagoGateway {
             String externalReference
     ) {
         int frequency = "year".equalsIgnoreCase(billingInterval) ? 12 : 1;
-        double amount = priceCents / 100.0;
+        double amount = toMercadoPagoAmount(priceCents, currency);
 
         CreatePlanRequest req = new CreatePlanRequest(
                 reason,
@@ -74,7 +74,25 @@ public class MercadoPagoClient implements MercadoPagoGateway {
                 externalReference
         );
 
+        log.info(
+                "[MP outbound] POST /preapproval_plan payload reason={} frequency={} frequencyType={} transactionAmount={} currencyId={} backUrl={} notificationUrl={} externalReference={}",
+                reason,
+                frequency,
+                "months",
+                amount,
+                currency,
+                backUrl,
+                notificationUrl,
+                externalReference
+        );
         PlanResponse resp = post("/preapproval_plan", req, PlanResponse.class);
+        log.info(
+                "[MP inbound] POST /preapproval_plan response planId={} reason={} initPoint={} externalReference={}",
+                resp.id,
+                resp.reason,
+                resp.initPoint,
+                resp.externalReference
+        );
         return new PreapprovalPlan(resp.id, resp.reason, resp.initPoint, resp.externalReference);
     }
 
@@ -89,6 +107,7 @@ public class MercadoPagoClient implements MercadoPagoGateway {
             );
         }
         try {
+            log.info("[MP outbound] GET /preapproval_plan/{}", preapprovalPlanId);
             PlanResponse resp = webClient.get()
                     .uri("/preapproval_plan/{id}", preapprovalPlanId)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
@@ -99,6 +118,14 @@ public class MercadoPagoClient implements MercadoPagoGateway {
             if (resp == null) {
                 return Optional.empty();
             }
+            log.info(
+                    "[MP inbound] GET /preapproval_plan response requestedPlanId={} planId={} reason={} initPoint={} externalReference={}",
+                    preapprovalPlanId,
+                    resp.id,
+                    resp.reason,
+                    resp.initPoint,
+                    resp.externalReference
+            );
             return Optional.of(new PreapprovalPlan(resp.id, resp.reason, resp.initPoint, resp.externalReference));
         } catch (WebClientResponseException.NotFound e) {
             return Optional.empty();
@@ -120,6 +147,7 @@ public class MercadoPagoClient implements MercadoPagoGateway {
         }
 
         try {
+            log.info("[MP outbound] GET /v1/payments/{} for payer email", paymentId);
             String body = webClient.get()
                     .uri("/v1/payments/{id}", paymentId)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
@@ -147,6 +175,13 @@ public class MercadoPagoClient implements MercadoPagoGateway {
             if (payerEmail == null || payerEmail.isBlank()) {
                 payerEmail = findFirstTextByFieldName(root, "email");
             }
+
+            log.info(
+                    "[MP inbound] GET /v1/payments payerEmail resolved. paymentId={} payerEmailPresent={} payerEmailMasked={}",
+                    paymentId,
+                    payerEmail != null && !payerEmail.isBlank(),
+                    maskEmail(payerEmail)
+            );
 
             if (payerEmail == null || payerEmail.isBlank()) {
                 String snippet = body.length() > 800 ? body.substring(0, 800) + "..." : body;
@@ -233,6 +268,7 @@ public class MercadoPagoClient implements MercadoPagoGateway {
             return Optional.empty();
         }
         try {
+            log.info("[MP outbound] GET /preapproval/{}", preapprovalId);
             String body = webClient.get()
                     .uri("/preapproval/{id}", preapprovalId)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
@@ -275,10 +311,69 @@ public class MercadoPagoClient implements MercadoPagoGateway {
                 );
             }
 
+            log.info(
+                    "[MP inbound] GET /preapproval response requestedPreapprovalId={} preapprovalId={} status={} payerEmailPresent={} payerEmailMasked={} externalReference={} backUrl={} preapprovalPlanId={} initPoint={}",
+                    preapprovalId,
+                    id,
+                    status,
+                    payerEmail != null && !payerEmail.isBlank(),
+                    maskEmail(payerEmail),
+                    externalReference,
+                    backUrl,
+                    preapprovalPlanId,
+                    initPoint
+            );
             return Optional.of(new Preapproval(id, status, initPoint, payerEmail, externalReference, backUrl, preapprovalPlanId));
         } catch (WebClientResponseException.NotFound e) {
             return Optional.empty();
         }
+    }
+
+    private static String maskEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return null;
+        }
+        int at = email.indexOf('@');
+        if (at <= 1) {
+            return "***";
+        }
+        return email.substring(0, 1) + "***" + email.substring(at);
+    }
+
+    private static String safePayload(Object payload) {
+        try {
+            JsonNode root = objectMapper.valueToTree(payload);
+            redact(root, "card_token_id");
+            redact(root, "payer_email");
+            return objectMapper.writeValueAsString(root);
+        } catch (JsonProcessingException e) {
+            return "<payload serialization failed>";
+        }
+    }
+
+    private static void redact(JsonNode node, String fieldName) {
+        if (node == null || node.isNull()) {
+            return;
+        }
+        if (node.isObject()) {
+            var fields = node.fields();
+            while (fields.hasNext()) {
+                var field = fields.next();
+                if (fieldName.equals(field.getKey())) {
+                    ((com.fasterxml.jackson.databind.node.ObjectNode) node).put(fieldName, "***");
+                } else {
+                    redact(field.getValue(), fieldName);
+                }
+            }
+        } else if (node.isArray()) {
+            for (JsonNode child : node) {
+                redact(child, fieldName);
+            }
+        }
+    }
+
+    static double toMercadoPagoAmount(long priceCents, String currency) {
+        return "COP".equalsIgnoreCase(currency) ? priceCents : priceCents / 100.0;
     }
 
     private static String text(JsonNode node, String field) {
@@ -304,6 +399,7 @@ public class MercadoPagoClient implements MercadoPagoGateway {
             );
         }
         try {
+            log.info("[MP outbound] GET /v1/payments/{} for preapproval resolution", paymentId);
             String body = webClient.get()
                     .uri("/v1/payments/{id}", paymentId)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
@@ -339,6 +435,12 @@ public class MercadoPagoClient implements MercadoPagoGateway {
                 preapprovalId = findFirstTextByFieldName(root, "subscription_id");
             }
 
+            log.info(
+                    "[MP inbound] GET /v1/payments preapproval resolution. paymentId={} preapprovalIdPresent={} preapprovalId={}",
+                    paymentId,
+                    preapprovalId != null && !preapprovalId.isBlank(),
+                    preapprovalId
+            );
             if (preapprovalId != null && !preapprovalId.isBlank()) {
                 return Optional.of(preapprovalId);
             }
@@ -402,7 +504,8 @@ public class MercadoPagoClient implements MercadoPagoGateway {
         }
 
         try {
-            return webClient.post()
+            log.info("[MP outbound] POST {} payload={}", uri, safePayload(body));
+            T response = webClient.post()
                     .uri(uri)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                     .contentType(MediaType.APPLICATION_JSON)
@@ -411,6 +514,8 @@ public class MercadoPagoClient implements MercadoPagoGateway {
                     .retrieve()
                     .bodyToMono(responseType)
                     .block(Duration.ofSeconds(30));
+            log.info("[MP inbound] POST {} responseType={} responsePresent={}", uri, responseType.getSimpleName(), response != null);
+            return response;
         } catch (WebClientResponseException.Unauthorized | WebClientResponseException.Forbidden e) {
             log.warn("MercadoPago request failed with status={} body={}", e.getStatusCode().value(), e.getResponseBodyAsString());
             throw new IllegalArgumentException(

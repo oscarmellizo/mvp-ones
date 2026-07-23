@@ -12,6 +12,12 @@ class MercadoPagoClientSerializationTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
+    void usesWholePesosForCopPlanAmounts() {
+        assertEquals(19900.0, MercadoPagoClient.toMercadoPagoAmount(19900, "COP"));
+        assertEquals(199.0, MercadoPagoClient.toMercadoPagoAmount(19900, "USD"));
+    }
+
+    @Test
     void serializesPreapprovalPlanRequestUsingMercadoPagoFieldNames() throws Exception {
         MercadoPagoClient.CreatePlanRequest request = new MercadoPagoClient.CreatePlanRequest(
                 "Ones Plus Monthly",
