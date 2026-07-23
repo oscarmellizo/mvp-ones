@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:app_links/app_links.dart';
 import 'package:provider/provider.dart';
 
 import 'core/config/app_config.dart';
@@ -61,6 +62,10 @@ import 'features/events/presentation/pages/create_event_page.dart';
 import 'features/events/presentation/pages/photo_capture_page.dart';
 import 'features/invitations/presentation/pages/invitation_link_page.dart';
 import 'features/events/presentation/pages/event_invite_link_page.dart';
+import 'features/subscriptions/presentation/pages/subscription_plans_page.dart';
+import 'features/subscriptions/presentation/pages/plans_result_web_page.dart';
+
+final GlobalKey<NavigatorState> onesNavigatorKey = GlobalKey<NavigatorState>();
 
 class OnesApp extends StatelessWidget {
   final AppConfig config;
@@ -377,6 +382,7 @@ class OnesApp extends StatelessWidget {
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
+            navigatorKey: onesNavigatorKey,
             home: const _RootRouter(),
             routes: {
               EventsListPage.routeName: (_) => const EventsListPage(),
@@ -387,6 +393,14 @@ class OnesApp extends StatelessWidget {
               if (name == null || name.isEmpty) return null;
 
               final uri = Uri.parse(name);
+              if (uri.path == '/plans/success' || uri.path == '/plans/pending' || uri.path == '/plans/failure') {
+                return MaterialPageRoute(
+                  builder: (_) => PlansResultWebPage(result: uri.pathSegments.last),
+                );
+              }
+              if (uri.path == SubscriptionPlansPage.routeName) {
+                return MaterialPageRoute(builder: (_) => const SubscriptionPlansPage());
+              }
               if (uri.path == InvitationLinkPage.routeName) {
                 final token = uri.queryParameters['token'];
                 if (token == null || token.trim().isEmpty) {
@@ -449,11 +463,32 @@ class _RootRouter extends StatefulWidget {
 }
 
 class _RootRouterState extends State<_RootRouter> with WidgetsBindingObserver {
+  final AppLinks _appLinks = AppLinks();
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _appLinks.getInitialLink().then(_handlePaymentLink);
+    _appLinks.uriLinkStream.listen(_handlePaymentLink);
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkPendingNotif());
+  }
+
+  void _handlePaymentLink(Uri? uri) {
+    if (uri == null ||
+        (uri.scheme != 'ones' && uri.scheme != 'onesdev') ||
+        uri.host != 'plans' ||
+        uri.pathSegments.length != 1 ||
+        !const {'success', 'pending', 'failure'}.contains(uri.pathSegments.first)) {
+      return;
+    }
+    final result = uri.pathSegments.first;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      onesNavigatorKey.currentState?.pushNamed(
+        SubscriptionPlansPage.routeName,
+        arguments: result,
+      );
+    });
   }
 
   @override
