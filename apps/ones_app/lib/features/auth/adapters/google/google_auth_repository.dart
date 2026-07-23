@@ -23,7 +23,7 @@ class GoogleAuthRepository implements AuthRepository {
   }) async {
     String? idToken;
     for (var i = 0; i < attempts && (idToken == null || idToken.isEmpty); i++) {
-      final auth = await account.authentication;
+      final auth = account.authentication;
       idToken = auth.idToken;
       if (idToken != null && idToken.isNotEmpty) {
         break;
@@ -59,8 +59,13 @@ class GoogleAuthRepository implements AuthRepository {
       }
     } else {
       // Mobile: avoid repeated interactive prompts by attempting a lightweight
-      // (silent) authentication first.
-      account = await _signIn.attemptLightweightAuthentication();
+      // (silent) authentication first. A stored Google session can require
+      // reauthentication; in that case continue with the interactive flow.
+      try {
+        account = await _signIn.attemptLightweightAuthentication();
+      } on GoogleSignInException {
+        account = null;
+      }
       account ??= await _signIn.authenticate();
     }
 
