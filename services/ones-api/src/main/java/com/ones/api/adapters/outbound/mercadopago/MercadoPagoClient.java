@@ -429,20 +429,20 @@ public class MercadoPagoClient implements MercadoPagoGateway {
         }
     }
 
-    private record CreatePlanRequest(
+    record CreatePlanRequest(
             String reason,
-            AutoRecurring autoRecurring,
-            String backUrl,
-            String notificationUrl,
-            String externalReference
+            @JsonProperty("auto_recurring") AutoRecurring autoRecurring,
+            @JsonProperty("back_url") String backUrl,
+            @JsonProperty("notification_url") String notificationUrl,
+            @JsonProperty("external_reference") String externalReference
     ) {
     }
 
-    private record AutoRecurring(
+    record AutoRecurring(
             int frequency,
-            String frequencyType,
-            double transactionAmount,
-            String currencyId
+            @JsonProperty("frequency_type") String frequencyType,
+            @JsonProperty("transaction_amount") double transactionAmount,
+            @JsonProperty("currency_id") String currencyId
     ) {
     }
 
