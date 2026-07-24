@@ -126,12 +126,34 @@ public class CreateMercadoPagoSubscriptionUseCase {
             initPoint = preapproval.initPoint();
             preapprovalId = preapproval.id();
         } else {
-            MercadoPagoGateway.PreapprovalPlan checkoutPlan = mercadoPagoGateway.getPlan(mpPlanId)
-                    .orElseThrow(() -> new IllegalArgumentException(
-                            "Mercado Pago plan not found: " + planId
-                    ));
-            initPoint = checkoutPlan.initPoint();
-            preapprovalId = null;
+            String backUrlWithUid = backUrl + (backUrl.contains("?") ? "&" : "?") + "ones_uid=" + urlEncode(userId);
+            try {
+                MercadoPagoGateway.Preapproval preapproval = mercadoPagoGateway.createPreapproval(
+                        mpPlanId,
+                        payerEmail,
+                        backUrlWithUid,
+                        externalReference
+                );
+                initPoint = preapproval.initPoint();
+                preapprovalId = preapproval.id();
+            } catch (IllegalArgumentException e) {
+                String msg = e.getMessage();
+                boolean cardTokenRequired = msg != null && msg.toLowerCase().contains("card_token_id");
+                if (!cardTokenRequired) {
+                    throw e;
+                }
+                log.warn(
+                        "MercadoPago rejected preapproval without card token; falling back to plan init_point. planId={} mpPlanIdMasked={}",
+                        planId,
+                        mpPlanIdMasked
+                );
+                MercadoPagoGateway.PreapprovalPlan checkoutPlan = mercadoPagoGateway.getPlan(mpPlanId)
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                "Mercado Pago plan not found: " + planId
+                        ));
+                initPoint = checkoutPlan.initPoint();
+                preapprovalId = null;
+            }
         }
 
         if (initPoint == null || initPoint.isBlank()) {
