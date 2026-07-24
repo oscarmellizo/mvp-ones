@@ -28,6 +28,8 @@ public interface MercadoPagoGateway {
 
     Optional<String> getPayerEmailFromPayment(String paymentId);
 
+    Optional<PaymentCorrelation> getPaymentCorrelation(String paymentId);
+
     record PreapprovalPlan(String id, String reason, String initPoint, String externalReference) {
     }
 
@@ -38,6 +40,16 @@ public interface MercadoPagoGateway {
             String payerEmail,
             String externalReference,
             String backUrl,
+            String preapprovalPlanId
+    ) {
+    }
+
+    record PaymentCorrelation(
+            String paymentId,
+            String preapprovalId,
+            String externalReference,
+            String payerEmail,
+            String payerId,
             String preapprovalPlanId
     ) {
     }
