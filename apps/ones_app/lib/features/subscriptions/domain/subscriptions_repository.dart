@@ -7,4 +7,8 @@ abstract interface class SubscriptionsRepository {
   Future<UserSubscription?> getMySubscription();
 
   Future<Map<String, dynamic>?> createMercadoPagoSubscription(String planId, {String? cardTokenId});
+
+  Future<PaymentProfile?> getMyPaymentProfile();
+
+  Future<PaymentProfile> upsertMyPaymentProfile(PaymentProfile profile);
 }

@@ -6,6 +6,8 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
 import com.ones.api.application.subscriptions.ports.MercadoPagoGateway;
+import com.ones.api.application.subscriptions.ports.PaymentProfilesRepository;
+import com.ones.api.application.subscriptions.ports.CheckoutAttemptsRepository;
 import com.ones.api.application.subscriptions.ports.SubscriptionPlansRepository;
 import com.ones.api.application.subscriptions.ports.UserSubscriptionsRepository;
 import com.ones.api.application.users.ports.UsersRepository;
@@ -23,6 +25,8 @@ public class CreateMercadoPagoSubscriptionUseCase {
     private final UserSubscriptionsRepository subscriptionsRepository;
     private final SubscriptionPlansRepository plansRepository;
     private final UsersRepository usersRepository;
+    private final PaymentProfilesRepository paymentProfilesRepository;
+    private final CheckoutAttemptsRepository checkoutAttemptsRepository;
     private final MercadoPagoGateway mercadoPagoGateway;
     private final Clock clock;
     private final String appBaseUrl;
@@ -32,6 +36,8 @@ public class CreateMercadoPagoSubscriptionUseCase {
             UserSubscriptionsRepository subscriptionsRepository,
             SubscriptionPlansRepository plansRepository,
             UsersRepository usersRepository,
+            PaymentProfilesRepository paymentProfilesRepository,
+            CheckoutAttemptsRepository checkoutAttemptsRepository,
             MercadoPagoGateway mercadoPagoGateway,
             Clock clock,
             String appBaseUrl,
@@ -40,6 +46,8 @@ public class CreateMercadoPagoSubscriptionUseCase {
         this.subscriptionsRepository = subscriptionsRepository;
         this.plansRepository = plansRepository;
         this.usersRepository = usersRepository;
+        this.paymentProfilesRepository = paymentProfilesRepository;
+        this.checkoutAttemptsRepository = checkoutAttemptsRepository;
         this.mercadoPagoGateway = mercadoPagoGateway;
         this.clock = clock;
         this.appBaseUrl = appBaseUrl;
@@ -94,9 +102,17 @@ public class CreateMercadoPagoSubscriptionUseCase {
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
 
         boolean testPayerOverrideActive = (testPayerEmail != null && !testPayerEmail.isBlank());
-        String payerEmail = testPayerOverrideActive
-                ? testPayerEmail
-                : user.getEmail();
+        String payerEmail;
+        if (testPayerOverrideActive) {
+            payerEmail = testPayerEmail;
+        } else {
+            var profile = paymentProfilesRepository.findByUserId(userId)
+                    .orElseThrow(() -> new IllegalArgumentException("PaymentProfile not found for user: " + userId));
+            if (profile.getMercadoPagoEmail() == null || profile.getMercadoPagoEmail().isBlank()) {
+                throw new IllegalArgumentException("PaymentProfile.mercadoPagoEmail is required");
+            }
+            payerEmail = profile.getMercadoPagoEmail().trim();
+        }
 
         String backUrl = appendPath(appBaseUrl, "/plans/success");
 
@@ -174,6 +190,23 @@ public class CreateMercadoPagoSubscriptionUseCase {
         }
 
         subscriptionsRepository.upsert(updated);
+
+        // Persist a checkout attempt keyed by normalized payer email, with TTL
+        String payerEmailLower = payerEmail.toLowerCase();
+        long ttlSeconds = now.plusSeconds(48L * 3600L).getEpochSecond();
+        String createdAtIso = now.toString();
+        com.ones.api.domain.subscriptions.CheckoutAttempt attempt = new com.ones.api.domain.subscriptions.CheckoutAttempt(
+                payerEmailLower,
+                createdAtIso,
+                "created",
+                userId,
+                planId,
+                ttlSeconds,
+                mpPlanId,
+                preapprovalId,
+                null
+        );
+        checkoutAttemptsRepository.create(attempt);
 
         return new Result(preapprovalId, initPoint, planId);
     }

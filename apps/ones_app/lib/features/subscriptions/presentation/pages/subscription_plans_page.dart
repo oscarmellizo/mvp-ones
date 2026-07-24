@@ -1,10 +1,11 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/ui/ones_colors.dart';
 import '../../domain/subscription_plan.dart';
+import '../../domain/payment_profile.dart';
 import '../subscriptions_controller.dart';
 
 class SubscriptionPlansPage extends StatefulWidget {
@@ -30,6 +31,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
     final controller = context.watch<SubscriptionsController>();
     final plans = controller.plans;
     final subscription = controller.subscription;
+    final paymentProfile = controller.paymentProfile;
 
     return Scaffold(
       appBar: AppBar(
@@ -46,6 +48,15 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
                   const SizedBox(height: 24),
                   if (controller.error != null)
                     _ErrorBanner(message: controller.error!),
+                _PaymentProfileCard(
+                  initialEmail: paymentProfile?.mercadoPagoEmail,
+                  onSave: (email) async {
+                    await context.read<SubscriptionsController>().savePaymentProfile(
+                      PaymentProfile(mercadoPagoEmail: email),
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
                   ...plans.map((plan) {
                     final isCurrent = subscription?.planId == plan.planId;
                     return _PlanCard(
@@ -72,7 +83,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
       final uri = Uri.tryParse(initPoint);
       if (uri == null) {
         messenger.showSnackBar(
-          SnackBar(content: Text('Enlace de pago inválido: $initPoint')),
+          SnackBar(content: Text('Enlace de pago invÃ¡lido: $initPoint')),
         );
         return;
       }
@@ -113,7 +124,7 @@ class _Header extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'Actualiza a Ones Plus y disfruta sin límites. Puedes cambiar o cancelar en cualquier momento.',
+          'Actualiza a Ones Plus y disfruta sin lÃ­mites. Puedes cambiar o cancelar en cualquier momento.',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: OnesColors.black.withOpacity(0.6),
               ),
@@ -262,6 +273,92 @@ class _PlanCard extends StatelessWidget {
   }
 }
 
+class _PaymentProfileCard extends StatefulWidget {
+  final String? initialEmail;
+  final Future<void> Function(String email) onSave;
+
+  const _PaymentProfileCard({required this.initialEmail, required this.onSave});
+
+  @override
+  State<_PaymentProfileCard> createState() => _PaymentProfileCardState();
+}
+
+class _PaymentProfileCardState extends State<_PaymentProfileCard> {
+  late final TextEditingController _emailCtrl;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailCtrl = TextEditingController(text: widget.initialEmail ?? '');
+  }
+
+  @override
+  void dispose() {
+    _emailCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasEmail = _emailCtrl.text.trim().isNotEmpty;
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Perfil de pago', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            const Text('Este correo se usarÃ¡ como pagador en Mercado Pago. Puedes actualizarlo antes de suscribirte.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Correo de pago (Mercado Pago)',
+                hintText: 'tu-email@ejemplo.com',
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _saving
+                      ? null
+                      : () async {
+                          final email = _emailCtrl.text.trim();
+                          if (email.isEmpty) return;
+                          setState(() => _saving = true);
+                          try {
+                            await widget.onSave(email);
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context)
+                                .showSnackBar(const SnackBar(content: Text('Perfil de pago actualizado')));
+                          } finally {
+                            if (mounted) setState(() => _saving = false);
+                          }
+                        },
+                  icon: const Icon(Icons.save),
+                  label: Text(_saving ? 'Guardando...' : 'Guardar'),
+                ),
+                const SizedBox(width: 12),
+                if (!hasEmail)
+                  const Text(
+                    'Agrega tu correo de pago para continuar',
+                    style: TextStyle(color: Colors.redAccent),
+                  ),
+              ],
+            )
+          ],
+        ),
+      ),
+    );
+  }
+}
 class _ErrorBanner extends StatelessWidget {
   final String message;
 
@@ -291,3 +388,4 @@ class _ErrorBanner extends StatelessWidget {
     );
   }
 }
+

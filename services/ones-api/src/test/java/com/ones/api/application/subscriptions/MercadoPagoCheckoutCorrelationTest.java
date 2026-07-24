@@ -20,6 +20,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import com.ones.api.application.subscriptions.ports.MercadoPagoGateway;
+import com.ones.api.application.subscriptions.ports.PaymentProfilesRepository;
+import com.ones.api.application.subscriptions.ports.CheckoutAttemptsRepository;
+import com.ones.api.application.subscriptions.ports.SubscriptionPaymentsRepository;
 import com.ones.api.application.subscriptions.ports.SubscriptionPlansRepository;
 import com.ones.api.application.subscriptions.ports.UserSubscriptionsRepository;
 import com.ones.api.application.users.ports.UsersRepository;
@@ -38,9 +41,16 @@ class MercadoPagoCheckoutCorrelationTest {
         UserSubscriptionsRepository subscriptions = mock(UserSubscriptionsRepository.class);
         SubscriptionPlansRepository plans = mock(SubscriptionPlansRepository.class);
         UsersRepository users = mock(UsersRepository.class);
+        PaymentProfilesRepository paymentProfiles = mock(PaymentProfilesRepository.class);
+        CheckoutAttemptsRepository checkoutAttempts = mock(CheckoutAttemptsRepository.class);
         MercadoPagoGateway mercadoPago = mock(MercadoPagoGateway.class);
         when(plans.findById("ones-plus-monthly")).thenReturn(Optional.of(paidPlan()));
         when(users.findById("user-123")).thenReturn(Optional.of(user("user-123")));
+        when(paymentProfiles.findByUserId("user-123")).thenReturn(Optional.of(
+                new com.ones.api.domain.subscriptions.PaymentProfile(
+                        "user-123", "user@example.com", null, null, null, null, null, NOW, NOW, null
+                )
+        ));
         when(subscriptions.findByUserId("user-123")).thenReturn(Optional.empty());
         when(mercadoPago.createPreapproval(
                 eq("shared-plan-id"),
@@ -56,7 +66,8 @@ class MercadoPagoCheckoutCorrelationTest {
         )));
 
         CreateMercadoPagoSubscriptionUseCase useCase = new CreateMercadoPagoSubscriptionUseCase(
-                subscriptions, plans, users, mercadoPago, CLOCK, "https://app.ones.events", null
+                subscriptions, plans, users, paymentProfiles, checkoutAttempts,
+                mercadoPago, CLOCK, "https://app.ones.events", null
         );
 
         CreateMercadoPagoSubscriptionUseCase.Result result = useCase.execute("user-123", "ones-plus-monthly");
@@ -81,6 +92,8 @@ class MercadoPagoCheckoutCorrelationTest {
         UserSubscriptionsRepository subscriptions = mock(UserSubscriptionsRepository.class);
         MercadoPagoGateway mercadoPago = mock(MercadoPagoGateway.class);
         UsersRepository users = mock(UsersRepository.class);
+        CheckoutAttemptsRepository checkoutAttempts = mock(CheckoutAttemptsRepository.class);
+        SubscriptionPaymentsRepository subscriptionPayments = mock(SubscriptionPaymentsRepository.class);
         UserSubscription pendingSubscription = new UserSubscription(
                 "user-123", "ones-plus-monthly", "pending", null, NOW, null, null, null, NOW
         );
@@ -95,7 +108,7 @@ class MercadoPagoCheckoutCorrelationTest {
         when(subscriptions.findByUserId("user-123")).thenReturn(Optional.of(pendingSubscription));
 
         ProcessMercadoPagoWebhookUseCase useCase = new ProcessMercadoPagoWebhookUseCase(
-                subscriptions, mercadoPago, users, CLOCK, null
+                subscriptions, mercadoPago, users, checkoutAttempts, subscriptionPayments, CLOCK, null
         );
 
         useCase.execute("subscription_preapproval", "preapproval-123");

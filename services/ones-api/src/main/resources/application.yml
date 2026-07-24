@@ -248,6 +248,9 @@ ones:
     translations-table-name: ${ONES_TRANSLATIONS_TABLE:ones-translations}
     plans-table-name: ${ONES_PLANS_TABLE:ones-plans}
     user-subscriptions-table-name: ${ONES_USER_SUBSCRIPTIONS_TABLE:ones-user-subscriptions}
+    payment-profiles-table-name: ${ONES_PAYMENT_PROFILES_TABLE:ones-payment-profiles}
+    mp-checkout-attempts-table-name: ${ONES_MP_CHECKOUT_ATTEMPTS_TABLE:ones-mp-checkout-attempts}
+    subscription-payments-table-name: ${ONES_SUBSCRIPTION_PAYMENTS_TABLE:ones-subscription-payments}
     endpoint: ${DYNAMODB_ENDPOINT:}
 
   mercadopago:

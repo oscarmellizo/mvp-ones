@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import '../domain/subscription_plan.dart';
 import '../domain/subscriptions_repository.dart';
 import '../domain/user_subscription.dart';
+import '../domain/payment_profile.dart';
 
 class SubscriptionsController extends ChangeNotifier {
   final SubscriptionsRepository _repository;
@@ -14,11 +15,13 @@ class SubscriptionsController extends ChangeNotifier {
   String? _error;
   List<SubscriptionPlan> _plans = [];
   UserSubscription? _subscription;
+  PaymentProfile? _paymentProfile;
 
   bool get isLoading => _isLoading;
   String? get error => _error;
   List<SubscriptionPlan> get plans => _plans;
   UserSubscription? get subscription => _subscription;
+  PaymentProfile? get paymentProfile => _paymentProfile;
 
   SubscriptionPlan? get currentPlan {
     final planId = _subscription?.planId;
@@ -66,9 +69,11 @@ class SubscriptionsController extends ChangeNotifier {
       final results = await Future.wait([
         _repository.getSubscriptionPlans(),
         _repository.getMySubscription(),
+        _repository.getMyPaymentProfile(),
       ]);
       _plans = results[0] as List<SubscriptionPlan>;
       _subscription = results[1] as UserSubscription?;
+      _paymentProfile = results[2] as PaymentProfile?;
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -80,12 +85,30 @@ class SubscriptionsController extends ChangeNotifier {
     _setLoading(true);
     _error = null;
     try {
+      // Ensure we have a PaymentProfile email before starting checkout
+      if (_paymentProfile == null || (_paymentProfile?.mercadoPagoEmail?.trim().isEmpty ?? true)) {
+        throw Exception('Antes de suscribirte, por favor confirma o agrega tu correo de pago.');
+      }
       final result = await _repository.createMercadoPagoSubscription(planId, cardTokenId: cardTokenId);
       final initPoint = result?['initPoint'] as String?;
       return initPoint;
     } catch (e) {
       _error = _friendlyError(e);
       return null;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> savePaymentProfile(PaymentProfile profile) async {
+    _setLoading(true);
+    _error = null;
+    try {
+      final saved = await _repository.upsertMyPaymentProfile(profile);
+      _paymentProfile = saved;
+      notifyListeners();
+    } catch (e) {
+      _error = _friendlyError(e);
     } finally {
       _setLoading(false);
     }
