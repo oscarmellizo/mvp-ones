@@ -63,7 +63,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
                       plan: plan,
                       isCurrent: isCurrent,
                       onSubscribe: plan.tier.toLowerCase() == 'paid'
-                          ? () => _onSubscribe(context, plan.planId)
+                          ? () => _onSubscribe(plan.planId)
                           : null,
                     );
                   }),
@@ -73,12 +73,11 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
     );
   }
 
-  Future<void> _onSubscribe(BuildContext context, String planId) async {
+  Future<void> _onSubscribe(String planId) async {
     final controller = context.read<SubscriptionsController>();
-    final messenger = ScaffoldMessenger.of(context);
-
     final initPoint = await controller.createMercadoPagoSubscription(planId);
     if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
     if (initPoint != null) {
       final uri = Uri.tryParse(initPoint);
       if (uri == null) {
@@ -89,6 +88,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
       }
 
       final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!mounted) return;
       if (!launched) {
         messenger.showSnackBar(
           SnackBar(content: Text('No se pudo abrir el navegador. Copia y abre este enlace: $initPoint')),
@@ -335,9 +335,10 @@ class _PaymentProfileCardState extends State<_PaymentProfileCard> {
                           setState(() => _saving = true);
                           try {
                             await widget.onSave(email);
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context)
-                                .showSnackBar(const SnackBar(content: Text('Perfil de pago actualizado')));
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Perfil de pago actualizado')),
+                            );
                           } finally {
                             if (mounted) setState(() => _saving = false);
                           }
