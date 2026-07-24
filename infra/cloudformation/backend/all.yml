@@ -489,6 +489,90 @@ Resources:
           Projection:
             ProjectionType: ALL
 
+  PaymentProfilesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-payment-profiles
+      BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: mercadoPagoEmailLower
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: byMercadoPagoEmailLower
+          KeySchema:
+            - AttributeName: mercadoPagoEmailLower
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  MpCheckoutAttemptsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-mp-checkout-attempts
+      BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      AttributeDefinitions:
+        - AttributeName: payerEmailLower
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: payerEmailLower
+          KeyType: HASH
+        - AttributeName: createdAt
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
+  SubscriptionPaymentsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-subscription-payments
+      BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      AttributeDefinitions:
+        - AttributeName: paymentId
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: preapprovalId
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: paymentId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: byUserId
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: byPreapprovalId
+          KeySchema:
+            - AttributeName: preapprovalId
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
   PhotosWsConnectionsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -1955,6 +2039,11 @@ Resources:
                   - !GetAtt PlansTable.Arn
                   - !GetAtt UserSubscriptionsTable.Arn
                   - !Sub ${UserSubscriptionsTable.Arn}/index/*
+                  - !GetAtt PaymentProfilesTable.Arn
+                  - !Sub ${PaymentProfilesTable.Arn}/index/*
+                  - !GetAtt MpCheckoutAttemptsTable.Arn
+                  - !GetAtt SubscriptionPaymentsTable.Arn
+                  - !Sub ${SubscriptionPaymentsTable.Arn}/index/*
         - PolicyName: ones-photos-ws
           PolicyDocument:
             Version: '2012-10-17'
@@ -2175,6 +2264,12 @@ Resources:
               Value: !Ref PlansTable
             - Name: ONES_USER_SUBSCRIPTIONS_TABLE
               Value: !Ref UserSubscriptionsTable
+            - Name: ONES_PAYMENT_PROFILES_TABLE
+              Value: !Ref PaymentProfilesTable
+            - Name: ONES_MP_CHECKOUT_ATTEMPTS_TABLE
+              Value: !Ref MpCheckoutAttemptsTable
+            - Name: ONES_SUBSCRIPTION_PAYMENTS_TABLE
+              Value: !Ref SubscriptionPaymentsTable
             - Name: ONES_MERCADOPAGO_CREDENTIALS_SECRET_NAME
               Value: !Ref MercadoPagoCredentialsSecret
             - Name: ONES_EVENTS_COVERS_TEMP_BUCKET

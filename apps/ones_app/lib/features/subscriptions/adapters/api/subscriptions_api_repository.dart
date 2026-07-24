@@ -4,6 +4,7 @@ import '../../../../core/http/ones_api_factory.dart';
 import '../../domain/subscription_plan.dart';
 import '../../domain/subscriptions_repository.dart';
 import '../../domain/user_subscription.dart';
+import '../../domain/payment_profile.dart';
 
 class SubscriptionsApiRepository implements SubscriptionsRepository {
   final Dio Function(String? idToken) _dioFactory;
@@ -18,6 +19,33 @@ class SubscriptionsApiRepository implements SubscriptionsRepository {
 
   void setIdToken(String? token) {
     _idToken = token;
+  }
+
+  @override
+  Future<PaymentProfile?> getMyPaymentProfile() async {
+    final res = await _dioFactory(_idToken).get(
+      '/v1/users/me/payment-profile',
+      options: _authOptions,
+    );
+    final data = res.data;
+    if (data is Map<String, dynamic>) {
+      return PaymentProfile.fromJson(data);
+    }
+    return null;
+  }
+
+  @override
+  Future<PaymentProfile> upsertMyPaymentProfile(PaymentProfile profile) async {
+    final res = await _dioFactory(_idToken).put(
+      '/v1/users/me/payment-profile',
+      data: profile.toJson(),
+      options: _authOptions,
+    );
+    final data = res.data;
+    if (data is Map<String, dynamic>) {
+      return PaymentProfile.fromJson(data);
+    }
+    throw Exception('Unexpected response');
   }
 
   @override

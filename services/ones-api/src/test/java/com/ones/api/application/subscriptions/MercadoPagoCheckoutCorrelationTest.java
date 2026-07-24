@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.times;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -19,6 +20,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import com.ones.api.application.subscriptions.ports.MercadoPagoGateway;
+import com.ones.api.application.subscriptions.ports.PaymentProfilesRepository;
+import com.ones.api.application.subscriptions.ports.CheckoutAttemptsRepository;
+import com.ones.api.application.subscriptions.ports.SubscriptionPaymentsRepository;
 import com.ones.api.application.subscriptions.ports.SubscriptionPlansRepository;
 import com.ones.api.application.subscriptions.ports.UserSubscriptionsRepository;
 import com.ones.api.application.users.ports.UsersRepository;
@@ -37,24 +41,23 @@ class MercadoPagoCheckoutCorrelationTest {
         UserSubscriptionsRepository subscriptions = mock(UserSubscriptionsRepository.class);
         SubscriptionPlansRepository plans = mock(SubscriptionPlansRepository.class);
         UsersRepository users = mock(UsersRepository.class);
+        PaymentProfilesRepository paymentProfiles = mock(PaymentProfilesRepository.class);
+        CheckoutAttemptsRepository checkoutAttempts = mock(CheckoutAttemptsRepository.class);
         MercadoPagoGateway mercadoPago = mock(MercadoPagoGateway.class);
         when(plans.findById("ones-plus-monthly")).thenReturn(Optional.of(paidPlan()));
         when(users.findById("user-123")).thenReturn(Optional.of(user("user-123")));
+        when(paymentProfiles.findByUserId("user-123")).thenReturn(Optional.of(
+                new com.ones.api.domain.subscriptions.PaymentProfile(
+                        "user-123", "user@example.com", null, null, null, null, null, NOW, NOW, null
+                )
+        ));
         when(subscriptions.findByUserId("user-123")).thenReturn(Optional.empty());
         when(mercadoPago.createPreapproval(
                 eq("shared-plan-id"),
                 eq("user@example.com"),
                 eq("https://app.ones.events/plans/success?ones_uid=user-123"),
                 eq("user-123")
-        )).thenReturn(new MercadoPagoGateway.Preapproval(
-                "preapproval-123",
-                "pending",
-                "https://www.mercadopago.com.co/subscriptions/checkout?preapproval_id=preapproval-123",
-                "user@example.com",
-                "user-123",
-                "https://app.ones.events/plans/success?ones_uid=user-123",
-                "shared-plan-id"
-        ));
+        )).thenThrow(new IllegalArgumentException("card_token_id is required"));
         when(mercadoPago.getPlan("shared-plan-id")).thenReturn(Optional.of(new MercadoPagoGateway.PreapprovalPlan(
                 "shared-plan-id",
                 "Ones Plus Monthly",
@@ -63,7 +66,8 @@ class MercadoPagoCheckoutCorrelationTest {
         )));
 
         CreateMercadoPagoSubscriptionUseCase useCase = new CreateMercadoPagoSubscriptionUseCase(
-                subscriptions, plans, users, mercadoPago, CLOCK, "https://app.ones.events", null
+                subscriptions, plans, users, paymentProfiles, checkoutAttempts,
+                mercadoPago, CLOCK, "https://app.ones.events", null
         );
 
         CreateMercadoPagoSubscriptionUseCase.Result result = useCase.execute("user-123", "ones-plus-monthly");
@@ -74,11 +78,13 @@ class MercadoPagoCheckoutCorrelationTest {
                 eq("https://app.ones.events/plans/success?ones_uid=user-123"),
                 eq("user-123")
         );
-        verify(mercadoPago, never()).getPlan(eq("shared-plan-id"));
+        verify(mercadoPago, times(1)).getPlan(eq("shared-plan-id"));
+        assertTrue(result.initPoint().contains("external_reference=user-123"));
+        assertTrue(result.initPoint().contains("ones_uid=user-123"));
         ArgumentCaptor<UserSubscription> saved = ArgumentCaptor.forClass(UserSubscription.class);
         verify(subscriptions).upsert(saved.capture());
         org.junit.jupiter.api.Assertions.assertEquals("pending", saved.getValue().getStatus());
-        org.junit.jupiter.api.Assertions.assertEquals("preapproval-123", saved.getValue().getMercadoPagoPreapprovalId());
+        assertNull(saved.getValue().getMercadoPagoPreapprovalId());
     }
 
     @Test
@@ -86,6 +92,8 @@ class MercadoPagoCheckoutCorrelationTest {
         UserSubscriptionsRepository subscriptions = mock(UserSubscriptionsRepository.class);
         MercadoPagoGateway mercadoPago = mock(MercadoPagoGateway.class);
         UsersRepository users = mock(UsersRepository.class);
+        CheckoutAttemptsRepository checkoutAttempts = mock(CheckoutAttemptsRepository.class);
+        SubscriptionPaymentsRepository subscriptionPayments = mock(SubscriptionPaymentsRepository.class);
         UserSubscription pendingSubscription = new UserSubscription(
                 "user-123", "ones-plus-monthly", "pending", null, NOW, null, null, null, NOW
         );
@@ -100,7 +108,7 @@ class MercadoPagoCheckoutCorrelationTest {
         when(subscriptions.findByUserId("user-123")).thenReturn(Optional.of(pendingSubscription));
 
         ProcessMercadoPagoWebhookUseCase useCase = new ProcessMercadoPagoWebhookUseCase(
-                subscriptions, mercadoPago, users, CLOCK, null
+                subscriptions, mercadoPago, users, checkoutAttempts, subscriptionPayments, CLOCK, null
         );
 
         useCase.execute("subscription_preapproval", "preapproval-123");

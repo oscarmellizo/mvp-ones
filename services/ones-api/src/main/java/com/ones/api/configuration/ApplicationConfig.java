@@ -32,6 +32,9 @@ import com.ones.api.application.subscriptions.GetOrCreateUserSubscriptionUseCase
 import com.ones.api.application.subscriptions.GetSubscriptionPlansUseCase;
 import com.ones.api.application.subscriptions.ProcessMercadoPagoWebhookUseCase;
 import com.ones.api.application.subscriptions.ports.MercadoPagoGateway;
+import com.ones.api.application.subscriptions.ports.PaymentProfilesRepository;
+import com.ones.api.application.subscriptions.ports.CheckoutAttemptsRepository;
+import com.ones.api.application.subscriptions.ports.SubscriptionPaymentsRepository;
 import com.ones.api.application.subscriptions.ports.SubscriptionPlansRepository;
 import com.ones.api.application.subscriptions.ports.UserSubscriptionsRepository;
 
@@ -166,6 +169,8 @@ public class ApplicationConfig {
             UserSubscriptionsRepository subscriptionsRepository,
             SubscriptionPlansRepository plansRepository,
             UsersRepository usersRepository,
+            PaymentProfilesRepository paymentProfilesRepository,
+            CheckoutAttemptsRepository checkoutAttemptsRepository,
             MercadoPagoGateway mercadoPagoGateway,
             Clock clock,
             @Value("${ones.mercadopago.app-base-url:}") String appBaseUrl,
@@ -173,6 +178,7 @@ public class ApplicationConfig {
     ) {
         return new CreateMercadoPagoSubscriptionUseCase(
                 subscriptionsRepository, plansRepository, usersRepository,
+                paymentProfilesRepository, checkoutAttemptsRepository,
                 mercadoPagoGateway, clock, appBaseUrl, testPayerEmail
         );
     }
@@ -182,9 +188,15 @@ public class ApplicationConfig {
             UserSubscriptionsRepository subscriptionsRepository,
             MercadoPagoGateway mercadoPagoGateway,
             UsersRepository usersRepository,
+            CheckoutAttemptsRepository checkoutAttemptsRepository,
+            SubscriptionPaymentsRepository subscriptionPaymentsRepository,
             Clock clock,
             @Value("${ones.mercadopago.test-payer-email:}") String testPayerEmail
     ) {
-        return new ProcessMercadoPagoWebhookUseCase(subscriptionsRepository, mercadoPagoGateway, usersRepository, clock, testPayerEmail);
+        return new ProcessMercadoPagoWebhookUseCase(
+                subscriptionsRepository, mercadoPagoGateway, usersRepository,
+                checkoutAttemptsRepository, subscriptionPaymentsRepository,
+                clock, testPayerEmail
+        );
     }
 }

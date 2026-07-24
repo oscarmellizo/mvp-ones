@@ -12,6 +12,9 @@ import org.slf4j.LoggerFactory;
 
 import com.ones.api.application.subscriptions.ports.MercadoPagoGateway;
 import com.ones.api.application.subscriptions.ports.UserSubscriptionsRepository;
+import com.ones.api.application.subscriptions.ports.CheckoutAttemptsRepository;
+import com.ones.api.application.subscriptions.ports.SubscriptionPaymentsRepository;
+import com.ones.api.domain.subscriptions.SubscriptionPayment;
 import com.ones.api.application.users.ports.UsersRepository;
 import com.ones.api.domain.subscriptions.UserSubscription;
 import com.ones.api.domain.users.User;
@@ -23,6 +26,8 @@ public class ProcessMercadoPagoWebhookUseCase {
     private final UserSubscriptionsRepository subscriptionsRepository;
     private final MercadoPagoGateway mercadoPagoGateway;
     private final UsersRepository usersRepository;
+    private final CheckoutAttemptsRepository checkoutAttemptsRepository;
+    private final SubscriptionPaymentsRepository subscriptionPaymentsRepository;
     private final Clock clock;
     private final String testPayerEmail;
 
@@ -30,12 +35,16 @@ public class ProcessMercadoPagoWebhookUseCase {
             UserSubscriptionsRepository subscriptionsRepository,
             MercadoPagoGateway mercadoPagoGateway,
             UsersRepository usersRepository,
+            CheckoutAttemptsRepository checkoutAttemptsRepository,
+            SubscriptionPaymentsRepository subscriptionPaymentsRepository,
             Clock clock,
             String testPayerEmail
     ) {
         this.subscriptionsRepository = subscriptionsRepository;
         this.mercadoPagoGateway = mercadoPagoGateway;
         this.usersRepository = usersRepository;
+        this.checkoutAttemptsRepository = checkoutAttemptsRepository;
+        this.subscriptionPaymentsRepository = subscriptionPaymentsRepository;
         this.clock = clock;
         this.testPayerEmail = testPayerEmail;
     }
@@ -161,6 +170,31 @@ public class ProcessMercadoPagoWebhookUseCase {
                 log.info("Using configured test payer email as fallback for MP webhook. preapprovalId={}", preapprovalId);
             }
 
+            // Attempt deterministic match via active CheckoutAttempt by payerEmailLower
+            if (payerEmail != null && !payerEmail.isBlank()) {
+                String lower = payerEmail.trim().toLowerCase();
+                var activeAttempt = checkoutAttemptsRepository.findActiveByPayerEmailLower(lower);
+                log.info("[MP webhook] findActiveAttemptByPayerEmail present={} payerEmailMasked={}", activeAttempt.isPresent(), maskEmail(payerEmail));
+                if (activeAttempt.isPresent()) {
+                    String resolvedUserId = activeAttempt.get().getUserId();
+                    Optional<UserSubscription> byUserId = subscriptionsRepository.findByUserId(resolvedUserId);
+                    log.info("[MP webhook] subscriptionsRepository.findByUserId (attempt) present={} userId={}", byUserId.isPresent(), resolvedUserId);
+                    if (byUserId.isPresent()) {
+                        UserSubscription attached = byUserId.get()
+                                .withMercadoPagoPreapprovalId(preapprovalId, Instant.now(clock))
+                                .withStatus(status, Instant.now(clock));
+                        subscriptionsRepository.upsert(attached);
+                        checkoutAttemptsRepository.markCompleted(lower, activeAttempt.get().getCreatedAt());
+                        // Record payment ledger idempotently
+                        if (isPaymentTopic) {
+                            upsertPaymentLedger(resourceId, paymentCorrelation, preapprovalId, resolvedUserId, byUserId.get().getPlanId());
+                        }
+                        log.info("Attached preapprovalId and updated status for userId={} to {} from MP webhook (checkout attempt)", resolvedUserId, status);
+                        return;
+                    }
+                }
+            }
+
             if ((payerEmail == null || payerEmail.isBlank()) && externalReference != null && !externalReference.isBlank()) {
                 String resolvedUserId = externalReference.trim();
                 log.info("[MP webhook] attempting userId match via externalReference. userId={}", resolvedUserId);
@@ -195,7 +229,11 @@ public class ProcessMercadoPagoWebhookUseCase {
             }
 
             if ((payerEmail == null || payerEmail.isBlank()) && isPaymentTopic) {
-                Optional<String> paymentPayerEmail = mercadoPagoGateway.getPayerEmailFromPayment(resourceId);
+                Optional<String> paymentPayerEmail = paymentCorrelation.map(MercadoPagoGateway.PaymentCorrelation::payerEmail)
+                        .filter(v -> v != null && !v.isBlank());
+                if (paymentPayerEmail.isEmpty()) {
+                    paymentPayerEmail = mercadoPagoGateway.getPayerEmailFromPayment(resourceId);
+                }
                 log.info(
                         "[MP webhook] getPayerEmailFromPayment present={} masked={}"
                         ,
@@ -203,6 +241,25 @@ public class ProcessMercadoPagoWebhookUseCase {
                         maskEmail(paymentPayerEmail.orElse(null))
                 );
                 if (paymentPayerEmail.isPresent()) {
+                    // Try attempt match first with payment payer email
+                    String lower = paymentPayerEmail.get().trim().toLowerCase();
+                    var activeAttempt = checkoutAttemptsRepository.findActiveByPayerEmailLower(lower);
+                    log.info("[MP webhook] findActiveAttemptByPayerEmail (payment) present={} payerEmailMasked={}", activeAttempt.isPresent(), maskEmail(paymentPayerEmail.get()));
+                    if (activeAttempt.isPresent()) {
+                        String resolvedUserId = activeAttempt.get().getUserId();
+                        Optional<UserSubscription> byUserId = subscriptionsRepository.findByUserId(resolvedUserId);
+                        log.info("[MP webhook] subscriptionsRepository.findByUserId (payment/attempt) present={} userId={}", byUserId.isPresent(), resolvedUserId);
+                        if (byUserId.isPresent()) {
+                            UserSubscription attached = byUserId.get()
+                                    .withMercadoPagoPreapprovalId(preapprovalId, Instant.now(clock))
+                                    .withStatus(status, Instant.now(clock));
+                            subscriptionsRepository.upsert(attached);
+                            checkoutAttemptsRepository.markCompleted(lower, activeAttempt.get().getCreatedAt());
+                            upsertPaymentLedger(resourceId, paymentCorrelation, preapprovalId, resolvedUserId, byUserId.get().getPlanId());
+                            log.info("Attached preapprovalId and updated status for userId={} to {} from MP webhook (payment attempt)", resolvedUserId, status);
+                            return;
+                        }
+                    }
                     Optional<User> userByPaymentEmail = usersRepository.findByEmail(paymentPayerEmail.get());
                     log.info(
                             "[MP webhook] usersRepository.findByEmail (payment) present={} payerEmailMasked={}"
@@ -223,6 +280,7 @@ public class ProcessMercadoPagoWebhookUseCase {
                                     .withMercadoPagoPreapprovalId(preapprovalId, Instant.now(clock))
                                     .withStatus(status, Instant.now(clock));
                             subscriptionsRepository.upsert(attached);
+                            upsertPaymentLedger(resourceId, paymentCorrelation, preapprovalId, userByPaymentEmail.get().getUserId(), byUserId.get().getPlanId());
                             log.info("Attached preapprovalId and updated status for userId={} to {} from MP webhook (payment payerEmail)", userByPaymentEmail.get().getUserId(), status);
                             return;
                         }
@@ -267,6 +325,9 @@ public class ProcessMercadoPagoWebhookUseCase {
                     .withMercadoPagoPreapprovalId(preapprovalId, Instant.now(clock))
                     .withStatus(status, Instant.now(clock));
             subscriptionsRepository.upsert(attached);
+            if (isPaymentTopic) {
+                upsertPaymentLedger(resourceId, paymentCorrelation, preapprovalId, user.get().getUserId(), byUser.get().getPlanId());
+            }
             log.info("Attached preapprovalId and updated status for userId={} to {} from MP webhook", user.get().getUserId(), status);
             return;
         }
@@ -274,6 +335,44 @@ public class ProcessMercadoPagoWebhookUseCase {
         UserSubscription updated = existing.get().withStatus(status, Instant.now(clock));
         subscriptionsRepository.upsert(updated);
         log.info("Updated subscription status for userId={} to {} from MP webhook", existing.get().getUserId(), status);
+    }
+
+    private void upsertPaymentLedger(
+            String paymentId,
+            Optional<MercadoPagoGateway.PaymentCorrelation> paymentCorrelation,
+            String preapprovalId,
+            String userId,
+            String planId
+    ) {
+        try {
+            if (paymentId == null || paymentId.isBlank()) return;
+            var existing = subscriptionPaymentsRepository.findByPaymentId(paymentId);
+            if (existing.isPresent()) return; // idempotent
+            Instant now = Instant.now(clock);
+            String payerEmail = paymentCorrelation.map(MercadoPagoGateway.PaymentCorrelation::payerEmail).orElse(null);
+            String payerId = paymentCorrelation.map(MercadoPagoGateway.PaymentCorrelation::payerId).orElse(null);
+            String preapprovalPlanId = paymentCorrelation.map(MercadoPagoGateway.PaymentCorrelation::preapprovalPlanId).orElse(null);
+            SubscriptionPayment ledger = new SubscriptionPayment(
+                    paymentId,
+                    now,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    payerEmail,
+                    payerId,
+                    preapprovalId,
+                    preapprovalPlanId,
+                    userId,
+                    planId,
+                    null
+            );
+            subscriptionPaymentsRepository.upsert(ledger);
+            log.info("[MP webhook] upserted subscription payment ledger. paymentId={} userIdPresent={} planIdPresent={}", paymentId, userId != null, planId != null);
+        } catch (Exception e) {
+            log.warn("[MP webhook] failed to upsert subscription payment ledger for paymentId={}: {}", paymentId, e.getMessage());
+        }
     }
 
     private static String maskEmail(String email) {
