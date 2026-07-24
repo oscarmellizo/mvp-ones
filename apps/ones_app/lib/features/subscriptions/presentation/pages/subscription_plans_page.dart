@@ -30,7 +30,6 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
     final controller = context.watch<SubscriptionsController>();
     final plans = controller.plans;
     final subscription = controller.subscription;
-    final paymentProfile = controller.paymentProfile;
 
     return Scaffold(
       appBar: AppBar(
@@ -79,7 +78,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
       case _PaymentMethod.pse:
       case _PaymentMethod.stripe:
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('MAtodo de pago prB3ximamente disponible')),
+          const SnackBar(content: Text('Metodo de pago proximamente disponible')),
         );
         break;
     }
@@ -101,26 +100,26 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 child: Text(
-                  'Selecciona mAtodo de pago',
+                  'Selecciona metodo de pago',
                   style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ),
               ListTile(
-                leading: const FaIcon(FontAwesomeIcons.m),
+                leading: const FaIcon(FontAwesomeIcons.creditCard),
                 title: const Text('Mercado Pago'),
                 onTap: () => Navigator.of(ctx).pop(_PaymentMethod.mercadoPago),
               ),
               const Divider(height: 0),
               ListTile(
                 leading: const FaIcon(FontAwesomeIcons.buildingColumns),
-                title: const Text('PSE (prB3ximamente)'),
+                title: const Text('PSE (proximamente)'),
                 enabled: false,
                 onTap: null,
               ),
               const Divider(height: 0),
               ListTile(
                 leading: const FaIcon(FontAwesomeIcons.ccStripe),
-                title: const Text('Stripe (prB3ximamente)'),
+                title: const Text('Stripe (proximamente)'),
                 enabled: false,
                 onTap: null,
               ),
@@ -132,6 +131,8 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
     );
   }
 }
+ 
+enum _PaymentMethod { mercadoPago, pse, stripe }
 
 class _Header extends StatelessWidget {
   const _Header();
