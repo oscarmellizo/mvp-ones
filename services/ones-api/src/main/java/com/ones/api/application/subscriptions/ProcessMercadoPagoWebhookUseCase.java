@@ -63,6 +63,21 @@ public class ProcessMercadoPagoWebhookUseCase {
 
         String resolvedPreapprovalId = null;
         Optional<MercadoPagoGateway.Preapproval> preapproval = Optional.empty();
+        Optional<MercadoPagoGateway.PaymentCorrelation> paymentCorrelation = Optional.empty();
+
+        if (isPaymentTopic) {
+            paymentCorrelation = mercadoPagoGateway.getPaymentCorrelation(resourceId);
+            log.info(
+                    "[MP webhook] paymentCorrelation present={} paymentId={} preapprovalIdPresent={} externalReferencePresent={} payerEmailPresent={} payerIdPresent={} preapprovalPlanIdPresent={}",
+                    paymentCorrelation.isPresent(),
+                    resourceId,
+                    paymentCorrelation.map(MercadoPagoGateway.PaymentCorrelation::preapprovalId).filter(v -> v != null && !v.isBlank()).isPresent(),
+                    paymentCorrelation.map(MercadoPagoGateway.PaymentCorrelation::externalReference).filter(v -> v != null && !v.isBlank()).isPresent(),
+                    paymentCorrelation.map(MercadoPagoGateway.PaymentCorrelation::payerEmail).filter(v -> v != null && !v.isBlank()).isPresent(),
+                    paymentCorrelation.map(MercadoPagoGateway.PaymentCorrelation::payerId).filter(v -> v != null && !v.isBlank()).isPresent(),
+                    paymentCorrelation.map(MercadoPagoGateway.PaymentCorrelation::preapprovalPlanId).filter(v -> v != null && !v.isBlank()).isPresent()
+            );
+        }
 
         if (isSubscriptionTopic) {
             resolvedPreapprovalId = resourceId;
@@ -73,7 +88,12 @@ public class ProcessMercadoPagoWebhookUseCase {
 
         if (preapproval.isEmpty()) {
             log.info("[MP webhook] Attempting resolvePreapprovalIdFromPayment. paymentId={} topic={}", resourceId, topic);
-            Optional<String> maybePreapprovalId = mercadoPagoGateway.resolvePreapprovalIdFromPayment(resourceId);
+            Optional<String> maybePreapprovalId = paymentCorrelation
+                    .map(MercadoPagoGateway.PaymentCorrelation::preapprovalId)
+                    .filter(v -> v != null && !v.isBlank());
+            if (maybePreapprovalId.isEmpty()) {
+                maybePreapprovalId = mercadoPagoGateway.resolvePreapprovalIdFromPayment(resourceId);
+            }
             log.info("[MP webhook] resolvePreapprovalIdFromPayment present={} value={}", maybePreapprovalId.isPresent(), maybePreapprovalId.orElse(null));
             if (maybePreapprovalId.isPresent()) {
                 resolvedPreapprovalId = maybePreapprovalId.get();
@@ -100,6 +120,14 @@ public class ProcessMercadoPagoWebhookUseCase {
         String externalReference = preapproval.get().externalReference();
         String backUrl = preapproval.get().backUrl();
         String preapprovalPlanId = preapproval.get().preapprovalPlanId();
+
+        if ((externalReference == null || externalReference.isBlank()) && paymentCorrelation.isPresent()) {
+            String correlationExternalReference = paymentCorrelation.get().externalReference();
+            if (correlationExternalReference != null && !correlationExternalReference.isBlank()) {
+                externalReference = correlationExternalReference;
+                log.info("[MP webhook] using externalReference from payment correlation. externalReferencePresent=true");
+            }
+        }
         if ((externalReference == null || externalReference.isBlank())
                 && preapprovalPlanId != null
                 && !preapprovalPlanId.isBlank()) {
