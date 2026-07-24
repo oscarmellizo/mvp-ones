@@ -136,6 +136,113 @@ public class MercadoPagoClient implements MercadoPagoGateway {
     }
 
     @Override
+    public Optional<PaymentCorrelation> getPaymentCorrelation(String paymentId) {
+        if (paymentId == null || paymentId.isBlank()) {
+            return Optional.empty();
+        }
+        if (accessToken == null || accessToken.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Mercado Pago no está configurado en este ambiente (access token faltante)."
+            );
+        }
+
+        try {
+            log.info("[MP outbound] GET /v1/payments/{} for correlation", paymentId);
+            String body = webClient.get()
+                    .uri("/v1/payments/{id}", paymentId)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block(Duration.ofSeconds(30));
+
+            if (body == null || body.isBlank()) {
+                return Optional.empty();
+            }
+
+            JsonNode root;
+            try {
+                root = objectMapper.readTree(body);
+            } catch (JsonProcessingException e) {
+                log.warn("MercadoPago getPaymentCorrelation: could not parse JSON for paymentId={}", paymentId);
+                return Optional.empty();
+            }
+
+            String preapprovalId = text(root, "preapproval_id");
+            if (preapprovalId == null || preapprovalId.isBlank()) {
+                preapprovalId = text(root, "subscription_id");
+            }
+            if (preapprovalId == null || preapprovalId.isBlank()) {
+                preapprovalId = text(root.path("metadata"), "preapproval_id");
+            }
+            if (preapprovalId == null || preapprovalId.isBlank()) {
+                preapprovalId = findFirstTextByFieldName(root, "preapproval_id");
+            }
+            if (preapprovalId == null || preapprovalId.isBlank()) {
+                preapprovalId = findFirstTextByFieldName(root, "subscription_id");
+            }
+
+            String externalReference = text(root, "external_reference");
+            if (externalReference == null || externalReference.isBlank()) {
+                externalReference = text(root.path("metadata"), "external_reference");
+            }
+            if (externalReference == null || externalReference.isBlank()) {
+                externalReference = findFirstTextByFieldName(root, "external_reference");
+            }
+
+            String payerEmail = text(root.path("payer"), "email");
+            if (payerEmail == null || payerEmail.isBlank()) {
+                payerEmail = text(root, "payer_email");
+            }
+            if (payerEmail == null || payerEmail.isBlank()) {
+                payerEmail = findFirstTextByFieldName(root, "email");
+            }
+
+            String payerId = text(root.path("payer"), "id");
+            if (payerId == null || payerId.isBlank()) {
+                payerId = findFirstTextByFieldName(root, "payer_id");
+            }
+
+            String preapprovalPlanId = text(root, "preapproval_plan_id");
+            if (preapprovalPlanId == null || preapprovalPlanId.isBlank()) {
+                preapprovalPlanId = text(root.path("metadata"), "preapproval_plan_id");
+            }
+            if (preapprovalPlanId == null || preapprovalPlanId.isBlank()) {
+                preapprovalPlanId = findFirstTextByFieldName(root, "preapproval_plan_id");
+            }
+
+            log.info(
+                    "[MP inbound] GET /v1/payments correlation. paymentId={} preapprovalIdPresent={} externalReferencePresent={} payerEmailPresent={} payerIdPresent={} preapprovalPlanIdPresent={}",
+                    paymentId,
+                    preapprovalId != null && !preapprovalId.isBlank(),
+                    externalReference != null && !externalReference.isBlank(),
+                    payerEmail != null && !payerEmail.isBlank(),
+                    payerId != null && !payerId.isBlank(),
+                    preapprovalPlanId != null && !preapprovalPlanId.isBlank()
+            );
+
+            return Optional.of(new PaymentCorrelation(
+                    paymentId,
+                    preapprovalId,
+                    externalReference,
+                    payerEmail,
+                    payerId,
+                    preapprovalPlanId
+            ));
+        } catch (WebClientResponseException.NotFound e) {
+            return Optional.empty();
+        } catch (WebClientResponseException e) {
+            log.warn(
+                    "MercadoPago getPaymentCorrelation failed with status={} body={}"
+                    ,
+                    e.getStatusCode().value(),
+                    e.getResponseBodyAsString()
+            );
+            throw e;
+        }
+    }
+
+    @Override
     public Optional<String> getPayerEmailFromPayment(String paymentId) {
         if (paymentId == null || paymentId.isBlank()) {
             return Optional.empty();
