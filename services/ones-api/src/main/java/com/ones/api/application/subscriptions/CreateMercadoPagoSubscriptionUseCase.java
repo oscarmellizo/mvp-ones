@@ -152,6 +152,8 @@ public class CreateMercadoPagoSubscriptionUseCase {
                                 "Mercado Pago plan not found: " + planId
                         ));
                 initPoint = checkoutPlan.initPoint();
+                initPoint = appendQueryParam(initPoint, "external_reference", externalReference);
+                initPoint = appendQueryParam(initPoint, "ones_uid", userId);
                 preapprovalId = null;
             }
         }
@@ -189,6 +191,16 @@ public class CreateMercadoPagoSubscriptionUseCase {
             return null;
         }
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    private static String appendQueryParam(String url, String key, String value) {
+        if (url == null || url.isBlank() || key == null || key.isBlank() || value == null) {
+            return url;
+        }
+        String encodedKey = urlEncode(key);
+        String encodedValue = urlEncode(value);
+        String separator = url.contains("?") ? "&" : "?";
+        return url + separator + encodedKey + "=" + encodedValue;
     }
 
     public record Result(String preapprovalId, String initPoint, String planId) {

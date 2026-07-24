@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.times;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -46,15 +47,7 @@ class MercadoPagoCheckoutCorrelationTest {
                 eq("user@example.com"),
                 eq("https://app.ones.events/plans/success?ones_uid=user-123"),
                 eq("user-123")
-        )).thenReturn(new MercadoPagoGateway.Preapproval(
-                "preapproval-123",
-                "pending",
-                "https://www.mercadopago.com.co/subscriptions/checkout?preapproval_id=preapproval-123",
-                "user@example.com",
-                "user-123",
-                "https://app.ones.events/plans/success?ones_uid=user-123",
-                "shared-plan-id"
-        ));
+        )).thenThrow(new IllegalArgumentException("card_token_id is required"));
         when(mercadoPago.getPlan("shared-plan-id")).thenReturn(Optional.of(new MercadoPagoGateway.PreapprovalPlan(
                 "shared-plan-id",
                 "Ones Plus Monthly",
@@ -74,11 +67,13 @@ class MercadoPagoCheckoutCorrelationTest {
                 eq("https://app.ones.events/plans/success?ones_uid=user-123"),
                 eq("user-123")
         );
-        verify(mercadoPago, never()).getPlan(eq("shared-plan-id"));
+        verify(mercadoPago, times(1)).getPlan(eq("shared-plan-id"));
+        assertTrue(result.initPoint().contains("external_reference=user-123"));
+        assertTrue(result.initPoint().contains("ones_uid=user-123"));
         ArgumentCaptor<UserSubscription> saved = ArgumentCaptor.forClass(UserSubscription.class);
         verify(subscriptions).upsert(saved.capture());
         org.junit.jupiter.api.Assertions.assertEquals("pending", saved.getValue().getStatus());
-        org.junit.jupiter.api.Assertions.assertEquals("preapproval-123", saved.getValue().getMercadoPagoPreapprovalId());
+        assertNull(saved.getValue().getMercadoPagoPreapprovalId());
     }
 
     @Test
