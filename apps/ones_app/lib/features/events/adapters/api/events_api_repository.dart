@@ -36,6 +36,64 @@ class EventsApiRepository implements EventsRepository {
   }
 
   @override
+  Future<EventQrInfo> getEventQr(String eventId) async {
+    final dio = _apiFactory.create(idToken: _idToken).dio;
+    final res = await dio.get(
+      '/v1/events/$eventId/qr',
+      options: Options(
+        extra: {
+          'secure': [
+            {
+              'type': 'http',
+              'scheme': 'bearer',
+              'name': 'bearerAuth',
+            }
+          ],
+        },
+      ),
+    );
+    final data = res.data;
+    if (data is! Map<String, dynamic>) {
+      throw StateError('Invalid event QR response');
+    }
+    return EventQrInfo(
+      urlLarge: (data['urlLarge'] as String?) ?? (data['urlLatest'] as String?) ?? '',
+      urlSmall: data['urlSmall'] as String?,
+      urlLatest: (data['urlLatest'] as String?) ?? (data['urlLarge'] as String? ?? ''),
+      hash: data['hash'] as String?,
+    );
+  }
+
+  @override
+  Future<EventQrInfo> ensureEventQr(String eventId) async {
+    final dio = _apiFactory.create(idToken: _idToken).dio;
+    final res = await dio.post(
+      '/v1/events/$eventId/qr',
+      options: Options(
+        extra: {
+          'secure': [
+            {
+              'type': 'http',
+              'scheme': 'bearer',
+              'name': 'bearerAuth',
+            }
+          ],
+        },
+      ),
+    );
+    final data = res.data;
+    if (data is! Map<String, dynamic>) {
+      throw StateError('Invalid ensure event QR response');
+    }
+    return EventQrInfo(
+      urlLarge: (data['urlLarge'] as String?) ?? (data['urlLatest'] as String?) ?? '',
+      urlSmall: data['urlSmall'] as String?,
+      urlLatest: (data['urlLatest'] as String?) ?? (data['urlLarge'] as String? ?? ''),
+      hash: data['hash'] as String?,
+    );
+  }
+
+  @override
   Future<List<Event>> listEvents() async {
     final response = await _defaultApi(_idToken).listEvents();
     final BuiltList<api.Event>? items = response.data;

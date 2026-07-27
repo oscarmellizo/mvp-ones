@@ -1766,6 +1766,7 @@ class _DetailsTabState extends State<_DetailsTab> {
   Future<List<EventGuest>>? _guestsFuture;
   Future<Map<String, String>>? _frameNamesFuture;
   Future<EventInviteLink>? _inviteLinkFuture;
+  Future<EventQrInfo>? _qrFuture;
   bool _updatingInviteLink = false;
 
   String? _inviteError;
@@ -1776,12 +1777,21 @@ class _DetailsTabState extends State<_DetailsTab> {
     _refreshGuests();
     _refreshFrameNames();
     _refreshInviteLink();
+    _refreshQr();
   }
 
   void _refreshInviteLink() {
     if (!(widget.isOwner || widget.allowGuestInvites)) return;
     _inviteLinkFuture =
         context.read<EventsRepository>().getInviteLink(widget.eventId);
+  }
+
+  void _refreshQr() {
+    if (!(widget.isOwner || widget.allowGuestInvites)) return;
+    final repo = context.read<EventsRepository>();
+    _qrFuture = widget.isOwner
+        ? repo.ensureEventQr(widget.eventId)
+        : repo.getEventQr(widget.eventId);
   }
 
   void _refreshFrameNames() {
@@ -2286,6 +2296,87 @@ class _DetailsTabState extends State<_DetailsTab> {
                           ],
                         ),
                         const SizedBox(height: 14),
+                        FutureBuilder<EventQrInfo>(
+                          future: _qrFuture,
+                          builder: (context, snapQr) {
+                            if (snapQr.connectionState == ConnectionState.waiting) {
+                              return const SizedBox.shrink();
+                            }
+                            final qr = snapQr.data;
+                            if (snapQr.hasError || qr == null || qr.urlLatest.isEmpty) {
+                              return const SizedBox.shrink();
+                            }
+                            final previewUrl = qr.urlSmall ?? qr.urlLatest;
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  t.translate('event_detail.event_qr', fallback: 'QR del evento'),
+                                  style: const TextStyle(fontWeight: FontWeight.w900),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: Image.network(
+                                        previewUrl,
+                                        width: 160,
+                                        height: 160,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => const SizedBox(width: 160, height: 160),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            t.translate('event_detail.scan_to_join', fallback: 'Escanéame para unirme'),
+                                            style: TextStyle(
+                                              color: OnesColors.black.withOpacity(0.65),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 10),
+                                          Wrap(
+                                            spacing: 10,
+                                            runSpacing: 10,
+                                            children: [
+                                              OutlinedButton(
+                                                onPressed: () {
+                                                  showDialog(
+                                                    context: context,
+                                                    builder: (_) => Dialog(
+                                                      child: InteractiveViewer(
+                                                        child: Image.network(qr.urlLarge.isNotEmpty ? qr.urlLarge : qr.urlLatest,
+                                                            fit: BoxFit.contain,
+                                                            errorBuilder: (_, __, ___) => const SizedBox()),
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                                child: Text(t.translate('event_detail.view_full', fallback: 'Ver tamaño completo')),
+                                              ),
+                                              OutlinedButton(
+                                                onPressed: () async {
+                                                  await Share.share(qr.urlLarge.isNotEmpty ? qr.urlLarge : qr.urlLatest);
+                                                },
+                                                child: Text(t.translate('event_detail.share_qr', fallback: 'Compartir QR')),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            );
+                          },
+                        ),
                       ],
                     ),
                   );
