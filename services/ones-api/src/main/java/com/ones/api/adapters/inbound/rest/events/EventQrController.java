@@ -36,7 +36,7 @@ public class EventQrController {
         if (!event.getOwnerId().equals(userId)) {
             throw new com.ones.api.application.events.EventForbiddenException(eventId);
         }
-        EventQrService.QrResult r = eventQrService.generateAndUpload(eventId);
+        EventQrService.QrResult r = eventQrService.generateAndUpload(event);
         return ResponseEntity.ok(new QrResponse(r.urlLarge(), r.urlSmall(), r.urlLatest(), r.hash()));
     }
 
@@ -45,7 +45,7 @@ public class EventQrController {
         String userId = authentication.getName();
         String email = resolveEmail(authentication);
         Event event = getEventUseCase.execute(userId, email, eventId);
-        String url = eventQrService.latestPublicUrl(eventId);
+        String url = eventQrService.latestPublicUrl(event);
         return ResponseEntity.ok(new QrResponse(url, null, url, null));
     }
 

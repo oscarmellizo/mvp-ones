@@ -5,7 +5,9 @@ import java.io.ByteArrayOutputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -14,16 +16,16 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.ones.api.application.events.invitelink.EventInviteLinkClosedException;
 import com.ones.api.application.events.invitelink.EventInviteLinkTokenService;
+import com.ones.api.application.events.ports.ObjectStoragePresigner;
+import com.ones.api.domain.events.Event;
 
 import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
-import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
-import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
 
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
@@ -36,31 +38,34 @@ import com.google.zxing.client.j2se.MatrixToImageWriter;
 public class EventQrService {
 
     private static final Logger log = LoggerFactory.getLogger(EventQrService.class);
+    private static final Duration MAX_S3_PRESIGN_TTL = Duration.ofDays(7);
 
     private final S3Client s3;
-    private final Region region;
+    private final Clock clock;
+    private final ObjectStoragePresigner objectStoragePresigner;
     private final EventInviteLinkTokenService tokenService;
     private final String appBaseUrl;
     private final String photosBucket;
-    private final String publicBaseUrl; // optional CDN/domain
 
     public EventQrService(
             S3Client s3,
-            Region region,
+            Clock clock,
+            ObjectStoragePresigner objectStoragePresigner,
             EventInviteLinkTokenService tokenService,
             @Value("${ones.app.base-url}") String appBaseUrl,
-            @Value("${ones.s3.events.photos.bucket}") String photosBucket,
-            @Value("${ones.s3.public-base-url:}") String publicBaseUrl
+            @Value("${ones.s3.events.photos.bucket}") String photosBucket
     ) {
         this.s3 = s3;
-        this.region = region;
+        this.clock = clock;
+        this.objectStoragePresigner = objectStoragePresigner;
         this.tokenService = tokenService;
         this.appBaseUrl = appBaseUrl;
         this.photosBucket = photosBucket;
-        this.publicBaseUrl = publicBaseUrl == null ? "" : publicBaseUrl.trim();
     }
 
-    public QrResult generateAndUpload(String eventId) {
+    public QrResult generateAndUpload(Event event) {
+        final String eventId = event.getEventId();
+        final Instant eventEndsAt = event.getEndAt();
         final String url = buildInviteUrl(eventId);
         final String hash = sha256Hex(url);
 
@@ -72,24 +77,24 @@ public class EventQrService {
         try {
             if (!exists(photosBucket, key1024)) {
                 byte[] png1024 = renderQrPng(url, 1024);
-                putPublicPng(photosBucket, key1024, png1024, Duration.ofDays(365), true);
+                putPng(photosBucket, key1024, png1024, Duration.ofDays(365), true);
                 log.info("Uploaded event QR 1024: bucket={}, key={}", photosBucket, key1024);
             }
 
             if (!exists(photosBucket, key256)) {
                 byte[] png256 = renderQrPng(url, 256);
-                putPublicPng(photosBucket, key256, png256, Duration.ofDays(365), true);
+                putPng(photosBucket, key256, png256, Duration.ofDays(365), true);
                 log.info("Uploaded event QR 256: bucket={}, key={}", photosBucket, key256);
             }
 
             // Always refresh latest with a short TTL to avoid staleness
             byte[] pngLatest = renderQrPng(url, 1024);
-            putPublicPng(photosBucket, keyLatest, pngLatest, Duration.ofMinutes(5), false);
+            putPng(photosBucket, keyLatest, pngLatest, Duration.ofMinutes(5), false);
 
             return new QrResult(
-                    publicUrl(photosBucket, key1024),
-                    publicUrl(photosBucket, key256),
-                    publicUrl(photosBucket, keyLatest),
+                    presignedUrl(key1024, eventEndsAt),
+                    presignedUrl(key256, eventEndsAt),
+                    presignedUrl(keyLatest, eventEndsAt),
                     hash
             );
         } catch (RuntimeException e) {
@@ -98,9 +103,9 @@ public class EventQrService {
         }
     }
 
-    public String latestPublicUrl(String eventId) {
-        final String key = "events/" + eventId + "/qr/qr-latest.png";
-        return publicUrl(photosBucket, key);
+    public String latestPublicUrl(Event event) {
+        final String key = "events/" + event.getEventId() + "/qr/qr-latest.png";
+        return presignedUrl(key, event.getEndAt());
     }
 
     private boolean exists(String bucket, String key) {
@@ -109,19 +114,22 @@ public class EventQrService {
             return true;
         } catch (S3Exception e) {
             if (e.statusCode() == 404) return false;
+            if (e.statusCode() == 403) {
+                log.warn("Unable to verify event QR object; proceeding with upload: bucket={}, key={}", bucket, key);
+                return false;
+            }
             String code = (e.awsErrorDetails() != null) ? e.awsErrorDetails().errorCode() : null;
             if ("NotFound".equals(code) || "NoSuchKey".equals(code)) return false;
             throw e;
         }
     }
 
-    private void putPublicPng(String bucket, String key, byte[] png, Duration cacheTtl, boolean immutable) {
+    private void putPng(String bucket, String key, byte[] png, Duration cacheTtl, boolean immutable) {
         PutObjectRequest put = PutObjectRequest.builder()
                 .bucket(bucket)
                 .key(key)
                 .contentType("image/png")
                 .cacheControl(buildCacheControl(cacheTtl, immutable))
-                .acl(ObjectCannedACL.PUBLIC_READ)
                 .build();
         s3.putObject(put, RequestBody.fromBytes(png));
     }
@@ -129,17 +137,17 @@ public class EventQrService {
     private static String buildCacheControl(Duration ttl, boolean immutable) {
         long seconds = Math.max(0, ttl.getSeconds());
         return immutable
-                ? "public, max-age=" + seconds + ", immutable"
-                : "public, max-age=" + seconds;
+                ? "private, max-age=" + seconds + ", immutable"
+                : "private, max-age=" + seconds;
     }
 
-    private String publicUrl(String bucket, String key) {
-        if (!publicBaseUrl.isBlank()) {
-            String base = publicBaseUrl.endsWith("/") ? publicBaseUrl.substring(0, publicBaseUrl.length() - 1) : publicBaseUrl;
-            return base + "/" + key;
+    private String presignedUrl(String key, Instant eventEndsAt) {
+        Duration remaining = Duration.between(clock.instant(), eventEndsAt);
+        if (remaining.isZero() || remaining.isNegative()) {
+            throw new EventInviteLinkClosedException("Event has ended");
         }
-        String regionPart = region == null ? "" : ("." + region.id());
-        return "https://" + bucket + ".s3" + regionPart + ".amazonaws.com/" + key;
+        Duration ttl = remaining.compareTo(MAX_S3_PRESIGN_TTL) > 0 ? MAX_S3_PRESIGN_TTL : remaining;
+        return objectStoragePresigner.presignGet(photosBucket, key, ttl).toString();
     }
 
     private static String sha256Hex(String data) {
