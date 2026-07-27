@@ -133,7 +133,7 @@ public class CreateEventUseCase {
 
         try {
             if (eventQrService != null && saved.isInviteLinkEnabled()) {
-                eventQrService.generateAndUpload(eventId);
+                eventQrService.generateAndUpload(saved);
             }
         } catch (Exception e) {
             log.warn("QR generation failed for eventId={}", eventId, e);
