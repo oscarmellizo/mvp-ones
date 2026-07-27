@@ -50,6 +50,27 @@ public class CreateEventUseCase {
         this.eventQrService = eventQrService;
     }
 
+    public CreateEventUseCase(
+            EventsRepository repository,
+            InvitationsRepository invitationsRepository,
+            UsersRepository usersRepository,
+            Clock clock,
+            EventCoversService coversService,
+            InvitationEmailService invitationEmailService,
+            CheckPlanLimitUseCase checkPlanLimitUseCase
+    ) {
+        this(
+                repository,
+                invitationsRepository,
+                usersRepository,
+                clock,
+                coversService,
+                invitationEmailService,
+                checkPlanLimitUseCase,
+                null
+        );
+    }
+
     public Event execute(
             String ownerId,
             String title,
@@ -111,7 +132,7 @@ public class CreateEventUseCase {
         }
 
         try {
-            if (saved.isInviteLinkEnabled()) {
+            if (eventQrService != null && saved.isInviteLinkEnabled()) {
                 eventQrService.generateAndUpload(eventId);
             }
         } catch (Exception e) {
