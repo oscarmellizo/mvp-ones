@@ -16,6 +16,7 @@ import com.ones.api.application.events.InviteEventGuestsUseCase;
 import com.ones.api.application.events.ListEventGuestsUseCase;
 import com.ones.api.application.events.ListEventsUseCase;
 import com.ones.api.application.events.UpdateEventUseCase;
+import com.ones.api.application.events.EventQrService;
 import com.ones.api.application.events.invitelink.AcceptEventInviteLinkUseCase;
 import com.ones.api.application.events.invitelink.PreviewEventInviteLinkUseCase;
 import com.ones.api.application.events.invitelink.SetEventInviteLinkEnabledUseCase;
@@ -56,9 +57,19 @@ public class ApplicationConfig {
             Clock clock,
             EventCoversService coversService,
             InvitationEmailService invitationEmailService,
-            CheckPlanLimitUseCase checkPlanLimitUseCase
+            CheckPlanLimitUseCase checkPlanLimitUseCase,
+            EventQrService eventQrService
     ) {
-        return new CreateEventUseCase(repository, invitationsRepository, usersRepository, clock, coversService, invitationEmailService, checkPlanLimitUseCase);
+        return new CreateEventUseCase(
+                repository,
+                invitationsRepository,
+                usersRepository,
+                clock,
+                coversService,
+                invitationEmailService,
+                checkPlanLimitUseCase,
+                eventQrService
+        );
     }
 
     @Bean

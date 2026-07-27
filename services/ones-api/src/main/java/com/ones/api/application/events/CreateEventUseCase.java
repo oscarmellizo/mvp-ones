@@ -28,6 +28,7 @@ public class CreateEventUseCase {
     private final EventCoversService coversService;
     private final InvitationEmailService invitationEmailService;
     private final CheckPlanLimitUseCase checkPlanLimitUseCase;
+    private final EventQrService eventQrService;
 
     public CreateEventUseCase(
             EventsRepository repository,
@@ -36,7 +37,8 @@ public class CreateEventUseCase {
             Clock clock,
             EventCoversService coversService,
             InvitationEmailService invitationEmailService,
-            CheckPlanLimitUseCase checkPlanLimitUseCase
+            CheckPlanLimitUseCase checkPlanLimitUseCase,
+            EventQrService eventQrService
     ) {
         this.repository = repository;
         this.invitationsRepository = invitationsRepository;
@@ -45,6 +47,7 @@ public class CreateEventUseCase {
         this.coversService = coversService;
         this.invitationEmailService = invitationEmailService;
         this.checkPlanLimitUseCase = checkPlanLimitUseCase;
+        this.eventQrService = eventQrService;
     }
 
     public Event execute(
@@ -105,6 +108,14 @@ public class CreateEventUseCase {
                     invitationEmailService.sendInvitation(inv);
                 }
             }
+        }
+
+        try {
+            if (saved.isInviteLinkEnabled()) {
+                eventQrService.generateAndUpload(eventId);
+            }
+        } catch (Exception e) {
+            log.warn("QR generation failed for eventId={}", eventId, e);
         }
 
         return saved;
