@@ -1768,6 +1768,7 @@ class _DetailsTabState extends State<_DetailsTab> {
   Future<EventInviteLink>? _inviteLinkFuture;
   Future<EventQrInfo>? _qrFuture;
   bool _updatingInviteLink = false;
+  bool _sharingQr = false;
 
   String? _inviteError;
 
@@ -2171,6 +2172,44 @@ class _DetailsTabState extends State<_DetailsTab> {
                     await Share.share(link.url);
                   }
 
+                  Future<void> onShareQr(EventQrInfo qr) async {
+                    if (_sharingQr) return;
+                    setState(() {
+                      _sharingQr = true;
+                    });
+                    try {
+                      final qrUrl = qr.urlLarge.isNotEmpty
+                          ? qr.urlLarge
+                          : qr.urlLatest;
+                      final file = await DefaultCacheManager().getSingleFile(
+                        qrUrl,
+                      );
+                      await Share.shareXFiles(
+                        [
+                          XFile(
+                            file.path,
+                            mimeType: 'image/png',
+                            name: 'ones-event-qr.png',
+                          ),
+                        ],
+                        text: link.url,
+                      );
+                    } catch (_) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('No se pudo compartir el QR.'),
+                        ),
+                      );
+                    } finally {
+                      if (context.mounted) {
+                        setState(() {
+                          _sharingQr = false;
+                        });
+                      }
+                    }
+                  }
+
                   Future<void> onToggle(bool enabled) async {
                     if (_updatingInviteLink) return;
                     setState(() {
@@ -2361,9 +2400,9 @@ class _DetailsTabState extends State<_DetailsTab> {
                                                 child: Text(t.translate('event_detail.view_full', fallback: 'Ver tamaño completo')),
                                               ),
                                               OutlinedButton(
-                                                onPressed: () async {
-                                                  await Share.share(qr.urlLarge.isNotEmpty ? qr.urlLarge : qr.urlLatest);
-                                                },
+                                                onPressed: _sharingQr
+                                                    ? null
+                                                    : () => onShareQr(qr),
                                                 child: Text(t.translate('event_detail.share_qr', fallback: 'Compartir QR')),
                                               ),
                                             ],
