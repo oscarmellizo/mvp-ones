@@ -109,9 +109,9 @@ public class EventQrService {
             return true;
         } catch (S3Exception e) {
             if (e.statusCode() == 404) return false;
+            String code = (e.awsErrorDetails() != null) ? e.awsErrorDetails().errorCode() : null;
+            if ("NotFound".equals(code) || "NoSuchKey".equals(code)) return false;
             throw e;
-        } catch (NoSuchKeyException e) {
-            return false;
         }
     }
 
