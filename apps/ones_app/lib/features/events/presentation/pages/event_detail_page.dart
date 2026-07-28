@@ -3,11 +3,11 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -1782,44 +1782,29 @@ class _DetailsTabState extends State<_DetailsTab> {
     _refreshQr();
   }
 
-  Future<XFile> _downloadQrToTempXFile(String url) async {
-    final client = HttpClient();
-    try {
-      final request = await client.getUrl(Uri.parse(url));
-      final response = await request.close();
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw StateError('QR download failed with HTTP ${response.statusCode}');
-      }
-
-      final bytes = await response.fold<List<int>>(
-        <int>[],
-        (previous, chunk) => previous..addAll(chunk),
-      );
-      if (bytes.length < 8 ||
-          bytes[0] != 0x89 ||
-          bytes[1] != 0x50 ||
-          bytes[2] != 0x4E ||
-          bytes[3] != 0x47 ||
-          bytes[4] != 0x0D ||
-          bytes[5] != 0x0A ||
-          bytes[6] != 0x1A ||
-          bytes[7] != 0x0A) {
-        throw StateError('QR download is not a PNG image');
-      }
-
-      final directory = await getTemporaryDirectory();
-      final file = File(
-        '${directory.path}${Platform.pathSeparator}ones-event-qr-${DateTime.now().microsecondsSinceEpoch}.png',
-      );
-      await file.writeAsBytes(bytes, flush: true);
-      return XFile(
-        file.path,
-        mimeType: 'image/png',
-        name: 'ones-event-qr.png',
-      );
-    } finally {
-      client.close(force: true);
+  Future<XFile> _downloadQrToXFile(String url) async {
+    final response = await Dio().get<List<int>>(
+      url,
+      options: Options(responseType: ResponseType.bytes),
+    );
+    final bytes = Uint8List.fromList(response.data ?? const <int>[]);
+    if (bytes.length < 8 ||
+        bytes[0] != 0x89 ||
+        bytes[1] != 0x50 ||
+        bytes[2] != 0x4E ||
+        bytes[3] != 0x47 ||
+        bytes[4] != 0x0D ||
+        bytes[5] != 0x0A ||
+        bytes[6] != 0x1A ||
+        bytes[7] != 0x0A) {
+      throw StateError('QR download is not a PNG image');
     }
+
+    return XFile.fromData(
+      bytes,
+      mimeType: 'image/png',
+      name: 'ones-event-qr.png',
+    );
   }
 
   void _refreshInviteLink() {
@@ -2227,7 +2212,7 @@ class _DetailsTabState extends State<_DetailsTab> {
                       final qrUrl = qr.urlLarge.isNotEmpty
                           ? qr.urlLarge
                           : qr.urlLatest;
-                      final file = await _downloadQrToTempXFile(qrUrl);
+                      final file = await _downloadQrToXFile(qrUrl);
                       await Share.shareXFiles([file]);
                     } catch (error, stackTrace) {
                       debugPrint('Failed to share event QR: $error');
