@@ -1830,8 +1830,12 @@ class _DetailsTabState extends State<_DetailsTab> {
 
   void _refreshQr() {
     if (!(widget.isOwner || widget.allowGuestInvites)) return;
+    _qrFuture = _loadQr();
+  }
+
+  Future<EventQrInfo> _loadQr() {
     final repo = context.read<EventsRepository>();
-    _qrFuture = widget.isOwner
+    return widget.isOwner
         ? repo.ensureEventQr(widget.eventId)
         : repo.getEventQr(widget.eventId);
   }
@@ -2171,10 +2175,6 @@ class _DetailsTabState extends State<_DetailsTab> {
         ),
         const SizedBox(height: 14),
         EventDetailSectionCard(
-          title: t.translate(
-            'event_detail.section_invite_guests',
-            fallback: 'Invite Guests',
-          ),
           children: [
             if (canInvite) ...[
               FutureBuilder<EventInviteLink>(
@@ -2213,22 +2213,29 @@ class _DetailsTabState extends State<_DetailsTab> {
                     await Share.share(link.url);
                   }
 
-                  Future<void> onShareQr(EventQrInfo qr) async {
+                  Future<void> onShareQr() async {
                     if (_sharingQr) return;
                     setState(() {
                       _sharingQr = true;
                     });
                     try {
+                      final qr = await _loadQr();
+                      if (!mounted) return;
+                      setState(() {
+                        _qrFuture = Future.value(qr);
+                      });
                       final qrUrl = qr.urlLarge.isNotEmpty
                           ? qr.urlLarge
                           : qr.urlLatest;
                       final file = await _downloadQrToTempXFile(qrUrl);
                       await Share.shareXFiles([file]);
-                    } catch (_) {
+                    } catch (error, stackTrace) {
+                      debugPrint('Failed to share event QR: $error');
+                      debugPrintStack(stackTrace: stackTrace);
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('No se pudo compartir el QR.'),
+                          content: Text('No se pudo compartir el QR. Intenta nuevamente.'),
                         ),
                       );
                     } finally {
@@ -2364,7 +2371,9 @@ class _DetailsTabState extends State<_DetailsTab> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 16),
+                        const Divider(),
+                        const SizedBox(height: 16),
                         FutureBuilder<EventQrInfo>(
                           future: _qrFuture,
                           builder: (context, snapQr) {
@@ -2379,9 +2388,15 @@ class _DetailsTabState extends State<_DetailsTab> {
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  t.translate('event_detail.event_qr', fallback: 'QR del evento'),
-                                  style: const TextStyle(fontWeight: FontWeight.w900),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.qr_code_2_outlined, size: 20),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      t.translate('event_detail.event_qr', fallback: 'QR del evento'),
+                                      style: const TextStyle(fontWeight: FontWeight.w900),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 8),
                                 Row(
@@ -2432,7 +2447,7 @@ class _DetailsTabState extends State<_DetailsTab> {
                                               OutlinedButton(
                                                 onPressed: _sharingQr
                                                     ? null
-                                                    : () => onShareQr(qr),
+                                                    : onShareQr,
                                                 child: Text(t.translate('event_detail.share_qr', fallback: 'Compartir QR')),
                                               ),
                                             ],
@@ -2451,6 +2466,17 @@ class _DetailsTabState extends State<_DetailsTab> {
                   );
                 },
               ),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 16),
+              Text(
+                t.translate(
+                  'event_detail.invite_by_email',
+                  fallback: 'Invitar por correo',
+                ),
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 10),
               OnesTextField(
                 controller: _emailController,
                 hintText: t.translate(
@@ -2502,7 +2528,9 @@ class _DetailsTabState extends State<_DetailsTab> {
                 ),
               ),
             ],
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 16),
             Row(
               children: [
                 const Icon(Icons.groups_outlined, size: 18),
