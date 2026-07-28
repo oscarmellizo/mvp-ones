@@ -45,6 +45,9 @@ abstract interface class EventsRepository {
   });
 
   Future<void> deleteEvent(String eventId);
+
+  Future<EventQrInfo> getEventQr(String eventId);
+  Future<EventQrInfo> ensureEventQr(String eventId);
 }
 
 class EventInviteLink {
@@ -90,5 +93,19 @@ class EventGuest {
     required this.displayName,
     required this.role,
     required this.status,
+  });
+}
+
+class EventQrInfo {
+  final String urlLarge;
+  final String? urlSmall;
+  final String urlLatest;
+  final String? hash;
+
+  const EventQrInfo({
+    required this.urlLarge,
+    required this.urlSmall,
+    required this.urlLatest,
+    required this.hash,
   });
 }

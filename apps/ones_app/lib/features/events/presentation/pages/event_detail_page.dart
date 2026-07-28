@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter/material.dart';
@@ -1766,7 +1767,9 @@ class _DetailsTabState extends State<_DetailsTab> {
   Future<List<EventGuest>>? _guestsFuture;
   Future<Map<String, String>>? _frameNamesFuture;
   Future<EventInviteLink>? _inviteLinkFuture;
+  Future<EventQrInfo>? _qrFuture;
   bool _updatingInviteLink = false;
+  bool _sharingQr = false;
 
   String? _inviteError;
 
@@ -1776,12 +1779,50 @@ class _DetailsTabState extends State<_DetailsTab> {
     _refreshGuests();
     _refreshFrameNames();
     _refreshInviteLink();
+    _refreshQr();
+  }
+
+  Future<XFile> _downloadQrToXFile(String url) async {
+    final response = await Dio().get<List<int>>(
+      url,
+      options: Options(responseType: ResponseType.bytes),
+    );
+    final bytes = Uint8List.fromList(response.data ?? const <int>[]);
+    if (bytes.length < 8 ||
+        bytes[0] != 0x89 ||
+        bytes[1] != 0x50 ||
+        bytes[2] != 0x4E ||
+        bytes[3] != 0x47 ||
+        bytes[4] != 0x0D ||
+        bytes[5] != 0x0A ||
+        bytes[6] != 0x1A ||
+        bytes[7] != 0x0A) {
+      throw StateError('QR download is not a PNG image');
+    }
+
+    return XFile.fromData(
+      bytes,
+      mimeType: 'image/png',
+      name: 'ones-event-qr.png',
+    );
   }
 
   void _refreshInviteLink() {
     if (!(widget.isOwner || widget.allowGuestInvites)) return;
     _inviteLinkFuture =
         context.read<EventsRepository>().getInviteLink(widget.eventId);
+  }
+
+  void _refreshQr() {
+    if (!(widget.isOwner || widget.allowGuestInvites)) return;
+    _qrFuture = _loadQr();
+  }
+
+  Future<EventQrInfo> _loadQr() {
+    final repo = context.read<EventsRepository>();
+    return widget.isOwner
+        ? repo.ensureEventQr(widget.eventId)
+        : repo.getEventQr(widget.eventId);
   }
 
   void _refreshFrameNames() {
@@ -2119,10 +2160,6 @@ class _DetailsTabState extends State<_DetailsTab> {
         ),
         const SizedBox(height: 14),
         EventDetailSectionCard(
-          title: t.translate(
-            'event_detail.section_invite_guests',
-            fallback: 'Invite Guests',
-          ),
           children: [
             if (canInvite) ...[
               FutureBuilder<EventInviteLink>(
@@ -2159,6 +2196,40 @@ class _DetailsTabState extends State<_DetailsTab> {
 
                   Future<void> onShare() async {
                     await Share.share(link.url);
+                  }
+
+                  Future<void> onShareQr() async {
+                    if (_sharingQr) return;
+                    setState(() {
+                      _sharingQr = true;
+                    });
+                    try {
+                      final qr = await _loadQr();
+                      if (!mounted) return;
+                      setState(() {
+                        _qrFuture = Future.value(qr);
+                      });
+                      final qrUrl = qr.urlLarge.isNotEmpty
+                          ? qr.urlLarge
+                          : qr.urlLatest;
+                      final file = await _downloadQrToXFile(qrUrl);
+                      await Share.shareXFiles([file]);
+                    } catch (error, stackTrace) {
+                      debugPrint('Failed to share event QR: $error');
+                      debugPrintStack(stackTrace: stackTrace);
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('No se pudo compartir el QR. Intenta nuevamente.'),
+                        ),
+                      );
+                    } finally {
+                      if (context.mounted) {
+                        setState(() {
+                          _sharingQr = false;
+                        });
+                      }
+                    }
                   }
 
                   Future<void> onToggle(bool enabled) async {
@@ -2285,12 +2356,112 @@ class _DetailsTabState extends State<_DetailsTab> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 16),
+                        const Divider(),
+                        const SizedBox(height: 16),
+                        FutureBuilder<EventQrInfo>(
+                          future: _qrFuture,
+                          builder: (context, snapQr) {
+                            if (snapQr.connectionState == ConnectionState.waiting) {
+                              return const SizedBox.shrink();
+                            }
+                            final qr = snapQr.data;
+                            if (snapQr.hasError || qr == null || qr.urlLatest.isEmpty) {
+                              return const SizedBox.shrink();
+                            }
+                            final previewUrl = qr.urlSmall ?? qr.urlLatest;
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.qr_code_2_outlined, size: 20),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      t.translate('event_detail.event_qr', fallback: 'QR del evento'),
+                                      style: const TextStyle(fontWeight: FontWeight.w900),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: Image.network(
+                                        previewUrl,
+                                        width: 160,
+                                        height: 160,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => const SizedBox(width: 160, height: 160),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            t.translate('event_detail.scan_to_join', fallback: 'Escanéame para unirme'),
+                                            style: TextStyle(
+                                              color: OnesColors.black.withOpacity(0.65),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 10),
+                                          Wrap(
+                                            spacing: 10,
+                                            runSpacing: 10,
+                                            children: [
+                                              OutlinedButton(
+                                                onPressed: () {
+                                                  showDialog(
+                                                    context: context,
+                                                    builder: (_) => Dialog(
+                                                      child: InteractiveViewer(
+                                                        child: Image.network(qr.urlLarge.isNotEmpty ? qr.urlLarge : qr.urlLatest,
+                                                            fit: BoxFit.contain,
+                                                            errorBuilder: (_, __, ___) => const SizedBox()),
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                                child: Text(t.translate('event_detail.view_full', fallback: 'Ver tamaño completo')),
+                                              ),
+                                              OutlinedButton(
+                                                onPressed: _sharingQr
+                                                    ? null
+                                                    : onShareQr,
+                                                child: Text(t.translate('event_detail.share_qr', fallback: 'Compartir QR')),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            );
+                          },
+                        ),
                       ],
                     ),
                   );
                 },
               ),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 16),
+              Text(
+                t.translate(
+                  'event_detail.invite_by_email',
+                  fallback: 'Invitar por correo',
+                ),
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 10),
               OnesTextField(
                 controller: _emailController,
                 hintText: t.translate(
@@ -2342,7 +2513,9 @@ class _DetailsTabState extends State<_DetailsTab> {
                 ),
               ),
             ],
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 16),
             Row(
               children: [
                 const Icon(Icons.groups_outlined, size: 18),

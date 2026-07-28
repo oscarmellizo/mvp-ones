@@ -4,13 +4,13 @@ import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/widgets/ones_card.dart';
 
 class EventDetailSectionCard extends StatelessWidget {
-  final String title;
+  final String? title;
   final List<Widget> children;
   final Widget? trailing;
 
   const EventDetailSectionCard({
     super.key,
-    required this.title,
+    this.title,
     required this.children,
     this.trailing,
   });
@@ -22,21 +22,23 @@ class EventDetailSectionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 16,
+          if (title != null) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title!,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
-              ),
-              if (trailing != null) trailing!,
-            ],
-          ),
-          const SizedBox(height: 10),
+                if (trailing != null) trailing!,
+              ],
+            ),
+            const SizedBox(height: 10),
+          ],
           ...children,
         ],
       ),

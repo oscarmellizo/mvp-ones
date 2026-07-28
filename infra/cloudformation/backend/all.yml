@@ -987,6 +987,14 @@ Resources:
       - PhotoThumbnailsPermission
     Properties:
       BucketName: !Sub ${StackPrefix}-${Environment}-events-photos
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
       Tags:
         - Key: Name
           Value: !Sub ${StackPrefix}-${Environment}-events-photos
@@ -2063,7 +2071,8 @@ Resources:
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              - Effect: Allow
+              - Sid: EventCoversAndAssetsObjectAccess
+                Effect: Allow
                 Action:
                   - s3:GetObject
                   - s3:PutObject
@@ -2071,7 +2080,13 @@ Resources:
                 Resource:
                   - !Sub ${EventsCoversTempBucket.Arn}/*
                   - !Sub ${EventsAssetsBucket.Arn}/*
-                  - !Sub arn:aws:s3:::${StackPrefix}-${Environment}-events-photos/*
+              - Sid: EventPhotosObjectAccess
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource: !Sub ${EventsPhotosBucket.Arn}/*
         - PolicyName: ones-secrets
           PolicyDocument:
             Version: '2012-10-17'

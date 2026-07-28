@@ -28,6 +28,27 @@ public class CreateEventUseCase {
     private final EventCoversService coversService;
     private final InvitationEmailService invitationEmailService;
     private final CheckPlanLimitUseCase checkPlanLimitUseCase;
+    private final EventQrService eventQrService;
+
+    public CreateEventUseCase(
+            EventsRepository repository,
+            InvitationsRepository invitationsRepository,
+            UsersRepository usersRepository,
+            Clock clock,
+            EventCoversService coversService,
+            InvitationEmailService invitationEmailService,
+            CheckPlanLimitUseCase checkPlanLimitUseCase,
+            EventQrService eventQrService
+    ) {
+        this.repository = repository;
+        this.invitationsRepository = invitationsRepository;
+        this.usersRepository = usersRepository;
+        this.clock = clock;
+        this.coversService = coversService;
+        this.invitationEmailService = invitationEmailService;
+        this.checkPlanLimitUseCase = checkPlanLimitUseCase;
+        this.eventQrService = eventQrService;
+    }
 
     public CreateEventUseCase(
             EventsRepository repository,
@@ -38,13 +59,16 @@ public class CreateEventUseCase {
             InvitationEmailService invitationEmailService,
             CheckPlanLimitUseCase checkPlanLimitUseCase
     ) {
-        this.repository = repository;
-        this.invitationsRepository = invitationsRepository;
-        this.usersRepository = usersRepository;
-        this.clock = clock;
-        this.coversService = coversService;
-        this.invitationEmailService = invitationEmailService;
-        this.checkPlanLimitUseCase = checkPlanLimitUseCase;
+        this(
+                repository,
+                invitationsRepository,
+                usersRepository,
+                clock,
+                coversService,
+                invitationEmailService,
+                checkPlanLimitUseCase,
+                null
+        );
     }
 
     public Event execute(
@@ -105,6 +129,14 @@ public class CreateEventUseCase {
                     invitationEmailService.sendInvitation(inv);
                 }
             }
+        }
+
+        try {
+            if (eventQrService != null && saved.isInviteLinkEnabled()) {
+                eventQrService.generateAndUpload(saved);
+            }
+        } catch (Exception e) {
+            log.warn("QR generation failed for eventId={}", eventId, e);
         }
 
         return saved;
