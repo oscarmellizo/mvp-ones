@@ -35,6 +35,7 @@ import '../../../invitations/presentation/widgets/invitations_sheet.dart';
 import '../../domain/event_exceptions.dart';
 import '../../domain/events_repository.dart';
 import '../../adapters/api/frames_api_repository.dart';
+import '../../../tutorial/presentation/tutorial_keys.dart';
 
 const String _defaultEventCoverAsset = 'assets/branding/ones-logo.png';
 
@@ -294,6 +295,8 @@ class _EventDetailPageState extends State<EventDetailPage> {
                                       index: _tabIndex,
                                       onChanged: (i) =>
                                           setState(() => _tabIndex = i),
+                                      galleryKey: TutorialKeys.eventTabGallery,
+                                      detailsKey: TutorialKeys.eventTabDetails,
                                     ),
                                   ),
                                   const SizedBox(height: 12),

@@ -13,6 +13,8 @@ import '../../../invitations/presentation/widgets/invitations_sheet.dart';
 import '../../../invitations/presentation/invitations_controller.dart';
 import '../../../subscriptions/presentation/subscriptions_controller.dart';
 import '../../../subscriptions/presentation/pages/subscription_plans_page.dart';
+import '../../../tutorial/presentation/tutorial_controller.dart';
+import '../../../tutorial/presentation/tutorial_keys.dart';
 
 const String _defaultEventCoverAsset = 'assets/branding/ones-logo.png';
 
@@ -133,6 +135,7 @@ class _EventsListPageState extends State<EventsListPage> {
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                   prefixIcon: const Icon(Icons.search),
+                  key: TutorialKeys.homeSearch,
                 ),
               ),
               const SizedBox(height: 18),
@@ -386,6 +389,12 @@ class _Header extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                IconButton(
+                  key: TutorialKeys.homeHelpIcon,
+                  tooltip: 'Ayuda',
+                  onPressed: () => TutorialController.instance.start(context),
+                  icon: const Icon(Icons.help_outline),
+                ),
                 IconButton(
                   onPressed: onBell,
                   icon: Stack(

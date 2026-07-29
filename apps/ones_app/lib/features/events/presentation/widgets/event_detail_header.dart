@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/ui/ones_colors.dart';
 import '../../../invitations/presentation/invitations_controller.dart';
+import '../../../tutorial/presentation/tutorial_keys.dart';
+import '../../../tutorial/presentation/tutorial_controller.dart';
 
 class EventDetailHeader extends StatelessWidget {
   final String title;
@@ -45,6 +47,12 @@ class EventDetailHeader extends StatelessWidget {
               ),
             ],
           ),
+        ),
+        const SizedBox(width: 4),
+        IconButton(
+          key: TutorialKeys.eventHelpIcon,
+          onPressed: () => TutorialController.instance.start(context),
+          icon: const Icon(Icons.help_outline, color: OnesColors.black),
         ),
         const SizedBox(width: 4),
         Stack(

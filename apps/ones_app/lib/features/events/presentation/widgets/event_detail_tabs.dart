@@ -7,11 +7,15 @@ import '../../../../core/ui/ones_colors.dart';
 class EventDetailTabs extends StatelessWidget {
   final int index;
   final ValueChanged<int> onChanged;
+  final Key? galleryKey;
+  final Key? detailsKey;
 
   const EventDetailTabs({
     super.key,
     required this.index,
     required this.onChanged,
+    this.galleryKey,
+    this.detailsKey,
   });
 
   @override
@@ -28,6 +32,7 @@ class EventDetailTabs extends StatelessWidget {
         children: [
           Expanded(
             child: _TabButton(
+              key: galleryKey,
               label: t.translate(
                 'event_detail.tab_gallery',
                 fallback: 'Gallery',
@@ -38,6 +43,7 @@ class EventDetailTabs extends StatelessWidget {
           ),
           Expanded(
             child: _TabButton(
+              key: detailsKey,
               label: t.translate(
                 'event_detail.tab_details',
                 fallback: 'Details',
@@ -58,6 +64,7 @@ class _TabButton extends StatelessWidget {
   final VoidCallback onTap;
 
   const _TabButton({
+    super.key,
     required this.label,
     required this.selected,
     required this.onTap,
