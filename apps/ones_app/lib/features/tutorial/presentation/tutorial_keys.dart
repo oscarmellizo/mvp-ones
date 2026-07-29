@@ -25,4 +25,8 @@ class TutorialKeys {
   static final GlobalKey eventTabGallery = GlobalKey(debugLabel: 'event.tab.gallery');
   static final GlobalKey eventTabDetails = GlobalKey(debugLabel: 'event.tab.details');
   static final GlobalKey eventShareLink = GlobalKey(debugLabel: 'event.share.link');
+  static final GlobalKey eventFilterAll = GlobalKey(debugLabel: 'event.filter.all');
+  static final GlobalKey eventFilterShared = GlobalKey(debugLabel: 'event.filter.shared');
+  static final GlobalKey eventFilterMine = GlobalKey(debugLabel: 'event.filter.mine');
+  static final GlobalKey eventFilterGuests = GlobalKey(debugLabel: 'event.filter.guests');
 }

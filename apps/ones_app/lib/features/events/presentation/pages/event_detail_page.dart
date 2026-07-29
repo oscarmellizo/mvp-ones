@@ -897,49 +897,58 @@ class _GalleryTabState extends State<_GalleryTab> {
                         segments: <ButtonSegment<PhotosGalleryFilter>>[
                           ButtonSegment(
                             value: PhotosGalleryFilter.all,
-                            label: Tooltip(
-                              message: t.translate(
-                                'event_detail.filter_all',
-                                fallback: 'Todas',
-                              ),
-                              child: Semantics(
-                                label: t.translate(
+                            label: KeyedSubtree(
+                              key: TutorialKeys.eventFilterAll,
+                              child: Tooltip(
+                                message: t.translate(
                                   'event_detail.filter_all',
                                   fallback: 'Todas',
                                 ),
-                                child: const Icon(Icons.photo_library_outlined),
+                                child: Semantics(
+                                  label: t.translate(
+                                    'event_detail.filter_all',
+                                    fallback: 'Todas',
+                                  ),
+                                  child: const Icon(Icons.photo_library_outlined),
+                                ),
                               ),
                             ),
                           ),
                           ButtonSegment(
                             value: PhotosGalleryFilter.sharedByMe,
-                            label: Tooltip(
-                              message: t.translate(
-                                'event_detail.filter_shared',
-                                fallback: 'Compartidas',
-                              ),
-                              child: Semantics(
-                                label: t.translate(
+                            label: KeyedSubtree(
+                              key: TutorialKeys.eventFilterShared,
+                              child: Tooltip(
+                                message: t.translate(
                                   'event_detail.filter_shared',
                                   fallback: 'Compartidas',
                                 ),
-                                child: const Icon(Icons.ios_share_outlined),
+                                child: Semantics(
+                                  label: t.translate(
+                                    'event_detail.filter_shared',
+                                    fallback: 'Compartidas',
+                                  ),
+                                  child: const Icon(Icons.ios_share_outlined),
+                                ),
                               ),
                             ),
                           ),
                           ButtonSegment(
                             value: PhotosGalleryFilter.mine,
-                            label: Tooltip(
-                              message: t.translate(
-                                'event_detail.filter_mine',
-                                fallback: 'M├¡as',
-                              ),
-                              child: Semantics(
-                                label: t.translate(
+                            label: KeyedSubtree(
+                              key: TutorialKeys.eventFilterMine,
+                              child: Tooltip(
+                                message: t.translate(
                                   'event_detail.filter_mine',
                                   fallback: 'M├¡as',
                                 ),
-                                child: const Icon(Icons.person_outline),
+                                child: Semantics(
+                                  label: t.translate(
+                                    'event_detail.filter_mine',
+                                    fallback: 'M├¡as',
+                                  ),
+                                  child: const Icon(Icons.person_outline),
+                                ),
                               ),
                             ),
                           ),
@@ -958,6 +967,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                     ),
                     const SizedBox(width: 10),
                     FilledButton.tonal(
+                      key: TutorialKeys.eventFilterGuests,
                       onPressed: controller.filter != PhotosGalleryFilter.all
                           ? null
                           : () async {
