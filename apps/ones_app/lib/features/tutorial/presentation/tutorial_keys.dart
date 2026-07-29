@@ -6,6 +6,8 @@ class TutorialKeys {
   static final GlobalKey homeBellIcon = GlobalKey(debugLabel: 'home.bell');
   static final GlobalKey homeSearch = GlobalKey(debugLabel: 'home.search');
   static final GlobalKey homeFabCreate = GlobalKey(debugLabel: 'home.fab');
+  static final GlobalKey homeHeaderToday = GlobalKey(debugLabel: 'home.header.today');
+  static final GlobalKey homeHeaderNext = GlobalKey(debugLabel: 'home.header.next');
 
   // Tabs
   static final GlobalKey homeTabHome = GlobalKey(debugLabel: 'home.tab.home');

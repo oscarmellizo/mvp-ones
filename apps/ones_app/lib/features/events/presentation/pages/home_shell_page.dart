@@ -53,7 +53,10 @@ class _HomeShellPageState extends State<HomeShellPage> {
       () async {
         final show = await TutorialStore().shouldShow(firstLaunch: true);
         if (show && mounted) {
-          TutorialController.instance.start(context);
+          TutorialController.instance.start(
+            context,
+            routeName: EventsListPage.routeName,
+          );
         }
       }();
     });

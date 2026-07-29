@@ -640,7 +640,10 @@ class _CreateEventPageState extends State<CreateEventPage> {
           IconButton(
             key: TutorialKeys.createHelpIcon,
             icon: const Icon(Icons.help_outline, color: OnesColors.purpleDeep),
-            onPressed: () => TutorialController.instance.start(context),
+            onPressed: () => TutorialController.instance.start(
+              context,
+              routeName: CreateEventPage.routeName,
+            ),
           ),
           TextButton(
             onPressed: controller.loading ? null : () => _submit(context),

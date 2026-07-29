@@ -139,7 +139,10 @@ class _EventsListPageState extends State<EventsListPage> {
                 ),
               ),
               const SizedBox(height: 18),
-              OnesSectionHeader(title: t.translate('home.today')),
+              OnesSectionHeader(
+                key: TutorialKeys.homeHeaderToday,
+                title: t.translate('home.today'),
+              ),
               const SizedBox(height: 12),
               SizedBox(
                 height: 260,
@@ -202,7 +205,10 @@ class _EventsListPageState extends State<EventsListPage> {
                       ),
               ),
               const SizedBox(height: 22),
-              OnesSectionHeader(title: t.translate('home.next_events')),
+              OnesSectionHeader(
+                key: TutorialKeys.homeHeaderNext,
+                title: t.translate('home.next_events'),
+              ),
               const SizedBox(height: 12),
               if (controller.error != null) ...[
                 Container(
@@ -392,10 +398,14 @@ class _Header extends StatelessWidget {
                 IconButton(
                   key: TutorialKeys.homeHelpIcon,
                   tooltip: 'Ayuda',
-                  onPressed: () => TutorialController.instance.start(context),
+                  onPressed: () => TutorialController.instance.start(
+                    context,
+                    routeName: EventsListPage.routeName,
+                  ),
                   icon: const Icon(Icons.help_outline),
                 ),
                 IconButton(
+                  key: TutorialKeys.homeBellIcon,
                   onPressed: onBell,
                   icon: Stack(
                     clipBehavior: Clip.none,

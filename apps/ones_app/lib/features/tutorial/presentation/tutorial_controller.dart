@@ -11,11 +11,13 @@ class TutorialController {
 
   TutorialController._internal();
 
-  Future<void> start(BuildContext context) async {
-    // Build targets only for widgets currently mounted in this route
-    final steps = TutorialSteps.all
-        .where((s) => s.targetKey().currentContext != null)
-        .toList(growable: false);
+  Future<void> start(BuildContext context, {String? routeName}) async {
+    // Filtra por ruta actual (o explícita) y sólo widgets montados
+    final currentRoute = routeName ?? ModalRoute.of(context)?.settings.name;
+    final steps = TutorialSteps.all.where((s) {
+      if (currentRoute != null && s.routeName != currentRoute) return false;
+      return s.targetKey().currentContext != null;
+    }).toList(growable: false);
     if (steps.isEmpty) return;
 
     final targets = <TargetFocus>[];
@@ -34,6 +36,7 @@ class TutorialController {
                 ctx,
                 step.titleKey,
                 step.bodyKey,
+                controller,
               ),
             ),
           ],
@@ -54,7 +57,12 @@ class TutorialController {
     coachMark.show(context: context);
   }
 
-  Widget _buildBubble(BuildContext context, String? title, String? body) {
+  Widget _buildBubble(
+    BuildContext context,
+    String? title,
+    String? body,
+    TutorialCoachMarkController controller,
+  ) {
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
@@ -72,12 +80,14 @@ class TutorialController {
           if (title != null && title.isNotEmpty) const SizedBox(height: 8),
           if (body != null && body.isNotEmpty) Text(body),
           const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              'Siguiente',
-              style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () => controller.next(),
+                child: const Text('Siguiente'),
+              ),
+            ],
           ),
         ],
       ),
