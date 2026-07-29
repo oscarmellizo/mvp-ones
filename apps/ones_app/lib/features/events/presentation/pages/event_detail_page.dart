@@ -36,6 +36,8 @@ import '../../domain/event_exceptions.dart';
 import '../../domain/events_repository.dart';
 import '../../adapters/api/frames_api_repository.dart';
 import '../../../tutorial/presentation/tutorial_keys.dart';
+import '../../../tutorial/presentation/tutorial_controller.dart';
+import '../../../tutorial/presentation/tutorial_store.dart';
 
 const String _defaultEventCoverAsset = 'assets/branding/ones-logo.png';
 
@@ -149,6 +151,18 @@ class _EventDetailPageState extends State<EventDetailPage> {
             requiredKeys: _eventDetailRequiredKeys,
           );
       _galleryController?.refresh(eventId: widget.eventId);
+      // Autodisparo primera vez en esta pantalla
+      () async {
+        final show = await TutorialStore().shouldShow(
+          routeName: EventDetailPage.routeName,
+        );
+        if (show && mounted) {
+          TutorialController.instance.start(
+            context,
+            routeName: EventDetailPage.routeName,
+          );
+        }
+      }();
     });
   }
 

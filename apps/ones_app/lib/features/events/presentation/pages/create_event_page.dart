@@ -18,6 +18,7 @@ import '../widgets/create_event_invite_widgets.dart';
 import '../widgets/frame_picker_sheet.dart';
 import '../../../tutorial/presentation/tutorial_keys.dart';
 import '../../../tutorial/presentation/tutorial_controller.dart';
+import '../../../tutorial/presentation/tutorial_store.dart';
 
 class CreateEventPage extends StatefulWidget {
   static const routeName = '/events/create';
@@ -160,6 +161,18 @@ class _CreateEventPageState extends State<CreateEventPage> {
       setState(() {
         _coverReservationId = null;
       });
+      // Autodisparo primera vez en esta pantalla
+      () async {
+        final show = await TutorialStore().shouldShow(
+          routeName: CreateEventPage.routeName,
+        );
+        if (show && mounted) {
+          TutorialController.instance.start(
+            context,
+            routeName: CreateEventPage.routeName,
+          );
+        }
+      }();
     });
 
     if (widget.initialTitle != null && widget.initialTitle!.trim().isNotEmpty) {

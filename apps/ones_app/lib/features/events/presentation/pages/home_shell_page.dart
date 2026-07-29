@@ -51,7 +51,10 @@ class _HomeShellPageState extends State<HomeShellPage> {
           );
       // Autodisparo en primer arranque (sin i18n, sólo español)
       () async {
-        final show = await TutorialStore().shouldShow(firstLaunch: true);
+        final show = await TutorialStore().shouldShow(
+          firstLaunch: true,
+          routeName: EventsListPage.routeName,
+        );
         if (show && mounted) {
           TutorialController.instance.start(
             context,

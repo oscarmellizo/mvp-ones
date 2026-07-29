@@ -12,12 +12,20 @@ class TutorialController {
   TutorialController._internal();
 
   Future<void> start(BuildContext context, {String? routeName}) async {
-    // Filtra por ruta actual (o explícita) y sólo widgets montados
+    // Filtra por ruta actual (o explícita) y reintenta si aún no están montados
     final currentRoute = routeName ?? ModalRoute.of(context)?.settings.name;
-    final steps = TutorialSteps.all.where((s) {
-      if (currentRoute != null && s.routeName != currentRoute) return false;
-      return s.targetKey().currentContext != null;
-    }).toList(growable: false);
+
+    List<TutorialStep> _visibleSteps() => TutorialSteps.all.where((s) {
+          if (currentRoute != null && s.routeName != currentRoute) return false;
+          return s.targetKey().currentContext != null;
+        }).toList(growable: false);
+
+    List<TutorialStep> steps = _visibleSteps();
+    // Reintenta hasta 6 veces en ~1.5s para esperar al montaje
+    for (int i = 0; steps.isEmpty && i < 6; i++) {
+      await Future.delayed(const Duration(milliseconds: 250));
+      steps = _visibleSteps();
+    }
     if (steps.isEmpty) return;
 
     final targets = <TargetFocus>[];
@@ -50,8 +58,23 @@ class TutorialController {
       textSkip: 'Saltar',
       pulseEnable: true,
       hideSkip: false,
-      onFinish: () { _store.markSeen(); },
-      onSkip: () { _store.markSeen(); return true; },
+      beforeFocus: (target) async {
+        final key = target.keyTarget;
+        final ctx = key?.currentContext;
+        if (ctx != null) {
+          try {
+            await Scrollable.ensureVisible(
+              ctx,
+              duration: const Duration(milliseconds: 350),
+              alignment: 0.1,
+              curve: Curves.easeInOut,
+            );
+            await Future<void>.delayed(const Duration(milliseconds: 50));
+          } catch (_) {}
+        }
+      },
+      onFinish: () { _store.markSeen(routeName: currentRoute); },
+      onSkip: () { _store.markSeen(routeName: currentRoute); return true; },
     );
 
     coachMark.show(context: context);
