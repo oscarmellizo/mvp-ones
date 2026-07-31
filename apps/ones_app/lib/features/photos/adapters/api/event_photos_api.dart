@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
@@ -28,6 +29,32 @@ class EventPhotosApi {
 
   void setIdToken(String? token) {
     _idToken = token;
+  }
+
+  Future<void> uploadBytesToPresignedUrl({
+    required String putUrl,
+    required Uint8List bytes,
+    required String contentType,
+    void Function(int sent, int total)? onProgress,
+  }) async {
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 15),
+        sendTimeout: const Duration(minutes: 2),
+        receiveTimeout: const Duration(minutes: 2),
+      ),
+    );
+
+    await dio.put(
+      putUrl,
+      data: bytes,
+      options: Options(
+        headers: {
+          HttpHeaders.contentTypeHeader: contentType,
+        },
+      ),
+      onSendProgress: onProgress,
+    );
   }
 
   Future<bool> like({

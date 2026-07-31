@@ -30,6 +30,7 @@ import '../widgets/event_detail_details_widgets.dart';
 import '../widgets/event_detail_header.dart';
 import '../widgets/event_detail_tabs.dart';
 import 'photo_capture_page.dart';
+import 'photo_capture_web_page.dart';
 import 'edit_event_page.dart';
 import '../../../invitations/presentation/widgets/invitations_sheet.dart';
 import '../../domain/event_exceptions.dart';
@@ -256,10 +257,15 @@ class _EventDetailPageState extends State<EventDetailPage> {
                     : () async {
                         await Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) => PhotoCapturePage(
-                              eventId: event.id,
-                              frameIds: event.frameIds,
-                            ),
+                            builder: (_) => kIsWeb
+                                ? PhotoCaptureWebPage(
+                                    eventId: event.id,
+                                    frameIds: event.frameIds,
+                                  )
+                                : PhotoCapturePage(
+                                    eventId: event.id,
+                                    frameIds: event.frameIds,
+                                  ),
                           ),
                         );
                         if (!context.mounted) return;
