@@ -84,6 +84,12 @@ class _PhotoImportWebSheetState extends State<PhotoImportWebSheet> {
             putUrl: presign.putUrl,
             bytes: bytes,
             contentType: 'image/jpeg',
+            onProgress: (sent, total) {
+              if (!mounted) return;
+              setState(() {
+                _progress[name] = total > 0 ? (sent / total).clamp(0.0, 1.0) : 0.0;
+              });
+            },
           );
 
           await api.complete(
@@ -96,7 +102,6 @@ class _PhotoImportWebSheetState extends State<PhotoImportWebSheet> {
           setState(() => _progress[name] = 1.0);
         } catch (e) {
           setState(() => _progress[f.name] = -1);
-          rethrow;
         }
       }
 
@@ -106,10 +111,22 @@ class _PhotoImportWebSheetState extends State<PhotoImportWebSheet> {
       }
       setState(() {});
 
-      // Sequential to keep it simpler and robust; can lift to limited concurrency if needed.
-      for (final f in files) {
-        await uploadOne(f);
+      // Limited concurrency: up to 4 parallel uploads
+      final queue = List<PlatformFile>.from(files);
+      final workers = <Future<void>>[];
+      final poolSize = queue.length < 4 ? queue.length : 4;
+      Future<void> worker() async {
+        while (true) {
+          PlatformFile? f;
+          if (queue.isEmpty) break;
+          f = queue.removeLast();
+          await uploadOne(f);
+        }
       }
+      for (var i = 0; i < poolSize; i++) {
+        workers.add(worker());
+      }
+      await Future.wait(workers);
 
       if (!mounted) return;
       if (_progress.values.any((v) => v < 0)) {
