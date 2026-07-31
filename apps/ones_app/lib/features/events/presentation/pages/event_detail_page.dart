@@ -35,6 +35,9 @@ import '../../../invitations/presentation/widgets/invitations_sheet.dart';
 import '../../domain/event_exceptions.dart';
 import '../../domain/events_repository.dart';
 import '../../adapters/api/frames_api_repository.dart';
+import '../../../tutorial/presentation/tutorial_keys.dart';
+import '../../../tutorial/presentation/tutorial_controller.dart';
+import '../../../tutorial/presentation/tutorial_store.dart';
 
 const String _defaultEventCoverAsset = 'assets/branding/ones-logo.png';
 
@@ -148,6 +151,18 @@ class _EventDetailPageState extends State<EventDetailPage> {
             requiredKeys: _eventDetailRequiredKeys,
           );
       _galleryController?.refresh(eventId: widget.eventId);
+      // Autodisparo primera vez en esta pantalla
+      () async {
+        final show = await TutorialStore().shouldShow(
+          routeName: EventDetailPage.routeName,
+        );
+        if (show && mounted) {
+          TutorialController.instance.start(
+            context,
+            routeName: EventDetailPage.routeName,
+          );
+        }
+      }();
     });
   }
 
@@ -294,6 +309,8 @@ class _EventDetailPageState extends State<EventDetailPage> {
                                       index: _tabIndex,
                                       onChanged: (i) =>
                                           setState(() => _tabIndex = i),
+                                      galleryKey: TutorialKeys.eventTabGallery,
+                                      detailsKey: TutorialKeys.eventTabDetails,
                                     ),
                                   ),
                                   const SizedBox(height: 12),
@@ -393,6 +410,7 @@ class _GalleryTab extends StatefulWidget {
 class _GalleryTabState extends State<_GalleryTab> {
   bool _selecting = false;
   final Set<String> _selectedIds = {};
+  bool _selectionTutorialShown = false;
 
   final Set<String> _cleanupUploadPhotoIds = {};
 
@@ -880,49 +898,58 @@ class _GalleryTabState extends State<_GalleryTab> {
                         segments: <ButtonSegment<PhotosGalleryFilter>>[
                           ButtonSegment(
                             value: PhotosGalleryFilter.all,
-                            label: Tooltip(
-                              message: t.translate(
-                                'event_detail.filter_all',
-                                fallback: 'Todas',
-                              ),
-                              child: Semantics(
-                                label: t.translate(
+                            label: KeyedSubtree(
+                              key: TutorialKeys.eventFilterAll,
+                              child: Tooltip(
+                                message: t.translate(
                                   'event_detail.filter_all',
                                   fallback: 'Todas',
                                 ),
-                                child: const Icon(Icons.photo_library_outlined),
+                                child: Semantics(
+                                  label: t.translate(
+                                    'event_detail.filter_all',
+                                    fallback: 'Todas',
+                                  ),
+                                  child: const Icon(Icons.photo_library_outlined),
+                                ),
                               ),
                             ),
                           ),
                           ButtonSegment(
                             value: PhotosGalleryFilter.sharedByMe,
-                            label: Tooltip(
-                              message: t.translate(
-                                'event_detail.filter_shared',
-                                fallback: 'Compartidas',
-                              ),
-                              child: Semantics(
-                                label: t.translate(
+                            label: KeyedSubtree(
+                              key: TutorialKeys.eventFilterShared,
+                              child: Tooltip(
+                                message: t.translate(
                                   'event_detail.filter_shared',
                                   fallback: 'Compartidas',
                                 ),
-                                child: const Icon(Icons.ios_share_outlined),
+                                child: Semantics(
+                                  label: t.translate(
+                                    'event_detail.filter_shared',
+                                    fallback: 'Compartidas',
+                                  ),
+                                  child: const Icon(Icons.ios_share_outlined),
+                                ),
                               ),
                             ),
                           ),
                           ButtonSegment(
                             value: PhotosGalleryFilter.mine,
-                            label: Tooltip(
-                              message: t.translate(
-                                'event_detail.filter_mine',
-                                fallback: 'M├¡as',
-                              ),
-                              child: Semantics(
-                                label: t.translate(
+                            label: KeyedSubtree(
+                              key: TutorialKeys.eventFilterMine,
+                              child: Tooltip(
+                                message: t.translate(
                                   'event_detail.filter_mine',
                                   fallback: 'M├¡as',
                                 ),
-                                child: const Icon(Icons.person_outline),
+                                child: Semantics(
+                                  label: t.translate(
+                                    'event_detail.filter_mine',
+                                    fallback: 'M├¡as',
+                                  ),
+                                  child: const Icon(Icons.person_outline),
+                                ),
                               ),
                             ),
                           ),
@@ -941,6 +968,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                     ),
                     const SizedBox(width: 10),
                     FilledButton.tonal(
+                      key: TutorialKeys.eventFilterGuests,
                       onPressed: controller.filter != PhotosGalleryFilter.all
                           ? null
                           : () async {
@@ -1204,8 +1232,31 @@ class _GalleryTabState extends State<_GalleryTab> {
                               _selectedIds.add(photoId);
                             }
                             if (!wasSelecting && _selecting) {
-                              WidgetsBinding.instance.addPostFrameCallback(
-                                  (_) => widget.onSelectionChanged?.call(true));
+                              WidgetsBinding.instance.addPostFrameCallback((_) async {
+                                widget.onSelectionChanged?.call(true);
+                                // Autodisparo tutorial de selección la primera vez
+                                if (!_selectionTutorialShown) {
+                                  _selectionTutorialShown = true;
+                                  if (!mounted) return;
+                                  final store = TutorialStore();
+                                  final selectionSeenRoute = '${EventDetailPage.routeName}#selection';
+                                  final show = await store.shouldShow(
+                                    routeName: selectionSeenRoute,
+                                  );
+                                  if (show && mounted) {
+                                    TutorialController.instance.start(
+                                      context,
+                                      routeName: EventDetailPage.routeName,
+                                      seenRouteName: selectionSeenRoute,
+                                      onlyStepIds: const [
+                                        'event_sel_cancel',
+                                        'event_sel_share',
+                                        'event_sel_delete',
+                                      ],
+                                    );
+                                  }
+                                }
+                              });
                             } else if (wasSelecting && !_selecting) {
                               WidgetsBinding.instance.addPostFrameCallback(
                                   (_) => widget.onSelectionChanged?.call(false));
@@ -1516,6 +1567,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                             fallback: 'Cancelar',
                           ),
                           child: OutlinedButton(
+                            key: TutorialKeys.eventSelCancel,
                             onPressed:
                                 controller.loading ? null : _exitSelectionMode,
                             child: const Icon(Icons.close),
@@ -1535,6 +1587,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                                   fallback: 'Compartir',
                                 ),
                           child: FilledButton(
+                            key: TutorialKeys.eventSelShare,
                             style: FilledButton.styleFrom(
                               backgroundColor: OnesColors.purpleMid,
                               foregroundColor: OnesColors.white,
@@ -1629,6 +1682,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                             fallback: 'Eliminar',
                           ),
                           child: FilledButton(
+                            key: TutorialKeys.eventSelDelete,
                             style: FilledButton.styleFrom(
                               backgroundColor: Colors.red.shade700,
                               foregroundColor: OnesColors.white,

@@ -13,6 +13,8 @@ import '../../../invitations/presentation/widgets/invitations_sheet.dart';
 import '../../../invitations/presentation/invitations_controller.dart';
 import '../../../subscriptions/presentation/subscriptions_controller.dart';
 import '../../../subscriptions/presentation/pages/subscription_plans_page.dart';
+import '../../../tutorial/presentation/tutorial_controller.dart';
+import '../../../tutorial/presentation/tutorial_keys.dart';
 
 const String _defaultEventCoverAsset = 'assets/branding/ones-logo.png';
 
@@ -133,10 +135,14 @@ class _EventsListPageState extends State<EventsListPage> {
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                   prefixIcon: const Icon(Icons.search),
+                  key: TutorialKeys.homeSearch,
                 ),
               ),
               const SizedBox(height: 18),
-              OnesSectionHeader(title: t.translate('home.today')),
+              OnesSectionHeader(
+                key: TutorialKeys.homeHeaderToday,
+                title: t.translate('home.today'),
+              ),
               const SizedBox(height: 12),
               SizedBox(
                 height: 260,
@@ -199,7 +205,10 @@ class _EventsListPageState extends State<EventsListPage> {
                       ),
               ),
               const SizedBox(height: 22),
-              OnesSectionHeader(title: t.translate('home.next_events')),
+              OnesSectionHeader(
+                key: TutorialKeys.homeHeaderNext,
+                title: t.translate('home.next_events'),
+              ),
               const SizedBox(height: 12),
               if (controller.error != null) ...[
                 Container(
@@ -387,6 +396,16 @@ class _Header extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
+                  key: TutorialKeys.homeHelpIcon,
+                  tooltip: 'Ayuda',
+                  onPressed: () => TutorialController.instance.start(
+                    context,
+                    routeName: EventsListPage.routeName,
+                  ),
+                  icon: const Icon(Icons.help_outline),
+                ),
+                IconButton(
+                  key: TutorialKeys.homeBellIcon,
                   onPressed: onBell,
                   icon: Stack(
                     clipBehavior: Clip.none,
