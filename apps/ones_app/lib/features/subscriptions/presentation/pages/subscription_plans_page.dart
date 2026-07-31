@@ -3,18 +3,11 @@
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'package:provider/provider.dart';
-
-import 'package:url_launcher/url_launcher.dart';
-
-
-
 import '../../../../core/ui/ones_colors.dart';
 
 import '../../domain/subscription_plan.dart';
-
-import '../../domain/payment_profile.dart';
-
 import '../subscriptions_controller.dart';
+import 'payment_profile_form_page.dart';
 
 
 
@@ -101,11 +94,6 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
     final plans = controller.plans;
 
     final subscription = controller.subscription;
-
-    final paymentProfile = controller.paymentProfile;
-
-
-
     return Scaffold(
 
       appBar: AppBar(
@@ -135,25 +123,6 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
                   if (controller.error != null)
 
                     _ErrorBanner(message: controller.error!),
-
-                _PaymentProfileCard(
-
-                  initialEmail: paymentProfile?.mercadoPagoEmail,
-
-                  onSave: (email) async {
-
-                    await context.read<SubscriptionsController>().savePaymentProfile(
-
-                      PaymentProfile(mercadoPagoEmail: email),
-
-                    );
-
-                  },
-
-                ),
-
-                const SizedBox(height: 16),
-
                   ...plans.map((plan) {
 
                     final isCurrent = subscription?.planId == plan.planId;
@@ -166,7 +135,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
 
                       onSubscribe: plan.tier.toLowerCase() == 'paid'
 
-                          ? () => _onSubscribe(plan.planId)
+                          ? () => _onSubscribeV2(plan.planId)
 
                           : null,
 
@@ -186,62 +155,78 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage> {
 
 
 
-  Future<void> _onSubscribe(String planId) async {
 
-    final controller = context.read<SubscriptionsController>();
 
-    final initPoint = await controller.createMercadoPagoSubscription(planId);
 
-    if (!mounted) return;
+  Future<void> _onSubscribeV2(String planId) async {
 
-    final messenger = ScaffoldMessenger.of(context);
-
-    if (initPoint != null) {
-
-      final uri = Uri.tryParse(initPoint);
-
-      if (uri == null) {
-
-        messenger.showSnackBar(
-
-          SnackBar(content: Text('Enlace de pago invÃ¡lido: $initPoint')),
-
+    final method = await _selectPaymentMethod();
+    if (!mounted || method == null) return;
+    switch (method) {
+      case _PaymentMethod.mercadoPago:
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => PaymentProfileFormPage(planId: planId),
+          ),
         );
-
-        return;
-
-      }
-
-
-
-      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-
-      if (!mounted) return;
-
-      if (!launched) {
-
-        messenger.showSnackBar(
-
-          SnackBar(content: Text('No se pudo abrir el navegador. Copia y abre este enlace: $initPoint')),
-
+        break;
+      case _PaymentMethod.pse:
+      case _PaymentMethod.stripe:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Metodo de pago proximamente disponible')),
         );
-
-      }
-
-    } else if (controller.error != null) {
-
-      messenger.showSnackBar(
-
-        SnackBar(content: Text('Error: ${controller.error}')),
-
-      );
-
+        break;
     }
-
   }
 
+  Future<_PaymentMethod?> _selectPaymentMethod() async {
+    return showModalBottomSheet<_PaymentMethod>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text(
+                  'Selecciona metodo de pago',
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ),
+              ListTile(
+                leading: const FaIcon(FontAwesomeIcons.creditCard),
+                title: const Text('Mercado Pago'),
+                onTap: () => Navigator.of(ctx).pop(_PaymentMethod.mercadoPago),
+              ),
+              const Divider(height: 0),
+              ListTile(
+                leading: const FaIcon(FontAwesomeIcons.buildingColumns),
+                title: const Text('PSE (proximamente)'),
+                enabled: false,
+                onTap: null,
+              ),
+              const Divider(height: 0),
+              ListTile(
+                leading: const FaIcon(FontAwesomeIcons.ccStripe),
+                title: const Text('Stripe (proximamente)'),
+                enabled: false,
+                onTap: null,
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
-
+enum _PaymentMethod { mercadoPago, pse, stripe }
 
 
 class _Header extends StatelessWidget {
@@ -817,6 +802,12 @@ class _ErrorBanner extends StatelessWidget {
   }
 
 }
+
+
+
+
+
+
 
 
 
