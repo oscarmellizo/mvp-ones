@@ -24,6 +24,8 @@ import '../../../photos/presentation/photos_upload_controller.dart';
 import '../../../photos/presentation/photos_ws_controller.dart';
 import '../../../photos/domain/event_photo.dart';
 import '../../../photos/adapters/local/photo_storage.dart';
+import '../../../photos/presentation/pages/photo_import_web_sheet.dart';
+import '../../../photos/presentation/pages/photo_import_mobile_sheet.dart';
 import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
 import '../widgets/event_detail_details_widgets.dart';
@@ -981,6 +983,45 @@ class _GalleryTabState extends State<_GalleryTab> {
                       ),
                     ),
                     const SizedBox(width: 10),
+                    // Upload photos (additive origin; does not alter camera flows)
+                    Builder(
+                      builder: (context) {
+                        final me = widget.currentUserId;
+                        final canUpload = widget.isOwner || (me != null && me.trim().isNotEmpty);
+                        if (!canUpload) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: FilledButton(
+                            onPressed: () async {
+                              final result = await showModalBottomSheet<bool>(
+                                context: context,
+                                isScrollControlled: true,
+                                builder: (ctx) {
+                                  final content = kIsWeb
+                                      ? PhotoImportWebSheet(eventId: widget.eventId)
+                                      : PhotoImportMobileSheet(eventId: widget.eventId);
+                                  return SafeArea(child: content);
+                                },
+                              );
+                              if (result == true && mounted) {
+                                context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
+                              }
+                            },
+                            style: FilledButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              minimumSize: const Size(48, 44),
+                            ),
+                            child: Tooltip(
+                              message: t.translate('event_detail.action_upload_photos', fallback: 'Subir fotos'),
+                              child: Semantics(
+                                label: t.translate('event_detail.action_upload_photos', fallback: 'Subir fotos'),
+                                child: const Icon(Icons.file_upload_outlined),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                     FilledButton.tonal(
                       key: TutorialKeys.eventFilterGuests,
                       onPressed: controller.filter != PhotosGalleryFilter.all
