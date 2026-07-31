@@ -251,31 +251,63 @@ class _EventDetailPageState extends State<EventDetailPage> {
               duration: const Duration(milliseconds: 200),
               padding: EdgeInsets.only(
                   bottom: _gallerySelecting ? 68.0 : 0.0),
-              child: FloatingActionButton(
-                backgroundColor: OnesColors.purpleMid,
-                foregroundColor: OnesColors.white,
-                onPressed: event == null || !eventReady || !photosReady
-                    ? null
-                    : () async {
-                        await Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => kIsWeb
-                                ? PhotoCaptureWebPage(
-                                    eventId: event.id,
-                                    frameIds: event.frameIds,
-                                  )
-                                : PhotoCapturePage(
-                                    eventId: event.id,
-                                    frameIds: event.frameIds,
-                                  ),
-                          ),
-                        );
-                        if (!context.mounted) return;
-                        await context
-                            .read<PhotosGalleryController>()
-                            .refresh(eventId: event.id);
-                      },
-                child: const Icon(Icons.photo_camera),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Camera capture FAB (existing behavior)
+                  FloatingActionButton(
+                    backgroundColor: OnesColors.purpleMid,
+                    foregroundColor: OnesColors.white,
+                    onPressed: event == null || !eventReady || !photosReady
+                        ? null
+                        : () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => kIsWeb
+                                    ? PhotoCaptureWebPage(
+                                        eventId: event.id,
+                                        frameIds: event.frameIds,
+                                      )
+                                    : PhotoCapturePage(
+                                        eventId: event.id,
+                                        frameIds: event.frameIds,
+                                      ),
+                              ),
+                            );
+                            if (!context.mounted) return;
+                            await context
+                                .read<PhotosGalleryController>()
+                                .refresh(eventId: event.id);
+                          },
+                    child: const Icon(Icons.photo_camera),
+                  ),
+                  const SizedBox(width: 12),
+                  // Upload/import photos FAB (new)
+                  FloatingActionButton(
+                    backgroundColor: OnesColors.purpleMid,
+                    foregroundColor: OnesColors.white,
+                    onPressed: event == null || !eventReady || !photosReady || !auth.isSignedIn
+                        ? null
+                        : () async {
+                            final result = await showModalBottomSheet<bool>(
+                              context: context,
+                              isScrollControlled: true,
+                              builder: (ctx) {
+                                final content = kIsWeb
+                                    ? PhotoImportWebSheet(eventId: event.id)
+                                    : PhotoImportMobileSheet(eventId: event.id);
+                                return SafeArea(child: content);
+                              },
+                            );
+                            if (result == true && context.mounted) {
+                              await context
+                                  .read<PhotosGalleryController>()
+                                  .refresh(eventId: event.id);
+                            }
+                          },
+                    child: const Icon(Icons.file_upload_outlined),
+                  ),
+                ],
               ),
             ),
             body: SafeArea(

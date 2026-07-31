@@ -58,9 +58,6 @@ class _PhotoImportWebSheetState extends State<PhotoImportWebSheet> {
           final name = f.name;
           final ext = name.split('.').last.toLowerCase();
           Uint8List bytes = f.bytes ?? Uint8List.fromList([]);
-          if (bytes.isEmpty && (f.path ?? '').isNotEmpty) {
-            bytes = await FilePicker.platform.readFileBytes(path: f.path!);
-          }
           if (bytes.isEmpty) return;
 
           if (ext == 'png') {
@@ -149,7 +146,7 @@ class _PhotoImportWebSheetState extends State<PhotoImportWebSheet> {
   @override
   Widget build(BuildContext context) {
     final t = context.watch<TranslationsService>();
-    final authed = context.select<AuthController, bool>((a) => a.isAuthenticated);
+    final authed = context.select<AuthController, bool>((a) => a.isSignedIn);
 
     return SafeArea(
       child: Padding(
