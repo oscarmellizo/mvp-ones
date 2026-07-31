@@ -184,7 +184,7 @@ class _PhotoImportWebSheetState extends State<PhotoImportWebSheet> {
                 const SizedBox(width: 12),
                 FilledButton(
                   onPressed: (!_uploading && authed && _files.isNotEmpty) ? _startUpload : null,
-                  child: Text(t.translate('event_detail.action_upload', fallback: 'Subir')),
+                  child: Text(t.translate('event_detail.action_upload', fallback: 'Cargar fotos')),
                 ),
               ],
             ),
@@ -194,25 +194,65 @@ class _PhotoImportWebSheetState extends State<PhotoImportWebSheet> {
             ],
             const SizedBox(height: 12),
             Flexible(
-              child: ListView.separated(
+              child: GridView.builder(
                 shrinkWrap: true,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 6,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                ),
                 itemCount: _files.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
                 itemBuilder: (context, i) {
                   final f = _files[i];
                   final name = f.name;
-                  final sizeKb = (f.size / 1024).toStringAsFixed(1);
+                  final bytes = f.bytes;
                   final p = _progress[name];
-                  return ListTile(
-                    dense: true,
-                    title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text('$sizeKb KB'),
-                    trailing: () {
-                      if (p == null) return const SizedBox.shrink();
-                      if (p < 0) return const Icon(Icons.error_outline, color: Colors.red);
-                      if (p >= 1.0) return const Icon(Icons.check_circle, color: Colors.green);
-                      return const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2));
-                    }(),
+                  return Stack(
+                    children: [
+                      Positioned.fill(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: bytes != null
+                              ? Image.memory(bytes, fit: BoxFit.cover)
+                              : Container(
+                                  color: Colors.grey.shade200,
+                                  child: Center(
+                                    child: Text(name, maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
+                                  ),
+                                ),
+                        ),
+                      ),
+                      if (p != null && p > 0 && p < 1.0)
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: LinearProgressIndicator(value: p, minHeight: 4),
+                        ),
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: InkWell(
+                          onTap: _uploading
+                              ? null
+                              : () {
+                                  setState(() {
+                                    final next = List<PlatformFile>.from(_files);
+                                    next.removeAt(i);
+                                    _files = next;
+                                  });
+                                },
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            padding: const EdgeInsets.all(2),
+                            child: const Icon(Icons.close, size: 16, color: Colors.red),
+                          ),
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),

@@ -145,7 +145,7 @@ class _PhotoImportMobileSheetState extends State<PhotoImportMobileSheet> {
                 const SizedBox(width: 12),
                 FilledButton(
                   onPressed: (!_uploading && _files.isNotEmpty) ? _startEnqueue : null,
-                  child: Text(t.translate('event_detail.action_enqueue', fallback: 'Encolar')),
+                  child: Text(t.translate('event_detail.action_upload', fallback: 'Cargar fotos')),
                 ),
               ],
             ),
@@ -155,16 +155,52 @@ class _PhotoImportMobileSheetState extends State<PhotoImportMobileSheet> {
             ],
             const SizedBox(height: 12),
             Flexible(
-              child: ListView.separated(
+              child: GridView.builder(
                 shrinkWrap: true,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 4,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                ),
                 itemCount: _files.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
                 itemBuilder: (context, i) {
-                  final f = _files[i];
-                  return ListTile(
-                    dense: true,
-                    title: Text(f.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text(f.path),
+                  final xf = _files[i];
+                  final file = File(xf.path);
+                  return Stack(
+                    children: [
+                      Positioned.fill(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(
+                            file,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: InkWell(
+                          onTap: _uploading
+                              ? null
+                              : () {
+                                  setState(() {
+                                    final next = List<XFile>.from(_files);
+                                    next.removeAt(i);
+                                    _files = next;
+                                  });
+                                },
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            padding: const EdgeInsets.all(2),
+                            child: const Icon(Icons.close, size: 16, color: Colors.red),
+                          ),
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),
