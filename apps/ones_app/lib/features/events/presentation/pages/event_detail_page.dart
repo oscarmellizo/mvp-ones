@@ -630,6 +630,14 @@ class _GalleryTabState extends State<_GalleryTab> {
     }
   }
 
+  int _computeWebCrossAxisCount(BuildContext context) {
+    const double spacing = 1.0;
+    const double minTileWidth = 150.0;
+    final double width = MediaQuery.sizeOf(context).width;
+    final int count = ((width + spacing) / (minTileWidth + spacing)).floor();
+    return count.clamp(3, 18);
+  }
+
   void _onWsPhotoReady(String eventId, String photoId) {
     if (!mounted) return;
     if (eventId != widget.eventId) return;
@@ -1141,9 +1149,9 @@ class _GalleryTabState extends State<_GalleryTab> {
                       clipBehavior: Clip.hardEdge,
                       key: ValueKey('grid:${widget.eventId}'),
                       padding: EdgeInsets.zero,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount:
+                            kIsWeb ? _computeWebCrossAxisCount(context) : 3,
                         mainAxisSpacing: 1,
                         crossAxisSpacing: 1,
                         childAspectRatio: 0.82,
