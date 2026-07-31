@@ -30,6 +30,7 @@ import '../widgets/event_detail_details_widgets.dart';
 import '../widgets/event_detail_header.dart';
 import '../widgets/event_detail_tabs.dart';
 import 'photo_capture_page.dart';
+import 'photo_capture_web_page.dart';
 import 'edit_event_page.dart';
 import '../../../invitations/presentation/widgets/invitations_sheet.dart';
 import '../../domain/event_exceptions.dart';
@@ -256,10 +257,15 @@ class _EventDetailPageState extends State<EventDetailPage> {
                     : () async {
                         await Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) => PhotoCapturePage(
-                              eventId: event.id,
-                              frameIds: event.frameIds,
-                            ),
+                            builder: (_) => kIsWeb
+                                ? PhotoCaptureWebPage(
+                                    eventId: event.id,
+                                    frameIds: event.frameIds,
+                                  )
+                                : PhotoCapturePage(
+                                    eventId: event.id,
+                                    frameIds: event.frameIds,
+                                  ),
                           ),
                         );
                         if (!context.mounted) return;
@@ -622,6 +628,14 @@ class _GalleryTabState extends State<_GalleryTab> {
       DefaultCacheManager().removeFile('${widget.eventId}:$pid:s');
       DefaultCacheManager().removeFile('${widget.eventId}:$pid:m');
     }
+  }
+
+  int _computeWebCrossAxisCount(BuildContext context) {
+    const double spacing = 1.0;
+    const double minTileWidth = 150.0;
+    final double width = MediaQuery.sizeOf(context).width;
+    final int count = ((width + spacing) / (minTileWidth + spacing)).floor();
+    return count.clamp(3, 18);
   }
 
   void _onWsPhotoReady(String eventId, String photoId) {
@@ -1135,9 +1149,9 @@ class _GalleryTabState extends State<_GalleryTab> {
                       clipBehavior: Clip.hardEdge,
                       key: ValueKey('grid:${widget.eventId}'),
                       padding: EdgeInsets.zero,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount:
+                            kIsWeb ? _computeWebCrossAxisCount(context) : 3,
                         mainAxisSpacing: 1,
                         crossAxisSpacing: 1,
                         childAspectRatio: 0.82,

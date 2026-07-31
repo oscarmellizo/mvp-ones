@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../../core/http/ones_api_factory.dart';
 import '../../domain/users_repository.dart';
@@ -38,10 +39,14 @@ class UsersApiRepository implements UsersRepository {
       res = await dio.get(
         '/v1/users/me',
         options: Options(
-          headers: {
-            'Cache-Control': 'no-cache, no-store',
-            'Pragma': 'no-cache',
-          },
+          // On Web, avoid sending non-safelisted headers to prevent CORS
+          // preflight failures when the server does not allow them.
+          headers: kIsWeb
+              ? null
+              : {
+                  'Cache-Control': 'no-cache, no-store',
+                  'Pragma': 'no-cache',
+                },
           extra: {
             'secure': [
               {
