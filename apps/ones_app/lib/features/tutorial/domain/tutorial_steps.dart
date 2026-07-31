@@ -164,5 +164,30 @@ class TutorialSteps {
       titleKey: 'Detalles',
       bodyKey: 'Consulta información, invitados y QR.',
     ),
+    // Event detail - selection mode actions
+    TutorialStep(
+      id: 'event_sel_cancel',
+      routeName: detailRoute,
+      targetKey: () => TutorialKeys.eventSelCancel,
+      titleKey: 'Cancelar selección',
+      bodyKey: 'Sale del modo de selección y limpia las fotos marcadas.',
+      align: ContentAlign.top,
+    ),
+    TutorialStep(
+      id: 'event_sel_share',
+      routeName: detailRoute,
+      targetKey: () => TutorialKeys.eventSelShare,
+      titleKey: 'Compartir / Descompartir',
+      bodyKey: 'Comparte tus fotos seleccionadas con los invitados o quita su compartición si ya están compartidas. No mezcles fotos compartidas y privadas a la vez.',
+      align: ContentAlign.top,
+    ),
+    TutorialStep(
+      id: 'event_sel_delete',
+      routeName: detailRoute,
+      targetKey: () => TutorialKeys.eventSelDelete,
+      titleKey: 'Eliminar (tus fotos no compartidas)',
+      bodyKey: 'Elimina definitivamente tus fotos seleccionadas que no estén compartidas. Esta acción no se puede deshacer.',
+      align: ContentAlign.top,
+    ),
   ];
 }

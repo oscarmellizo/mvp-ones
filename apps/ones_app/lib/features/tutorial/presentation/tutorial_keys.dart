@@ -29,4 +29,9 @@ class TutorialKeys {
   static final GlobalKey eventFilterShared = GlobalKey(debugLabel: 'event.filter.shared');
   static final GlobalKey eventFilterMine = GlobalKey(debugLabel: 'event.filter.mine');
   static final GlobalKey eventFilterGuests = GlobalKey(debugLabel: 'event.filter.guests');
+
+  // Event Detail - selection mode actions
+  static final GlobalKey eventSelCancel = GlobalKey(debugLabel: 'event.sel.cancel');
+  static final GlobalKey eventSelShare = GlobalKey(debugLabel: 'event.sel.share');
+  static final GlobalKey eventSelDelete = GlobalKey(debugLabel: 'event.sel.delete');
 }

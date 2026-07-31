@@ -11,20 +11,28 @@ class TutorialController {
 
   TutorialController._internal();
 
-  Future<void> start(BuildContext context, {String? routeName}) async {
+  Future<void> start(
+    BuildContext context, {
+    String? routeName,
+    String? seenRouteName,
+    List<String>? onlyStepIds,
+  }) async {
     // Filtra por ruta actual (o explícita) y reintenta si aún no están montados
     final currentRoute = routeName ?? ModalRoute.of(context)?.settings.name;
 
-    List<TutorialStep> _visibleSteps() => TutorialSteps.all.where((s) {
+    List<TutorialStep> visibleSteps() => TutorialSteps.all.where((s) {
           if (currentRoute != null && s.routeName != currentRoute) return false;
+          if (onlyStepIds != null && onlyStepIds.isNotEmpty && !onlyStepIds.contains(s.id)) {
+            return false;
+          }
           return s.targetKey().currentContext != null;
         }).toList(growable: false);
 
-    List<TutorialStep> steps = _visibleSteps();
+    List<TutorialStep> steps = visibleSteps();
     // Reintenta hasta 6 veces en ~1.5s para esperar al montaje
     for (int i = 0; steps.isEmpty && i < 6; i++) {
       await Future.delayed(const Duration(milliseconds: 250));
-      steps = _visibleSteps();
+      steps = visibleSteps();
     }
     if (steps.isEmpty) return;
 
@@ -73,8 +81,8 @@ class TutorialController {
           } catch (_) {}
         }
       },
-      onFinish: () { _store.markSeen(routeName: currentRoute); },
-      onSkip: () { _store.markSeen(routeName: currentRoute); return true; },
+      onFinish: () { _store.markSeen(routeName: seenRouteName ?? currentRoute); },
+      onSkip: () { _store.markSeen(routeName: seenRouteName ?? currentRoute); return true; },
     );
 
     coachMark.show(context: context);

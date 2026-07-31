@@ -410,6 +410,7 @@ class _GalleryTab extends StatefulWidget {
 class _GalleryTabState extends State<_GalleryTab> {
   bool _selecting = false;
   final Set<String> _selectedIds = {};
+  bool _selectionTutorialShown = false;
 
   final Set<String> _cleanupUploadPhotoIds = {};
 
@@ -1231,8 +1232,31 @@ class _GalleryTabState extends State<_GalleryTab> {
                               _selectedIds.add(photoId);
                             }
                             if (!wasSelecting && _selecting) {
-                              WidgetsBinding.instance.addPostFrameCallback(
-                                  (_) => widget.onSelectionChanged?.call(true));
+                              WidgetsBinding.instance.addPostFrameCallback((_) async {
+                                widget.onSelectionChanged?.call(true);
+                                // Autodisparo tutorial de selección la primera vez
+                                if (!_selectionTutorialShown) {
+                                  _selectionTutorialShown = true;
+                                  if (!mounted) return;
+                                  final store = TutorialStore();
+                                  final selectionSeenRoute = '${EventDetailPage.routeName}#selection';
+                                  final show = await store.shouldShow(
+                                    routeName: selectionSeenRoute,
+                                  );
+                                  if (show && mounted) {
+                                    TutorialController.instance.start(
+                                      context,
+                                      routeName: EventDetailPage.routeName,
+                                      seenRouteName: selectionSeenRoute,
+                                      onlyStepIds: const [
+                                        'event_sel_cancel',
+                                        'event_sel_share',
+                                        'event_sel_delete',
+                                      ],
+                                    );
+                                  }
+                                }
+                              });
                             } else if (wasSelecting && !_selecting) {
                               WidgetsBinding.instance.addPostFrameCallback(
                                   (_) => widget.onSelectionChanged?.call(false));
@@ -1543,6 +1567,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                             fallback: 'Cancelar',
                           ),
                           child: OutlinedButton(
+                            key: TutorialKeys.eventSelCancel,
                             onPressed:
                                 controller.loading ? null : _exitSelectionMode,
                             child: const Icon(Icons.close),
@@ -1562,6 +1587,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                                   fallback: 'Compartir',
                                 ),
                           child: FilledButton(
+                            key: TutorialKeys.eventSelShare,
                             style: FilledButton.styleFrom(
                               backgroundColor: OnesColors.purpleMid,
                               foregroundColor: OnesColors.white,
@@ -1656,6 +1682,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                             fallback: 'Eliminar',
                           ),
                           child: FilledButton(
+                            key: TutorialKeys.eventSelDelete,
                             style: FilledButton.styleFrom(
                               backgroundColor: Colors.red.shade700,
                               foregroundColor: OnesColors.white,
