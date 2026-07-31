@@ -16,6 +16,9 @@ import '../widgets/create_event_cover_widgets.dart';
 import '../widgets/create_event_datetime_widgets.dart';
 import '../widgets/create_event_invite_widgets.dart';
 import '../widgets/frame_picker_sheet.dart';
+import '../../../tutorial/presentation/tutorial_keys.dart';
+import '../../../tutorial/presentation/tutorial_controller.dart';
+import '../../../tutorial/presentation/tutorial_store.dart';
 
 class CreateEventPage extends StatefulWidget {
   static const routeName = '/events/create';
@@ -158,6 +161,18 @@ class _CreateEventPageState extends State<CreateEventPage> {
       setState(() {
         _coverReservationId = null;
       });
+      // Autodisparo primera vez en esta pantalla
+      () async {
+        final show = await TutorialStore().shouldShow(
+          routeName: CreateEventPage.routeName,
+        );
+        if (show && mounted) {
+          TutorialController.instance.start(
+            context,
+            routeName: CreateEventPage.routeName,
+          );
+        }
+      }();
     });
 
     if (widget.initialTitle != null && widget.initialTitle!.trim().isNotEmpty) {
@@ -635,6 +650,14 @@ class _CreateEventPageState extends State<CreateEventPage> {
         ),
         centerTitle: true,
         actions: [
+          IconButton(
+            key: TutorialKeys.createHelpIcon,
+            icon: const Icon(Icons.help_outline, color: OnesColors.purpleDeep),
+            onPressed: () => TutorialController.instance.start(
+              context,
+              routeName: CreateEventPage.routeName,
+            ),
+          ),
           TextButton(
             onPressed: controller.loading ? null : () => _submit(context),
             child: Text(
@@ -665,6 +688,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                       ),
                       const SizedBox(height: 8),
                       OnesTextFormField(
+                        key: TutorialKeys.createTitleField,
                         controller: _nameController,
                         hintText: t.translate('create_event.hint_event_name'),
                         suffixIcon: const Icon(Icons.edit_outlined),
@@ -772,6 +796,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                       ),
                       const SizedBox(height: 12),
                       CreateEventDateTimeCard(
+                        key: TutorialKeys.createWhenCard,
                         startDate: _startDate,
                         startTime: _startTime,
                         endDate: _endDate,
@@ -913,6 +938,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                     width: double.infinity,
                     height: _ctaHeight,
                     child: FilledButton(
+                      key: TutorialKeys.createCtaCreate,
                       style: FilledButton.styleFrom(
                         backgroundColor: OnesColors.purpleMid,
                         disabledBackgroundColor:

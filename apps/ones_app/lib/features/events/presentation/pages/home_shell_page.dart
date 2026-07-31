@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../tutorial/presentation/tutorial_keys.dart';
+import '../../../tutorial/presentation/tutorial_store.dart';
+import '../../../tutorial/presentation/tutorial_controller.dart';
 
 import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/ui/ones_colors.dart';
@@ -46,6 +49,19 @@ class _HomeShellPageState extends State<HomeShellPage> {
             page: 'home',
             requiredKeys: _homeRequiredKeys,
           );
+      // Autodisparo en primer arranque (sin i18n, sólo español)
+      () async {
+        final show = await TutorialStore().shouldShow(
+          firstLaunch: true,
+          routeName: EventsListPage.routeName,
+        );
+        if (show && mounted) {
+          TutorialController.instance.start(
+            context,
+            routeName: EventsListPage.routeName,
+          );
+        }
+      }();
     });
   }
 
@@ -68,6 +84,7 @@ class _HomeShellPageState extends State<HomeShellPage> {
     return Scaffold(
       body: _pages[_index],
       floatingActionButton: FloatingActionButton(
+        key: TutorialKeys.homeFabCreate,
         onPressed: () =>
             Navigator.of(context).pushNamed(CreateEventPage.routeName),
         child: const Icon(Icons.add),
@@ -96,16 +113,19 @@ class _HomeShellPageState extends State<HomeShellPage> {
           onDestinationSelected: (i) => setState(() => _index = i),
           destinations: [
             NavigationDestination(
+              key: TutorialKeys.homeTabHome,
               icon: const Icon(Icons.home_outlined),
               selectedIcon: const Icon(Icons.home),
               label: translationsService.translate('nav.home'),
             ),
             NavigationDestination(
+              key: TutorialKeys.homeTabGalleries,
               icon: const Icon(Icons.photo_library_outlined),
               selectedIcon: const Icon(Icons.photo_library),
               label: translationsService.translate('nav.galleries'),
             ),
             NavigationDestination(
+              key: TutorialKeys.homeTabProfile,
               icon: const Icon(Icons.person_outline),
               selectedIcon: const Icon(Icons.person),
               label: translationsService.translate('nav.profile'),
