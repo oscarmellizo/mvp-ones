@@ -24,6 +24,8 @@ import '../../../photos/presentation/photos_upload_controller.dart';
 import '../../../photos/presentation/photos_ws_controller.dart';
 import '../../../photos/domain/event_photo.dart';
 import '../../../photos/adapters/local/photo_storage.dart';
+import '../../../photos/presentation/pages/photo_import_web_sheet.dart';
+import '../../../photos/presentation/pages/photo_import_mobile_sheet.dart';
 import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
 import '../widgets/event_detail_details_widgets.dart';
@@ -249,31 +251,63 @@ class _EventDetailPageState extends State<EventDetailPage> {
               duration: const Duration(milliseconds: 200),
               padding: EdgeInsets.only(
                   bottom: _gallerySelecting ? 68.0 : 0.0),
-              child: FloatingActionButton(
-                backgroundColor: OnesColors.purpleMid,
-                foregroundColor: OnesColors.white,
-                onPressed: event == null || !eventReady || !photosReady
-                    ? null
-                    : () async {
-                        await Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => kIsWeb
-                                ? PhotoCaptureWebPage(
-                                    eventId: event.id,
-                                    frameIds: event.frameIds,
-                                  )
-                                : PhotoCapturePage(
-                                    eventId: event.id,
-                                    frameIds: event.frameIds,
-                                  ),
-                          ),
-                        );
-                        if (!context.mounted) return;
-                        await context
-                            .read<PhotosGalleryController>()
-                            .refresh(eventId: event.id);
-                      },
-                child: const Icon(Icons.photo_camera),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Upload/import photos FAB (top)
+                  FloatingActionButton(
+                    backgroundColor: OnesColors.purpleMid,
+                    foregroundColor: OnesColors.white,
+                    onPressed: event == null || !eventReady || !photosReady
+                        ? null
+                        : () async {
+                            final result = await showModalBottomSheet<bool>(
+                              context: context,
+                              isScrollControlled: true,
+                              builder: (ctx) {
+                                final content = kIsWeb
+                                    ? PhotoImportWebSheet(eventId: event.id)
+                                    : PhotoImportMobileSheet(eventId: event.id);
+                                return SafeArea(child: content);
+                              },
+                            );
+                            if (result == true && context.mounted) {
+                              await context
+                                  .read<PhotosGalleryController>()
+                                  .refresh(eventId: event.id);
+                            }
+                          },
+                    child: const Icon(Icons.file_upload_outlined),
+                  ),
+                  const SizedBox(height: 12),
+                  // Camera capture FAB (bottom)
+                  FloatingActionButton(
+                    backgroundColor: OnesColors.purpleMid,
+                    foregroundColor: OnesColors.white,
+                    onPressed: event == null || !eventReady || !photosReady
+                        ? null
+                        : () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => kIsWeb
+                                    ? PhotoCaptureWebPage(
+                                        eventId: event.id,
+                                        frameIds: event.frameIds,
+                                      )
+                                    : PhotoCapturePage(
+                                        eventId: event.id,
+                                        frameIds: event.frameIds,
+                                      ),
+                              ),
+                            );
+                            if (!context.mounted) return;
+                            await context
+                                .read<PhotosGalleryController>()
+                                .refresh(eventId: event.id);
+                          },
+                    child: const Icon(Icons.photo_camera),
+                  ),
+                ],
               ),
             ),
             body: SafeArea(
