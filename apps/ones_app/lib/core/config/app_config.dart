@@ -60,11 +60,16 @@ class AppConfig {
                   ? fromDefine.photosWsUrl
                   : photosWsUrlFromFile;
 
+      final normalizedPhotosWsUrl = _normalizePhotosWsUrl(
+        resolvedPhotosWsUrl,
+        resolvedEnv,
+      );
+
       return AppConfig(
         env: resolvedEnv,
         apiBaseUrl: resolvedApiBaseUrl,
         googleWebClientId: resolvedGoogleWebClientId,
-        photosWsUrl: resolvedPhotosWsUrl,
+        photosWsUrl: normalizedPhotosWsUrl,
       );
     } catch (_) {
       return fromDefine;
@@ -84,7 +89,42 @@ class AppConfig {
       env: env,
       apiBaseUrl: apiBaseUrl,
       googleWebClientId: googleWebClientId.isEmpty ? null : googleWebClientId,
-      photosWsUrl: photosWsUrl.isEmpty ? null : photosWsUrl,
+      photosWsUrl: _normalizePhotosWsUrl(
+        photosWsUrl.isEmpty ? null : photosWsUrl,
+        env,
+      ),
     );
+  }
+
+  static String? _normalizePhotosWsUrl(String? raw, String env) {
+    final trimmed = (raw ?? '').trim();
+    if (trimmed.isEmpty) return null;
+    Uri base;
+    try {
+      base = Uri.parse(trimmed);
+    } catch (_) {
+      return trimmed;
+    }
+
+    final scheme = (base.scheme.isEmpty || base.scheme == 'http' || base.scheme == 'https')
+        ? 'wss'
+        : base.scheme;
+
+    final hasStage = base.pathSegments.isNotEmpty &&
+        !(base.pathSegments.length == 1 && base.pathSegments.first.trim().isEmpty);
+    final defaultStage = (env.toLowerCase() == 'prod' || env.toLowerCase() == 'production')
+        ? 'prod'
+        : 'dev';
+    final pathSegments = hasStage ? base.pathSegments : <String>[defaultStage];
+
+    final port = (base.hasPort && base.port == 0) ? null : (base.hasPort ? base.port : null);
+
+    return base
+        .replace(
+          scheme: scheme,
+          port: port,
+          pathSegments: pathSegments,
+        )
+        .toString();
   }
 }

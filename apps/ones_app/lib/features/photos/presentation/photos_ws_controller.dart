@@ -50,7 +50,14 @@ class PhotosWsController extends ChangeNotifier {
     _safeNotify();
 
     try {
-      final uri = Uri.parse(wsUrl).replace(queryParameters: {'token': token});
+      final uri = _normalizeWsUri(wsUrl, token);
+      if (kDebugMode) {
+        debugPrint('photos_ws: connect url=$wsUrl normalized=$uri');
+        if ((uri.pathSegments.isEmpty ||
+            (uri.pathSegments.length == 1 && uri.pathSegments.first.trim().isEmpty))) {
+          debugPrint('photos_ws: hint: missing stage (e.g., /dev or /prod) in ONES_PHOTOS_WS_URL');
+        }
+      }
       final ch = WebSocketChannel.connect(uri);
       _channel = ch;
 
@@ -76,18 +83,33 @@ class PhotosWsController extends ChangeNotifier {
           _connecting = false;
           _channel = null;
           _sub = null;
+          if (kDebugMode) {
+            debugPrint('photos_ws: closed by server');
+          }
+          _scheduleReconnect();
           _safeNotify();
         },
-        onError: (_) {
+        onError: (e) {
           _connected = false;
           _connecting = false;
           _channel = null;
           _sub = null;
+          if (kDebugMode) {
+            debugPrint('photos_ws: error=$e');
+          }
+          _scheduleReconnect();
           _safeNotify();
         },
       );
 
       _connected = true;
+      _reconnectAttempts = 0;
+    } catch (e) {
+      _connected = false;
+      if (kDebugMode) {
+        debugPrint('photos_ws: connect failed: $e');
+      }
+      _scheduleReconnect();
     } finally {
       _connecting = false;
       _safeNotify();
@@ -129,6 +151,9 @@ class PhotosWsController extends ChangeNotifier {
 
   Future<void> disconnect() async {
     _subscribedEventId = null;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _reconnectAttempts = 0;
     await _sub?.cancel();
     _sub = null;
     await _channel?.sink.close();
@@ -142,5 +167,50 @@ class PhotosWsController extends ChangeNotifier {
   void dispose() {
     unawaited(disconnect());
     super.dispose();
+  }
+
+  // Reconnect logic with backoff
+  Timer? _reconnectTimer;
+  int _reconnectAttempts = 0;
+
+  void _scheduleReconnect() {
+    if (wsUrl.trim().isEmpty) return;
+    final token = _idToken;
+    if (token == null || token.isEmpty) return;
+    if (_connecting || _connected) return;
+
+    _reconnectAttempts = (_reconnectAttempts + 1).clamp(1, 10);
+    final delays = <int>[1, 2, 5, 10, 15, 20, 30, 30, 30, 30];
+    final seconds = delays[_reconnectAttempts - 1];
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(Duration(seconds: seconds), () {
+      if (kDebugMode) {
+        debugPrint('photos_ws: reconnect attempt=$_reconnectAttempts');
+      }
+      connect();
+    });
+  }
+
+  Uri _normalizeWsUri(String raw, String token) {
+    Uri base;
+    try {
+      base = Uri.parse(raw);
+    } catch (_) {
+      return Uri.parse(raw);
+    }
+
+    // Fix scheme to wss if http/https provided
+    final scheme = (base.scheme.isEmpty || base.scheme == 'http' || base.scheme == 'https')
+        ? 'wss'
+        : base.scheme;
+
+    // Drop invalid :0 port
+    final port = (base.hasPort && base.port == 0) ? null : (base.hasPort ? base.port : null);
+
+    return base.replace(
+      scheme: scheme,
+      port: port,
+      queryParameters: {'token': token},
+    );
   }
 }

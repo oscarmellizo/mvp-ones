@@ -399,6 +399,13 @@ class PhotosGalleryController extends ChangeNotifier {
         return bd.compareTo(ad);
       });
 
+      if (kDebugMode && list.isNotEmpty) {
+        final sample = list
+            .take(5)
+            .map((p) => 'photoId=${p.photoId} createdAt=${p.createdAt?.toIso8601String() ?? '-'} uploadedAt=${p.uploadedAt?.toIso8601String() ?? '-'}')
+            .join(' | ');
+        debugPrint('gallery_sorted_top: $sample');
+      }
       _items = list;
       _nextToken = nonNullRes.nextToken;
       _hasMore = _nextToken != null && _nextToken!.isNotEmpty;
@@ -488,6 +495,13 @@ class PhotosGalleryController extends ChangeNotifier {
         return bd.compareTo(ad);
       });
 
+      if (kDebugMode && list.isNotEmpty) {
+        final sample = list
+            .take(5)
+            .map((p) => 'photoId=${p.photoId} createdAt=${p.createdAt?.toIso8601String() ?? '-'} uploadedAt=${p.uploadedAt?.toIso8601String() ?? '-'}')
+            .join(' | ');
+        debugPrint('gallery_sorted_top_more: $sample');
+      }
       _items = list;
       _nextToken = res.nextToken;
       _hasMore = _nextToken != null && _nextToken!.isNotEmpty;
