@@ -10,36 +10,53 @@ class PhotoMetadataExtractor {
     String? filename,
     DateTime? fallbackModifiedTime,
   }) async {
-    final fromExif = await _readExifDate(bytes);
-    if (fromExif != null) return fromExif.toUtc();
+    DateTime? result;
+
+    final exifDt = await _readExifDate(bytes);
+    if (exifDt != null) {
+      result = exifDt.toUtc();
+    }
 
     final fromName = _parseDateFromFilename(filename ?? '');
-    if (fromName != null) return fromName.toUtc();
+    if (fromName != null) {
+      final n = fromName.toUtc();
+      result = (result == null || n.isBefore(result!)) ? n : result;
+    }
 
-    if (fallbackModifiedTime != null) return fallbackModifiedTime.toUtc();
+    if (fallbackModifiedTime != null) {
+      final m = fallbackModifiedTime.toUtc();
+      result = (result == null || m.isBefore(result!)) ? m : result;
+    }
 
-    return DateTime.now().toUtc();
+    return result ?? DateTime.now().toUtc();
   }
 
   Future<DateTime> createdAtFromFile({
     required File file,
     String? filename,
   }) async {
+    DateTime? result;
     try {
       final bytes = await file.readAsBytes();
       final fromExif = await _readExifDate(bytes);
-      if (fromExif != null) return fromExif.toUtc();
+      if (fromExif != null) {
+        result = fromExif.toUtc();
+      }
     } catch (_) {}
 
     final fromName = _parseDateFromFilename(filename ?? file.uri.pathSegments.last);
-    if (fromName != null) return fromName.toUtc();
+    if (fromName != null) {
+      final n = fromName.toUtc();
+      result = (result == null || n.isBefore(result!)) ? n : result;
+    }
 
     try {
       final m = await file.lastModified();
-      return m.toUtc();
-    } catch (_) {
-      return DateTime.now().toUtc();
-    }
+      final mu = m.toUtc();
+      result = (result == null || mu.isBefore(result!)) ? mu : result;
+    } catch (_) {}
+
+    return result ?? DateTime.now().toUtc();
   }
 
   Future<DateTime?> _readExifDate(Uint8List bytes) async {
@@ -51,14 +68,17 @@ class PhotoMetadataExtractor {
         'EXIF DateTimeDigitized',
         'Image DateTime',
       ];
+      DateTime? earliest;
       for (final key in candidates) {
         final tag = data[key];
         if (tag == null) continue;
         final value = tag.printable.trim();
         final dt = _parseExifDate(value);
-        if (dt != null) return dt;
+        if (dt == null) continue;
+        final u = dt.toUtc();
+        earliest = (earliest == null || u.isBefore(earliest!)) ? u : earliest;
       }
-      return null;
+      return earliest;
     } catch (_) {
       return null;
     }
