@@ -1182,11 +1182,10 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
       if (_shutterSoundEnabled) {
         SystemSound.play(SystemSoundType.click);
       }
-      await _shutterAnimationController.forward();
-      await _shutterAnimationController.reverse();
-
       final deviceOrientation = cam.value.deviceOrientation;
       final file = await cam.takePicture();
+      await _shutterAnimationController.forward();
+      await _shutterAnimationController.reverse();
       final photoId = const Uuid().v4();
 
       final lensDirection =

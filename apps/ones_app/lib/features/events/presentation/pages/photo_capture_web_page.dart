@@ -22,7 +22,7 @@ class PhotoCaptureWebPage extends StatefulWidget {
   State<PhotoCaptureWebPage> createState() => _PhotoCaptureWebPageState();
 }
 
-class _PhotoCaptureWebPageState extends State<PhotoCaptureWebPage> {
+class _PhotoCaptureWebPageState extends State<PhotoCaptureWebPage> with SingleTickerProviderStateMixin {
   CameraController? _controller;
   List<CameraDescription> _cameras = const [];
   int _cameraIndex = 0;
@@ -38,6 +38,9 @@ class _PhotoCaptureWebPageState extends State<PhotoCaptureWebPage> {
 
   final Map<String, Uint8List> _overlayCache = {};
 
+  late AnimationController _shutterAnimationController;
+  late Animation<double> _shutterOpacityAnimation;
+
   static const Set<String> _requiredKeys = {
     'photo_capture.error_web_not_supported',
     'photo_capture.frames_loading',
@@ -49,6 +52,16 @@ class _PhotoCaptureWebPageState extends State<PhotoCaptureWebPage> {
   @override
   void initState() {
     super.initState();
+    _shutterAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 180),
+      vsync: this,
+    );
+    _shutterOpacityAnimation = Tween<double>(begin: 0.0, end: 0.8).animate(
+      CurvedAnimation(
+        parent: _shutterAnimationController,
+        curve: Curves.easeInOut,
+      ),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<TranslationsService>().ensurePageTranslations(
@@ -142,6 +155,7 @@ class _PhotoCaptureWebPageState extends State<PhotoCaptureWebPage> {
     final c = _controller;
     _controller = null;
     c?.dispose();
+    _shutterAnimationController.dispose();
     super.dispose();
   }
 
@@ -270,6 +284,16 @@ class _PhotoCaptureWebPageState extends State<PhotoCaptureWebPage> {
               ),
             ),
           ),
+          // Shutter overlay animation
+          AnimatedBuilder(
+            animation: _shutterAnimationController,
+            builder: (context, child) {
+              return Opacity(
+                opacity: _shutterOpacityAnimation.value,
+                child: Container(color: Colors.black),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -304,6 +328,8 @@ class _PhotoCaptureWebPageState extends State<PhotoCaptureWebPage> {
 
     try {
       final file = await cam.takePicture();
+      await _shutterAnimationController.forward();
+      await _shutterAnimationController.reverse();
       Uint8List bytes = await file.readAsBytes();
 
       String? usedFrameId;
