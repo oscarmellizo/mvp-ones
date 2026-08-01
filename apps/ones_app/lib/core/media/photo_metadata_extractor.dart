@@ -20,9 +20,9 @@ class PhotoMetadataExtractor {
       source = 'exif';
     }
 
-    final fromName = _parseDateFromFilename(filename ?? '');
-    if (fromName != null) {
-      final n = fromName.toUtc();
+    final nameCandidates = _parseDatesFromFilenameAll(filename ?? '');
+    if (nameCandidates.isNotEmpty) {
+      final n = nameCandidates.reduce((a, b) => a.isBefore(b) ? a : b).toUtc();
       if (result == null || n.isBefore(result)) {
         result = n;
         source = 'filename';
@@ -39,9 +39,14 @@ class PhotoMetadataExtractor {
 
     final chosen = result ?? DateTime.now().toUtc();
     final exifStr = exifDates.map((d) => d.toUtc().toIso8601String()).join(',');
-    final nameStr = fromName?.toUtc().toIso8601String();
+    final nameListStr = nameCandidates.map((d) => d.toUtc().toIso8601String()).join(',');
     final mtimeStr = fallbackModifiedTime?.toUtc().toIso8601String();
-    print('photo_meta: bytes filename=${filename ?? ''} exif=[$exifStr] name=$nameStr mtime=$mtimeStr chosen=${chosen.toIso8601String()} via=$source');
+    Map<String, String> exifRaw = const {};
+    try {
+      exifRaw = await _readExifDateLikeEntries(bytes);
+    } catch (_) {}
+    final exifRawStr = exifRaw.entries.map((e) => '${e.key}=${e.value}').join('; ');
+    print('photo_meta: bytes filename=${filename ?? ''} exif_raw=[$exifRawStr] exif_candidates=[$exifStr] name_candidates=[$nameListStr] mtime=$mtimeStr chosen=${chosen.toIso8601String()} via=$source');
     return chosen;
   }
 
@@ -61,9 +66,9 @@ class PhotoMetadataExtractor {
       }
     } catch (_) {}
 
-    final fromName = _parseDateFromFilename(filename ?? file.uri.pathSegments.last);
-    if (fromName != null) {
-      final n = fromName.toUtc();
+    final nameCandidates = _parseDatesFromFilenameAll(filename ?? file.uri.pathSegments.last);
+    if (nameCandidates.isNotEmpty) {
+      final n = nameCandidates.reduce((a, b) => a.isBefore(b) ? a : b).toUtc();
       if (result == null || n.isBefore(result)) {
         result = n;
         source = 'filename';
@@ -81,18 +86,21 @@ class PhotoMetadataExtractor {
 
     final chosen = result ?? DateTime.now().toUtc();
     List<DateTime> exifList = const [];
+    Map<String, String> exifRaw = const {};
     try {
       final b = await file.readAsBytes();
       exifList = await _readExifDatesList(b);
+      exifRaw = await _readExifDateLikeEntries(b);
     } catch (_) {}
     final exifStr = exifList.map((d) => d.toUtc().toIso8601String()).join(',');
-    final nameStr = fromName?.toUtc().toIso8601String();
+    final nameListStr = nameCandidates.map((d) => d.toUtc().toIso8601String()).join(',');
     DateTime? mtime;
     try {
       mtime = (await file.lastModified()).toUtc();
     } catch (_) {}
     final mtimeStr = mtime?.toIso8601String();
-    print('photo_meta: file path=${file.path} filename=${filename ?? file.uri.pathSegments.last} exif=[$exifStr] name=$nameStr mtime=$mtimeStr chosen=${chosen.toIso8601String()} via=$source');
+    final exifRawStr = exifRaw.entries.map((e) => '${e.key}=${e.value}').join('; ');
+    print('photo_meta: file path=${file.path} filename=${filename ?? file.uri.pathSegments.last} exif_raw=[$exifRawStr] exif_candidates=[$exifStr] name_candidates=[$nameListStr] mtime=$mtimeStr chosen=${chosen.toIso8601String()} via=$source');
     return chosen;
   }
 
@@ -125,24 +133,175 @@ class PhotoMetadataExtractor {
     try {
       final data = await exif.readExifFromBytes(bytes);
       if (data.isEmpty) return const [];
-      final keys = <String>[
-        'EXIF DateTimeOriginal',
-        'EXIF DateTimeDigitized',
-        'Image DateTime',
-      ];
       final out = <DateTime>[];
-      for (final key in keys) {
-        final tag = data[key];
-        if (tag == null) continue;
-        final value = tag.printable.trim();
-        final dt = _parseExifDate(value);
-        if (dt == null) continue;
-        out.add(dt.toUtc());
+      for (final entry in data.entries) {
+        final value = entry.value.printable.trim();
+        final candidates = _extractDateCandidatesFromText(value);
+        for (final c in candidates) {
+          out.add(c.toUtc());
+        }
       }
       return out;
     } catch (_) {
       return const [];
     }
+  }
+
+  Future<Map<String, String>> _readExifDateLikeEntries(Uint8List bytes) async {
+    try {
+      final data = await exif.readExifFromBytes(bytes);
+      if (data.isEmpty) return const {};
+      final out = <String, String>{};
+      for (final entry in data.entries) {
+        final k = entry.key;
+        final v = entry.value.printable.trim();
+        if (_looksLikeDateString(v) || k.contains('Date') || k.contains('Time') || k.contains('Create') || k.contains('Modify')) {
+          out[k] = v;
+        }
+      }
+      return out;
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  bool _looksLikeDateString(String s) {
+    final r1 = RegExp(r'\d{4}[:\-\._]\d{2}[:\-\._]\d{2}');
+    final r2 = RegExp(r'\d{8}[T _-]?\d{6}');
+    final r3 = RegExp(r'\d{2}[:\-\._]\d{2}[:\-\._]\d{4}');
+    return r1.hasMatch(s) || r2.hasMatch(s) || r3.hasMatch(s);
+  }
+
+  List<DateTime> _extractDateCandidatesFromText(String text) {
+    final out = <DateTime>[];
+    final exifRe = RegExp(r'(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,6}))?(?:\s*([+-]\d{2}):?(\d{2}))?');
+    for (final m in exifRe.allMatches(text)) {
+      final y = int.parse(m.group(1)!);
+      final mo = int.parse(m.group(2)!);
+      final d = int.parse(m.group(3)!);
+      final hh = int.parse(m.group(4)!);
+      final mm = int.parse(m.group(5)!);
+      final ss = int.parse(m.group(6)!);
+      final tzH = m.group(8);
+      final tzM = m.group(9);
+      if (tzH != null && tzH.isNotEmpty && tzM != null && tzM.isNotEmpty) {
+        final sign = tzH.startsWith('-') ? '-' : '+';
+        final offH = tzH.replaceAll('+', '').replaceAll('-', '');
+        final iso = '${y.toString().padLeft(4, '0')}-${mo.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}T${hh.toString().padLeft(2, '0')}:${mm.toString().padLeft(2, '0')}:${ss.toString().padLeft(2, '0')}$sign${offH.padLeft(2, '0')}:${tzM.padLeft(2, '0')}';
+        try { out.add(DateTime.parse(iso).toUtc()); } catch (_) {}
+      } else {
+        out.add(DateTime(y, mo, d, hh, mm, ss).toUtc());
+      }
+    }
+    final isoLike = RegExp(r'(\d{4})[\-\._](\d{2})[\-\._](\d{2})(?:[^0-9]+(\d{2})[\.:_](\d{2})(?:[\.:_](\d{2}))?)?');
+    for (final m in isoLike.allMatches(text)) {
+      final y = int.parse(m.group(1)!);
+      final mo = int.parse(m.group(2)!);
+      final d = int.parse(m.group(3)!);
+      final hh = int.tryParse(m.group(4) ?? '') ?? 0;
+      final mm = int.tryParse(m.group(5) ?? '') ?? 0;
+      final ss = int.tryParse(m.group(6) ?? '') ?? 0;
+      out.add(DateTime(y, mo, d, hh, mm, ss).toUtc());
+    }
+    final compact = RegExp(r'(\d{4})(\d{2})(\d{2})[_-]?(\d{2})(\d{2})(\d{2})');
+    for (final m in compact.allMatches(text)) {
+      out.add(DateTime(
+        int.parse(m.group(1)!),
+        int.parse(m.group(2)!),
+        int.parse(m.group(3)!),
+        int.parse(m.group(4)!),
+        int.parse(m.group(5)!),
+        int.parse(m.group(6)!),
+      ).toUtc());
+    }
+    final dmy = RegExp(r'(\d{2})[\-\._](\d{2})[\-\._](\d{4})(?:[^0-9]+(\d{2})[\.:_](\d{2})(?:[\.:_](\d{2}))?)?');
+    for (final m in dmy.allMatches(text)) {
+      final d = int.parse(m.group(1)!);
+      final mo = int.parse(m.group(2)!);
+      final y = int.parse(m.group(3)!);
+      final hh = int.tryParse(m.group(4) ?? '') ?? 0;
+      final mm = int.tryParse(m.group(5) ?? '') ?? 0;
+      final ss = int.tryParse(m.group(6) ?? '') ?? 0;
+      out.add(DateTime(y, mo, d, hh, mm, ss).toUtc());
+    }
+    return out;
+  }
+
+  List<DateTime> _parseDatesFromFilenameAll(String name) {
+    if (name.isEmpty) return const [];
+    final out = <DateTime>[];
+    final waTs = RegExp(r'(\d{4})-(\d{2})-(\d{2}).*?(\d{2})[\.:_](\d{2})[\.:_](\d{2})');
+    for (final m in waTs.allMatches(name)) {
+      out.add(DateTime(
+        int.parse(m.group(1)!),
+        int.parse(m.group(2)!),
+        int.parse(m.group(3)!),
+        int.parse(m.group(4)!),
+        int.parse(m.group(5)!),
+        int.parse(m.group(6)!),
+      ));
+    }
+    final ymdhms = RegExp(r'(\d{4})(\d{2})(\d{2})[_-](\d{2})(\d{2})(\d{2})');
+    for (final m in ymdhms.allMatches(name)) {
+      out.add(DateTime(
+        int.parse(m.group(1)!),
+        int.parse(m.group(2)!),
+        int.parse(m.group(3)!),
+        int.parse(m.group(4)!),
+        int.parse(m.group(5)!),
+        int.parse(m.group(6)!),
+      ));
+    }
+    final isoLike = RegExp(r'(\d{4})[\-\._](\d{2})[\-\._](\d{2})(?:[^0-9]+(\d{2})[\.:_](\d{2})(?:[\.:_](\d{2}))?)?');
+    for (final m in isoLike.allMatches(name)) {
+      final y = int.parse(m.group(1)!);
+      final mo = int.parse(m.group(2)!);
+      final d = int.parse(m.group(3)!);
+      final hh = int.tryParse(m.group(4) ?? '') ?? 0;
+      final mm = int.tryParse(m.group(5) ?? '') ?? 0;
+      final ss = int.tryParse(m.group(6) ?? '') ?? 0;
+      out.add(DateTime(y, mo, d, hh, mm, ss));
+    }
+    final dmy = RegExp(r'(\d{2})[\-\._](\d{2})[\-\._](\d{4})(?:[^0-9]+(\d{2})[\.:_](\d{2})(?:[\.:_](\d{2}))?)?');
+    for (final m in dmy.allMatches(name)) {
+      final d = int.parse(m.group(1)!);
+      final mo = int.parse(m.group(2)!);
+      final y = int.parse(m.group(3)!);
+      final hh = int.tryParse(m.group(4) ?? '') ?? 0;
+      final mm = int.tryParse(m.group(5) ?? '') ?? 0;
+      final ss = int.tryParse(m.group(6) ?? '') ?? 0;
+      out.add(DateTime(y, mo, d, hh, mm, ss));
+    }
+    final waImg = RegExp(r'IMG[-_](\d{4})(\d{2})(\d{2})[-_](?:WA\w*\d*)');
+    for (final m in waImg.allMatches(name)) {
+      out.add(DateTime(
+        int.parse(m.group(1)!),
+        int.parse(m.group(2)!),
+        int.parse(m.group(3)!),
+      ));
+    }
+    final screenshot1 = RegExp(r'(?:Screenshot|SCREENSHOT)[-_]?(\d{4})(\d{2})(\d{2})[-_](\d{2})(\d{2})(\d{2})');
+    for (final m in screenshot1.allMatches(name)) {
+      out.add(DateTime(
+        int.parse(m.group(1)!),
+        int.parse(m.group(2)!),
+        int.parse(m.group(3)!),
+        int.parse(m.group(4)!),
+        int.parse(m.group(5)!),
+        int.parse(m.group(6)!),
+      ));
+    }
+    final photoDash = RegExp(r'(\d{4})-(\d{2})-(\d{2})[^0-9]+(\d{2})[-_](\d{2})(?:[-_](\d{2}))?');
+    for (final m in photoDash.allMatches(name)) {
+      final y = int.parse(m.group(1)!);
+      final mo = int.parse(m.group(2)!);
+      final d = int.parse(m.group(3)!);
+      final hh = int.tryParse(m.group(4) ?? '') ?? 0;
+      final mm = int.tryParse(m.group(5) ?? '') ?? 0;
+      final ss = int.tryParse(m.group(6) ?? '') ?? 0;
+      out.add(DateTime(y, mo, d, hh, mm, ss));
+    }
+    return out;
   }
 
   DateTime? _parseExifDate(String s) {
