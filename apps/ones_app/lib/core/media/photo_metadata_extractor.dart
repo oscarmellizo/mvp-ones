@@ -11,24 +11,38 @@ class PhotoMetadataExtractor {
     DateTime? fallbackModifiedTime,
   }) async {
     DateTime? result;
+    String source = 'now';
 
-    final exifDt = await _readExifDate(bytes);
-    if (exifDt != null) {
-      result = exifDt.toUtc();
+    final exifDates = await _readExifDatesList(bytes);
+    if (exifDates.isNotEmpty) {
+      final e = exifDates.reduce((a, b) => a.isBefore(b) ? a : b).toUtc();
+      result = e;
+      source = 'exif';
     }
 
     final fromName = _parseDateFromFilename(filename ?? '');
     if (fromName != null) {
       final n = fromName.toUtc();
-      result = (result == null || n.isBefore(result!)) ? n : result;
+      if (result == null || n.isBefore(result)) {
+        result = n;
+        source = 'filename';
+      }
     }
 
     if (fallbackModifiedTime != null) {
       final m = fallbackModifiedTime.toUtc();
-      result = (result == null || m.isBefore(result!)) ? m : result;
+      if (result == null || m.isBefore(result)) {
+        result = m;
+        source = 'mtime';
+      }
     }
 
-    return result ?? DateTime.now().toUtc();
+    final chosen = result ?? DateTime.now().toUtc();
+    final exifStr = exifDates.map((d) => d.toUtc().toIso8601String()).join(',');
+    final nameStr = fromName?.toUtc().toIso8601String();
+    final mtimeStr = fallbackModifiedTime?.toUtc().toIso8601String();
+    print('photo_meta: bytes filename=${filename ?? ''} exif=[$exifStr] name=$nameStr mtime=$mtimeStr chosen=${chosen.toIso8601String()} via=$source');
+    return chosen;
   }
 
   Future<DateTime> createdAtFromFile({
@@ -36,27 +50,50 @@ class PhotoMetadataExtractor {
     String? filename,
   }) async {
     DateTime? result;
+    String source = 'now';
     try {
       final bytes = await file.readAsBytes();
-      final fromExif = await _readExifDate(bytes);
-      if (fromExif != null) {
-        result = fromExif.toUtc();
+      final exifDates = await _readExifDatesList(bytes);
+      if (exifDates.isNotEmpty) {
+        final e = exifDates.reduce((a, b) => a.isBefore(b) ? a : b).toUtc();
+        result = e;
+        source = 'exif';
       }
     } catch (_) {}
 
     final fromName = _parseDateFromFilename(filename ?? file.uri.pathSegments.last);
     if (fromName != null) {
       final n = fromName.toUtc();
-      result = (result == null || n.isBefore(result!)) ? n : result;
+      if (result == null || n.isBefore(result)) {
+        result = n;
+        source = 'filename';
+      }
     }
 
     try {
       final m = await file.lastModified();
       final mu = m.toUtc();
-      result = (result == null || mu.isBefore(result!)) ? mu : result;
+      if (result == null || mu.isBefore(result)) {
+        result = mu;
+        source = 'mtime';
+      }
     } catch (_) {}
 
-    return result ?? DateTime.now().toUtc();
+    final chosen = result ?? DateTime.now().toUtc();
+    List<DateTime> exifList = const [];
+    try {
+      final b = await file.readAsBytes();
+      exifList = await _readExifDatesList(b);
+    } catch (_) {}
+    final exifStr = exifList.map((d) => d.toUtc().toIso8601String()).join(',');
+    final nameStr = fromName?.toUtc().toIso8601String();
+    DateTime? mtime;
+    try {
+      mtime = (await file.lastModified()).toUtc();
+    } catch (_) {}
+    final mtimeStr = mtime?.toIso8601String();
+    print('photo_meta: file path=${file.path} filename=${filename ?? file.uri.pathSegments.last} exif=[$exifStr] name=$nameStr mtime=$mtimeStr chosen=${chosen.toIso8601String()} via=$source');
+    return chosen;
   }
 
   Future<DateTime?> _readExifDate(Uint8List bytes) async {
@@ -81,6 +118,30 @@ class PhotoMetadataExtractor {
       return earliest;
     } catch (_) {
       return null;
+    }
+  }
+
+  Future<List<DateTime>> _readExifDatesList(Uint8List bytes) async {
+    try {
+      final data = await exif.readExifFromBytes(bytes);
+      if (data.isEmpty) return const [];
+      final keys = <String>[
+        'EXIF DateTimeOriginal',
+        'EXIF DateTimeDigitized',
+        'Image DateTime',
+      ];
+      final out = <DateTime>[];
+      for (final key in keys) {
+        final tag = data[key];
+        if (tag == null) continue;
+        final value = tag.printable.trim();
+        final dt = _parseExifDate(value);
+        if (dt == null) continue;
+        out.add(dt.toUtc());
+      }
+      return out;
+    } catch (_) {
+      return const [];
     }
   }
 
