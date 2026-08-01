@@ -105,26 +105,26 @@ class PhotoMetadataExtractor {
   DateTime? _parseDateFromFilename(String name) {
     if (name.isEmpty) return null;
 
-    // WhatsApp Image 2023-11-05 at 14.22.33.jpeg
-    final wa = RegExp(
-            r'(\d{4})-(\d{2})-(\d{2}).*?(\d{2})[\.:_](\d{2})[\.:_](\d{2})')
+    DateTime? earliest;
+
+    final waTs = RegExp(r'(\d{4})-(\d{2})-(\d{2}).*?(\d{2})[\.:_](\d{2})[\.:_](\d{2})')
         .firstMatch(name);
-    if (wa != null) {
-      return DateTime(
-        int.parse(wa.group(1)!),
-        int.parse(wa.group(2)!),
-        int.parse(wa.group(3)!),
-        int.parse(wa.group(4)!),
-        int.parse(wa.group(5)!),
-        int.parse(wa.group(6)!),
+    if (waTs != null) {
+      final dt = DateTime(
+        int.parse(waTs.group(1)!),
+        int.parse(waTs.group(2)!),
+        int.parse(waTs.group(3)!),
+        int.parse(waTs.group(4)!),
+        int.parse(waTs.group(5)!),
+        int.parse(waTs.group(6)!),
       );
+      earliest = dt;
     }
 
-    // IMG_20231105_142233 or 20231105_142233
     final ymdhms = RegExp(r'(\d{4})(\d{2})(\d{2})[_-](\d{2})(\d{2})(\d{2})')
         .firstMatch(name);
     if (ymdhms != null) {
-      return DateTime(
+      final dt = DateTime(
         int.parse(ymdhms.group(1)!),
         int.parse(ymdhms.group(2)!),
         int.parse(ymdhms.group(3)!),
@@ -132,11 +132,10 @@ class PhotoMetadataExtractor {
         int.parse(ymdhms.group(5)!),
         int.parse(ymdhms.group(6)!),
       );
+      earliest = (earliest == null || dt.isBefore(earliest!)) ? dt : earliest;
     }
 
-    // 2023-11-05[_/.]14[.:]22[.:]33 or only date 2023-11-05
-    final isoLike = RegExp(
-            r'(\d{4})[\-\._](\d{2})[\-\._](\d{2})(?:[^0-9]+(\d{2})[\.:_](\d{2})(?:[\.:_](\d{2}))?)?')
+    final isoLike = RegExp(r'(\d{4})[\-\._](\d{2})[\-\._](\d{2})(?:[^0-9]+(\d{2})[\.:_](\d{2})(?:[\.:_](\d{2}))?)?')
         .firstMatch(name);
     if (isoLike != null) {
       final y = int.parse(isoLike.group(1)!);
@@ -145,12 +144,11 @@ class PhotoMetadataExtractor {
       final hh = int.tryParse(isoLike.group(4) ?? '') ?? 0;
       final mm = int.tryParse(isoLike.group(5) ?? '') ?? 0;
       final ss = int.tryParse(isoLike.group(6) ?? '') ?? 0;
-      return DateTime(y, m, d, hh, mm, ss);
+      final dt = DateTime(y, m, d, hh, mm, ss);
+      earliest = (earliest == null || dt.isBefore(earliest!)) ? dt : earliest;
     }
 
-    // DD-MM-YYYY with optional time
-    final dmy = RegExp(
-            r'(\d{2})[\-\._](\d{2})[\-\._](\d{4})(?:[^0-9]+(\d{2})[\.:_](\d{2})(?:[\.:_](\d{2}))?)?')
+    final dmy = RegExp(r'(\d{2})[\-\._](\d{2})[\-\._](\d{4})(?:[^0-9]+(\d{2})[\.:_](\d{2})(?:[\.:_](\d{2}))?)?')
         .firstMatch(name);
     if (dmy != null) {
       final d = int.parse(dmy.group(1)!);
@@ -159,9 +157,48 @@ class PhotoMetadataExtractor {
       final hh = int.tryParse(dmy.group(4) ?? '') ?? 0;
       final mm = int.tryParse(dmy.group(5) ?? '') ?? 0;
       final ss = int.tryParse(dmy.group(6) ?? '') ?? 0;
-      return DateTime(y, m, d, hh, mm, ss);
+      final dt = DateTime(y, m, d, hh, mm, ss);
+      earliest = (earliest == null || dt.isBefore(earliest!)) ? dt : earliest;
     }
 
-    return null;
+    final waImg = RegExp(r'IMG[-_](\d{4})(\d{2})(\d{2})[-_](?:WA\w*\d*)')
+        .firstMatch(name);
+    if (waImg != null) {
+      final dt = DateTime(
+        int.parse(waImg.group(1)!),
+        int.parse(waImg.group(2)!),
+        int.parse(waImg.group(3)!),
+      );
+      earliest = (earliest == null || dt.isBefore(earliest!)) ? dt : earliest;
+    }
+
+    final screenshot1 = RegExp(r'(?:Screenshot|SCREENSHOT)[-_]?(\d{4})(\d{2})(\d{2})[-_](\d{2})(\d{2})(\d{2})')
+        .firstMatch(name);
+    if (screenshot1 != null) {
+      final dt = DateTime(
+        int.parse(screenshot1.group(1)!),
+        int.parse(screenshot1.group(2)!),
+        int.parse(screenshot1.group(3)!),
+        int.parse(screenshot1.group(4)!),
+        int.parse(screenshot1.group(5)!),
+        int.parse(screenshot1.group(6)!),
+      );
+      earliest = (earliest == null || dt.isBefore(earliest!)) ? dt : earliest;
+    }
+
+    final photoDash = RegExp(r'(\d{4})-(\d{2})-(\d{2})[^0-9]+(\d{2})[-_](\d{2})(?:[-_](\d{2}))?')
+        .firstMatch(name);
+    if (photoDash != null) {
+      final y = int.parse(photoDash.group(1)!);
+      final m = int.parse(photoDash.group(2)!);
+      final d = int.parse(photoDash.group(3)!);
+      final hh = int.tryParse(photoDash.group(4) ?? '') ?? 0;
+      final mm = int.tryParse(photoDash.group(5) ?? '') ?? 0;
+      final ss = int.tryParse(photoDash.group(6) ?? '') ?? 0;
+      final dt = DateTime(y, m, d, hh, mm, ss);
+      earliest = (earliest == null || dt.isBefore(earliest!)) ? dt : earliest;
+    }
+
+    return earliest;
   }
 }
