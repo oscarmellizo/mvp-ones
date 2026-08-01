@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../../core/http/ones_api_factory.dart';
 import '../../domain/event_photo.dart';
@@ -301,6 +302,11 @@ class EventPhotosApi {
     required String s3KeyOriginal,
     required String createdAt,
   }) async {
+    if (kDebugMode) {
+      debugPrint(
+        'photos_complete: eventId=$eventId photoId=$photoId createdAt=$createdAt s3KeyOriginal=$s3KeyOriginal',
+      );
+    }
     await _dioFactory(_idToken).post(
       '/v1/events/$eventId/photos/complete',
       data: {

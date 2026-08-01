@@ -203,6 +203,40 @@ class PhotoMetadataExtractor {
       final ss = int.tryParse(m.group(6) ?? '') ?? 0;
       out.add(DateTime(y, mo, d, hh, mm, ss).toUtc());
     }
+    // Date-only variants
+    final exifDateOnly = RegExp(r'(\d{4}):(\d{2}):(\d{2})(?![0-9:])');
+    for (final m in exifDateOnly.allMatches(text)) {
+      out.add(DateTime(
+        int.parse(m.group(1)!),
+        int.parse(m.group(2)!),
+        int.parse(m.group(3)!),
+        0,
+        0,
+        0,
+      ).toUtc());
+    }
+    final isoSlashDateOnly = RegExp(r'(\d{4})/(\d{2})/(\d{2})(?![0-9/])');
+    for (final m in isoSlashDateOnly.allMatches(text)) {
+      out.add(DateTime(
+        int.parse(m.group(1)!),
+        int.parse(m.group(2)!),
+        int.parse(m.group(3)!),
+        0,
+        0,
+        0,
+      ).toUtc());
+    }
+    final compactDateOnly = RegExp(r'\b(\d{4})(\d{2})(\d{2})\b');
+    for (final m in compactDateOnly.allMatches(text)) {
+      out.add(DateTime(
+        int.parse(m.group(1)!),
+        int.parse(m.group(2)!),
+        int.parse(m.group(3)!),
+        0,
+        0,
+        0,
+      ).toUtc());
+    }
     final compact = RegExp(r'(\d{4})(\d{2})(\d{2})[_-]?(\d{2})(\d{2})(\d{2})');
     for (final m in compact.allMatches(text)) {
       out.add(DateTime(
@@ -300,6 +334,23 @@ class PhotoMetadataExtractor {
       final mm = int.tryParse(m.group(5) ?? '') ?? 0;
       final ss = int.tryParse(m.group(6) ?? '') ?? 0;
       out.add(DateTime(y, mo, d, hh, mm, ss));
+    }
+    // Pure date-only patterns in filename
+    final pureIsoDate = RegExp(r'\b(\d{4})-(\d{2})-(\d{2})\b');
+    for (final m in pureIsoDate.allMatches(name)) {
+      out.add(DateTime(
+        int.parse(m.group(1)!),
+        int.parse(m.group(2)!),
+        int.parse(m.group(3)!),
+      ));
+    }
+    final pureCompactDate = RegExp(r'\b(\d{4})(\d{2})(\d{2})\b');
+    for (final m in pureCompactDate.allMatches(name)) {
+      out.add(DateTime(
+        int.parse(m.group(1)!),
+        int.parse(m.group(2)!),
+        int.parse(m.group(3)!),
+      ));
     }
     return out;
   }
