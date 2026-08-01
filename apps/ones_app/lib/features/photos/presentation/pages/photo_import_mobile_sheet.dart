@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/i18n/translations_service.dart';
@@ -23,10 +23,9 @@ class PhotoImportMobileSheet extends StatefulWidget {
 
 class _PhotoImportMobileSheetState extends State<PhotoImportMobileSheet> {
   static const int _maxFiles = 15;
-  final _picker = ImagePicker();
   final _extractor = const PhotoMetadataExtractor();
 
-  List<XFile> _files = const [];
+  List<PlatformFile> _files = const [];
   bool _picking = false;
   bool _uploading = false;
   Object? _error;
@@ -35,9 +34,14 @@ class _PhotoImportMobileSheetState extends State<PhotoImportMobileSheet> {
     if (_picking) return;
     setState(() => _picking = true);
     try {
-      final images = await _picker.pickMultiImage();
-      if (images == null) return;
-      var items = images;
+      final res = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowMultiple: true,
+        allowedExtensions: const ['jpg', 'jpeg', 'png'],
+        withData: true,
+      );
+      if (res == null) return;
+      var items = res.files;
       if (items.length > _maxFiles) {
         items = items.sublist(0, _maxFiles);
       }
@@ -58,21 +62,34 @@ class _PhotoImportMobileSheetState extends State<PhotoImportMobileSheet> {
       final storage = context.read<PhotoStorage>();
       final t = context.read<TranslationsService>();
 
-      for (final xf in _files) {
-        final name = xf.name.toLowerCase();
-        final path = xf.path;
-        if (path.isEmpty) continue;
-        File file = File(path);
-        Uint8List? bytes;
+      for (final pf in _files) {
+        final name = pf.name.toLowerCase();
+        final ext = name.split('.').last;
 
-        if (name.endsWith('.png')) {
-          bytes = await xf.readAsBytes();
-          final jpgBytes = await compute(pngToJpegBytes, bytes);
-          final tmp = await _writeTempJpeg(jpgBytes, baseName: name);
-          file = tmp;
+        Uint8List bytes;
+        if (pf.bytes != null && pf.bytes!.isNotEmpty) {
+          bytes = pf.bytes!;
+        } else if ((pf.path ?? '').isNotEmpty) {
+          bytes = await File(pf.path!).readAsBytes();
+        } else {
+          continue;
         }
 
-        final createdAt = await _extractor.createdAtFromFile(file: file, filename: name);
+        // Compute createdAt from original bytes + original filename to preserve WhatsApp patterns
+        final createdAt = await _extractor.createdAtFromBytes(bytes: bytes, filename: name);
+
+        // Ensure we enqueue a JPEG file
+        File file;
+        if (ext == 'png') {
+          final jpgBytes = await compute(pngToJpegBytes, bytes);
+          file = await _writeTempJpeg(jpgBytes, baseName: name);
+        } else if ((pf.path ?? '').isNotEmpty && (ext == 'jpg' || ext == 'jpeg')) {
+          file = File(pf.path!);
+        } else {
+          // No path, but already JPEG bytes in memory
+          file = await _writeTempJpeg(bytes, baseName: name);
+        }
+
         final photoId = DateTime.now().microsecondsSinceEpoch.toString() + name.hashCode.toUnsigned(20).toString();
 
         await uploader.enqueueCapturedJpeg(
@@ -164,17 +181,25 @@ class _PhotoImportMobileSheetState extends State<PhotoImportMobileSheet> {
                 ),
                 itemCount: _files.length,
                 itemBuilder: (context, i) {
-                  final xf = _files[i];
-                  final file = File(xf.path);
+                  final pf = _files[i];
+                  final hasPath = (pf.path ?? '').isNotEmpty;
+                  final hasBytes = pf.bytes != null && pf.bytes!.isNotEmpty;
                   return Stack(
                     children: [
                       Positioned.fill(
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: Image.file(
-                            file,
-                            fit: BoxFit.cover,
-                          ),
+                          child: hasPath
+                              ? Image.file(
+                                  File(pf.path!),
+                                  fit: BoxFit.cover,
+                                )
+                              : hasBytes
+                                  ? Image.memory(
+                                      pf.bytes!,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : const SizedBox(),
                         ),
                       ),
                       Positioned(
@@ -185,7 +210,7 @@ class _PhotoImportMobileSheetState extends State<PhotoImportMobileSheet> {
                               ? null
                               : () {
                                   setState(() {
-                                    final next = List<XFile>.from(_files);
+                                    final next = List<PlatformFile>.from(_files);
                                     next.removeAt(i);
                                     _files = next;
                                   });

@@ -251,10 +251,36 @@ class _EventDetailPageState extends State<EventDetailPage> {
               duration: const Duration(milliseconds: 200),
               padding: EdgeInsets.only(
                   bottom: _gallerySelecting ? 68.0 : 0.0),
-              child: Row(
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Camera capture FAB (existing behavior)
+                  // Upload/import photos FAB (top)
+                  FloatingActionButton(
+                    backgroundColor: OnesColors.purpleMid,
+                    foregroundColor: OnesColors.white,
+                    onPressed: event == null || !eventReady || !photosReady
+                        ? null
+                        : () async {
+                            final result = await showModalBottomSheet<bool>(
+                              context: context,
+                              isScrollControlled: true,
+                              builder: (ctx) {
+                                final content = kIsWeb
+                                    ? PhotoImportWebSheet(eventId: event.id)
+                                    : PhotoImportMobileSheet(eventId: event.id);
+                                return SafeArea(child: content);
+                              },
+                            );
+                            if (result == true && context.mounted) {
+                              await context
+                                  .read<PhotosGalleryController>()
+                                  .refresh(eventId: event.id);
+                            }
+                          },
+                    child: const Icon(Icons.file_upload_outlined),
+                  ),
+                  const SizedBox(height: 12),
+                  // Camera capture FAB (bottom)
                   FloatingActionButton(
                     backgroundColor: OnesColors.purpleMid,
                     foregroundColor: OnesColors.white,
@@ -280,32 +306,6 @@ class _EventDetailPageState extends State<EventDetailPage> {
                                 .refresh(eventId: event.id);
                           },
                     child: const Icon(Icons.photo_camera),
-                  ),
-                  const SizedBox(width: 12),
-                  // Upload/import photos FAB (new)
-                  FloatingActionButton(
-                    backgroundColor: OnesColors.purpleMid,
-                    foregroundColor: OnesColors.white,
-                    onPressed: event == null || !eventReady || !photosReady || !auth.isSignedIn
-                        ? null
-                        : () async {
-                            final result = await showModalBottomSheet<bool>(
-                              context: context,
-                              isScrollControlled: true,
-                              builder: (ctx) {
-                                final content = kIsWeb
-                                    ? PhotoImportWebSheet(eventId: event.id)
-                                    : PhotoImportMobileSheet(eventId: event.id);
-                                return SafeArea(child: content);
-                              },
-                            );
-                            if (result == true && context.mounted) {
-                              await context
-                                  .read<PhotosGalleryController>()
-                                  .refresh(eventId: event.id);
-                            }
-                          },
-                    child: const Icon(Icons.file_upload_outlined),
                   ),
                 ],
               ),
@@ -1015,45 +1015,6 @@ class _GalleryTabState extends State<_GalleryTab> {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    // Upload photos (additive origin; does not alter camera flows)
-                    Builder(
-                      builder: (context) {
-                        final me = widget.currentUserId;
-                        final canUpload = widget.isOwner || (me != null && me.trim().isNotEmpty);
-                        if (!canUpload) return const SizedBox.shrink();
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: FilledButton(
-                            onPressed: () async {
-                              final result = await showModalBottomSheet<bool>(
-                                context: context,
-                                isScrollControlled: true,
-                                builder: (ctx) {
-                                  final content = kIsWeb
-                                      ? PhotoImportWebSheet(eventId: widget.eventId)
-                                      : PhotoImportMobileSheet(eventId: widget.eventId);
-                                  return SafeArea(child: content);
-                                },
-                              );
-                              if (result == true && mounted) {
-                                context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
-                              }
-                            },
-                            style: FilledButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                              minimumSize: const Size(48, 44),
-                            ),
-                            child: Tooltip(
-                              message: t.translate('event_detail.action_upload_photos', fallback: 'Subir fotos'),
-                              child: Semantics(
-                                label: t.translate('event_detail.action_upload_photos', fallback: 'Subir fotos'),
-                                child: const Icon(Icons.file_upload_outlined),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
                     FilledButton.tonal(
                       key: TutorialKeys.eventFilterGuests,
                       onPressed: controller.filter != PhotosGalleryFilter.all

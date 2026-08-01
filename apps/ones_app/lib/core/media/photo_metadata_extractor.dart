@@ -66,12 +66,21 @@ class PhotoMetadataExtractor {
       }
     } catch (_) {}
 
-    final nameCandidates = _parseDatesFromFilenameAll(filename ?? file.uri.pathSegments.last);
-    if (nameCandidates.isNotEmpty) {
-      final n = nameCandidates.reduce((a, b) => a.isBefore(b) ? a : b).toUtc();
+    final providedName = filename ?? '';
+    final filenameCandidates = _parseDatesFromFilenameAll(providedName);
+    final basename = file.uri.pathSegments.isNotEmpty ? file.uri.pathSegments.last : '';
+    final pathNameCandidates = _parseDatesFromFilenameAll(basename);
+    final pathTextCandidates = _extractDateCandidatesFromText(file.path);
+    final allNameCandidates = <DateTime>[
+      ...filenameCandidates,
+      ...pathNameCandidates,
+      ...pathTextCandidates,
+    ];
+    if (allNameCandidates.isNotEmpty) {
+      final n = allNameCandidates.reduce((a, b) => a.isBefore(b) ? a : b).toUtc();
       if (result == null || n.isBefore(result)) {
         result = n;
-        source = 'filename';
+        source = 'filename_or_path';
       }
     }
 
@@ -93,14 +102,16 @@ class PhotoMetadataExtractor {
       exifRaw = await _readExifDateLikeEntries(b);
     } catch (_) {}
     final exifStr = exifList.map((d) => d.toUtc().toIso8601String()).join(',');
-    final nameListStr = nameCandidates.map((d) => d.toUtc().toIso8601String()).join(',');
+    final filenameListStr = filenameCandidates.map((d) => d.toUtc().toIso8601String()).join(',');
+    final pathNameListStr = pathNameCandidates.map((d) => d.toUtc().toIso8601String()).join(',');
+    final pathTextListStr = pathTextCandidates.map((d) => d.toUtc().toIso8601String()).join(',');
     DateTime? mtime;
     try {
       mtime = (await file.lastModified()).toUtc();
     } catch (_) {}
     final mtimeStr = mtime?.toIso8601String();
     final exifRawStr = exifRaw.entries.map((e) => '${e.key}=${e.value}').join('; ');
-    print('photo_meta: file path=${file.path} filename=${filename ?? file.uri.pathSegments.last} exif_raw=[$exifRawStr] exif_candidates=[$exifStr] name_candidates=[$nameListStr] mtime=$mtimeStr chosen=${chosen.toIso8601String()} via=$source');
+    print('photo_meta: file path=${file.path} filename=${filename ?? file.uri.pathSegments.last} exif_raw=[$exifRawStr] exif_candidates=[$exifStr] name_filename_candidates=[$filenameListStr] name_path_candidates=[$pathNameListStr|$pathTextListStr] mtime=$mtimeStr chosen=${chosen.toIso8601String()} via=$source');
     return chosen;
   }
 
@@ -332,6 +343,17 @@ class PhotoMetadataExtractor {
       final d = int.parse(m.group(3)!);
       final hh = int.tryParse(m.group(4) ?? '') ?? 0;
       final mm = int.tryParse(m.group(5) ?? '') ?? 0;
+      final ss = int.tryParse(m.group(6) ?? '') ?? 0;
+      out.add(DateTime(y, mo, d, hh, mm, ss));
+    }
+    // WhatsApp style: "WhatsApp Image 2026-06-27 at 10.31.12" (seconds optional)
+    final waHuman = RegExp(r'WhatsApp Image[ _-]?(\d{4})-(\d{2})-(\d{2})[ _-]?at[ _-]?(\d{2})[\.:](\d{2})(?:[\.:](\d{2}))?', caseSensitive: false);
+    for (final m in waHuman.allMatches(name)) {
+      final y = int.parse(m.group(1)!);
+      final mo = int.parse(m.group(2)!);
+      final d = int.parse(m.group(3)!);
+      final hh = int.parse(m.group(4)!);
+      final mm = int.parse(m.group(5)!);
       final ss = int.tryParse(m.group(6) ?? '') ?? 0;
       out.add(DateTime(y, mo, d, hh, mm, ss));
     }
