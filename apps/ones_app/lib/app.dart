@@ -292,6 +292,12 @@ class OnesApp extends StatelessWidget {
             return controller;
           },
         ),
+        ProxyProvider<AuthController, EventCoversApiRepository>(
+          update: (_, auth, __) {
+            eventCoversRepository.setIdToken(auth.idToken);
+            return eventCoversRepository;
+          },
+        ),
         ChangeNotifierProxyProvider<AuthController, EventCoverUrlsController>(
           create: (_) => EventCoverUrlsController(
             repository: eventCoverUrlsRepository,
