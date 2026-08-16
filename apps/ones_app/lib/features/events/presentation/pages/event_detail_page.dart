@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -1721,6 +1722,40 @@ class _GalleryTabState extends State<_GalleryTab> {
                             child: anyShared && !anyNotShared
                                 ? const Icon(Icons.remove_circle_outline)
                                 : const Icon(Icons.ios_share_outlined),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Tooltip(
+                          message: t.translate('event_detail.action_use_as_cover', fallback: 'Usar como cover'),
+                          child: FilledButton.tonal(
+                            onPressed: (!widget.isOwner || controller.loading || _selectedIds.length != 1)
+                                ? null
+                                : () async {
+                                    final messenger = ScaffoldMessenger.of(context);
+                                    final pid = _selectedIds.first;
+                                    try {
+                                      final covers = context.read<EventCoversApiRepository>();
+                                      final authc = context.read<AuthController>();
+                                      covers.setIdToken(authc.idToken);
+                                      await covers.setFromPhoto(eventId: widget.eventId, photoId: pid);
+                                      if (!mounted) return;
+                                      context.read<EventCoverUrlsController>().invalidate(widget.eventId);
+                                      await context.read<EventsController>().select(widget.eventId);
+                                      if (!mounted) return;
+                                      _exitSelectionMode();
+                                      messenger.showSnackBar(
+                                        SnackBar(content: Text(t.translate('event_detail.cover_updated', fallback: 'Cover actualizado'))),
+                                      );
+                                    } catch (e) {
+                                      if (!mounted) return;
+                                      messenger.showSnackBar(
+                                        SnackBar(content: Text('${t.translate('common.error', fallback: 'Error')}: $e')),
+                                      );
+                                    }
+                                  },
+                            child: const Icon(Icons.wallpaper_outlined),
                           ),
                         ),
                       ),
