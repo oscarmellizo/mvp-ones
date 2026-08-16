@@ -2159,7 +2159,7 @@ class _DetailsTabState extends State<_DetailsTab> {
                       fallback: 'Starts',
                     ),
                     value:
-                        '${formatMonthDayYear(start)} ÔÇó ${formatTimeOfDay(start)}',
+                        '${formatMonthDayYear(start)} • ${formatTimeOfDay(start)}',
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -2170,7 +2170,7 @@ class _DetailsTabState extends State<_DetailsTab> {
                       fallback: 'Ends',
                     ),
                     value:
-                        '${formatMonthDayYear(end)} ÔÇó ${formatTimeOfDay(end)}',
+                        '${formatMonthDayYear(end)} • ${formatTimeOfDay(end)}',
                   ),
                 ),
               ],

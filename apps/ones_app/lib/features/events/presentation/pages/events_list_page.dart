@@ -271,6 +271,12 @@ class _EventsListPageState extends State<EventsListPage> {
                             ),
                             builder: (context, snapshot) {
                               final url = snapshot.data;
+                              final sameDay = when.year == end.year &&
+                                  when.month == end.month &&
+                                  when.day == end.day;
+                              final dateText = sameDay
+                                  ? _formatMonthDayYear(when)
+                                  : '${formatShortMonthDay(when)}–${formatShortMonthDay(end)} ${end.year}';
                               return _UpcomingCard(
                                 title: e.title,
                                 location: e.location,
@@ -278,7 +284,7 @@ class _EventsListPageState extends State<EventsListPage> {
                                     ? url
                                     : null,
                                 fallbackAsset: _defaultEventCoverAsset,
-                                dateText: _formatMonthDayYear(when),
+                                dateText: dateText,
                                 timeText:
                                     '${_formatTimeOfDay(when)} - ${_formatTimeOfDay(end)}',
                                 badgeText: null,

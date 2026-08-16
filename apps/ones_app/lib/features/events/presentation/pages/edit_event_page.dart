@@ -241,8 +241,8 @@ class _EditEventPageState extends State<EditEventPage> {
     final pickedDate = await showDatePicker(
       context: context,
       initialDate: _startDate ?? now,
-      firstDate: DateTime(now.year - 1),
-      lastDate: DateTime(now.year + 5),
+      firstDate: DateTime(1970, 1, 1),
+      lastDate: DateTime(now.year + 50, 12, 31),
       builder: (context, child) => Theme(
         data: _pickerTheme(context),
         child: child!,
@@ -283,8 +283,8 @@ class _EditEventPageState extends State<EditEventPage> {
       context: context,
       initialDate:
           DateTime(initialDate.year, initialDate.month, initialDate.day),
-      firstDate: DateTime(now.year - 1),
-      lastDate: DateTime(now.year + 5),
+      firstDate: DateTime(1970, 1, 1),
+      lastDate: DateTime(now.year + 50, 12, 31),
       builder: (context, child) => Theme(
         data: _pickerTheme(context),
         child: child!,

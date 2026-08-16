@@ -210,6 +210,12 @@ class _GalleriesPageState extends State<GalleriesPage> {
                                 ),
                                 builder: (context, snapshot) {
                                   final url = snapshot.data;
+                                  final sameDay = when.year == end.year &&
+                                      when.month == end.month &&
+                                      when.day == end.day;
+                                  final dateText = sameDay
+                                      ? formatMonthDayYear(when)
+                                      : '${formatShortMonthDay(when)}–${formatShortMonthDay(end)} ${end.year}';
                                   return _UpcomingCard(
                                     title: e.title,
                                     location: e.location,
@@ -217,7 +223,7 @@ class _GalleriesPageState extends State<GalleriesPage> {
                                         ? url
                                         : null,
                                     fallbackAsset: _defaultEventCoverAsset,
-                                    dateText: null,
+                                    dateText: dateText,
                                     timeText:
                                         '${_formatTimeOfDay(when)} - ${_formatTimeOfDay(end)}',
                                     badgeText: null,
