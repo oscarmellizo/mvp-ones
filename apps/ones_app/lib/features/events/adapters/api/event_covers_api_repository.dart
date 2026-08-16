@@ -67,4 +67,59 @@ class EventCoversApiRepository {
       headers: _authHeaders(),
     );
   }
+
+  Future<api.PresignEventCoverUploadResponse> presignUpload({
+    required String eventId,
+    required String contentType,
+  }) async {
+    final req = api.PresignEventCoverUploadRequest((b) => b..contentType = contentType);
+    final res = await _defaultApi(_idToken).presignEventCoverUpload(
+      id: eventId,
+      presignEventCoverUploadRequest: req,
+      headers: _authHeaders(),
+    );
+    final data = res.data;
+    if (data == null) {
+      throw StateError('Missing presignEventCoverUpload response');
+    }
+    return data;
+  }
+
+  Future<api.PresignedUrlResponse> setFromUpload({
+    required String eventId,
+    required String uploadKey,
+  }) async {
+    final req = api.SetEventCoverRequest((b) => b
+      ..source = 'upload'
+      ..uploadKey = uploadKey);
+    final res = await _defaultApi(_idToken).setEventCover(
+      id: eventId,
+      setEventCoverRequest: req,
+      headers: _authHeaders(),
+    );
+    final data = res.data;
+    if (data == null) {
+      throw StateError('Missing setEventCover(upload) response');
+    }
+    return data;
+  }
+
+  Future<api.PresignedUrlResponse> setFromPhoto({
+    required String eventId,
+    required String photoId,
+  }) async {
+    final req = api.SetEventCoverRequest((b) => b
+      ..source = 'photo'
+      ..photoId = photoId);
+    final res = await _defaultApi(_idToken).setEventCover(
+      id: eventId,
+      setEventCoverRequest: req,
+      headers: _authHeaders(),
+    );
+    final data = res.data;
+    if (data == null) {
+      throw StateError('Missing setEventCover(photo) response');
+    }
+    return data;
+  }
 }
