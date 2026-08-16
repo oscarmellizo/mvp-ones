@@ -192,6 +192,66 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+  /v1/events/{id}/cover/uploads:presign:
+    post:
+      operationId: presignEventCoverUpload
+      summary: Presign a PUT upload URL for setting the event cover from an uploaded image
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PresignEventCoverUploadRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PresignEventCoverUploadResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/events/{id}/cover:
+    put:
+      operationId: setEventCover
+      summary: Set the event cover from an uploaded image or an existing event photo
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetEventCoverRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PresignedUrlResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /v1/events:
     get:
       operationId: listEvents
@@ -631,6 +691,43 @@ components:
           type: string
           format: date-time
           example: '2026-02-19T03:00:00Z'
+    PresignEventCoverUploadRequest:
+      type: object
+      required: [contentType]
+      properties:
+        contentType:
+          type: string
+          enum: [image/jpeg, image/png]
+          example: image/jpeg
+    PresignEventCoverUploadResponse:
+      type: object
+      required: [uploadUrl, uploadKey, expiresAt]
+      properties:
+        uploadUrl:
+          type: string
+          example: https://s3.amazonaws.com/... (pre-signed PUT)
+        uploadKey:
+          type: string
+          example: tmp/events/covers/uploads/evt_123/550e8400-e29b-41d4-a716-446655440000.jpg
+        expiresAt:
+          type: string
+          format: date-time
+          example: '2026-02-19T03:00:00Z'
+    SetEventCoverRequest:
+      type: object
+      required: [source]
+      properties:
+        source:
+          type: string
+          enum: [upload, photo]
+        uploadKey:
+          type: string
+          nullable: true
+          description: S3 key returned by presignEventCoverUpload when source=upload
+        photoId:
+          type: string
+          nullable: true
+          description: Event photoId to use as cover when source=photo
     CreateEventRequest:
       type: object
       required: [title, objective, location, startAt, endAt]
