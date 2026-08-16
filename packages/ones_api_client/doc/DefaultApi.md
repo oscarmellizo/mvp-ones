@@ -14,6 +14,7 @@ Method | HTTP request | Description
 [**cancelEventCover**](DefaultApi.md#canceleventcover) | **POST** /v1/events/covers/{coverId}/cancel | Cancel a generated cover preview (best-effort delete temp object)
 [**createEvent**](DefaultApi.md#createevent) | **POST** /v1/events | Create event for authenticated user
 [**deleteTranslation**](DefaultApi.md#deletetranslation) | **DELETE** /v1/admin/translations/{translationKey}/{languageCode} | Delete a translation (admin only)
+[**evictTranslationsCache**](DefaultApi.md#evicttranslationscache) | **POST** /v1/admin/translations/cache/evict | Evict translations cache (admin only)
 [**generateEventCover**](DefaultApi.md#generateeventcover) | **POST** /v1/events/covers/generate | Generate an AI event cover preview and return a pre-signed URL
 [**getEvent**](DefaultApi.md#getevent) | **GET** /v1/events/{id} | Get event by id (only if it belongs to authenticated user)
 [**getEventCoverUrl**](DefaultApi.md#geteventcoverurl) | **GET** /v1/events/{id}/cover-url | Get a pre-signed URL to view the event cover image (if configured)
@@ -26,8 +27,11 @@ Method | HTTP request | Description
 [**listEvents**](DefaultApi.md#listevents) | **GET** /v1/events | List events for authenticated user
 [**listInvitations**](DefaultApi.md#listinvitations) | **GET** /v1/invitations | List invitations for authenticated user (by email claim)
 [**listTranslations**](DefaultApi.md#listtranslations) | **GET** /v1/admin/translations | List translations (admin only)
+[**presignEventCoverUpload**](DefaultApi.md#presigneventcoverupload) | **POST** /v1/events/{id}/cover/uploads:presign | Presign a PUT upload URL for setting the event cover from an uploaded image
+[**refreshTranslationsCache**](DefaultApi.md#refreshtranslationscache) | **POST** /v1/admin/translations/cache/refresh | Refresh (evict and warm) translations cache (admin only)
 [**rejectInvitation**](DefaultApi.md#rejectinvitation) | **POST** /v1/invitations/{eventId}/reject | Reject an invitation for an event
 [**resolveInvitation**](DefaultApi.md#resolveinvitation) | **GET** /v1/invitations/resolve | Resolve an invitation token for authenticated user (returns invitation details for modal)
+[**setEventCover**](DefaultApi.md#seteventcover) | **PUT** /v1/events/{id}/cover | Set the event cover from an uploaded image or an existing event photo
 [**upsertTranslation**](DefaultApi.md#upserttranslation) | **POST** /v1/admin/translations | Create or update a translation (admin only)
 
 
@@ -220,6 +224,46 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **translationKey** | **String**|  | 
  **languageCode** | **String**|  | 
+
+### Return type
+
+void (empty response body)
+
+### Authorization
+
+[bearerAuth](../README.md#bearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **evictTranslationsCache**
+> evictTranslationsCache(languageCode)
+
+Evict translations cache (admin only)
+
+### Example
+```dart
+import 'package:ones_api_client/api.dart';
+
+final api = OnesApiClient().getDefaultApi();
+final String languageCode = languageCode_example; // String | 
+
+try {
+    api.evictTranslationsCache(languageCode);
+} catch on DioException (e) {
+    print('Exception when calling DefaultApi->evictTranslationsCache: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **languageCode** | **String**|  | [optional] 
 
 ### Return type
 
@@ -730,6 +774,90 @@ Name | Type | Description  | Notes
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **presignEventCoverUpload**
+> PresignEventCoverUploadResponse presignEventCoverUpload(id, presignEventCoverUploadRequest)
+
+Presign a PUT upload URL for setting the event cover from an uploaded image
+
+### Example
+```dart
+import 'package:ones_api_client/api.dart';
+
+final api = OnesApiClient().getDefaultApi();
+final String id = id_example; // String | 
+final PresignEventCoverUploadRequest presignEventCoverUploadRequest = ; // PresignEventCoverUploadRequest | 
+
+try {
+    final response = api.presignEventCoverUpload(id, presignEventCoverUploadRequest);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling DefaultApi->presignEventCoverUpload: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **id** | **String**|  | 
+ **presignEventCoverUploadRequest** | [**PresignEventCoverUploadRequest**](PresignEventCoverUploadRequest.md)|  | 
+
+### Return type
+
+[**PresignEventCoverUploadResponse**](PresignEventCoverUploadResponse.md)
+
+### Authorization
+
+[bearerAuth](../README.md#bearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **refreshTranslationsCache**
+> RefreshTranslationsCacheResponse refreshTranslationsCache(languageCode)
+
+Refresh (evict and warm) translations cache (admin only)
+
+### Example
+```dart
+import 'package:ones_api_client/api.dart';
+
+final api = OnesApiClient().getDefaultApi();
+final String languageCode = languageCode_example; // String | 
+
+try {
+    final response = api.refreshTranslationsCache(languageCode);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling DefaultApi->refreshTranslationsCache: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **languageCode** | **String**|  | [optional] 
+
+### Return type
+
+[**RefreshTranslationsCacheResponse**](RefreshTranslationsCacheResponse.md)
+
+### Authorization
+
+[bearerAuth](../README.md#bearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **rejectInvitation**
 > Invitation rejectInvitation(eventId)
 
@@ -808,6 +936,49 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **setEventCover**
+> PresignedUrlResponse setEventCover(id, setEventCoverRequest)
+
+Set the event cover from an uploaded image or an existing event photo
+
+### Example
+```dart
+import 'package:ones_api_client/api.dart';
+
+final api = OnesApiClient().getDefaultApi();
+final String id = id_example; // String | 
+final SetEventCoverRequest setEventCoverRequest = ; // SetEventCoverRequest | 
+
+try {
+    final response = api.setEventCover(id, setEventCoverRequest);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling DefaultApi->setEventCover: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **id** | **String**|  | 
+ **setEventCoverRequest** | [**SetEventCoverRequest**](SetEventCoverRequest.md)|  | 
+
+### Return type
+
+[**PresignedUrlResponse**](PresignedUrlResponse.md)
+
+### Authorization
+
+[bearerAuth](../README.md#bearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
