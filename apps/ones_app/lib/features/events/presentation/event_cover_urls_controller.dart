@@ -52,6 +52,13 @@ class EventCoverUrlsController extends ChangeNotifier {
     _inFlight.clear();
     notifyListeners();
   }
+
+  void invalidate(String eventId) {
+    if (eventId.trim().isEmpty) return;
+    _cache.remove(eventId.trim());
+    _inFlight.remove(eventId.trim());
+    notifyListeners();
+  }
 }
 
 class _CacheEntry {

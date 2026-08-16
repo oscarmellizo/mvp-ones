@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -10,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/utils/datetime_formatters.dart';
@@ -38,6 +40,7 @@ import '../../../invitations/presentation/widgets/invitations_sheet.dart';
 import '../../domain/event_exceptions.dart';
 import '../../domain/events_repository.dart';
 import '../../adapters/api/frames_api_repository.dart';
+import '../../adapters/api/event_covers_api_repository.dart';
 import '../../../tutorial/presentation/tutorial_keys.dart';
 import '../../../tutorial/presentation/tutorial_controller.dart';
 import '../../../tutorial/presentation/tutorial_store.dart';
@@ -1725,6 +1728,40 @@ class _GalleryTabState extends State<_GalleryTab> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Tooltip(
+                          message: t.translate('event_detail.action_use_as_cover', fallback: 'Usar como cover'),
+                          child: FilledButton.tonal(
+                            onPressed: (!widget.isOwner || controller.loading || _selectedIds.length != 1)
+                                ? null
+                                : () async {
+                                    final messenger = ScaffoldMessenger.of(context);
+                                    final pid = _selectedIds.first;
+                                    try {
+                                      final covers = context.read<EventCoversApiRepository>();
+                                      final authc = context.read<AuthController>();
+                                      covers.setIdToken(authc.idToken);
+                                      await covers.setFromPhoto(eventId: widget.eventId, photoId: pid);
+                                      if (!mounted) return;
+                                      context.read<EventCoverUrlsController>().invalidate(widget.eventId);
+                                      await context.read<EventsController>().select(widget.eventId);
+                                      if (!mounted) return;
+                                      _exitSelectionMode();
+                                      messenger.showSnackBar(
+                                        SnackBar(content: Text(t.translate('event_detail.cover_updated', fallback: 'Cover actualizado'))),
+                                      );
+                                    } catch (e) {
+                                      if (!mounted) return;
+                                      messenger.showSnackBar(
+                                        SnackBar(content: Text('${t.translate('common.error', fallback: 'Error')}: $e')),
+                                      );
+                                    }
+                                  },
+                            child: const Icon(Icons.wallpaper_outlined),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Tooltip(
                           message: t.translate(
                             'event_detail.action_delete',
                             fallback: 'Eliminar',
@@ -2083,6 +2120,142 @@ class _DetailsTabState extends State<_DetailsTab> {
                         errorBuilder: (_, __, ___) => buildFallbackCover(),
                       )
                     : buildFallbackCover(),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 8),
+        FutureBuilder<List<EventGuest>>(
+          future: _guestsFuture,
+          builder: (context, snapGuests) {
+            final auth = context.read<AuthController>();
+            bool accepted = false;
+            final meId = auth.user?.userId?.trim();
+            final meEmail = auth.user?.email?.trim().toLowerCase();
+            final rows = snapGuests.data;
+            if (!widget.isOwner && rows != null && rows.isNotEmpty) {
+              for (final g in rows) {
+                final status = g.status.trim().toLowerCase();
+                if (status != 'accepted') continue;
+                final uid = g.userId?.trim();
+                final mail = g.email?.trim().toLowerCase();
+                if (uid != null && uid.isNotEmpty && meId != null && meId.isNotEmpty && uid == meId) {
+                  accepted = true;
+                  break;
+                }
+                if (mail != null && mail.isNotEmpty && meEmail != null && meEmail.isNotEmpty && mail == meEmail) {
+                  accepted = true;
+                  break;
+                }
+              }
+            }
+            final canChangeCover = widget.isOwner || accepted;
+            if (!canChangeCover) return const SizedBox.shrink();
+
+            Future<void> onChangeCover() async {
+              await showModalBottomSheet<void>(
+                context: context,
+                isScrollControlled: true,
+                builder: (_) {
+                  return SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            t.translate('event_detail.action_change_cover', fallback: 'Cambiar cover'),
+                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                          ),
+                          const SizedBox(height: 12),
+                          FilledButton.icon(
+                            onPressed: () async {
+                              Navigator.of(context).pop();
+                              final res = await FilePicker.platform.pickFiles(
+                                type: FileType.custom,
+                                allowMultiple: false,
+                                withData: true,
+                                allowedExtensions: const ['jpg', 'jpeg', 'png'],
+                              );
+                              if (res == null || res.files.isEmpty) return;
+                              final f = res.files.first;
+                              String name = f.name;
+                              String ext = '';
+                              final idx = name.lastIndexOf('.');
+                              if (idx >= 0) ext = name.substring(idx + 1).toLowerCase();
+                              String contentType = (ext == 'png') ? 'image/png' : 'image/jpeg';
+                              Uint8List? bytes = f.bytes;
+                              if (bytes == null && (f.path ?? '').isNotEmpty) {
+                                try {
+                                  final file = File(f.path!);
+                                  bytes = await file.readAsBytes();
+                                } catch (_) {}
+                              }
+                              if (bytes == null || bytes.isEmpty) return;
+
+                              final covers = context.read<EventCoversApiRepository>();
+                              final authc = context.read<AuthController>();
+                              covers.setIdToken(authc.idToken);
+
+                              try {
+                                final p = await covers.presignUpload(
+                                  eventId: widget.eventId,
+                                  contentType: contentType,
+                                );
+
+                                final photosApi = context.read<EventPhotosApi>();
+                                await photosApi.uploadBytesToPresignedUrl(
+                                  putUrl: p.uploadUrl,
+                                  bytes: bytes,
+                                  contentType: contentType,
+                                );
+
+                                await covers.setFromUpload(
+                                  eventId: widget.eventId,
+                                  uploadKey: p.uploadKey,
+                                );
+
+                                if (!mounted) return;
+                                coverUrls.invalidate(widget.eventId);
+                                await context.read<EventsController>().select(widget.eventId);
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(t.translate('event_detail.cover_updated', fallback: 'Cover actualizado'))),
+                                );
+                              } catch (e) {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('${t.translate('common.error', fallback: 'Error')}: $e')),
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.upload_file),
+                            label: Text(t.translate('event_detail.action_upload_image', fallback: 'Subir imagen')),
+                          ),
+                          const SizedBox(height: 10),
+                          OutlinedButton.icon(
+                            onPressed: null,
+                            icon: const Icon(Icons.image_outlined),
+                            label: Text(t.translate('event_detail.action_use_event_photo', fallback: 'Usar foto del evento (pronto)')),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            }
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: onChangeCover,
+                  icon: const Icon(Icons.wallpaper_outlined),
+                  label: Text(t.translate('event_detail.action_change_cover', fallback: 'Cambiar cover')),
+                ),
               ),
             );
           },

@@ -70,6 +70,7 @@ Class | Method | HTTP request | Description
 [*DefaultApi*](doc/DefaultApi.md) | [**cancelEventCover**](doc/DefaultApi.md#canceleventcover) | **POST** /v1/events/covers/{coverId}/cancel | Cancel a generated cover preview (best-effort delete temp object)
 [*DefaultApi*](doc/DefaultApi.md) | [**createEvent**](doc/DefaultApi.md#createevent) | **POST** /v1/events | Create event for authenticated user
 [*DefaultApi*](doc/DefaultApi.md) | [**deleteTranslation**](doc/DefaultApi.md#deletetranslation) | **DELETE** /v1/admin/translations/{translationKey}/{languageCode} | Delete a translation (admin only)
+[*DefaultApi*](doc/DefaultApi.md) | [**evictTranslationsCache**](doc/DefaultApi.md#evicttranslationscache) | **POST** /v1/admin/translations/cache/evict | Evict translations cache (admin only)
 [*DefaultApi*](doc/DefaultApi.md) | [**generateEventCover**](doc/DefaultApi.md#generateeventcover) | **POST** /v1/events/covers/generate | Generate an AI event cover preview and return a pre-signed URL
 [*DefaultApi*](doc/DefaultApi.md) | [**getEvent**](doc/DefaultApi.md#getevent) | **GET** /v1/events/{id} | Get event by id (only if it belongs to authenticated user)
 [*DefaultApi*](doc/DefaultApi.md) | [**getEventCoverUrl**](doc/DefaultApi.md#geteventcoverurl) | **GET** /v1/events/{id}/cover-url | Get a pre-signed URL to view the event cover image (if configured)
@@ -82,8 +83,11 @@ Class | Method | HTTP request | Description
 [*DefaultApi*](doc/DefaultApi.md) | [**listEvents**](doc/DefaultApi.md#listevents) | **GET** /v1/events | List events for authenticated user
 [*DefaultApi*](doc/DefaultApi.md) | [**listInvitations**](doc/DefaultApi.md#listinvitations) | **GET** /v1/invitations | List invitations for authenticated user (by email claim)
 [*DefaultApi*](doc/DefaultApi.md) | [**listTranslations**](doc/DefaultApi.md#listtranslations) | **GET** /v1/admin/translations | List translations (admin only)
+[*DefaultApi*](doc/DefaultApi.md) | [**presignEventCoverUpload**](doc/DefaultApi.md#presigneventcoverupload) | **POST** /v1/events/{id}/cover/uploads:presign | Presign a PUT upload URL for setting the event cover from an uploaded image
+[*DefaultApi*](doc/DefaultApi.md) | [**refreshTranslationsCache**](doc/DefaultApi.md#refreshtranslationscache) | **POST** /v1/admin/translations/cache/refresh | Refresh (evict and warm) translations cache (admin only)
 [*DefaultApi*](doc/DefaultApi.md) | [**rejectInvitation**](doc/DefaultApi.md#rejectinvitation) | **POST** /v1/invitations/{eventId}/reject | Reject an invitation for an event
 [*DefaultApi*](doc/DefaultApi.md) | [**resolveInvitation**](doc/DefaultApi.md#resolveinvitation) | **GET** /v1/invitations/resolve | Resolve an invitation token for authenticated user (returns invitation details for modal)
+[*DefaultApi*](doc/DefaultApi.md) | [**setEventCover**](doc/DefaultApi.md#seteventcover) | **PUT** /v1/events/{id}/cover | Set the event cover from an uploaded image or an existing event photo
 [*DefaultApi*](doc/DefaultApi.md) | [**upsertTranslation**](doc/DefaultApi.md#upserttranslation) | **POST** /v1/admin/translations | Create or update a translation (admin only)
 
 
@@ -102,7 +106,11 @@ Class | Method | HTTP request | Description
  - [HealthResponse](doc/HealthResponse.md)
  - [Invitation](doc/Invitation.md)
  - [InviteEventGuestsRequest](doc/InviteEventGuestsRequest.md)
+ - [PresignEventCoverUploadRequest](doc/PresignEventCoverUploadRequest.md)
+ - [PresignEventCoverUploadResponse](doc/PresignEventCoverUploadResponse.md)
  - [PresignedUrlResponse](doc/PresignedUrlResponse.md)
+ - [RefreshTranslationsCacheResponse](doc/RefreshTranslationsCacheResponse.md)
+ - [SetEventCoverRequest](doc/SetEventCoverRequest.md)
  - [Translation](doc/Translation.md)
  - [UpsertTranslationRequest](doc/UpsertTranslationRequest.md)
 
