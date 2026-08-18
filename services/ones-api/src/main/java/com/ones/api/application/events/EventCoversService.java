@@ -15,7 +15,9 @@ import com.ones.api.application.events.ports.CoverReservationsRepository;
 import com.ones.api.application.events.ports.ObjectStorage;
 import com.ones.api.application.events.ports.ObjectStoragePresigner;
 import com.ones.api.application.events.ports.SecretsProvider;
+import com.ones.api.application.photos.ports.PhotosRepository;
 import com.ones.api.domain.events.Event;
+import com.ones.api.domain.photos.Photo;
 
 @Service
 public class EventCoversService {
@@ -28,11 +30,13 @@ public class EventCoversService {
     private final ObjectStorage objectStorage;
     private final ObjectStoragePresigner objectStoragePresigner;
     private final Clock clock;
+    private final PhotosRepository photosRepository;
 
     private final String openAiApiKeySecretName;
     private final String openAiImageSize;
     private final String tempBucket;
     private final String finalBucket;
+    private final String photosBucket;
     private final long previewPresignTtlMinutes;
     private final long finalPresignTtlMinutes;
     private final long reservationTtlMinutes;
@@ -46,10 +50,12 @@ public class EventCoversService {
             ObjectStorage objectStorage,
             ObjectStoragePresigner objectStoragePresigner,
             Clock clock,
+            PhotosRepository photosRepository,
             @Value("${ones.ai.openai.api-key-secret-name}") String openAiApiKeySecretName,
             @Value("${ones.ai.openai.image-size:512x512}") String openAiImageSize,
             @Value("${ones.s3.events.covers.temp-bucket}") String tempBucket,
             @Value("${ones.s3.events.covers.final-bucket}") String finalBucket,
+            @Value("${ones.s3.events.photos.bucket}") String photosBucket,
             @Value("${ones.s3.events.covers.preview-presign-ttl-minutes:15}") long previewPresignTtlMinutes,
             @Value("${ones.s3.events.covers.final-presign-ttl-minutes:15}") long finalPresignTtlMinutes,
             @Value("${ones.s3.events.covers.reservation-ttl-minutes:30}") long reservationTtlMinutes
@@ -62,10 +68,12 @@ public class EventCoversService {
         this.objectStorage = objectStorage;
         this.objectStoragePresigner = objectStoragePresigner;
         this.clock = clock;
+        this.photosRepository = photosRepository;
         this.openAiApiKeySecretName = openAiApiKeySecretName;
         this.openAiImageSize = openAiImageSize;
         this.tempBucket = tempBucket;
         this.finalBucket = finalBucket;
+        this.photosBucket = photosBucket;
         this.previewPresignTtlMinutes = previewPresignTtlMinutes;
         this.finalPresignTtlMinutes = finalPresignTtlMinutes;
         this.reservationTtlMinutes = reservationTtlMinutes;
@@ -180,6 +188,76 @@ public class EventCoversService {
         return new PresignedUrlResult(url.toString(), expiresAt);
     }
 
+    public PresignUploadResult presignUpload(String eventId, String contentType) {
+        if (eventId == null || eventId.isBlank()) {
+            throw new IllegalArgumentException("Missing eventId");
+        }
+        String ct = contentType == null ? "" : contentType.trim().toLowerCase();
+        if (!(ct.equals("image/png") || ct.equals("image/jpeg") || ct.equals("image/jpg"))) {
+            throw new IllegalArgumentException("Unsupported contentType: " + contentType);
+        }
+
+        String ext = ct.contains("png") ? ".png" : ".jpg";
+        String key = "tmp/events/covers/uploads/" + eventId.trim() + "/" + UUID.randomUUID() + ext;
+
+        Instant now = Instant.now(clock);
+        Instant expiresAt = now.plus(previewPresignTtlMinutes, ChronoUnit.MINUTES);
+        java.net.URL url = objectStoragePresigner.presignPut(
+                tempBucket,
+                key,
+                java.time.Duration.ofMinutes(previewPresignTtlMinutes),
+                ct
+        );
+
+        return new PresignUploadResult(url.toString(), key, expiresAt);
+    }
+
+    public String setCoverFromUpload(Event event, String uploadKey) {
+        if (event == null) {
+            throw new IllegalArgumentException("Missing event");
+        }
+        if (uploadKey == null || uploadKey.isBlank()) {
+            throw new IllegalArgumentException("Missing uploadKey");
+        }
+
+        String normalizedKey = uploadKey.trim();
+        String eid = event.getEventId();
+        if (eid == null || eid.isBlank()) {
+            throw new IllegalArgumentException("Invalid eventId");
+        }
+
+        // Simple guard: ensure the upload key belongs to this event uploads path
+        if (!normalizedKey.contains("/" + eid + "/")) {
+            throw new IllegalArgumentException("uploadKey does not belong to event");
+        }
+
+        String destKey = finalKey(eid);
+
+        objectStorage.copy(tempBucket, normalizedKey, finalBucket, destKey);
+        try {
+            objectStorage.delete(tempBucket, normalizedKey);
+        } catch (Exception ignored) {
+        }
+
+        Event updated = new Event(
+                event.getEventId(),
+                event.getOwnerId(),
+                event.getCreatedAt(),
+                event.getTitle(),
+                event.getObjective(),
+                event.getLocation(),
+                event.getStartAt(),
+                event.getEndAt(),
+                destKey,
+                event.isAllowGuestInvites(),
+                event.isInviteLinkEnabled(),
+                event.getFrameIds()
+        );
+
+        eventsRepository.save(updated);
+        return destKey;
+    }
+
     public String getCoverKeyForEvent(String ownerId, String eventId) {
         Event event = eventsRepository.findById(eventId)
                 .filter(e -> ownerId.equals(e.getOwnerId()))
@@ -190,6 +268,63 @@ public class EventCoversService {
             throw new EventCoverNotFoundException(eventId);
         }
         return coverKey;
+    }
+
+    public String setCoverFromPhoto(Event event, String photoId) {
+        if (event == null) throw new IllegalArgumentException("Missing event");
+        if (photoId == null || photoId.isBlank()) throw new IllegalArgumentException("Missing photoId");
+
+        Photo p = photosRepository.findById(photoId.trim()).orElse(null);
+        if (p == null || p.getEventId() == null || !p.getEventId().equals(event.getEventId())) {
+            throw new IllegalArgumentException("Photo does not belong to event");
+        }
+
+        String sourceKey = p.getS3KeyMedium();
+        String originalKey = p.getS3KeyOriginal();
+        if ((sourceKey == null || sourceKey.isBlank()) && originalKey != null && !originalKey.isBlank()) {
+            sourceKey = variantKeyFromOriginal(originalKey, "_m");
+        }
+        if (sourceKey == null || sourceKey.isBlank()) {
+            // Fallback to small or original if medium not available
+            String small = p.getS3KeySmall();
+            if (small != null && !small.isBlank()) {
+                sourceKey = small;
+            } else {
+                sourceKey = originalKey;
+            }
+        }
+        if (sourceKey == null || sourceKey.isBlank()) {
+            throw new IllegalStateException("Photo has no S3 keys available");
+        }
+
+        String destKey = finalKey(event.getEventId());
+        objectStorage.copy(photosBucket, sourceKey.trim(), finalBucket, destKey);
+
+        Event updated = new Event(
+                event.getEventId(),
+                event.getOwnerId(),
+                event.getCreatedAt(),
+                event.getTitle(),
+                event.getObjective(),
+                event.getLocation(),
+                event.getStartAt(),
+                event.getEndAt(),
+                destKey,
+                event.isAllowGuestInvites(),
+                event.isInviteLinkEnabled(),
+                event.getFrameIds()
+        );
+        eventsRepository.save(updated);
+        return destKey;
+    }
+
+    private static String variantKeyFromOriginal(String originalKey, String suffix) {
+        if (originalKey == null || originalKey.isBlank()) return null;
+        String key = originalKey.trim();
+        String sfx = suffix != null ? suffix : "";
+        if (key.endsWith(".jpg")) return key.substring(0, key.length() - 4) + sfx + ".jpg";
+        if (key.endsWith(".jpeg")) return key.substring(0, key.length() - 5) + sfx + ".jpeg";
+        return key + sfx;
     }
 
     private String loadOpenAiApiKey() {
@@ -364,5 +499,8 @@ public class EventCoversService {
     }
 
     public record PresignedUrlResult(String url, Instant expiresAt) {
+    }
+
+    public record PresignUploadResult(String uploadUrl, String uploadKey, Instant expiresAt) {
     }
 }

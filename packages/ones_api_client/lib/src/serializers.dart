@@ -27,7 +27,11 @@ import 'package:ones_api_client/src/model/guest_v2.dart';
 import 'package:ones_api_client/src/model/health_response.dart';
 import 'package:ones_api_client/src/model/invitation.dart';
 import 'package:ones_api_client/src/model/invite_event_guests_request.dart';
+import 'package:ones_api_client/src/model/presign_event_cover_upload_request.dart';
+import 'package:ones_api_client/src/model/presign_event_cover_upload_response.dart';
 import 'package:ones_api_client/src/model/presigned_url_response.dart';
+import 'package:ones_api_client/src/model/refresh_translations_cache_response.dart';
+import 'package:ones_api_client/src/model/set_event_cover_request.dart';
 import 'package:ones_api_client/src/model/translation.dart';
 import 'package:ones_api_client/src/model/upsert_translation_request.dart';
 
@@ -47,7 +51,11 @@ part 'serializers.g.dart';
   HealthResponse,
   Invitation,
   InviteEventGuestsRequest,
+  PresignEventCoverUploadRequest,
+  PresignEventCoverUploadResponse,
   PresignedUrlResponse,
+  RefreshTranslationsCacheResponse,
+  SetEventCoverRequest,
   Translation,
   UpsertTranslationRequest,
 ])
