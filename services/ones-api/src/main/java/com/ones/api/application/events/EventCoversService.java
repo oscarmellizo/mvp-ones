@@ -6,6 +6,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.ones.api.application.events.ports.EventsRepository;
@@ -41,6 +42,7 @@ public class EventCoversService {
     private final long finalPresignTtlMinutes;
     private final long reservationTtlMinutes;
 
+    @Autowired
     public EventCoversService(
             EventsRepository eventsRepository,
             CoverPreviewsRepository previewsRepository,
