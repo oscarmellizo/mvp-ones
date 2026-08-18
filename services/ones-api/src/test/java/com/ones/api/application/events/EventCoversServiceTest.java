@@ -23,7 +23,6 @@ import com.ones.api.application.events.ports.ObjectStorage;
 import com.ones.api.application.events.ports.ObjectStoragePresigner;
 import com.ones.api.application.events.ports.SecretsProvider;
 import com.ones.api.domain.events.Event;
-
 class EventCoversServiceTest {
 
     @Test
@@ -36,7 +35,6 @@ class EventCoversServiceTest {
         InMemoryObjectStorage storage = new InMemoryObjectStorage();
         FakePresigner presigner = new FakePresigner(new URL("https://example.com/p"));
         Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
-
         EventCoversService svc = new EventCoversService(
                 events,
                 previews,
@@ -46,11 +44,11 @@ class EventCoversServiceTest {
                 storage,
                 presigner,
                 clock,
-                "secret",
+                                                "secret",
                 "512x512",
                 "tmp-bucket",
                 "final-bucket",
-                15,
+                                                15,
                 15,
                 30
         );
@@ -83,7 +81,6 @@ class EventCoversServiceTest {
         InMemoryObjectStorage storage = new InMemoryObjectStorage();
         FakePresigner presigner = new FakePresigner(null);
         Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
-
         EventCoversService svc = new EventCoversService(
                 events,
                 previews,
@@ -93,11 +90,11 @@ class EventCoversServiceTest {
                 storage,
                 presigner,
                 clock,
-                "secret",
+                                                "secret",
                 "512x512",
                 "tmp-bucket",
                 "final-bucket",
-                15,
+                                                15,
                 15,
                 30
         );
@@ -122,7 +119,6 @@ class EventCoversServiceTest {
         InMemoryObjectStorage storage = new InMemoryObjectStorage();
         FakePresigner presigner = new FakePresigner(null);
         Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
-
         EventCoversService svc = new EventCoversService(
                 events,
                 previews,
@@ -132,11 +128,11 @@ class EventCoversServiceTest {
                 storage,
                 presigner,
                 clock,
-                "secret",
+                                                "secret",
                 "512x512",
                 "tmp-bucket",
                 "final-bucket",
-                15,
+                                                15,
                 15,
                 30
         );
@@ -160,7 +156,6 @@ class EventCoversServiceTest {
         InMemoryObjectStorage storage = new InMemoryObjectStorage();
         FakePresigner presigner = new FakePresigner(null);
         Clock clock = Clock.fixed(Instant.parse("2026-01-01T01:00:00Z"), ZoneOffset.UTC);
-
         EventCoversService svc = new EventCoversService(
                 events,
                 previews,
@@ -170,11 +165,11 @@ class EventCoversServiceTest {
                 storage,
                 presigner,
                 clock,
-                "secret",
+                                                "secret",
                 "512x512",
                 "tmp-bucket",
                 "final-bucket",
-                15,
+                                                15,
                 15,
                 30
         );
@@ -202,7 +197,6 @@ class EventCoversServiceTest {
         InMemoryObjectStorage storage = new InMemoryObjectStorage();
         FakePresigner presigner = new FakePresigner(null);
         Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:10:00Z"), ZoneOffset.UTC);
-
         EventCoversService svc = new EventCoversService(
                 events,
                 previews,
@@ -212,11 +206,11 @@ class EventCoversServiceTest {
                 storage,
                 presigner,
                 clock,
-                "secret",
+                                                "secret",
                 "512x512",
                 "tmp-bucket",
                 "final-bucket",
-                15,
+                                                15,
                 15,
                 30
         );
@@ -248,7 +242,6 @@ class EventCoversServiceTest {
         InMemoryObjectStorage storage = new InMemoryObjectStorage();
         FakePresigner presigner = new FakePresigner(null);
         Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
-
         events.save(new Event(
                 "event-1",
                 "owner-1",
@@ -273,11 +266,11 @@ class EventCoversServiceTest {
                 storage,
                 presigner,
                 clock,
-                "secret",
+                                                "secret",
                 "512x512",
                 "tmp-bucket",
                 "final-bucket",
-                15,
+                                                15,
                 15,
                 30
         );
@@ -419,5 +412,7 @@ class EventCoversServiceTest {
         public void deleteById(String eventId) {
             items.remove(eventId);
         }
-    }
+    }
 }
+
+
