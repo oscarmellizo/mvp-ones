@@ -707,6 +707,273 @@ class _GalleryTabState extends State<_GalleryTab> {
     widget.onSelectionChanged?.call(false);
   }
 
+  Widget _buildTopSelectionActionsBar(
+      BuildContext context, PhotosGalleryController controller) {
+    final t = context.read<TranslationsService>();
+    final selected = controller.items
+        .where((it) => _selectedIds.contains(it.photoId))
+        .toList(growable: false);
+    final anyShared = selected.any((it) => it.shared);
+    final anyNotShared = selected.any((it) => !it.shared);
+    final me = widget.currentUserId;
+    final allOwnUnshared = _selectedIds.isNotEmpty &&
+        !anyShared &&
+        me != null &&
+        selected.every((it) => it.guestId == me);
+
+    Text _lbl(String key, String fb, {Color? color}) => Text(
+          t.translate(key, fallback: fb),
+          style: TextStyle(
+            color: color ?? OnesColors.black,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            height: 1.1,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+        );
+
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: controller.loading ? null : _exitSelectionMode,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.close),
+                const SizedBox(height: 2),
+                _lbl('event_detail.action_cancel', 'Cancelar'),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: OnesColors.purpleMid,
+              foregroundColor: OnesColors.white,
+            ),
+            onPressed: (controller.loading || _selectedIds.isEmpty)
+                ? null
+                : () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    final ids = _selectedIds.toList(growable: false);
+
+                    if (anyShared && anyNotShared) {
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            t.translate(
+                              'event_detail.error_mix_shared_private',
+                              fallback:
+                                  'No puedes mezclar fotos compartidas y privadas.',
+                            ),
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    try {
+                      if (anyShared) {
+                        await context
+                            .read<PhotosGalleryController>()
+                            .unsharePhotos(
+                              eventId: widget.eventId,
+                              photoIds: ids,
+                            );
+                        if (!mounted) return;
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              t.translate('event_detail.photos_unshared',
+                                  fallback: 'Fotos descompartidas.'),
+                            ),
+                          ),
+                        );
+                      } else {
+                        await context
+                            .read<PhotosGalleryController>()
+                            .sharePhotos(
+                              eventId: widget.eventId,
+                              photoIds: ids,
+                            );
+                        if (!mounted) return;
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              t.translate('event_detail.photos_shared',
+                                  fallback: 'Fotos compartidas.'),
+                            ),
+                          ),
+                        );
+                      }
+                      _exitSelectionMode();
+                    } catch (e) {
+                      if (!mounted) return;
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            '${t.translate('event_detail.error_update_failed', fallback: 'No se pudo actualizar')}: $e',
+                          ),
+                        ),
+                      );
+                    }
+                  },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                anyShared && !anyNotShared
+                    ? const Icon(Icons.remove_circle_outline)
+                    : const Icon(Icons.ios_share_outlined),
+                const SizedBox(height: 2),
+                _lbl(
+                  anyShared && !anyNotShared
+                      ? 'event_detail.action_unshare'
+                      : 'event_detail.action_share',
+                  anyShared && !anyNotShared ? 'Quitar' : 'Compartir',
+                  color: OnesColors.white,
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: FilledButton.tonal(
+            onPressed: (!widget.isOwner ||
+                    controller.loading ||
+                    _selectedIds.length != 1)
+                ? null
+                : () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    final pid = _selectedIds.first;
+                    try {
+                      final covers = context.read<EventCoversApiRepository>();
+                      final authc = context.read<AuthController>();
+                      covers.setIdToken(authc.idToken);
+                      await covers.setFromPhoto(
+                          eventId: widget.eventId, photoId: pid);
+                      if (!mounted) return;
+                      context
+                          .read<EventCoverUrlsController>()
+                          .invalidate(widget.eventId);
+                      await context
+                          .read<EventsController>()
+                          .select(widget.eventId);
+                      if (!mounted) return;
+                      _exitSelectionMode();
+                      messenger.showSnackBar(
+                        SnackBar(
+                            content: Text(t.translate(
+                                'event_detail.cover_updated',
+                                fallback: 'Cover actualizado'))),
+                      );
+                    } catch (e) {
+                      if (!mounted) return;
+                      messenger.showSnackBar(
+                        SnackBar(
+                            content: Text(
+                                '${t.translate('common.error', fallback: 'Error')}: $e')),
+                      );
+                    }
+                  },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.wallpaper_outlined),
+                const SizedBox(height: 2),
+                _lbl('event_detail.action_use_as_cover', 'Usar cover'),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red.shade700,
+              foregroundColor: OnesColors.white,
+            ),
+            onPressed: (controller.loading || !allOwnUnshared)
+                ? null
+                : () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    final ids = _selectedIds.toList(growable: false);
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: Text(t.translate(
+                            'event_detail.delete_confirm_title',
+                            fallback: 'Eliminar fotos')),
+                        content: Text(t.translate(
+                            'event_detail.delete_confirm_body',
+                            fallback:
+                                '¿Eliminar ${ids.length} foto(s)? Esta acción no se puede deshacer.')),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(false),
+                            child: Text(t.translate(
+                                'event_detail.action_cancel',
+                                fallback: 'Cancelar')),
+                          ),
+                          FilledButton(
+                            style: FilledButton.styleFrom(
+                                backgroundColor: Colors.red.shade700),
+                            onPressed: () => Navigator.of(ctx).pop(true),
+                            child: Text(t.translate(
+                                'event_detail.action_delete',
+                                fallback: 'Eliminar')),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed != true) return;
+                    try {
+                      await context
+                          .read<PhotosGalleryController>()
+                          .deletePhotos(
+                            eventId: widget.eventId,
+                            photoIds: ids,
+                          );
+                      if (!mounted) return;
+                      _exitSelectionMode();
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(t.translate(
+                              'event_detail.photos_deleted',
+                              fallback: 'Fotos eliminadas.')),
+                        ),
+                      );
+                    } catch (e) {
+                      if (!mounted) return;
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            '${t.translate('event_detail.error_update_failed', fallback: 'No se pudo eliminar')}: $e',
+                          ),
+                        ),
+                      );
+                    }
+                  },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.delete_outline),
+                const SizedBox(height: 2),
+                _lbl('event_detail.action_delete', 'Eliminar',
+                    color: OnesColors.white),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   bool _canSelect(String photoOwnerId) {
     final me = widget.currentUserId;
     if (widget.isOwner) return true;
@@ -942,7 +1209,9 @@ class _GalleryTabState extends State<_GalleryTab> {
               color: OnesColors.background,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-                child: Row(
+                child: _selecting
+                    ? _buildTopSelectionActionsBar(context, controller)
+                    : Row(
                   children: [
                     Expanded(
                       child: SegmentedButton<PhotosGalleryFilter>(
