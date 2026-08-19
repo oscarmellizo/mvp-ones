@@ -1465,23 +1465,35 @@ class _GalleryTabState extends State<_GalleryTab> {
                         ),
                         minimumSize: const Size(48, 44),
                       ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.groups_outlined),
-                          const SizedBox(height: 2),
-                          Text(
-                            t.translate('event_detail.guests', fallback: 'Invitados'),
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              height: 1.1,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
+                      child: Tooltip(
+                        message: t.translate(
+                          'event_detail.guests',
+                          fallback: 'Invitados',
+                        ),
+                        child: Semantics(
+                          label: t.translate(
+                            'event_detail.guests',
+                            fallback: 'Invitados',
                           ),
-                        ],
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.groups_outlined),
+                              const SizedBox(height: 2),
+                              Text(
+                                t.translate('event_detail.guests', fallback: 'Invitados'),
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.1,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ],
