@@ -844,8 +844,7 @@ class _GalleryTabState extends State<_GalleryTab> {
         const SizedBox(width: 8),
         Expanded(
           child: FilledButton.tonal(
-            onPressed: (!widget.isOwner ||
-                    controller.loading ||
+            onPressed: (controller.loading ||
                     _selectedIds.length != 1)
                 ? null
                 : () async {
@@ -1210,7 +1209,16 @@ class _GalleryTabState extends State<_GalleryTab> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
                 child: _selecting
-                    ? _buildTopSelectionActionsBar(context, controller)
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: OnesColors.white,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: _buildTopSelectionActionsBar(
+                            context, controller),
+                      )
                     : Row(
                   children: [
                     Expanded(
@@ -2104,7 +2112,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                         child: Tooltip(
                           message: t.translate('event_detail.action_use_as_cover', fallback: 'Usar como cover'),
                           child: FilledButton.tonal(
-                            onPressed: (!widget.isOwner || controller.loading || _selectedIds.length != 1)
+                            onPressed: (controller.loading || _selectedIds.length != 1)
                                 ? null
                                 : () async {
                                     final messenger = ScaffoldMessenger.of(context);
