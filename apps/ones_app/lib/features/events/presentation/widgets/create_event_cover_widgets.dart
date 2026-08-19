@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:typed_data';
 import 'package:provider/provider.dart';
 
 import '../../../../core/i18n/translations_service.dart';
@@ -14,6 +15,8 @@ class CreateEventCoverPicker extends StatelessWidget {
   final bool showGenerateHelper;
   final VoidCallback? onAccept;
   final VoidCallback? onCancel;
+  final Uint8List? localImageBytes;
+  final VoidCallback? onPickImage;
 
   const CreateEventCoverPicker({
     super.key,
@@ -25,6 +28,8 @@ class CreateEventCoverPicker extends StatelessWidget {
     required this.showGenerateHelper,
     required this.onAccept,
     required this.onCancel,
+    this.localImageBytes,
+    this.onPickImage,
   });
 
   @override
@@ -47,9 +52,15 @@ class CreateEventCoverPicker extends StatelessWidget {
                 Positioned.fill(
                   child: ClipRRect(
                     borderRadius: BorderRadius.zero,
-                    child: imageUrl == null
-                        ? const SizedBox.shrink()
-                        : Image.network(imageUrl!, fit: BoxFit.cover),
+                    child: () {
+                      if (localImageBytes != null) {
+                        return Image.memory(localImageBytes!, fit: BoxFit.cover);
+                      }
+                      if (imageUrl != null) {
+                        return Image.network(imageUrl!, fit: BoxFit.cover);
+                      }
+                      return const SizedBox.shrink();
+                    }(),
                   ),
                 ),
                 Positioned.fill(
@@ -69,7 +80,7 @@ class CreateEventCoverPicker extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (imageUrl == null && !loading)
+                if (imageUrl == null && localImageBytes == null && !loading)
                   Positioned.fill(
                     child: CustomPaint(
                       painter: const CreateEventDashedBorderPainter(
@@ -194,6 +205,21 @@ class CreateEventCoverPicker extends StatelessWidget {
               ),
             ],
           ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: OnesColors.purpleMid,
+              side: const BorderSide(
+                color: OnesColors.purpleMid,
+                width: 1.6,
+              ),
+            ),
+            onPressed: loading ? null : onPickImage,
+            child: Text('Subir imagen'),
+          ),
         ),
       ],
     );

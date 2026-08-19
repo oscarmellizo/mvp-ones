@@ -1,4 +1,6 @@
 import 'package:dio/dio.dart';
+import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -19,6 +21,7 @@ import '../widgets/frame_picker_sheet.dart';
 import '../../../tutorial/presentation/tutorial_keys.dart';
 import '../../../tutorial/presentation/tutorial_controller.dart';
 import '../../../tutorial/presentation/tutorial_store.dart';
+import '../../adapters/api/event_covers_api_repository.dart';
 
 class CreateEventPage extends StatefulWidget {
   static const routeName = '/events/create';
@@ -136,6 +139,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
   TimeOfDay? _endTime;
 
   String? _coverReservationId;
+  Uint8List? _localImageBytes;
+  String? _localImageContentType; // image/png or image/jpeg
 
   bool _allowGuestInvites = true;
 
@@ -254,6 +259,30 @@ class _CreateEventPageState extends State<CreateEventPage> {
     return true;
   }
 
+  Future<void> _pickLocalImage() async {
+    if (!mounted) return;
+    final res = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: false,
+      withData: true,
+    );
+    if (res == null || res.files.isEmpty) return;
+    final f = res.files.single;
+    final bytes = f.bytes;
+    if (bytes == null || bytes.isEmpty) return;
+    final ext = (f.extension ?? '').toLowerCase();
+    final ct = ext == 'png' ? 'image/png' : 'image/jpeg';
+
+    // Clear any AI preview/reservation to avoid conflicts
+    final covers = context.read<EventCoversController>();
+    covers.clear();
+
+    setState(() {
+      _localImageBytes = bytes;
+      _localImageContentType = ct;
+    });
+  }
+
   String _resolveLocation() {
     final value = _locationController.text.trim();
     if (value.isNotEmpty) return value;
@@ -293,6 +322,41 @@ class _CreateEventPageState extends State<CreateEventPage> {
         ..clearSnackBars()
         ..showSnackBar(SnackBar(content: Text(error)));
     }
+  }
+
+  Future<void> _uploadCoverForEvent(BuildContext context, String eventId) async {
+    final coversRepo = context.read<EventCoversApiRepository>();
+    final dio = Dio();
+    final bytes = _localImageBytes;
+    final ct = _localImageContentType ?? 'image/jpeg';
+    if (bytes == null || bytes.isEmpty) return;
+
+    // 1) Presign
+    final presign = await coversRepo.presignUpload(
+      eventId: eventId,
+      contentType: ct,
+    );
+
+    // 2) PUT to S3
+    await dio.put(
+      presign.uploadUrl,
+      data: bytes,
+      options: Options(
+        headers: {
+          'Content-Type': ct,
+        },
+        // Do NOT attach auth here; presigned URL needs none
+      ),
+    );
+
+    // 3) Confirm setFromUpload
+    await coversRepo.setFromUpload(eventId: eventId, uploadKey: presign.uploadKey);
+
+    // 4) Clear local selection
+    setState(() {
+      _localImageBytes = null;
+      _localImageContentType = null;
+    });
   }
 
   ThemeData _pickerTheme(BuildContext context) {
@@ -832,6 +896,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         : () async {
                             await coversController.cancel();
                           },
+                    localImageBytes: _localImageBytes,
+                    onPickImage: _pickLocalImage,
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -1041,6 +1107,15 @@ class _CreateEventPageState extends State<CreateEventPage> {
         _allowGuestInvites,
         _frameIds,
       );
+      // If user selected a local image, upload it as cover for the created event (the newly created event will be first in list)
+      if (_localImageBytes != null && _localImageBytes!.isNotEmpty) {
+        final createdEvent = controller.events.isNotEmpty ? controller.events.first : null;
+        if (createdEvent != null) {
+          await _uploadCoverForEvent(context, createdEvent.id);
+          // Ensure UI reflects the new cover immediately
+          await controller.refresh();
+        }
+      }
       if (context.mounted) Navigator.of(context).pop();
     } on DioException catch (e) {
       final status = e.response?.statusCode;
@@ -1076,6 +1151,11 @@ class _CreateEventPageState extends State<CreateEventPage> {
         location.isEmpty ? t.translate('create_event.location_tbd') : location;
 
     try {
+      // Prefer AI preview: if a local image was picked, clear it so the preview card shows the AI image
+      setState(() {
+        _localImageBytes = null;
+        _localImageContentType = null;
+      });
       await covers.generate(
         eventName: eventName,
         objective: objective,
