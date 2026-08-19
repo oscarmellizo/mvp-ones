@@ -72,7 +72,11 @@ class EventCoversApiRepository {
     required String eventId,
     required String contentType,
   }) async {
-    final req = api.PresignEventCoverUploadRequest((b) => b..contentType = contentType);
+    final ct = contentType.trim().toLowerCase();
+    final ctEnum = ct == 'image/png'
+        ? api.PresignEventCoverUploadRequestContentTypeEnum.png
+        : api.PresignEventCoverUploadRequestContentTypeEnum.jpeg; // default jpeg (also covers image/jpg)
+    final req = api.PresignEventCoverUploadRequest((b) => b..contentType = ctEnum);
     final res = await _defaultApi(_idToken).presignEventCoverUpload(
       id: eventId,
       presignEventCoverUploadRequest: req,
@@ -90,7 +94,7 @@ class EventCoversApiRepository {
     required String uploadKey,
   }) async {
     final req = api.SetEventCoverRequest((b) => b
-      ..source = 'upload'
+      ..source_ = api.SetEventCoverRequestSource_Enum.upload
       ..uploadKey = uploadKey);
     final res = await _defaultApi(_idToken).setEventCover(
       id: eventId,
@@ -109,7 +113,7 @@ class EventCoversApiRepository {
     required String photoId,
   }) async {
     final req = api.SetEventCoverRequest((b) => b
-      ..source = 'photo'
+      ..source_ = api.SetEventCoverRequestSource_Enum.photo
       ..photoId = photoId);
     final res = await _defaultApi(_idToken).setEventCover(
       id: eventId,
