@@ -1230,7 +1230,24 @@ class _GalleryTabState extends State<_GalleryTab> {
                                     'event_detail.filter_all',
                                     fallback: 'Todas',
                                   ),
-                                  child: const Icon(Icons.photo_library_outlined),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.photo_library_outlined),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        t.translate('event_detail.filter_all', fallback: 'Todas'),
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          height: 1.1,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
@@ -1249,7 +1266,24 @@ class _GalleryTabState extends State<_GalleryTab> {
                                     'event_detail.filter_shared',
                                     fallback: 'Compartidas',
                                   ),
-                                  child: const Icon(Icons.ios_share_outlined),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.ios_share_outlined),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        t.translate('event_detail.filter_shared', fallback: 'Compartidas'),
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          height: 1.1,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
@@ -1268,7 +1302,24 @@ class _GalleryTabState extends State<_GalleryTab> {
                                     'event_detail.filter_mine',
                                     fallback: 'M├¡as',
                                   ),
-                                  child: const Icon(Icons.person_outline),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.person_outline),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        t.translate('event_detail.filter_mine', fallback: 'M├¡as'),
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          height: 1.1,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
@@ -1414,18 +1465,23 @@ class _GalleryTabState extends State<_GalleryTab> {
                         ),
                         minimumSize: const Size(48, 44),
                       ),
-                      child: Tooltip(
-                        message: t.translate(
-                          'event_detail.guests',
-                          fallback: 'Invitados',
-                        ),
-                        child: Semantics(
-                          label: t.translate(
-                            'event_detail.guests',
-                            fallback: 'Invitados',
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.groups_outlined),
+                          const SizedBox(height: 2),
+                          Text(
+                            t.translate('event_detail.guests', fallback: 'Invitados'),
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              height: 1.1,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
                           ),
-                          child: const Icon(Icons.groups_outlined),
-                        ),
+                        ],
                       ),
                     ),
                   ],
@@ -1890,7 +1946,24 @@ class _GalleryTabState extends State<_GalleryTab> {
                             key: TutorialKeys.eventSelCancel,
                             onPressed:
                                 controller.loading ? null : _exitSelectionMode,
-                            child: const Icon(Icons.close),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.close),
+                                const SizedBox(height: 2),
+                                Text(
+                                  t.translate('event_detail.action_cancel', fallback: 'Cancelar'),
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    height: 1.1,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -1988,9 +2061,29 @@ class _GalleryTabState extends State<_GalleryTab> {
                                           );
                                         }
                                       },
-                            child: anyShared && !anyNotShared
-                                ? const Icon(Icons.remove_circle_outline)
-                                : const Icon(Icons.ios_share_outlined),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                anyShared && !anyNotShared
+                                    ? const Icon(Icons.remove_circle_outline)
+                                    : const Icon(Icons.ios_share_outlined),
+                                const SizedBox(height: 2),
+                                Text(
+                                  anyShared && !anyNotShared
+                                      ? t.translate('event_detail.action_unshare', fallback: 'Quitar')
+                                      : t.translate('event_detail.action_share', fallback: 'Compartir'),
+                                  style: const TextStyle(
+                                    color: OnesColors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    height: 1.1,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -2024,7 +2117,24 @@ class _GalleryTabState extends State<_GalleryTab> {
                                       );
                                     }
                                   },
-                            child: const Icon(Icons.wallpaper_outlined),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.wallpaper_outlined),
+                                const SizedBox(height: 2),
+                                Text(
+                                  t.translate('event_detail.action_use_as_cover', fallback: 'Usar como cover'),
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    height: 1.1,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -2123,7 +2233,25 @@ class _GalleryTabState extends State<_GalleryTab> {
                                       );
                                     }
                                   },
-                            child: const Icon(Icons.delete_outline),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.delete_outline),
+                                const SizedBox(height: 2),
+                                Text(
+                                  t.translate('event_detail.action_delete', fallback: 'Eliminar'),
+                                  style: const TextStyle(
+                                    color: OnesColors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    height: 1.1,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
