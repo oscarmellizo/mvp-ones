@@ -6,6 +6,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.ones.api.application.events.ports.EventsRepository;
@@ -41,6 +42,7 @@ public class EventCoversService {
     private final long finalPresignTtlMinutes;
     private final long reservationTtlMinutes;
 
+    @Autowired
     public EventCoversService(
             EventsRepository eventsRepository,
             CoverPreviewsRepository previewsRepository,
@@ -77,6 +79,44 @@ public class EventCoversService {
         this.previewPresignTtlMinutes = previewPresignTtlMinutes;
         this.finalPresignTtlMinutes = finalPresignTtlMinutes;
         this.reservationTtlMinutes = reservationTtlMinutes;
+    }
+
+    public EventCoversService(
+            EventsRepository eventsRepository,
+            CoverPreviewsRepository previewsRepository,
+            CoverReservationsRepository reservationsRepository,
+            AiImagesClient aiImagesClient,
+            SecretsProvider secretsProvider,
+            ObjectStorage objectStorage,
+            ObjectStoragePresigner objectStoragePresigner,
+            Clock clock,
+            @Value("${ones.ai.openai.api-key-secret-name}") String openAiApiKeySecretName,
+            @Value("${ones.ai.openai.image-size:512x512}") String openAiImageSize,
+            @Value("${ones.s3.events.covers.temp-bucket}") String tempBucket,
+            @Value("${ones.s3.events.covers.final-bucket}") String finalBucket,
+            @Value("${ones.s3.events.covers.preview-presign-ttl-minutes:15}") long previewPresignTtlMinutes,
+            @Value("${ones.s3.events.covers.final-presign-ttl-minutes:15}") long finalPresignTtlMinutes,
+            @Value("${ones.s3.events.covers.reservation-ttl-minutes:30}") long reservationTtlMinutes
+    ) {
+        this(
+                eventsRepository,
+                previewsRepository,
+                reservationsRepository,
+                aiImagesClient,
+                secretsProvider,
+                objectStorage,
+                objectStoragePresigner,
+                clock,
+                null,
+                openAiApiKeySecretName,
+                openAiImageSize,
+                tempBucket,
+                finalBucket,
+                null,
+                previewPresignTtlMinutes,
+                finalPresignTtlMinutes,
+                reservationTtlMinutes
+        );
     }
 
     public GenerateCoverResult generatePreview(

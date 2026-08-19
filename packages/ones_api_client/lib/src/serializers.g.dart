@@ -25,7 +25,14 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..add(Invitation.serializer)
       ..add(InvitationStatusEnum.serializer)
       ..add(InviteEventGuestsRequest.serializer)
+      ..add(PresignEventCoverUploadRequest.serializer)
+      ..add(PresignEventCoverUploadRequestContentTypeEnum.serializer)
+      ..add(PresignEventCoverUploadResponse.serializer)
       ..add(PresignedUrlResponse.serializer)
+      ..add(RefreshTranslationsCacheResponse.serializer)
+      ..add(RefreshTranslationsCacheResponseLanguagesWarmedEnum.serializer)
+      ..add(SetEventCoverRequest.serializer)
+      ..add(SetEventCoverRequestSource_Enum.serializer)
       ..add(Translation.serializer)
       ..add(TranslationLanguageCodeEnum.serializer)
       ..add(UpsertTranslationRequest.serializer)
@@ -33,6 +40,12 @@ Serializers _$serializers = (new Serializers().toBuilder()
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(EventPhotoListItem)]),
           () => new ListBuilder<EventPhotoListItem>())
+      ..addBuilderFactory(
+          const FullType(BuiltList, const [
+            const FullType(RefreshTranslationsCacheResponseLanguagesWarmedEnum)
+          ]),
+          () => new ListBuilder<
+              RefreshTranslationsCacheResponseLanguagesWarmedEnum>())
       ..addBuilderFactory(
           const FullType(BuiltList, const [const FullType(String)]),
           () => new ListBuilder<String>())
