@@ -221,7 +221,7 @@ jobs:
             --parameter-overrides \
               StackPrefix="${stackPrefix}" \
               Environment="${{ inputs.environment }}" \
-              GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}" \
+              GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}${{ vars.GOOGLE_IOS_CLIENT_ID != '' && format(',{0}', vars.GOOGLE_IOS_CLIENT_ID) || '' }}" \
               AppBaseUrl="${appBaseUrl}" \
               MercadoPagoTestPayerEmail="${{ vars.ONES_MERCADOPAGO_TEST_PAYER_EMAIL }}" \
               ApiAcmCertificateArn="${apiAcmCertificateArn}" \
@@ -461,7 +461,7 @@ jobs:
             --parameter-overrides \
               StackPrefix="${stackPrefix}" \
               Environment="${{ inputs.environment }}" \
-              GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}" \
+              GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}${{ vars.GOOGLE_IOS_CLIENT_ID != '' && format(',{0}', vars.GOOGLE_IOS_CLIENT_ID) || '' }}" \
               AppBaseUrl="${appBaseUrl}" \
               MercadoPagoTestPayerEmail="${{ vars.ONES_MERCADOPAGO_TEST_PAYER_EMAIL }}" \
               EmailEnabled="true" \
