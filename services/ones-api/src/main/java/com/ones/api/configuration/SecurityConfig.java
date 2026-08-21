@@ -171,12 +171,12 @@ public class SecurityConfig {
 
     @Bean
     JwtDecoder jwtDecoder(
-            @Value("${GOOGLE_CLIENT_ID:${ones.auth.google.client-id:}}") String googleClientIds
+            @Value("${GOOGLE_CLIENT_ID:${ones.auth.google.client-id:}}") String googleClientId
     ) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri("https://www.googleapis.com/oauth2/v3/certs").build();
 
         OAuth2TokenValidator<Jwt> issuerValidator = JwtValidators.createDefaultWithIssuer("https://accounts.google.com");
-        OAuth2TokenValidator<Jwt> audienceValidator = new GoogleAudienceValidator(googleClientIds);
+        OAuth2TokenValidator<Jwt> audienceValidator = new GoogleAudienceValidator(googleClientId);
 
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidatorWithAll<>(issuerValidator, audienceValidator));
         return decoder;

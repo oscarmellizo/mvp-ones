@@ -14,9 +14,6 @@ Parameters:
       - prod
   GoogleClientId:
     Type: String
-    Description: >-
-      Uno o varios OAuth client IDs de Google separados por coma (web, iOS, Android).
-      El ID token se valida si su claim aud coincide con cualquiera de ellos.
     Default: ''
   AppBaseUrl:
     Type: String
