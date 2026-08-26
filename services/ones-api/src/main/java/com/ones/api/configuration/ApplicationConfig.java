@@ -58,7 +58,8 @@ public class ApplicationConfig {
             EventCoversService coversService,
             InvitationEmailService invitationEmailService,
             CheckPlanLimitUseCase checkPlanLimitUseCase,
-            EventQrService eventQrService
+            EventQrService eventQrService,
+            com.ones.api.application.events.bus.DomainEventPublisher eventPublisher
     ) {
         return new CreateEventUseCase(
                 repository,
@@ -68,7 +69,8 @@ public class ApplicationConfig {
                 coversService,
                 invitationEmailService,
                 checkPlanLimitUseCase,
-                eventQrService
+                eventQrService,
+                eventPublisher
         );
     }
 
@@ -111,9 +113,10 @@ public class ApplicationConfig {
             InvitationsRepository invitationsRepository,
             UsersRepository usersRepository,
             Clock clock,
-            InvitationEmailService invitationEmailService
+            InvitationEmailService invitationEmailService,
+            com.ones.api.application.events.bus.DomainEventPublisher eventPublisher
     ) {
-        return new InviteEventGuestsUseCase(eventsRepository, invitationsRepository, usersRepository, clock, invitationEmailService);
+        return new InviteEventGuestsUseCase(eventsRepository, invitationsRepository, usersRepository, clock, invitationEmailService, eventPublisher);
     }
 
     @Bean
