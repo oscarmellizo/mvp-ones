@@ -27,6 +27,7 @@ import com.ones.api.application.users.LookupUserByEmailUseCase;
 import com.ones.api.application.users.UpdateUserPreferencesUseCase;
 import com.ones.api.application.users.ports.PreferredNamesCacheRepository;
 import com.ones.api.application.users.ports.UsersRepository;
+import com.ones.api.application.notifications.ports.NotificationsRepository;
 import com.ones.api.application.subscriptions.CheckPlanLimitUseCase;
 import com.ones.api.application.subscriptions.CreateMercadoPagoSubscriptionUseCase;
 import com.ones.api.application.subscriptions.GetOrCreateUserSubscriptionUseCase;
@@ -146,6 +147,11 @@ public class ApplicationConfig {
             Clock clock
     ) {
         return new UpdateUserPreferencesUseCase(repository, preferredNamesCacheRepository, clock);
+    }
+
+    @Bean
+    NotificationsRepository notificationsRepository(com.ones.api.adapters.outbound.dynamodb.DynamoDbNotificationsRepository impl) {
+        return impl;
     }
 
     @Bean
