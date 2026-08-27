@@ -1,0 +1,60 @@
+name: Deploy Realtime Lambdas
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment (e.g., dev)'
+        required: true
+        default: 'dev'
+  push:
+    paths:
+      - 'services/ones-realtime-lambdas/**'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || 'dev' }}
+    env:
+      AWS_REGION: us-east-1
+      # Set these in the GitHub Environment (e.g., dev):
+      # - AWS_ROLE_TO_ASSUME: IAM role ARN for OIDC (bootstrap-oidc.yml)
+      # - LAMBDA_ARTIFACTS_BUCKET: S3 bucket to store lambda jars
+      # - STACK_NAME: CloudFormation backend stack name (e.g., ones-backend-dev)
+      S3_KEY: realtime/ones-realtime-lambdas-${{ github.sha }}.jar
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: 'maven'
+
+      - name: Build lambdas (shaded jar)
+        run: mvn -q -DskipTests package -f services/ones-realtime-lambdas/pom.xml
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload jar to S3
+        run: |
+          aws s3 cp services/ones-realtime-lambdas/target/ones-realtime-lambdas-0.1.0-SNAPSHOT-lambda.jar s3://${{ secrets.LAMBDA_ARTIFACTS_BUCKET }}/${{ env.S3_KEY }} --only-show-errors
+
+      - name: Deploy CloudFormation (update RealtimeLambdasJarS3Key)
+        run: |
+          aws cloudformation deploy \
+            --template-file infra/cloudformation/backend/all.yml \
+            --stack-name ${{ secrets.STACK_NAME }} \
+            --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
+            --region ${{ env.AWS_REGION }} \
+            --parameter-overrides RealtimeLambdasJarS3Key=${{ env.S3_KEY }}

@@ -112,6 +112,10 @@ Parameters:
     Type: String
     Default: 'arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p312-Pillow:9'
 
+  RealtimeLambdasJarS3Key:
+    Type: String
+    Default: ''
+
 Conditions:
   UsePhotoThumbnailsImageCond: !Equals [!Ref UsePhotoThumbnailsImage, 'true']
   UsePhotoThumbnailsZipCond: !Not [!Equals [!Ref UsePhotoThumbnailsImage, 'true']]
@@ -2070,6 +2074,22 @@ Resources:
                   - execute-api:ManageConnections
                 Resource:
                   - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${PhotosWebSocketApi}/*/POST/@connections/*
+        - PolicyName: ones-realtime-ws
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Query
+                  - dynamodb:GetItem
+                Resource:
+                  - !GetAtt RealtimeWsConnectionsTable.Arn
+                  - !Sub ${RealtimeWsConnectionsTable.Arn}/index/*
+              - Effect: Allow
+                Action:
+                  - execute-api:ManageConnections
+                Resource:
+                  - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RealtimeWebSocketApi}/*/POST/@connections/*
         - PolicyName: ones-s3
           PolicyDocument:
             Version: '2012-10-17'
@@ -2324,6 +2344,12 @@ Resources:
               Value: !Sub https://${PhotosWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
             - Name: ONES_WS_SUBSCRIPTIONS_TABLE
               Value: !Ref PhotosWsSubscriptionsTable
+            - Name: ONES_DYNAMODB_WS_CONNECTIONS_TABLE_NAME
+              Value: !Ref RealtimeWsConnectionsTable
+            - Name: ONES_DYNAMODB_WS_SESSIONS_TABLE_NAME
+              Value: !Ref RealtimeWsSessionsTable
+            - Name: ONES_REALTIME_WS_ENDPOINT
+              Value: !Sub https://${RealtimeWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -2693,6 +2719,214 @@ Resources:
       FunctionName: !Ref PhotosWebSocketHandlerFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${PhotosWebSocketApi}/*
+
+  RealtimeWsSessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-ws-sessions
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: token
+          AttributeType: S
+      KeySchema:
+        - AttributeName: token
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  RealtimeWsConnectionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-ws-connections
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: connectionId
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: connectionId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: byUserId
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  RealtimeWebSocketApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub ${StackPrefix}-${Environment}-realtime-ws
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: $request.body.action
+
+  RealtimeWebSocketStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref RealtimeWebSocketApi
+      StageName: !Ref Environment
+      AutoDeploy: true
+
+  RealtimeConnectFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${StackPrefix}-${Environment}-realtime-connect
+      Runtime: java17
+      Handler: com.ones.realtime.lambda.ConnectHandler::handleRequest
+      MemorySize: 1024
+      Timeout: 15
+      Role: !GetAtt RealtimeLambdaRole.Arn
+      Environment:
+        Variables:
+          ONES_WS_SESSIONS_TABLE: !Ref RealtimeWsSessionsTable
+          ONES_WS_CONNECTIONS_TABLE: !Ref RealtimeWsConnectionsTable
+      Code:
+        S3Bucket: !Ref LambdaArtifactsBucket
+        S3Key: !Ref RealtimeLambdasJarS3Key
+
+  RealtimeDisconnectFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${StackPrefix}-${Environment}-realtime-disconnect
+      Runtime: java17
+      Handler: com.ones.realtime.lambda.DisconnectHandler::handleRequest
+      MemorySize: 1024
+      Timeout: 10
+      Role: !GetAtt RealtimeLambdaRole.Arn
+      Environment:
+        Variables:
+          ONES_WS_SESSIONS_TABLE: !Ref RealtimeWsSessionsTable
+          ONES_WS_CONNECTIONS_TABLE: !Ref RealtimeWsConnectionsTable
+      Code:
+        S3Bucket: !Ref LambdaArtifactsBucket
+        S3Key: !Ref RealtimeLambdasJarS3Key
+
+  RealtimeLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${StackPrefix}-${Environment}-realtime-lambda-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: realtime-dynamodb
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt RealtimeWsSessionsTable.Arn
+                  - !GetAtt RealtimeWsConnectionsTable.Arn
+                  - !Sub ${RealtimeWsConnectionsTable.Arn}/index/*
+        - PolicyName: realtime-execute-api
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - execute-api:ManageConnections
+                Resource:
+                  - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RealtimeWebSocketApi}/*/POST/@connections/*
+
+  RealtimeWebSocketIntegrationConnect:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref RealtimeWebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationMethod: POST
+      IntegrationUri: !Join
+        - ''
+        - - 'arn:'
+          - !Ref AWS::Partition
+          - ':apigateway:'
+          - !Ref AWS::Region
+          - ':lambda:path/2015-03-31/functions/'
+          - !GetAtt RealtimeConnectFunction.Arn
+          - /invocations
+
+  RealtimeWebSocketIntegrationDisconnect:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref RealtimeWebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationMethod: POST
+      IntegrationUri: !Join
+        - ''
+        - - 'arn:'
+          - !Ref AWS::Partition
+          - ':apigateway:'
+          - !Ref AWS::Region
+          - ':lambda:path/2015-03-31/functions/'
+          - !GetAtt RealtimeDisconnectFunction.Arn
+          - /invocations
+
+  RealtimeWebSocketRouteConnect:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RealtimeWebSocketApi
+      RouteKey: $connect
+      AuthorizationType: NONE
+      Target: !Sub integrations/${RealtimeWebSocketIntegrationConnect}
+
+  RealtimeWebSocketRouteDisconnect:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RealtimeWebSocketApi
+      RouteKey: $disconnect
+      AuthorizationType: NONE
+      Target: !Sub integrations/${RealtimeWebSocketIntegrationDisconnect}
+
+  RealtimeConnectLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref RealtimeConnectFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RealtimeWebSocketApi}/*
+
+  RealtimeDisconnectLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref RealtimeDisconnectFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RealtimeWebSocketApi}/*
+
+  RealtimeSendToUserFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${StackPrefix}-${Environment}-realtime-send-to-user
+      Runtime: java17
+      Handler: com.ones.realtime.lambda.SendToUserHandler::handleRequest
+      MemorySize: 1024
+      Timeout: 15
+      Role: !GetAtt RealtimeLambdaRole.Arn
+      Environment:
+        Variables:
+          ONES_WS_CONNECTIONS_TABLE: !Ref RealtimeWsConnectionsTable
+          WS_STAGE: !Ref Environment
+          WS_API_ID: !Ref RealtimeWebSocketApi
+      Code:
+        S3Bucket: !Ref LambdaArtifactsBucket
+        S3Key: !Ref RealtimeLambdasJarS3Key
 
   PhotoThumbnailsFunctionZip:
     Type: AWS::Lambda::Function
@@ -3093,6 +3327,12 @@ Outputs:
     Value: !GetAtt LoadBalancer.DNSName
   PhotosWsUrl:
     Value: !Sub wss://${PhotosWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+  RealtimeWsUrl:
+    Value: !Sub wss://${RealtimeWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+  RealtimeWsSessionsTableName:
+    Value: !Ref RealtimeWsSessionsTable
+  RealtimeWsConnectionsTableName:
+    Value: !Ref RealtimeWsConnectionsTable
   GrafanaUrl:
     Value: !Sub http://${LoadBalancer.DNSName}/grafana/
   EcrRepositoryUri:

@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import com.ones.api.application.notifications.ports.NotificationsRepository;
+import com.ones.api.application.realtime.ports.RealtimeNotifier;
+import com.ones.api.application.push.ports.PushNotifier;
 import com.ones.api.application.users.ports.UsersRepository;
 import com.ones.api.domain.invitations.Invitation;
 import com.ones.api.domain.notifications.Notification;
@@ -22,6 +24,8 @@ public class LoggingEventPublisherTest {
 
     private UsersRepository usersRepository;
     private NotificationsRepository notificationsRepository;
+    private RealtimeNotifier realtimeNotifier;
+    private PushNotifier pushNotifier;
     private Clock clock;
     private LoggingEventPublisher publisher;
 
@@ -29,8 +33,10 @@ public class LoggingEventPublisherTest {
     void setUp() {
         usersRepository = mock(UsersRepository.class);
         notificationsRepository = mock(NotificationsRepository.class);
+        realtimeNotifier = mock(RealtimeNotifier.class);
+        pushNotifier = mock(PushNotifier.class);
         clock = Clock.fixed(Instant.parse("2024-01-01T10:00:00Z"), ZoneOffset.UTC);
-        publisher = new LoggingEventPublisher(usersRepository, notificationsRepository, clock);
+        publisher = new LoggingEventPublisher(usersRepository, notificationsRepository, realtimeNotifier, pushNotifier, clock);
     }
 
     @Test
@@ -67,6 +73,8 @@ public class LoggingEventPublisherTest {
         assertEquals("/events/evt-1", n.getRoute());
         assertNull(n.getReadAt());
         assertEquals(Notification.Status.CREATED, n.getStatus());
+        verify(realtimeNotifier, times(1)).sendNotification(any(Notification.class));
+        verify(pushNotifier, times(1)).sendNotification(any(Notification.class));
     }
 
     @Test

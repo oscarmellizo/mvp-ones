@@ -10,6 +10,8 @@ import org.springframework.stereotype.Component;
 
 import com.ones.api.application.events.bus.DomainEventPublisher;
 import com.ones.api.application.notifications.ports.NotificationsRepository;
+import com.ones.api.application.realtime.ports.RealtimeNotifier;
+import com.ones.api.application.push.ports.PushNotifier;
 import com.ones.api.application.users.ports.UsersRepository;
 import com.ones.api.domain.invitations.Invitation;
 import com.ones.api.domain.notifications.Notification;
@@ -22,15 +24,21 @@ public class LoggingEventPublisher implements DomainEventPublisher {
 
     private final UsersRepository usersRepository;
     private final NotificationsRepository notificationsRepository;
+    private final RealtimeNotifier realtimeNotifier;
+    private final PushNotifier pushNotifier;
     private final Clock clock;
 
     public LoggingEventPublisher(
             UsersRepository usersRepository,
             NotificationsRepository notificationsRepository,
+            RealtimeNotifier realtimeNotifier,
+            PushNotifier pushNotifier,
             Clock clock
     ) {
         this.usersRepository = usersRepository;
         this.notificationsRepository = notificationsRepository;
+        this.realtimeNotifier = realtimeNotifier;
+        this.pushNotifier = pushNotifier;
         this.clock = clock;
     }
 
@@ -76,6 +84,20 @@ public class LoggingEventPublisher implements DomainEventPublisher {
             );
             notificationsRepository.upsert(n);
             log.info("[Notification] Invitation notification created userId={} eventId={} id={}", userId, inv.getEventId(), id);
+            try {
+                if (realtimeNotifier != null) {
+                    realtimeNotifier.sendNotification(n);
+                }
+            } catch (Exception ex) {
+                log.debug("[Realtime] Failed to send realtime notification userId={} id={} err={}", userId, id, ex.getMessage());
+            }
+            try {
+                if (pushNotifier != null) {
+                    pushNotifier.sendNotification(n);
+                }
+            } catch (Exception ex) {
+                log.debug("[Push] Failed to send push notification userId={} id={} err={}", userId, id, ex.getMessage());
+            }
         } catch (Exception e) {
             log.warn("[Notification] Failed to create invitation notification for email={} eventId={} err={}",
                     inv.getInviteeEmail(), inv.getEventId(), e.getMessage());
