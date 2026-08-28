@@ -88,9 +88,10 @@ public class ApplicationConfig {
     @Bean
     UpdateEventUseCase updateEventUseCase(
             EventsRepository repository,
-            EventCoversService coversService
+            EventCoversService coversService,
+            com.ones.api.application.events.bus.DomainEventPublisher eventPublisher
     ) {
-        return new UpdateEventUseCase(repository, coversService);
+        return new UpdateEventUseCase(repository, coversService, eventPublisher);
     }
 
     @Bean
@@ -109,8 +110,8 @@ public class ApplicationConfig {
     }
 
     @Bean
-    AcceptEventInviteLinkUseCase acceptEventInviteLinkUseCase(InvitationsRepository invitationsRepository, Clock clock) {
-        return new AcceptEventInviteLinkUseCase(invitationsRepository, clock);
+    AcceptEventInviteLinkUseCase acceptEventInviteLinkUseCase(InvitationsRepository invitationsRepository, Clock clock, com.ones.api.application.events.bus.DomainEventPublisher eventPublisher) {
+        return new AcceptEventInviteLinkUseCase(invitationsRepository, clock, eventPublisher);
     }
 
     @Bean
@@ -255,9 +256,10 @@ public class ApplicationConfig {
     InvitationsService invitationsService(
             InvitationsRepository invitationsRepository,
             Clock clock,
-            InvitationActionTokenService tokenService
+            InvitationActionTokenService tokenService,
+            com.ones.api.application.events.bus.DomainEventPublisher eventPublisher
     ) {
-        return new InvitationsService(invitationsRepository, clock, tokenService);
+        return new InvitationsService(invitationsRepository, clock, tokenService, eventPublisher);
     }
 
     @Bean

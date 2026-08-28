@@ -11,13 +11,23 @@ public class AcceptEventInviteLinkUseCase {
 
     private final InvitationsRepository invitationsRepository;
     private final Clock clock;
+    private final com.ones.api.application.events.bus.DomainEventPublisher eventPublisher;
 
     public AcceptEventInviteLinkUseCase(
             InvitationsRepository invitationsRepository,
             Clock clock
     ) {
+        this(invitationsRepository, clock, null);
+    }
+
+    public AcceptEventInviteLinkUseCase(
+            InvitationsRepository invitationsRepository,
+            Clock clock,
+            com.ones.api.application.events.bus.DomainEventPublisher eventPublisher
+    ) {
         this.invitationsRepository = invitationsRepository;
         this.clock = clock;
+        this.eventPublisher = eventPublisher;
     }
 
     public Invitation execute(String requesterUserId, String requesterEmail, Event event) {
@@ -51,6 +61,12 @@ public class AcceptEventInviteLinkUseCase {
                 event.getEndAt()
         );
 
-        return invitationsRepository.upsert(inv);
+        Invitation saved = invitationsRepository.upsert(inv);
+        try {
+            if (eventPublisher != null) {
+                eventPublisher.publishInvitationResponded(saved);
+            }
+        } catch (Exception ignored) {}
+        return saved;
     }
 }
