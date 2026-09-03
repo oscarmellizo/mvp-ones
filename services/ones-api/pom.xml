@@ -99,6 +99,10 @@
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sns</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
             <artifactId>secretsmanager</artifactId>
         </dependency>
         <dependency>
@@ -108,6 +112,14 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>pinpoint</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sqs</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>lambda</artifactId>
         </dependency>
         <dependency>
             <groupId>com.google.zxing</groupId>

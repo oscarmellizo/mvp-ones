@@ -251,6 +251,7 @@ ones:
     payment-profiles-table-name: ${ONES_PAYMENT_PROFILES_TABLE:ones-payment-profiles}
     mp-checkout-attempts-table-name: ${ONES_MP_CHECKOUT_ATTEMPTS_TABLE:ones-mp-checkout-attempts}
     subscription-payments-table-name: ${ONES_SUBSCRIPTION_PAYMENTS_TABLE:ones-subscription-payments}
+    notifications-table-name: ${ONES_NOTIFICATIONS_TABLE:ones-notifications}
     endpoint: ${DYNAMODB_ENDPOINT:}
 
   mercadopago:

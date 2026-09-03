@@ -61,6 +61,20 @@ public class ApplicationConfig {
     }
 
     @Bean
+    public com.ones.api.application.admin.AdminOpsService adminOpsService(
+            software.amazon.awssdk.services.sqs.SqsClient sqs,
+            software.amazon.awssdk.services.lambda.LambdaClient lambda,
+            @Value("${ONES_REALTIME_EVENTS_QUEUE_NAME:}") String realtimeQueueName,
+            @Value("${ONES_PUSH_EVENTS_QUEUE_NAME:}") String pushQueueName,
+            @Value("${ONES_REALTIME_EVENTS_DLQ_NAME:}") String realtimeDlqName,
+            @Value("${ONES_PUSH_EVENTS_DLQ_NAME:}") String pushDlqName,
+            @Value("${ONES_REALTIME_CONSUMER_FUNCTION_NAME:}") String realtimeConsumerFn,
+            @Value("${ONES_PUSH_CONSUMER_FUNCTION_NAME:}") String pushConsumerFn
+    ) {
+        return new com.ones.api.application.admin.AdminOpsService(sqs, lambda, realtimeQueueName, pushQueueName, realtimeDlqName, pushDlqName, realtimeConsumerFn, pushConsumerFn);
+    }
+
+    @Bean
     CreateEventUseCase createEventUseCase(
             EventsRepository repository,
             InvitationsRepository invitationsRepository,

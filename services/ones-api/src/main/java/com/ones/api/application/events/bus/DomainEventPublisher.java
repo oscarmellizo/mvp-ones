@@ -7,4 +7,5 @@ public interface DomainEventPublisher {
     void publishInvitationCreated(Invitation invitation);
     void publishInvitationResponded(Invitation invitation);
     void publishEventUpdated(Event previous, Event updated);
+    void publishPhotosUploaded(String eventId, String uploaderUserId, String uploaderName, int photoCount, String eventTitle);
 }
