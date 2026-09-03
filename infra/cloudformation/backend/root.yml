@@ -97,6 +97,11 @@ Parameters:
     Type: String
     Default: ''
 
+  # Realtime Lambdas (Java) shaded JAR key in the artifacts bucket
+  RealtimeLambdasJarS3Key:
+    Type: String
+    Default: ''
+
 Resources:
   AllStack:
     Type: AWS::CloudFormation::Stack
@@ -123,6 +128,7 @@ Resources:
         LambdaArtifactsBucket: !Ref LambdaArtifactsBucket
         CleanupFunctionS3Key: !Ref CleanupFunctionS3Key
         PhotoThumbnailsZipS3Key: !Ref PhotoThumbnailsZipS3Key
+        RealtimeLambdasJarS3Key: !Ref RealtimeLambdasJarS3Key
 
 Outputs:
   AlbUrl:
