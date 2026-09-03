@@ -16,6 +16,10 @@ on:
         required: false
         default: 'ones'
   push:
+    branches:
+      - develop
+      - main
+      - 'release/**'
     paths:
       - 'services/ones-realtime-lambdas/**'
 
@@ -25,7 +29,18 @@ permissions:
 
 jobs:
   build-and-deploy:
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event_name == 'push' &&
+            (github.ref == 'refs/heads/develop' ||
+             github.ref == 'refs/heads/main' ||
+             startsWith(github.ref, 'refs/heads/release/'))
+          )
+      }}
     runs-on: ubuntu-latest
+    concurrency:
+      group: realtime-lambdas-${{ github.ref }}
+      cancel-in-progress: true
     environment: ${{ inputs.environment || 'dev' }}
     env:
       AWS_REGION: us-east-1
