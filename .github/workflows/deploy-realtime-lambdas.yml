@@ -7,14 +7,6 @@ on:
         description: 'Target environment (e.g., dev)'
         required: true
         default: 'dev'
-      artifactsBucket:
-        description: 'S3 bucket for Lambda JARs (optional if set as secret LAMBDA_ARTIFACTS_BUCKET)'
-        required: false
-        default: ''
-      stackPrefix:
-        description: 'Stack prefix (defaults to ones) to compute STACK_NAME when not provided as secret'
-        required: false
-        default: 'ones'
   push:
     branches:
       - develop
@@ -44,9 +36,9 @@ jobs:
     environment: ${{ inputs.environment || 'dev' }}
     env:
       AWS_REGION: us-east-1
-      ROLE_ARN: ${{ secrets.AWS_ROLE_TO_ASSUME || secrets.AWS_GITHUB_OIDC_ROLE_ARN }}
-      ARTIFACTS_BUCKET: ${{ secrets.LAMBDA_ARTIFACTS_BUCKET || inputs.artifactsBucket }}
-      STACK_NAME: ${{ secrets.STACK_NAME || format('{0}-backend-{1}', inputs.stackPrefix || 'ones', inputs.environment || 'dev') }}
+      ROLE_ARN: ${{ vars.AWS_GITHUB_OIDC_ROLE_ARN || secrets.AWS_ROLE_TO_ASSUME || secrets.AWS_GITHUB_OIDC_ROLE_ARN }}
+      ARTIFACTS_BUCKET: ${{ format('{0}-{1}', 'ones-cfn-templates', inputs.environment || 'dev') }}
+      STACK_NAME: ${{ secrets.STACK_NAME || format('{0}-backend-{1}', 'ones', inputs.environment || 'dev') }}
       # Set these in the GitHub Environment (e.g., dev):
       # - AWS_ROLE_TO_ASSUME: IAM role ARN for OIDC (bootstrap-oidc.yml)
       # - LAMBDA_ARTIFACTS_BUCKET: S3 bucket to store lambda jars
@@ -68,14 +60,18 @@ jobs:
 
       - name: Validate environment config
         run: |
-          if [ -z "${{ env.ROLE_ARN }}" ]; then echo "ROLE_ARN is missing. Set AWS_ROLE_TO_ASSUME or AWS_GITHUB_OIDC_ROLE_ARN in Environment secrets."; exit 1; fi
-          if [ -z "${{ env.ARTIFACTS_BUCKET }}" ]; then echo "ARTIFACTS_BUCKET is missing. Set LAMBDA_ARTIFACTS_BUCKET secret or provide 'artifactsBucket' input."; exit 1; fi
+          if [ -z "${{ env.ROLE_ARN }}" ]; then echo "ROLE_ARN is missing. Set AWS_GITHUB_OIDC_ROLE_ARN (Environment variable) or AWS_ROLE_TO_ASSUME (secret)."; exit 1; fi
+          aws s3api head-bucket --bucket "${{ env.ARTIFACTS_BUCKET }}" >/dev/null 2>&1 || \
+            aws s3api create-bucket --bucket "${{ env.ARTIFACTS_BUCKET }}" --region "${{ env.AWS_REGION }}"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: WhoAmI (caller identity)
+        run: aws sts get-caller-identity
 
       - name: Upload jar to S3
         run: |
@@ -88,4 +84,4 @@ jobs:
             --stack-name ${{ env.STACK_NAME }} \
             --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
             --region ${{ env.AWS_REGION }} \
-            --parameter-overrides RealtimeLambdasJarS3Key=${{ env.S3_KEY }}
+            --parameter-overrides RealtimeLambdasJarS3Key=${{ env.S3_KEY }} LambdaArtifactsBucket=${{ env.ARTIFACTS_BUCKET }}
