@@ -78,7 +78,7 @@ jobs:
 
       - name: Detect if template expects realtime JAR
         run: |
-          if grep -q 'RealtimeLambdasJarS3Key' infra/cloudformation/backend/all.yml; then
+          if grep -q 'RealtimeLambdasJarS3Key' infra/cloudformation/backend/root.yml; then
             echo "Template defines RealtimeLambdasJarS3Key: will upload JAR and deploy param."
             echo "EXPECTS_REALTIME_JAR=true" >> $GITHUB_ENV
           else
@@ -103,7 +103,7 @@ jobs:
         if: ${{ env.EXPECTS_REALTIME_JAR == 'true' }}
         run: |
           aws cloudformation deploy \
-            --template-file infra/cloudformation/backend/all.yml \
+            --template-file infra/cloudformation/backend/root.yml \
             --stack-name ${{ env.STACK_NAME }} \
             --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
             --region ${{ env.AWS_REGION }} \
