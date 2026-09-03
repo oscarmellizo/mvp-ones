@@ -1,0 +1,87 @@
+name: Deploy Realtime Lambdas
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment (e.g., dev)'
+        required: true
+        default: 'dev'
+  push:
+    branches:
+      - develop
+      - main
+      - 'release/**'
+    paths:
+      - 'services/ones-realtime-lambdas/**'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-deploy:
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event_name == 'push' &&
+            (github.ref == 'refs/heads/develop' ||
+             github.ref == 'refs/heads/main' ||
+             startsWith(github.ref, 'refs/heads/release/'))
+          )
+      }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: realtime-lambdas-${{ github.ref }}
+      cancel-in-progress: true
+    environment: ${{ inputs.environment || 'dev' }}
+    env:
+      AWS_REGION: us-east-1
+      ROLE_ARN: ${{ vars.AWS_GITHUB_OIDC_ROLE_ARN || secrets.AWS_ROLE_TO_ASSUME || secrets.AWS_GITHUB_OIDC_ROLE_ARN }}
+      ARTIFACTS_BUCKET: ${{ format('{0}-{1}', 'ones-cfn-templates', inputs.environment || 'dev') }}
+      STACK_NAME: ${{ secrets.STACK_NAME || format('{0}-backend-{1}', 'ones', inputs.environment || 'dev') }}
+      # Set these in the GitHub Environment (e.g., dev):
+      # - AWS_ROLE_TO_ASSUME: IAM role ARN for OIDC (bootstrap-oidc.yml)
+      # - LAMBDA_ARTIFACTS_BUCKET: S3 bucket to store lambda jars
+      # - STACK_NAME: CloudFormation backend stack name (e.g., ones-backend-dev)
+      S3_KEY: realtime/ones-realtime-lambdas-${{ github.sha }}.jar
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: 'maven'
+
+      - name: Build lambdas (shaded jar)
+        run: mvn -q -DskipTests package -f services/ones-realtime-lambdas/pom.xml
+
+      - name: Validate environment config
+        run: |
+          if [ -z "${{ env.ROLE_ARN }}" ]; then echo "ROLE_ARN is missing. Set AWS_GITHUB_OIDC_ROLE_ARN (Environment variable) or AWS_ROLE_TO_ASSUME (secret)."; exit 1; fi
+          aws s3api head-bucket --bucket "${{ env.ARTIFACTS_BUCKET }}" >/dev/null 2>&1 || \
+            aws s3api create-bucket --bucket "${{ env.ARTIFACTS_BUCKET }}" --region "${{ env.AWS_REGION }}"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: WhoAmI (caller identity)
+        run: aws sts get-caller-identity
+
+      - name: Upload jar to S3
+        run: |
+          aws s3 cp services/ones-realtime-lambdas/target/ones-realtime-lambdas-0.1.0-SNAPSHOT-lambda.jar s3://${{ env.ARTIFACTS_BUCKET }}/${{ env.S3_KEY }} --only-show-errors
+
+      - name: Deploy CloudFormation (update RealtimeLambdasJarS3Key)
+        run: |
+          aws cloudformation deploy \
+            --template-file infra/cloudformation/backend/all.yml \
+            --stack-name ${{ env.STACK_NAME }} \
+            --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
+            --region ${{ env.AWS_REGION }} \
+            --parameter-overrides RealtimeLambdasJarS3Key=${{ env.S3_KEY }} LambdaArtifactsBucket=${{ env.ARTIFACTS_BUCKET }}
