@@ -49,6 +49,9 @@ Parameters:
   PublicBaseUrl:
     Type: String
     Default: ''
+  PinpointAppIdParam:
+    Type: String
+    Default: ''
   BackendDesiredCount:
     Type: Number
     Default: 0
@@ -112,6 +115,10 @@ Parameters:
     Type: String
     Default: 'arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p312-Pillow:9'
 
+  RealtimeLambdasJarS3Key:
+    Type: String
+    Default: ''
+
 Conditions:
   UsePhotoThumbnailsImageCond: !Equals [!Ref UsePhotoThumbnailsImage, 'true']
   UsePhotoThumbnailsZipCond: !Not [!Equals [!Ref UsePhotoThumbnailsImage, 'true']]
@@ -120,6 +127,7 @@ Conditions:
     - !Not [!Equals [!Ref CdnPhotosSigningPublicKeySsmParamName, '']]
   IsNotProdEnv: !Not [!Equals [!Ref Environment, 'prod']]
   HasApiAcmCertificateArn: !Not [!Equals [!Ref ApiAcmCertificateArn, '']]
+  IsDevEnv: !Equals [!Ref Environment, 'dev']
 
 Resources:
   EventsTable:
@@ -575,6 +583,44 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
+
+  DeviceTokensTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-device-tokens
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  NotificationsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-notifications
+      BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
 
   PhotosWsConnectionsTable:
     Type: AWS::DynamoDB::Table
@@ -2070,6 +2116,22 @@ Resources:
                   - execute-api:ManageConnections
                 Resource:
                   - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${PhotosWebSocketApi}/*/POST/@connections/*
+        - PolicyName: ones-realtime-ws
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Query
+                  - dynamodb:GetItem
+                Resource:
+                  - !GetAtt RealtimeWsConnectionsTable.Arn
+                  - !Sub ${RealtimeWsConnectionsTable.Arn}/index/*
+              - Effect: Allow
+                Action:
+                  - execute-api:ManageConnections
+                Resource:
+                  - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RealtimeWebSocketApi}/*/POST/@connections/*
         - PolicyName: ones-s3
           PolicyDocument:
             Version: '2012-10-17'
@@ -2127,6 +2189,39 @@ Resources:
                   - aps:GetLabels
                   - aps:GetMetricMetadata
                 Resource: !GetAtt PrometheusWorkspace.Arn
+        - PolicyName: ones-sns-publish
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Ref DomainEventsTopic
+
+        - PolicyName: ones-sqs-read-domain-events
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:GetQueueAttributes
+                  - sqs:GetQueueUrl
+                Resource:
+                  - !GetAtt RealtimeDomainEventsQueue.Arn
+                  - !GetAtt PushDomainEventsQueue.Arn
+                  - !GetAtt RealtimeDomainEventsDLQ.Arn
+                  - !GetAtt PushDomainEventsDLQ.Arn
+
+        - PolicyName: ones-lambda-read
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:GetFunctionConfiguration
+                  - lambda:ListEventSourceMappings
+                  - lambda:UpdateEventSourceMapping
+                Resource: '*'
 
   GrafanaTaskRole:
     Type: AWS::IAM::Role
@@ -2278,6 +2373,10 @@ Resources:
               Value: !Ref EventTemplatesTable
             - Name: ONES_TRANSLATIONS_TABLE
               Value: !Ref TranslationsTable
+            - Name: ONES_NOTIFICATIONS_TABLE
+              Value: !Ref NotificationsTable
+            - Name: ONES_DYNAMODB_DEVICE_TOKENS_TABLE_NAME
+              Value: !Ref DeviceTokensTable
             - Name: ONES_PLANS_TABLE
               Value: !Ref PlansTable
             - Name: ONES_USER_SUBSCRIPTIONS_TABLE
@@ -2324,6 +2423,31 @@ Resources:
               Value: !Sub https://${PhotosWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
             - Name: ONES_WS_SUBSCRIPTIONS_TABLE
               Value: !Ref PhotosWsSubscriptionsTable
+            - Name: ONES_DYNAMODB_WS_CONNECTIONS_TABLE_NAME
+              Value: !Ref RealtimeWsConnectionsTable
+            - Name: ONES_DYNAMODB_WS_SESSIONS_TABLE_NAME
+              Value: !Ref RealtimeWsSessionsTable
+            - Name: ONES_REALTIME_WS_ENDPOINT
+              Value: !Sub https://${RealtimeWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+            - Name: ONES_DOMAIN_EVENTS_TOPIC_ARN
+              Value: !Ref DomainEventsTopic
+            # Disable synchronous notifiers; all delivery goes through async SNS + Lambdas
+            - Name: ONES_FEATURES_REALTIME_INVITATION_NOTIFICATIONS
+              Value: 'false'
+            - Name: ONES_FEATURES_PUSH_INVITATION_NOTIFICATIONS
+              Value: 'false'
+            - Name: ONES_REALTIME_EVENTS_QUEUE_NAME
+              Value: !GetAtt RealtimeDomainEventsQueue.QueueName
+            - Name: ONES_PUSH_EVENTS_QUEUE_NAME
+              Value: !GetAtt PushDomainEventsQueue.QueueName
+            - Name: ONES_REALTIME_EVENTS_DLQ_NAME
+              Value: !GetAtt RealtimeDomainEventsDLQ.QueueName
+            - Name: ONES_PUSH_EVENTS_DLQ_NAME
+              Value: !GetAtt PushDomainEventsDLQ.QueueName
+            - Name: ONES_REALTIME_CONSUMER_FUNCTION_NAME
+              Value: !Ref RealtimeEventsConsumerFunction
+            - Name: ONES_PUSH_CONSUMER_FUNCTION_NAME
+              Value: !Ref PushEventsConsumerFunction
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -2693,6 +2817,477 @@ Resources:
       FunctionName: !Ref PhotosWebSocketHandlerFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${PhotosWebSocketApi}/*
+
+  RealtimeWsSessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-ws-sessions
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: token
+          AttributeType: S
+      KeySchema:
+        - AttributeName: token
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  RealtimeWsConnectionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-ws-connections
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: connectionId
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: connectionId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: byUserId
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  RealtimeWebSocketApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub ${StackPrefix}-${Environment}-realtime-ws
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: $request.body.action
+
+  RealtimeWebSocketStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref RealtimeWebSocketApi
+      StageName: !Ref Environment
+      AutoDeploy: true
+
+  RealtimeConnectFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${StackPrefix}-${Environment}-realtime-connect
+      Runtime: java17
+      Handler: com.ones.realtime.lambda.ConnectHandler::handleRequest
+      MemorySize: 1024
+      Timeout: 15
+      Role: !GetAtt RealtimeLambdaRole.Arn
+      Environment:
+        Variables:
+          ONES_WS_SESSIONS_TABLE: !Ref RealtimeWsSessionsTable
+          ONES_WS_CONNECTIONS_TABLE: !Ref RealtimeWsConnectionsTable
+      Code:
+        S3Bucket: !Ref LambdaArtifactsBucket
+        S3Key: !Ref RealtimeLambdasJarS3Key
+
+  RealtimeEventsConsumerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${StackPrefix}-${Environment}-realtime-events-consumer
+      Runtime: java17
+      Handler: com.ones.realtime.lambda.RealtimeEventsConsumerHandler::handleRequest
+      MemorySize: 1024
+      Timeout: 30
+      Role: !GetAtt RealtimeLambdaRole.Arn
+      Environment:
+        Variables:
+          WS_STAGE: !Ref Environment
+          WS_API_ID: !Ref RealtimeWebSocketApi
+          ONES_WS_CONNECTIONS_TABLE: !Ref RealtimeWsConnectionsTable
+          INVITATIONS_TABLE_NAME: !Ref InvitationsTable
+          USERS_TABLE_NAME: !Ref UsersTable
+          ENABLE_REALTIME_DISPATCH: !If [IsDevEnv, 'true', 'false']
+      Code:
+        S3Bucket: !Ref LambdaArtifactsBucket
+        S3Key: !Ref RealtimeLambdasJarS3Key
+
+  PushEventsConsumerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${StackPrefix}-${Environment}-push-events-consumer
+      Runtime: java17
+      Handler: com.ones.realtime.lambda.PushEventsConsumerHandler::handleRequest
+      MemorySize: 1024
+      Timeout: 30
+      Role: !GetAtt RealtimeLambdaRole.Arn
+      Environment:
+        Variables:
+          ENABLE_PUSH_DISPATCH: !If [IsDevEnv, 'true', 'false']
+          DEVICE_TOKENS_TABLE_NAME: !Ref DeviceTokensTable
+          PINPOINT_APP_ID: !Ref PinpointAppIdParam
+          INVITATIONS_TABLE_NAME: !Ref InvitationsTable
+          USERS_TABLE_NAME: !Ref UsersTable
+          NOTIFICATIONS_TABLE_NAME: !Ref NotificationsTable
+      Code:
+        S3Bucket: !Ref LambdaArtifactsBucket
+        S3Key: !Ref RealtimeLambdasJarS3Key
+
+  RealtimeEventsConsumerMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 10
+      Enabled: !If [IsDevEnv, true, false]
+      EventSourceArn: !GetAtt RealtimeDomainEventsQueue.Arn
+      FunctionName: !Ref RealtimeEventsConsumerFunction
+      MaximumBatchingWindowInSeconds: 5
+      FilterCriteria:
+        Filters:
+          - Pattern: '{"body": {"type": ["photo.uploaded","event.updated","invitation.created","invitation.responded"]}}'
+
+  PushEventsConsumerMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 10
+      Enabled: !If [IsDevEnv, true, false]
+      EventSourceArn: !GetAtt PushDomainEventsQueue.Arn
+      FunctionName: !Ref PushEventsConsumerFunction
+      MaximumBatchingWindowInSeconds: 5
+      FilterCriteria:
+        Filters:
+          - Pattern: '{"body": {"type": ["photo.uploaded","event.updated","invitation.created","invitation.responded"]}}'
+
+  # Domain Events bus (SNS) and consumer queues (SQS) for async notifications
+  DomainEventsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub ${StackPrefix}-${Environment}-domain-events
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  RealtimeDomainEventsDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${StackPrefix}-${Environment}-realtime-events-dlq
+      MessageRetentionPeriod: 1209600
+
+  RealtimeDomainEventsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${StackPrefix}-${Environment}-realtime-events
+      VisibilityTimeout: 30
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt RealtimeDomainEventsDLQ.Arn
+        maxReceiveCount: 5
+
+  PushDomainEventsDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${StackPrefix}-${Environment}-push-events-dlq
+      MessageRetentionPeriod: 1209600
+
+  PushDomainEventsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${StackPrefix}-${Environment}-push-events
+      VisibilityTimeout: 30
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt PushDomainEventsDLQ.Arn
+        maxReceiveCount: 5
+
+  SnsToRealtimeQueueSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref DomainEventsTopic
+      Protocol: sqs
+      Endpoint: !GetAtt RealtimeDomainEventsQueue.Arn
+      RawMessageDelivery: true
+
+  SnsToPushQueueSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref DomainEventsTopic
+      Protocol: sqs
+      Endpoint: !GetAtt PushDomainEventsQueue.Arn
+      RawMessageDelivery: true
+
+  RealtimeQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref RealtimeDomainEventsQueue
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: sqs:SendMessage
+            Resource: !GetAtt RealtimeDomainEventsQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Ref DomainEventsTopic
+
+  PushQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref PushDomainEventsQueue
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: sqs:SendMessage
+            Resource: !GetAtt PushDomainEventsQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Ref DomainEventsTopic
+
+  RealtimeDomainEventsDLQAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-realtime-dlq-has-messages
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt RealtimeDomainEventsDLQ.QueueName
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  PushDomainEventsDLQAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-push-dlq-has-messages
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt PushDomainEventsDLQ.QueueName
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  RealtimeDomainEventsQueueAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-realtime-queue-oldest-age
+      Namespace: AWS/SQS
+      MetricName: ApproximateAgeOfOldestMessage
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt RealtimeDomainEventsQueue.QueueName
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 5
+      Threshold: 300
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  PushDomainEventsQueueAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-push-queue-oldest-age
+      Namespace: AWS/SQS
+      MetricName: ApproximateAgeOfOldestMessage
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt PushDomainEventsQueue.QueueName
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 5
+      Threshold: 300
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  RealtimeDisconnectFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${StackPrefix}-${Environment}-realtime-disconnect
+      Runtime: java17
+      Handler: com.ones.realtime.lambda.DisconnectHandler::handleRequest
+      MemorySize: 1024
+      Timeout: 10
+      Role: !GetAtt RealtimeLambdaRole.Arn
+      Environment:
+        Variables:
+          ONES_WS_SESSIONS_TABLE: !Ref RealtimeWsSessionsTable
+          ONES_WS_CONNECTIONS_TABLE: !Ref RealtimeWsConnectionsTable
+      Code:
+        S3Bucket: !Ref LambdaArtifactsBucket
+        S3Key: !Ref RealtimeLambdasJarS3Key
+
+  RealtimeLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${StackPrefix}-${Environment}-realtime-lambda-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole
+      Policies:
+        - PolicyName: realtime-dynamodb
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt RealtimeWsSessionsTable.Arn
+                  - !GetAtt RealtimeWsConnectionsTable.Arn
+                  - !Sub ${RealtimeWsConnectionsTable.Arn}/index/*
+        - PolicyName: realtime-execute-api
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - execute-api:ManageConnections
+                Resource:
+                  - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RealtimeWebSocketApi}/*/POST/@connections/*
+        - PolicyName: realtime-domain-events-ddb
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Query
+                  - dynamodb:GetItem
+                Resource:
+                  - !GetAtt InvitationsTable.Arn
+                  - !Sub ${InvitationsTable.Arn}/index/*
+                  - !GetAtt UsersTable.Arn
+                  - !Sub ${UsersTable.Arn}/index/*
+        - PolicyName: push-domain-events-ddb
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Query
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                Resource:
+                  - !GetAtt DeviceTokensTable.Arn
+                  - !GetAtt NotificationsTable.Arn
+                  - !GetAtt InvitationsTable.Arn
+                  - !Sub ${InvitationsTable.Arn}/index/*
+                  - !GetAtt UsersTable.Arn
+                  - !Sub ${UsersTable.Arn}/index/*
+        - PolicyName: push-pinpoint
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - mobiletargeting:SendMessages
+                Resource: '*'
+
+  RealtimeWebSocketIntegrationConnect:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref RealtimeWebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationMethod: POST
+      IntegrationUri: !Join
+        - ''
+        - - 'arn:'
+          - !Ref AWS::Partition
+          - ':apigateway:'
+          - !Ref AWS::Region
+          - ':lambda:path/2015-03-31/functions/'
+          - !GetAtt RealtimeConnectFunction.Arn
+          - /invocations
+
+  RealtimeWebSocketIntegrationDisconnect:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref RealtimeWebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationMethod: POST
+      IntegrationUri: !Join
+        - ''
+        - - 'arn:'
+          - !Ref AWS::Partition
+          - ':apigateway:'
+          - !Ref AWS::Region
+          - ':lambda:path/2015-03-31/functions/'
+          - !GetAtt RealtimeDisconnectFunction.Arn
+          - /invocations
+
+  RealtimeWebSocketRouteConnect:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RealtimeWebSocketApi
+      RouteKey: $connect
+      AuthorizationType: NONE
+      Target: !Sub integrations/${RealtimeWebSocketIntegrationConnect}
+
+  RealtimeWebSocketRouteDisconnect:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RealtimeWebSocketApi
+      RouteKey: $disconnect
+      AuthorizationType: NONE
+      Target: !Sub integrations/${RealtimeWebSocketIntegrationDisconnect}
+
+  RealtimeConnectLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref RealtimeConnectFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RealtimeWebSocketApi}/*
+
+  RealtimeDisconnectLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref RealtimeDisconnectFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RealtimeWebSocketApi}/*
+
+  RealtimeSendToUserFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${StackPrefix}-${Environment}-realtime-send-to-user
+      Runtime: java17
+      Handler: com.ones.realtime.lambda.SendToUserHandler::handleRequest
+      MemorySize: 1024
+      Timeout: 15
+      Role: !GetAtt RealtimeLambdaRole.Arn
+      Environment:
+        Variables:
+          ONES_WS_CONNECTIONS_TABLE: !Ref RealtimeWsConnectionsTable
+          WS_STAGE: !Ref Environment
+          WS_API_ID: !Ref RealtimeWebSocketApi
+      Code:
+        S3Bucket: !Ref LambdaArtifactsBucket
+        S3Key: !Ref RealtimeLambdasJarS3Key
 
   PhotoThumbnailsFunctionZip:
     Type: AWS::Lambda::Function
@@ -3093,6 +3688,12 @@ Outputs:
     Value: !GetAtt LoadBalancer.DNSName
   PhotosWsUrl:
     Value: !Sub wss://${PhotosWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+  RealtimeWsUrl:
+    Value: !Sub wss://${RealtimeWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+  RealtimeWsSessionsTableName:
+    Value: !Ref RealtimeWsSessionsTable
+  RealtimeWsConnectionsTableName:
+    Value: !Ref RealtimeWsConnectionsTable
   GrafanaUrl:
     Value: !Sub http://${LoadBalancer.DNSName}/grafana/
   EcrRepositoryUri:
@@ -3118,6 +3719,8 @@ Outputs:
     Value: !Ref CoverReservationsTable
   PhotosTableName:
     Value: !Ref PhotosTable
+  NotificationsTableName:
+    Value: !Ref NotificationsTable
   PhotoLikesTableName:
     Value: !Ref PhotoLikesTable
   PreferredNamesCacheTableName:

@@ -19,11 +19,17 @@ public class InvitationsService {
     private final InvitationsRepository repository;
     private final Clock clock;
     private final InvitationActionTokenService tokenService;
+    private final com.ones.api.application.events.bus.DomainEventPublisher eventPublisher;
 
     public InvitationsService(InvitationsRepository repository, Clock clock, InvitationActionTokenService tokenService) {
+        this(repository, clock, tokenService, null);
+    }
+
+    public InvitationsService(InvitationsRepository repository, Clock clock, InvitationActionTokenService tokenService, com.ones.api.application.events.bus.DomainEventPublisher eventPublisher) {
         this.repository = repository;
         this.clock = clock;
         this.tokenService = tokenService;
+        this.eventPublisher = eventPublisher;
     }
 
     public List<Invitation> listByInviteeEmail(String inviteeEmail, int limit) {
@@ -103,6 +109,12 @@ public class InvitationsService {
                 existing.getEventEndAt()
         );
 
-        return repository.upsert(updated);
+        Invitation saved = repository.upsert(updated);
+        try {
+            if (eventPublisher != null) {
+                eventPublisher.publishInvitationResponded(saved);
+            }
+        } catch (Exception ignored) {}
+        return saved;
     }
 }

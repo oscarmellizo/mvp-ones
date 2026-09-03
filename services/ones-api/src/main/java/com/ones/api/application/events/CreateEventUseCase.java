@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import com.ones.api.application.events.ports.EventsRepository;
 import com.ones.api.application.invitations.ports.InvitationsRepository;
+import com.ones.api.application.events.bus.DomainEventPublisher;
 import com.ones.api.application.invitations.email.InvitationEmailService;
 import com.ones.api.application.subscriptions.CheckPlanLimitUseCase;
 import com.ones.api.application.users.ports.UsersRepository;
@@ -29,6 +30,7 @@ public class CreateEventUseCase {
     private final InvitationEmailService invitationEmailService;
     private final CheckPlanLimitUseCase checkPlanLimitUseCase;
     private final EventQrService eventQrService;
+    private final DomainEventPublisher eventPublisher;
 
     public CreateEventUseCase(
             EventsRepository repository,
@@ -38,7 +40,8 @@ public class CreateEventUseCase {
             EventCoversService coversService,
             InvitationEmailService invitationEmailService,
             CheckPlanLimitUseCase checkPlanLimitUseCase,
-            EventQrService eventQrService
+            EventQrService eventQrService,
+            DomainEventPublisher eventPublisher
     ) {
         this.repository = repository;
         this.invitationsRepository = invitationsRepository;
@@ -48,6 +51,7 @@ public class CreateEventUseCase {
         this.invitationEmailService = invitationEmailService;
         this.checkPlanLimitUseCase = checkPlanLimitUseCase;
         this.eventQrService = eventQrService;
+        this.eventPublisher = eventPublisher;
     }
 
     public CreateEventUseCase(
@@ -67,6 +71,7 @@ public class CreateEventUseCase {
                 coversService,
                 invitationEmailService,
                 checkPlanLimitUseCase,
+                null,
                 null
         );
     }
@@ -125,6 +130,9 @@ public class CreateEventUseCase {
                         endAt
                 );
                 invitationsRepository.upsert(inv);
+                if (eventPublisher != null) {
+                    eventPublisher.publishInvitationCreated(inv);
+                }
                 if (invitationEmailService != null) {
                     invitationEmailService.sendInvitation(inv);
                 }

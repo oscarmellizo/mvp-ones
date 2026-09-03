@@ -27,6 +27,17 @@ import com.ones.api.application.users.LookupUserByEmailUseCase;
 import com.ones.api.application.users.UpdateUserPreferencesUseCase;
 import com.ones.api.application.users.ports.PreferredNamesCacheRepository;
 import com.ones.api.application.users.ports.UsersRepository;
+import com.ones.api.application.notifications.ports.NotificationsRepository;
+import com.ones.api.application.push.ports.DeviceTokensRepository;
+import com.ones.api.application.realtime.ports.RealtimeSessionTokensRepository;
+import com.ones.api.application.realtime.ports.RealtimeConnectionsRepository;
+import com.ones.api.application.realtime.RealtimeDeliveryService;
+import com.ones.api.application.realtime.ports.RealtimeNotifier;
+import com.ones.api.application.push.PushDeliveryService;
+import com.ones.api.application.push.ports.PushGateway;
+import com.ones.api.application.push.ports.PushNotifier;
+import com.ones.api.adapters.outbound.noop.LoggingPushGateway;
+import com.ones.api.adapters.outbound.pinpoint.PinpointPushGateway;
 import com.ones.api.application.subscriptions.CheckPlanLimitUseCase;
 import com.ones.api.application.subscriptions.CreateMercadoPagoSubscriptionUseCase;
 import com.ones.api.application.subscriptions.GetOrCreateUserSubscriptionUseCase;
@@ -50,6 +61,20 @@ public class ApplicationConfig {
     }
 
     @Bean
+    public com.ones.api.application.admin.AdminOpsService adminOpsService(
+            software.amazon.awssdk.services.sqs.SqsClient sqs,
+            software.amazon.awssdk.services.lambda.LambdaClient lambda,
+            @Value("${ONES_REALTIME_EVENTS_QUEUE_NAME:}") String realtimeQueueName,
+            @Value("${ONES_PUSH_EVENTS_QUEUE_NAME:}") String pushQueueName,
+            @Value("${ONES_REALTIME_EVENTS_DLQ_NAME:}") String realtimeDlqName,
+            @Value("${ONES_PUSH_EVENTS_DLQ_NAME:}") String pushDlqName,
+            @Value("${ONES_REALTIME_CONSUMER_FUNCTION_NAME:}") String realtimeConsumerFn,
+            @Value("${ONES_PUSH_CONSUMER_FUNCTION_NAME:}") String pushConsumerFn
+    ) {
+        return new com.ones.api.application.admin.AdminOpsService(sqs, lambda, realtimeQueueName, pushQueueName, realtimeDlqName, pushDlqName, realtimeConsumerFn, pushConsumerFn);
+    }
+
+    @Bean
     CreateEventUseCase createEventUseCase(
             EventsRepository repository,
             InvitationsRepository invitationsRepository,
@@ -58,7 +83,8 @@ public class ApplicationConfig {
             EventCoversService coversService,
             InvitationEmailService invitationEmailService,
             CheckPlanLimitUseCase checkPlanLimitUseCase,
-            EventQrService eventQrService
+            EventQrService eventQrService,
+            com.ones.api.application.events.bus.DomainEventPublisher eventPublisher
     ) {
         return new CreateEventUseCase(
                 repository,
@@ -68,16 +94,18 @@ public class ApplicationConfig {
                 coversService,
                 invitationEmailService,
                 checkPlanLimitUseCase,
-                eventQrService
+                eventQrService,
+                eventPublisher
         );
     }
 
     @Bean
     UpdateEventUseCase updateEventUseCase(
             EventsRepository repository,
-            EventCoversService coversService
+            EventCoversService coversService,
+            com.ones.api.application.events.bus.DomainEventPublisher eventPublisher
     ) {
-        return new UpdateEventUseCase(repository, coversService);
+        return new UpdateEventUseCase(repository, coversService, eventPublisher);
     }
 
     @Bean
@@ -96,8 +124,8 @@ public class ApplicationConfig {
     }
 
     @Bean
-    AcceptEventInviteLinkUseCase acceptEventInviteLinkUseCase(InvitationsRepository invitationsRepository, Clock clock) {
-        return new AcceptEventInviteLinkUseCase(invitationsRepository, clock);
+    AcceptEventInviteLinkUseCase acceptEventInviteLinkUseCase(InvitationsRepository invitationsRepository, Clock clock, com.ones.api.application.events.bus.DomainEventPublisher eventPublisher) {
+        return new AcceptEventInviteLinkUseCase(invitationsRepository, clock, eventPublisher);
     }
 
     @Bean
@@ -111,9 +139,10 @@ public class ApplicationConfig {
             InvitationsRepository invitationsRepository,
             UsersRepository usersRepository,
             Clock clock,
-            InvitationEmailService invitationEmailService
+            InvitationEmailService invitationEmailService,
+            com.ones.api.application.events.bus.DomainEventPublisher eventPublisher
     ) {
-        return new InviteEventGuestsUseCase(eventsRepository, invitationsRepository, usersRepository, clock, invitationEmailService);
+        return new InviteEventGuestsUseCase(eventsRepository, invitationsRepository, usersRepository, clock, invitationEmailService, eventPublisher);
     }
 
     @Bean
@@ -146,12 +175,105 @@ public class ApplicationConfig {
     }
 
     @Bean
+    NotificationsRepository notificationsRepository(com.ones.api.adapters.outbound.dynamodb.DynamoDbNotificationsRepository impl) {
+        return impl;
+    }
+
+    @Bean
+    DeviceTokensRepository deviceTokensRepository(com.ones.api.adapters.outbound.dynamodb.DynamoDbDeviceTokensRepository impl) {
+        return impl;
+    }
+
+    @Bean
+    RealtimeSessionTokensRepository realtimeSessionTokensRepository(com.ones.api.adapters.outbound.dynamodb.DynamoDbRealtimeSessionTokensRepository impl) {
+        return impl;
+    }
+
+    @Bean
+    RealtimeConnectionsRepository realtimeConnectionsRepository(com.ones.api.adapters.outbound.dynamodb.DynamoDbRealtimeConnectionsRepository impl) {
+        return impl;
+    }
+
+    @Bean
+    RealtimeDeliveryService realtimeDeliveryService(RealtimeConnectionsRepository connectionsRepository) {
+        return new RealtimeDeliveryService(connectionsRepository);
+    }
+
+    @Bean
+    RealtimeNotifier realtimeNotifier(
+            RealtimeDeliveryService deliveryService,
+            @Value("${ones.realtime.ws-endpoint:}") String wsEndpoint,
+            @Value("${ones.realtime.region:}") String region,
+            @Value("${ones.features.realtime.invitation-notifications:false}") boolean featureEnabled
+    ) {
+        if (!featureEnabled) {
+            return notification -> {};
+        }
+        return notification -> {
+            try {
+                String endpoint = wsEndpoint != null && !wsEndpoint.isBlank() ? wsEndpoint.trim() : System.getenv("WS_MGMT_ENDPOINT");
+                if (endpoint == null || endpoint.isBlank()) return; // noop if not configured
+                software.amazon.awssdk.services.apigatewaymanagementapi.ApiGatewayManagementApiClient mgmt =
+                        software.amazon.awssdk.services.apigatewaymanagementapi.ApiGatewayManagementApiClient.builder()
+                                .endpointOverride(java.net.URI.create(endpoint))
+                                .build();
+                String userId = notification.getUserId();
+                String payload = java.util.Map.of(
+                        "type", notification.getType(),
+                        "title", notification.getTitle(),
+                        "body", notification.getBody(),
+                        "route", notification.getRoute(),
+                        "entityType", notification.getEntityType(),
+                        "entityId", notification.getEntityId(),
+                        "id", notification.getId()
+                ).toString();
+                deliveryService.deliverTextToUser(userId, payload, mgmt);
+            } catch (Exception ignore) { }
+        };
+    }
+
+    // Push stack (provider-agnostic; default noop gateway). Feature-gated per NF-07
+    @Bean
+    PushGateway pushGateway(
+            @Value("${ones.push.provider:noop}") String provider,
+            @Value("${ones.push.pinpoint.app-id:}") String appId,
+            @Value("${ones.push.region:}") String region
+    ) {
+        if ("pinpoint".equalsIgnoreCase(provider) && appId != null && !appId.isBlank()) {
+            String reg = (region != null && !region.isBlank()) ? region : System.getenv("AWS_REGION");
+            software.amazon.awssdk.services.pinpoint.PinpointClient client =
+                    (reg != null && !reg.isBlank())
+                            ? software.amazon.awssdk.services.pinpoint.PinpointClient.builder().region(software.amazon.awssdk.regions.Region.of(reg)).build()
+                            : software.amazon.awssdk.services.pinpoint.PinpointClient.create();
+            return new PinpointPushGateway(client, appId.trim());
+        }
+        return new LoggingPushGateway();
+    }
+
+    @Bean
+    PushDeliveryService pushDeliveryService(
+            DeviceTokensRepository deviceTokensRepository,
+            PushGateway pushGateway,
+            io.micrometer.core.instrument.MeterRegistry meterRegistry,
+            @Value("${ones.push.auto-invalidate-invalid-tokens:true}") boolean autoInvalidate
+    ) {
+        return new PushDeliveryService(deviceTokensRepository, pushGateway, meterRegistry, autoInvalidate);
+    }
+
+    @Bean
+    PushNotifier pushNotifier(PushDeliveryService deliveryService, @Value("${ones.features.push.invitation-notifications:false}") boolean featureEnabled) {
+        if (!featureEnabled) return n -> {};
+        return deliveryService::deliver;
+    }
+
+    @Bean
     InvitationsService invitationsService(
             InvitationsRepository invitationsRepository,
             Clock clock,
-            InvitationActionTokenService tokenService
+            InvitationActionTokenService tokenService,
+            com.ones.api.application.events.bus.DomainEventPublisher eventPublisher
     ) {
-        return new InvitationsService(invitationsRepository, clock, tokenService);
+        return new InvitationsService(invitationsRepository, clock, tokenService, eventPublisher);
     }
 
     @Bean

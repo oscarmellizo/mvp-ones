@@ -23,6 +23,7 @@ import com.ones.api.adapters.inbound.rest.AuthClaims;
 import com.ones.api.application.photos.PhotoLikesService;
 import com.ones.api.application.photos.PhotosService;
 import com.ones.api.application.photos.PhotosWsPublisher;
+import com.ones.api.application.events.bus.DomainEventPublisher;
 import com.ones.api.domain.photos.Photo;
 
 @RestController
@@ -32,11 +33,13 @@ public class EventPhotosController {
     private final PhotosService photosService;
     private final PhotoLikesService likesService;
     private final PhotosWsPublisher photosWsPublisher;
+    private final DomainEventPublisher eventPublisher;
 
-    public EventPhotosController(PhotosService photosService, PhotoLikesService likesService, PhotosWsPublisher photosWsPublisher) {
+    public EventPhotosController(PhotosService photosService, PhotoLikesService likesService, PhotosWsPublisher photosWsPublisher, DomainEventPublisher eventPublisher) {
         this.photosService = photosService;
         this.likesService = likesService;
         this.photosWsPublisher = photosWsPublisher;
+        this.eventPublisher = eventPublisher;
     }
 
     @PostMapping("/{eventId}/photos/presign")
@@ -176,12 +179,18 @@ public class EventPhotosController {
             @Valid @RequestBody NotifyUploadedRequest request
     ) {
         String uploaderName = AuthClaims.preferredName(authentication);
+        String uploaderUserId = authentication.getName();
         photosWsPublisher.publishPhotoUploaded(
                 eventId,
                 uploaderName,
                 request.photoCount(),
                 request.eventTitle()
         );
+        if (eventPublisher != null) {
+            try {
+                eventPublisher.publishPhotosUploaded(eventId, uploaderUserId, uploaderName, request.photoCount(), request.eventTitle());
+            } catch (Exception ignored) {}
+        }
         return ResponseEntity.ok().build();
     }
 

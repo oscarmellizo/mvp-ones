@@ -1,0 +1,64 @@
+name: Test Realtime SendToUser Lambda
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment (e.g., dev)'
+        required: true
+        default: 'dev'
+      stackPrefix:
+        description: 'Stack prefix used in naming (default: ones)'
+        required: true
+        default: 'ones'
+      functionName:
+        description: 'Full Lambda function name (override). If empty, computed as <stackPrefix>-<environment>-realtime-send-to-user'
+        required: false
+        default: ''
+      userId:
+        description: 'Target userId to send the message to'
+        required: true
+      message:
+        description: 'Message to send (UTF-8)'
+        required: true
+        default: 'hello from workflow'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  invoke:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || 'dev' }}
+    env:
+      AWS_REGION: us-east-1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Compute function name
+        id: fn
+        run: |
+          if [ -n "${{ inputs.functionName }}" ]; then
+            echo "name=${{ inputs.functionName }}" >> $GITHUB_OUTPUT
+          else
+            echo "name=${{ inputs.stackPrefix }}-${{ inputs.environment }}-realtime-send-to-user" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Invoke Lambda
+        run: |
+          PAYLOAD=$(jq -n --arg uid "${{ inputs.userId }}" --arg msg "${{ inputs.message }}" '{userId:$uid, message:$msg}')
+          echo "$PAYLOAD" | jq .
+          aws lambda invoke \
+            --function-name "${{ steps.fn.outputs.name }}" \
+            --payload "$PAYLOAD" \
+            --cli-binary-format raw-in-base64-out \
+            out.json --no-cli-pager
+          cat out.json | jq .

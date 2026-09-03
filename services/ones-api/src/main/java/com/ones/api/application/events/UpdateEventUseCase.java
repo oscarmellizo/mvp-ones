@@ -15,10 +15,16 @@ public class UpdateEventUseCase {
 
     private final EventsRepository repository;
     private final EventCoversService coversService;
+    private final com.ones.api.application.events.bus.DomainEventPublisher eventPublisher;
 
     public UpdateEventUseCase(EventsRepository repository, EventCoversService coversService) {
+        this(repository, coversService, null);
+    }
+
+    public UpdateEventUseCase(EventsRepository repository, EventCoversService coversService, com.ones.api.application.events.bus.DomainEventPublisher eventPublisher) {
         this.repository = repository;
         this.coversService = coversService;
+        this.eventPublisher = eventPublisher;
     }
 
     public Event execute(
@@ -80,6 +86,12 @@ public class UpdateEventUseCase {
                 coverChanged,
                 nextFrameIds == null ? 0 : nextFrameIds.size());
 
-        return repository.save(updated);
+        Event saved = repository.save(updated);
+        try {
+            if (eventPublisher != null) {
+                eventPublisher.publishEventUpdated(existing, saved);
+            }
+        } catch (Exception ignored) {}
+        return saved;
     }
 }
