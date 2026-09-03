@@ -58,11 +58,9 @@ jobs:
       - name: Build lambdas (shaded jar)
         run: mvn -q -DskipTests package -f services/ones-realtime-lambdas/pom.xml
 
-      - name: Validate environment config
+      - name: Validate inputs
         run: |
           if [ -z "${{ env.ROLE_ARN }}" ]; then echo "ROLE_ARN is missing. Set AWS_GITHUB_OIDC_ROLE_ARN (Environment variable) or AWS_ROLE_TO_ASSUME (secret)."; exit 1; fi
-          aws s3api head-bucket --bucket "${{ env.ARTIFACTS_BUCKET }}" >/dev/null 2>&1 || \
-            aws s3api create-bucket --bucket "${{ env.ARTIFACTS_BUCKET }}" --region "${{ env.AWS_REGION }}"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -70,14 +68,39 @@ jobs:
           role-to-assume: ${{ env.ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Ensure artifacts bucket exists
+        run: |
+          aws s3api head-bucket --bucket "${{ env.ARTIFACTS_BUCKET }}" >/dev/null 2>&1 || \
+            aws s3api create-bucket --bucket "${{ env.ARTIFACTS_BUCKET }}" --region "${{ env.AWS_REGION }}"
+
       - name: WhoAmI (caller identity)
         run: aws sts get-caller-identity
 
+      - name: Detect if template expects realtime JAR
+        run: |
+          if grep -q 'RealtimeLambdasJarS3Key' infra/cloudformation/backend/all.yml; then
+            echo "Template defines RealtimeLambdasJarS3Key: will upload JAR and deploy param."
+            echo "EXPECTS_REALTIME_JAR=true" >> $GITHUB_ENV
+          else
+            echo "Template does not define RealtimeLambdasJarS3Key: skipping JAR upload and CFN param update."
+            echo "EXPECTS_REALTIME_JAR=false" >> $GITHUB_ENV
+          fi
+
+      - name: Ensure backend stack exists
+        run: |
+          status=$(aws cloudformation describe-stacks --stack-name "${{ env.STACK_NAME }}" --query 'Stacks[0].StackStatus' --output text 2>/dev/null || true)
+          if [ -z "${status}" ] || [ "${status}" = "None" ]; then
+            echo "ERROR: Backend stack '${{ env.STACK_NAME }}' not found. Run 'Deploy Infra (Backend)' for this environment first, then re-run this workflow."
+            exit 1
+          fi
+
       - name: Upload jar to S3
+        if: ${{ env.EXPECTS_REALTIME_JAR == 'true' }}
         run: |
           aws s3 cp services/ones-realtime-lambdas/target/ones-realtime-lambdas-0.1.0-SNAPSHOT-lambda.jar s3://${{ env.ARTIFACTS_BUCKET }}/${{ env.S3_KEY }} --only-show-errors
 
       - name: Deploy CloudFormation (update RealtimeLambdasJarS3Key)
+        if: ${{ env.EXPECTS_REALTIME_JAR == 'true' }}
         run: |
           aws cloudformation deploy \
             --template-file infra/cloudformation/backend/all.yml \
