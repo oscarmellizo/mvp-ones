@@ -151,23 +151,23 @@ jobs:
             --s3-bucket "${packageBucket}" \
             --output-template-file packaged-backend.yml
 
-          # Enforce dependency: if packaged template expects RealtimeLambdasJarS3Key,
-          # require that the stack already has a non-empty value set by the
-          # 'Deploy Realtime Lambdas' workflow and that the object exists in S3.
+          # Optional dependency: if packaged template includes RealtimeLambdasJarS3Key,
+          # try to reuse an existing value; otherwise continue to deploy infra-only.
+          realtimeParam=""
           if grep -q 'RealtimeLambdasJarS3Key' packaged-backend.yml; then
             existingRealtimeJarKey=$(aws cloudformation describe-stacks \
               --stack-name "${stackName}" \
               --query "Stacks[0].Parameters[?ParameterKey=='RealtimeLambdasJarS3Key'].ParameterValue" \
               --output text 2>/dev/null || true)
             if [ -z "${existingRealtimeJarKey}" ] || [ "${existingRealtimeJarKey}" = "None" ]; then
-              echo "ERROR: Template requires 'RealtimeLambdasJarS3Key' but the stack '${stackName}' has no value yet."
-              echo "Run the 'Deploy Realtime Lambdas' workflow for environment '${{ inputs.environment }}' to build/upload the JAR and set the parameter, then re-run this workflow."
-              exit 1
-            fi
-            if ! aws s3api head-object --bucket "${packageBucket}" --key "${existingRealtimeJarKey}" >/dev/null 2>&1; then
-              echo "ERROR: Stack parameter RealtimeLambdasJarS3Key='${existingRealtimeJarKey}' does not exist in bucket s3://${packageBucket}."
-              echo "Re-run 'Deploy Realtime Lambdas' to publish a fresh JAR, then re-run this workflow."
-              exit 1
+              echo "WARNING: 'RealtimeLambdasJarS3Key' not set on stack '${stackName}'. Proceeding without realtime lambdas (infra-first)."
+            else
+              if aws s3api head-object --bucket "${packageBucket}" --key "${existingRealtimeJarKey}" >/dev/null 2>&1; then
+                echo "INFO: Found realtime JAR at s3://${packageBucket}/${existingRealtimeJarKey}."
+                realtimeParam="RealtimeLambdasJarS3Key=${existingRealtimeJarKey}"
+              else
+                echo "WARNING: Referenced realtime JAR key not found in s3://${packageBucket}/${existingRealtimeJarKey}. Proceeding without realtime lambdas."
+              fi
             fi
           fi
 
@@ -258,7 +258,7 @@ jobs:
               LambdaArtifactsBucket="${packageBucket}" \
               CleanupFunctionS3Key="${cleanupKey}" \
               PhotoThumbnailsZipS3Key="${thumbnailsKey}" \
-              RealtimeLambdasJarS3Key="${existingRealtimeJarKey:-}" \
+              ${realtimeParam} \
               PillowLayerArn="arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p312-Pillow:9"
 
       - name: Debug CloudFormation (on failure)
@@ -498,7 +498,7 @@ jobs:
               LambdaArtifactsBucket="${packageBucket}" \
               CleanupFunctionS3Key="${cleanupKey}" \
               PhotoThumbnailsZipS3Key="${thumbnailsKey}" \
-              RealtimeLambdasJarS3Key="${existingRealtimeJarKey:-}"
+              ${realtimeParam}
 
       - name: Fail if CloudFormation deploy failed (final)
         if: ${{ steps.deploy_cfn.outcome != 'success' && (inputs.usePhotoThumbnailsImage != 'true' || steps.deploy_cfn_image.outcome != 'success') }}
