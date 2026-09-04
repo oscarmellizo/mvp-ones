@@ -7,6 +7,10 @@ on:
         description: 'Environment (dev, stage, prod)'
         required: false
         default: 'dev'
+      roleArn:
+        description: 'Optional: OIDC role ARN to assume (overrides Environment var AWS_GITHUB_OIDC_ROLE_ARN)'
+        required: false
+        default: ''
       backendDesiredCount:
         description: 'ECS desired count for ones-api service'
         required: false
@@ -68,18 +72,49 @@ jobs:
             exit 1
           fi
 
-          if [ -z "${{ vars.AWS_GITHUB_OIDC_ROLE_ARN }}" ]; then
+          roleArnInput="${{ inputs.roleArn }}"
+          roleArnVar="${{ vars.AWS_GITHUB_OIDC_ROLE_ARN }}"
+          roleArn="${roleArnInput:-}"
+          if [ -z "${roleArn}" ]; then
+            roleArn="${roleArnVar:-}"
+          fi
+
+          if [ -z "${roleArn}" ]; then
             echo "ERROR: Missing GitHub Environment var AWS_GITHUB_OIDC_ROLE_ARN for environment '${envName}'."
             exit 1
           fi
 
-          echo "Using role-to-assume: ${{ vars.AWS_GITHUB_OIDC_ROLE_ARN }}"
+          # Basic environment-to-role name suffix check to avoid misconfigured roles (e.g., using non -dev role for dev)
+          case "${envName}" in
+            dev)
+              suffix="-dev" ;;
+            prod)
+              suffix="-prod" ;;
+            stage)
+              suffix="-stage" ;;
+            *)
+              suffix="" ;;
+          esac
+
+          if [ -n "${suffix}" ] && ! printf '%s' "${roleArn}" | grep -q "${suffix}"; then
+            echo "WARNING: role ARN ('${roleArn}') does not appear to match environment suffix '${suffix}'."
+            echo "         Ensure you are using the role output by ones-bootstrap-oidc-${envName} (GitHubActionsDeployRoleArn)."
+          fi
+
+          echo "Using role-to-assume: ${roleArn}"
+
+          # Export for subsequent steps
+          echo "ROLE_ARN=${roleArn}" >> $GITHUB_ENV
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_GITHUB_OIDC_ROLE_ARN }}
+          role-to-assume: ${{ env.ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION != '' && vars.AWS_REGION || env.AWS_REGION }}
+
+      - name: WhoAmI (caller identity)
+        run: |
+          aws sts get-caller-identity
 
       - name: Deploy backend stack
         id: deploy_cfn

@@ -375,6 +375,12 @@ Resources:
                   - sns:GetTopicAttributes
                   - sns:SetTopicAttributes
                   - sns:ListTopics
+                  - sns:Subscribe
+                  - sns:Unsubscribe
+                  - sns:GetSubscriptionAttributes
+                  - sns:SetSubscriptionAttributes
+                  - sns:ListSubscriptions
+                  - sns:ListSubscriptionsByTopic
                   - sns:TagResource
                   - sns:UntagResource
                 Resource: '*'
@@ -408,6 +414,10 @@ Resources:
                   - lambda:GetFunctionConfiguration
                   - lambda:UpdateFunctionCode
                   - lambda:UpdateFunctionConfiguration
+                  - lambda:CreateEventSourceMapping
+                  - lambda:UpdateEventSourceMapping
+                  - lambda:DeleteEventSourceMapping
+                  - lambda:ListEventSourceMappings
                   - lambda:AddPermission
                   - lambda:RemovePermission
                   - lambda:TagResource
@@ -417,6 +427,19 @@ Resources:
                   - lambda:GetLayerVersion
                   - lambda:ListLayers
                   - lambda:ListLayerVersions
+                Resource: '*'
+
+              - Sid: SQS
+                Effect: Allow
+                Action:
+                  - sqs:CreateQueue
+                  - sqs:DeleteQueue
+                  - sqs:GetQueueAttributes
+                  - sqs:SetQueueAttributes
+                  - sqs:ListQueues
+                  - sqs:GetQueueUrl
+                  - sqs:TagQueue
+                  - sqs:UntagQueue
                 Resource: '*'
 
               - Sid: IAMForEcsTasks

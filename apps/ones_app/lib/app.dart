@@ -24,6 +24,8 @@ import 'features/admin/application/get_admin_me_use_case.dart';
 import 'features/admin/presentation/admin_admins_controller.dart';
 import 'features/admin/presentation/admin_frames_controller.dart';
 import 'features/admin/presentation/admin_event_templates_controller.dart';
+import 'features/admin/adapters/api/admin_ops_api_repository.dart';
+import 'features/admin/presentation/admin_ops_controller.dart';
 import 'features/events/adapters/api/event_covers_api_repository.dart';
 import 'features/events/adapters/api/event_cover_urls_api_repository.dart';
 import 'features/events/adapters/api/event_templates_api_repository.dart';
@@ -100,6 +102,7 @@ class OnesApp extends StatelessWidget {
     final adminFramesRepository = AdminFramesApiRepository(apiFactory);
     final adminEventTemplatesRepository =
         AdminEventTemplatesApiRepository(apiFactory);
+    final adminOpsRepository = AdminOpsApiRepository(apiFactory);
 
     final eventsRepository = EventsApiRepository(apiFactory);
     final listEvents = ListEventsUseCase(eventsRepository);
@@ -261,6 +264,19 @@ class OnesApp extends StatelessWidget {
             final controller = ctrl ??
                 AdminEventTemplatesController(
                   repository: adminEventTemplatesRepository,
+                );
+            controller.setIdToken(auth.idToken);
+            return controller;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthController, AdminOpsController>(
+          create: (_) => AdminOpsController(
+            repository: adminOpsRepository,
+          ),
+          update: (_, auth, ctrl) {
+            final controller = ctrl ??
+                AdminOpsController(
+                  repository: adminOpsRepository,
                 );
             controller.setIdToken(auth.idToken);
             return controller;

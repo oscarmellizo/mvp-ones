@@ -72,7 +72,6 @@ jobs:
         run: |
           aws s3api head-bucket --bucket "${{ env.ARTIFACTS_BUCKET }}" >/dev/null 2>&1 || \
             aws s3api create-bucket --bucket "${{ env.ARTIFACTS_BUCKET }}" --region "${{ env.AWS_REGION }}"
-
       - name: WhoAmI (caller identity)
         run: aws sts get-caller-identity
 
