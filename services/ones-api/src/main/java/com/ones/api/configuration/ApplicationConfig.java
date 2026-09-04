@@ -174,25 +174,7 @@ public class ApplicationConfig {
         return new UpdateUserPreferencesUseCase(repository, preferredNamesCacheRepository, clock);
     }
 
-    @Bean
-    NotificationsRepository notificationsRepository(com.ones.api.adapters.outbound.dynamodb.DynamoDbNotificationsRepository impl) {
-        return impl;
-    }
-
-    @Bean
-    DeviceTokensRepository deviceTokensRepository(com.ones.api.adapters.outbound.dynamodb.DynamoDbDeviceTokensRepository impl) {
-        return impl;
-    }
-
-    @Bean
-    RealtimeSessionTokensRepository realtimeSessionTokensRepository(com.ones.api.adapters.outbound.dynamodb.DynamoDbRealtimeSessionTokensRepository impl) {
-        return impl;
-    }
-
-    @Bean
-    RealtimeConnectionsRepository realtimeConnectionsRepository(com.ones.api.adapters.outbound.dynamodb.DynamoDbRealtimeConnectionsRepository impl) {
-        return impl;
-    }
+    
 
     @Bean
     RealtimeDeliveryService realtimeDeliveryService(RealtimeConnectionsRepository connectionsRepository) {
