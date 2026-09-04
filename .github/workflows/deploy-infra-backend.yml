@@ -140,6 +140,22 @@ jobs:
                 echo "Deleting pre-existing mapping ${uuid} for ${fn} <- ${qarn}"
                 aws lambda delete-event-source-mapping --uuid "${uuid}" >/dev/null 2>&1 || true
               done
+              # Wait for deletion to propagate to avoid AlreadyExists on CFN create
+              wait_count=0
+              while true; do
+                remaining=$(aws lambda list-event-source-mappings --function-name "${fn}" --event-source-arn "${qarn}" --query 'length(EventSourceMappings)' --output text 2>/dev/null || echo 0)
+                if [ "${remaining}" = "0" ] || [ "${remaining}" = "None" ]; then
+                  echo "Mappings cleared for ${fn} <- ${qarn}"
+                  break
+                fi
+                if [ ${wait_count} -ge 24 ]; then
+                  echo "WARNING: Mappings still present after wait; continuing anyway."
+                  break
+                fi
+                wait_count=$((wait_count+1))
+                echo "Waiting for ${remaining} mapping(s) to delete... (${wait_count})"
+                sleep 5
+              done
             else
               echo "No pre-existing mappings found for ${fn} <- ${qarn}."
             fi
