@@ -412,6 +412,7 @@ Resources:
                   - lambda:InvokeFunction
                   - lambda:GetFunction
                   - lambda:GetFunctionConfiguration
+                  - lambda:GetEventSourceMapping
                   - lambda:UpdateFunctionCode
                   - lambda:UpdateFunctionConfiguration
                   - lambda:CreateEventSourceMapping
