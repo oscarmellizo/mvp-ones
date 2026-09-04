@@ -115,6 +115,35 @@ jobs:
       - name: WhoAmI (caller identity)
         run: |
           aws sts get-caller-identity
+      - name: Pre-clean orphan Lambda EventSourceMappings (idempotent)
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          envName="${{ inputs.environment }}"
+          stackPrefix="${{ vars.STACK_PREFIX != '' && vars.STACK_PREFIX || env.STACK_PREFIX }}"
+          for kind in realtime push; do
+            fn="${stackPrefix}-${envName}-${kind}-events-consumer"
+            qname="${stackPrefix}-${envName}-${kind}-events"
+            qurl=$(aws sqs get-queue-url --queue-name "${qname}" --query 'QueueUrl' --output text 2>/dev/null || true)
+            if [ -z "${qurl}" ] || [ "${qurl}" = "None" ]; then
+              echo "Queue ${qname} not found; skipping."
+              continue
+            fi
+            qarn=$(aws sqs get-queue-attributes --queue-url "${qurl}" --attribute-names QueueArn --query 'Attributes.QueueArn' --output text 2>/dev/null || true)
+            if [ -z "${qarn}" ] || [ "${qarn}" = "None" ]; then
+              echo "Could not resolve ARN for ${qname}; skipping."
+              continue
+            fi
+            uuids=$(aws lambda list-event-source-mappings --function-name "${fn}" --event-source-arn "${qarn}" --query 'EventSourceMappings[].UUID' --output text 2>/dev/null || true)
+            if [ -n "${uuids}" ] && [ "${uuids}" != "None" ]; then
+              for uuid in $uuids; do
+                echo "Deleting pre-existing mapping ${uuid} for ${fn} <- ${qarn}"
+                aws lambda delete-event-source-mapping --uuid "${uuid}" >/dev/null 2>&1 || true
+              done
+            else
+              echo "No pre-existing mappings found for ${fn} <- ${qarn}."
+            fi
+          done
 
       - name: Deploy backend stack
         id: deploy_cfn
