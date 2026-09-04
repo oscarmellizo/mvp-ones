@@ -186,6 +186,37 @@ jobs:
             --s3-bucket "${packageBucket}" \
             --output-template-file packaged-backend.yml
 
+          # Optional dependency: if packaged template includes RealtimeLambdasJarS3Key,
+          # try to reuse an existing value; otherwise continue to deploy infra-only.
+          realtimeParam=""
+          if grep -q 'RealtimeLambdasJarS3Key' packaged-backend.yml; then
+            existingRealtimeJarKey=$(aws cloudformation describe-stacks \
+              --stack-name "${stackName}" \
+              --query "Stacks[0].Parameters[?ParameterKey=='RealtimeLambdasJarS3Key'].ParameterValue" \
+              --output text 2>/dev/null || true)
+            if [ -z "${existingRealtimeJarKey}" ] || [ "${existingRealtimeJarKey}" = "None" ]; then
+              echo "INFO: 'RealtimeLambdasJarS3Key' not set on stack '${stackName}'. Trying to discover latest uploaded JAR in s3://${packageBucket}/realtime/..."
+              latestJar=$(aws s3api list-objects-v2 \
+                --bucket "${packageBucket}" \
+                --prefix "realtime/ones-realtime-lambdas-" \
+                --query 'reverse(sort_by(Contents,&LastModified))[0].Key' \
+                --output text 2>/dev/null || true)
+              if [ -n "${latestJar}" ] && [ "${latestJar}" != "None" ]; then
+                echo "INFO: Using latest realtime JAR: ${latestJar}"
+                realtimeParam="RealtimeLambdasJarS3Key=${latestJar}"
+              else
+                echo "WARNING: No realtime JAR found in s3://${packageBucket}/realtime/. Proceeding without realtime lambdas (infra-first)."
+              fi
+            else
+              if aws s3api head-object --bucket "${packageBucket}" --key "${existingRealtimeJarKey}" >/dev/null 2>&1; then
+                echo "INFO: Found realtime JAR at s3://${packageBucket}/${existingRealtimeJarKey}."
+                realtimeParam="RealtimeLambdasJarS3Key=${existingRealtimeJarKey}"
+              else
+                echo "WARNING: Referenced realtime JAR key not found in s3://${packageBucket}/${existingRealtimeJarKey}. Proceeding without realtime lambdas."
+              fi
+            fi
+          fi
+
           cdnPublicKeyVersion="${CDN_PUBLIC_KEY_VERSION:-}"
           if [ -z "${cdnPublicKeyVersion}" ]; then
             existingVersion=$(aws cloudformation describe-stacks \
@@ -273,6 +304,7 @@ jobs:
               LambdaArtifactsBucket="${packageBucket}" \
               CleanupFunctionS3Key="${cleanupKey}" \
               PhotoThumbnailsZipS3Key="${thumbnailsKey}" \
+              ${realtimeParam} \
               PillowLayerArn="arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p312-Pillow:9"
 
       - name: Debug CloudFormation (on failure)
@@ -511,7 +543,8 @@ jobs:
               CdnPhotosSigningPublicKeyVersion="${cdnPublicKeyVersion}" \
               LambdaArtifactsBucket="${packageBucket}" \
               CleanupFunctionS3Key="${cleanupKey}" \
-              PhotoThumbnailsZipS3Key="${thumbnailsKey}"
+              PhotoThumbnailsZipS3Key="${thumbnailsKey}" \
+              ${realtimeParam}
 
       - name: Fail if CloudFormation deploy failed (final)
         if: ${{ steps.deploy_cfn.outcome != 'success' && (inputs.usePhotoThumbnailsImage != 'true' || steps.deploy_cfn_image.outcome != 'success') }}

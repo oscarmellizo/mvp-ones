@@ -114,7 +114,7 @@ Parameters:
   PillowLayerArn:
     Type: String
     Default: 'arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p312-Pillow:9'
-
+  # Realtime Lambdas (Java) shaded JAR key in the artifacts bucket
   RealtimeLambdasJarS3Key:
     Type: String
     Default: ''
@@ -127,6 +127,7 @@ Conditions:
     - !Not [!Equals [!Ref CdnPhotosSigningPublicKeySsmParamName, '']]
   IsNotProdEnv: !Not [!Equals [!Ref Environment, 'prod']]
   HasApiAcmCertificateArn: !Not [!Equals [!Ref ApiAcmCertificateArn, '']]
+  HasRealtimeJar: !Not [!Equals [!Ref RealtimeLambdasJarS3Key, '']]
   IsDevEnv: !Equals [!Ref Environment, 'dev']
 
 Resources:
@@ -2428,7 +2429,7 @@ Resources:
             - Name: ONES_DYNAMODB_WS_SESSIONS_TABLE_NAME
               Value: !Ref RealtimeWsSessionsTable
             - Name: ONES_REALTIME_WS_ENDPOINT
-              Value: !Sub https://${RealtimeWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+              Value: !If [HasRealtimeJar, !Sub https://${RealtimeWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}, '']
             - Name: ONES_DOMAIN_EVENTS_TOPIC_ARN
               Value: !Ref DomainEventsTopic
             # Disable synchronous notifiers; all delivery goes through async SNS + Lambdas
@@ -2860,6 +2861,7 @@ Resources:
 
   RealtimeWebSocketApi:
     Type: AWS::ApiGatewayV2::Api
+    Condition: HasRealtimeJar
     Properties:
       Name: !Sub ${StackPrefix}-${Environment}-realtime-ws
       ProtocolType: WEBSOCKET
@@ -2867,6 +2869,7 @@ Resources:
 
   RealtimeWebSocketStage:
     Type: AWS::ApiGatewayV2::Stage
+    Condition: HasRealtimeJar
     Properties:
       ApiId: !Ref RealtimeWebSocketApi
       StageName: !Ref Environment
@@ -2874,6 +2877,7 @@ Resources:
 
   RealtimeConnectFunction:
     Type: AWS::Lambda::Function
+    Condition: HasRealtimeJar
     Properties:
       FunctionName: !Sub ${StackPrefix}-${Environment}-realtime-connect
       Runtime: java17
@@ -2891,6 +2895,7 @@ Resources:
 
   RealtimeEventsConsumerFunction:
     Type: AWS::Lambda::Function
+    Condition: HasRealtimeJar
     Properties:
       FunctionName: !Sub ${StackPrefix}-${Environment}-realtime-events-consumer
       Runtime: java17
@@ -2912,6 +2917,7 @@ Resources:
 
   PushEventsConsumerFunction:
     Type: AWS::Lambda::Function
+    Condition: HasRealtimeJar
     Properties:
       FunctionName: !Sub ${StackPrefix}-${Environment}-push-events-consumer
       Runtime: java17
@@ -2933,6 +2939,7 @@ Resources:
 
   RealtimeEventsConsumerMapping:
     Type: AWS::Lambda::EventSourceMapping
+    Condition: HasRealtimeJar
     Properties:
       BatchSize: 10
       Enabled: !If [IsDevEnv, true, false]
@@ -2945,6 +2952,7 @@ Resources:
 
   PushEventsConsumerMapping:
     Type: AWS::Lambda::EventSourceMapping
+    Condition: HasRealtimeJar
     Properties:
       BatchSize: 10
       Enabled: !If [IsDevEnv, true, false]
@@ -3116,6 +3124,7 @@ Resources:
 
   RealtimeDisconnectFunction:
     Type: AWS::Lambda::Function
+    Condition: HasRealtimeJar
     Properties:
       FunctionName: !Sub ${StackPrefix}-${Environment}-realtime-disconnect
       Runtime: java17
@@ -3209,6 +3218,7 @@ Resources:
 
   RealtimeWebSocketIntegrationConnect:
     Type: AWS::ApiGatewayV2::Integration
+    Condition: HasRealtimeJar
     Properties:
       ApiId: !Ref RealtimeWebSocketApi
       IntegrationType: AWS_PROXY
@@ -3225,6 +3235,7 @@ Resources:
 
   RealtimeWebSocketIntegrationDisconnect:
     Type: AWS::ApiGatewayV2::Integration
+    Condition: HasRealtimeJar
     Properties:
       ApiId: !Ref RealtimeWebSocketApi
       IntegrationType: AWS_PROXY
@@ -3241,6 +3252,7 @@ Resources:
 
   RealtimeWebSocketRouteConnect:
     Type: AWS::ApiGatewayV2::Route
+    Condition: HasRealtimeJar
     Properties:
       ApiId: !Ref RealtimeWebSocketApi
       RouteKey: $connect
@@ -3249,6 +3261,7 @@ Resources:
 
   RealtimeWebSocketRouteDisconnect:
     Type: AWS::ApiGatewayV2::Route
+    Condition: HasRealtimeJar
     Properties:
       ApiId: !Ref RealtimeWebSocketApi
       RouteKey: $disconnect
@@ -3257,6 +3270,7 @@ Resources:
 
   RealtimeConnectLambdaPermission:
     Type: AWS::Lambda::Permission
+    Condition: HasRealtimeJar
     Properties:
       Action: lambda:InvokeFunction
       FunctionName: !Ref RealtimeConnectFunction
@@ -3265,6 +3279,7 @@ Resources:
 
   RealtimeDisconnectLambdaPermission:
     Type: AWS::Lambda::Permission
+    Condition: HasRealtimeJar
     Properties:
       Action: lambda:InvokeFunction
       FunctionName: !Ref RealtimeDisconnectFunction
@@ -3273,6 +3288,7 @@ Resources:
 
   RealtimeSendToUserFunction:
     Type: AWS::Lambda::Function
+    Condition: HasRealtimeJar
     Properties:
       FunctionName: !Sub ${StackPrefix}-${Environment}-realtime-send-to-user
       Runtime: java17
@@ -3689,6 +3705,7 @@ Outputs:
   PhotosWsUrl:
     Value: !Sub wss://${PhotosWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
   RealtimeWsUrl:
+    Condition: HasRealtimeJar
     Value: !Sub wss://${RealtimeWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
   RealtimeWsSessionsTableName:
     Value: !Ref RealtimeWsSessionsTable
