@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import '../../domain/admin_ops_repository.dart';
+import '../domain/admin_ops_repository.dart';
 
 class AdminOpsController extends ChangeNotifier {
   final AdminOpsRepository repository;
