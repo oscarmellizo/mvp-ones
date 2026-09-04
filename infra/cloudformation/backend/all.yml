@@ -112,6 +112,11 @@ Parameters:
     Type: String
     Default: 'arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p312-Pillow:9'
 
+  # Realtime Lambdas (Java) shaded JAR key in the artifacts bucket
+  RealtimeLambdasJarS3Key:
+    Type: String
+    Default: ''
+
 Conditions:
   UsePhotoThumbnailsImageCond: !Equals [!Ref UsePhotoThumbnailsImage, 'true']
   UsePhotoThumbnailsZipCond: !Not [!Equals [!Ref UsePhotoThumbnailsImage, 'true']]
@@ -120,6 +125,7 @@ Conditions:
     - !Not [!Equals [!Ref CdnPhotosSigningPublicKeySsmParamName, '']]
   IsNotProdEnv: !Not [!Equals [!Ref Environment, 'prod']]
   HasApiAcmCertificateArn: !Not [!Equals [!Ref ApiAcmCertificateArn, '']]
+  HasRealtimeJar: !Not [!Equals [!Ref RealtimeLambdasJarS3Key, '']]
 
 Resources:
   EventsTable:
