@@ -76,35 +76,46 @@ jobs:
       - name: WhoAmI (caller identity)
         run: aws sts get-caller-identity
 
-      - name: Detect if template expects realtime JAR
-        run: |
-          if grep -q 'RealtimeLambdasJarS3Key' infra/cloudformation/backend/root.yml; then
-            echo "Template defines RealtimeLambdasJarS3Key: will upload JAR and deploy param."
-            echo "EXPECTS_REALTIME_JAR=true" >> $GITHUB_ENV
-          else
-            echo "Template does not define RealtimeLambdasJarS3Key: skipping JAR upload and CFN param update."
-            echo "EXPECTS_REALTIME_JAR=false" >> $GITHUB_ENV
-          fi
-
-      - name: Ensure backend stack exists
-        run: |
-          status=$(aws cloudformation describe-stacks --stack-name "${{ env.STACK_NAME }}" --query 'Stacks[0].StackStatus' --output text 2>/dev/null || true)
-          if [ -z "${status}" ] || [ "${status}" = "None" ]; then
-            echo "ERROR: Backend stack '${{ env.STACK_NAME }}' not found. Run 'Deploy Infra (Backend)' for this environment first, then re-run this workflow."
-            exit 1
-          fi
-
       - name: Upload jar to S3
-        if: ${{ env.EXPECTS_REALTIME_JAR == 'true' }}
         run: |
           aws s3 cp services/ones-realtime-lambdas/target/ones-realtime-lambdas-0.1.0-SNAPSHOT-lambda.jar s3://${{ env.ARTIFACTS_BUCKET }}/${{ env.S3_KEY }} --only-show-errors
 
-      - name: Deploy CloudFormation (update RealtimeLambdasJarS3Key)
-        if: ${{ env.EXPECTS_REALTIME_JAR == 'true' }}
+      - name: Detect backend stack and parameter presence (optional)
+        id: detect_params
+        continue-on-error: true
         run: |
-          aws cloudformation deploy \
-            --template-file infra/cloudformation/backend/root.yml \
-            --stack-name ${{ env.STACK_NAME }} \
+          set -e
+          exists=$(aws cloudformation describe-stacks --stack-name "${{ env.STACK_NAME }}" --query 'Stacks[0].StackName' --output text 2>/dev/null || true)
+          if [ -z "${exists}" ] || [ "${exists}" = "None" ]; then
+            echo "stack_exists=false" >> $GITHUB_OUTPUT
+            echo "param_present=false" >> $GITHUB_OUTPUT
+            echo "INFO: Backend stack not found; skipping parameter update."
+            exit 0
+          fi
+          echo "stack_exists=true" >> $GITHUB_OUTPUT
+          keys=$(aws cloudformation describe-stacks --stack-name "${{ env.STACK_NAME }}" --query 'Stacks[0].Parameters[].ParameterKey' --output text)
+          if echo "${keys}" | tr '\t' '\n' | grep -q '^RealtimeLambdasJarS3Key$'; then
+            echo "param_present=true" >> $GITHUB_OUTPUT
+          else
+            echo "param_present=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update stack parameters (use-previous-template)
+        if: ${{ steps.detect_params.outputs.stack_exists == 'true' && steps.detect_params.outputs.param_present == 'true' }}
+        run: |
+          set +e
+          out=$(aws cloudformation update-stack \
+            --stack-name "${{ env.STACK_NAME }}" \
+            --use-previous-template \
             --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
-            --region ${{ env.AWS_REGION }} \
-            --parameter-overrides RealtimeLambdasJarS3Key=${{ env.S3_KEY }} LambdaArtifactsBucket=${{ env.ARTIFACTS_BUCKET }}
+            --parameters \
+              ParameterKey=RealtimeLambdasJarS3Key,ParameterValue=${{ env.S3_KEY }} \
+              ParameterKey=LambdaArtifactsBucket,ParameterValue=${{ env.ARTIFACTS_BUCKET }} 2>&1)
+          code=$?
+          echo "CFN update-stack exitCode=${code}"
+          echo "${out}"
+          if echo "${out}" | grep -q "No updates are to be performed"; then
+            echo "No updates to perform; continuing."
+            exit 0
+          fi
+          exit ${code}
