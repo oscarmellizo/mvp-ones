@@ -2429,7 +2429,7 @@ Resources:
             - Name: ONES_DYNAMODB_WS_SESSIONS_TABLE_NAME
               Value: !Ref RealtimeWsSessionsTable
             - Name: ONES_REALTIME_WS_ENDPOINT
-              Value: !If [HasRealtimeJar, !Sub https://${RealtimeWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}, '']
+              Value: !If [HasRealtimeJar, !Sub 'https://${RealtimeWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}', '']
             - Name: ONES_DOMAIN_EVENTS_TOPIC_ARN
               Value: !Ref DomainEventsTopic
             # Disable synchronous notifiers; all delivery goes through async SNS + Lambdas
