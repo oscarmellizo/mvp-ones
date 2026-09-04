@@ -79,7 +79,11 @@ public class AdminOpsService {
         String url = sqs.getQueueUrl(GetQueueUrlRequest.builder().queueName(queueName).build()).queueUrl();
         return sqs.getQueueAttributes(GetQueueAttributesRequest.builder()
                         .queueUrl(url)
-                        .attributeNames("ApproximateNumberOfMessages", "ApproximateNumberOfMessagesNotVisible", "ApproximateAgeOfOldestMessage")
+                        .attributeNamesWithStrings(
+                                "ApproximateNumberOfMessages",
+                                "ApproximateNumberOfMessagesNotVisible",
+                                "ApproximateAgeOfOldestMessage"
+                        )
                         .build())
                 .attributesAsStrings();
     }
