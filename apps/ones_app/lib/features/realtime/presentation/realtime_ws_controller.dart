@@ -119,9 +119,6 @@ class RealtimeWsController extends ChangeNotifier {
             print('realtime_ws: message=$raw');
           } catch (_) {}
         },
-        onListen: () {
-          print('realtime_ws: stream subscription established');
-        },
         onDone: () {
           _connected = false;
           _connecting = false;
@@ -141,6 +138,9 @@ class RealtimeWsController extends ChangeNotifier {
           _safeNotify();
         },
       );
+
+      // Confirm subscription attached (no onListen param in Stream.listen)
+      print('realtime_ws: stream subscription attached');
 
       _connected = true;
       _reconnectAttempts = 0;
