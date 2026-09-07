@@ -135,6 +135,8 @@ class OnesApp extends StatelessWidget {
         PhotosWsController(wsUrl: config.photosWsUrl ?? '');
     final realtimeWsController =
         RealtimeWsController(wsUrl: config.realtimeWsUrl ?? '', apiFactory: apiFactory);
+    // ignore: avoid_print
+    print('[OnesApp] Created RealtimeWsController with wsUrl=${config.realtimeWsUrl}');
 
     return MultiProvider(
       providers: [

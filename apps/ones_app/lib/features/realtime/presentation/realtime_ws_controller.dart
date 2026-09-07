@@ -19,7 +19,10 @@ class RealtimeWsController extends ChangeNotifier {
 
   bool _notifyScheduled = false;
 
-  RealtimeWsController({required this.wsUrl, required this.apiFactory});
+  RealtimeWsController({required this.wsUrl, required this.apiFactory}) {
+    // ignore: avoid_print
+    print('realtime_ws: controller constructed with wsUrl=$wsUrl');
+  }
 
   bool get connected => _connected;
   bool get connecting => _connecting;
@@ -116,6 +119,9 @@ class RealtimeWsController extends ChangeNotifier {
             print('realtime_ws: message=$raw');
           } catch (_) {}
         },
+        onListen: () {
+          print('realtime_ws: stream subscription established');
+        },
         onDone: () {
           _connected = false;
           _connecting = false;
@@ -150,6 +156,7 @@ class RealtimeWsController extends ChangeNotifier {
   }
 
   Future<void> disconnect() async {
+    print('realtime_ws: disconnect() called');
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     _reconnectAttempts = 0;
