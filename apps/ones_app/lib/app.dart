@@ -78,6 +78,11 @@ class OnesApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final apiFactory = OnesApiFactory(config);
+    // Diagnostics: confirm WS config values on app build
+    // Note: these prints are temporary for realtime connectivity validation
+    // and will be removed once validated.
+    // ignore: avoid_print
+    print('[OnesApp] config.realtimeWsUrl=${config.realtimeWsUrl}');
 
     final authRepository =
         GoogleAuthRepository(webClientId: config.googleWebClientId);
@@ -156,11 +161,17 @@ class OnesApp extends StatelessWidget {
           create: (_) => realtimeWsController,
           update: (_, auth, ctrl) {
             final controller = ctrl ?? realtimeWsController;
+            // ignore: avoid_print
+            print('[RealtimeDI] update called: idTokenPresent=${auth.idToken != null && auth.idToken!.isNotEmpty} wsUrl=${config.realtimeWsUrl}');
             controller.setIdToken(auth.idToken);
             final token = auth.idToken;
             if (token != null && token.isNotEmpty) {
+              // ignore: avoid_print
+              print('[RealtimeDI] calling connect()');
               controller.connect();
             } else {
+              // ignore: avoid_print
+              print('[RealtimeDI] calling disconnect()');
               controller.disconnect();
             }
             return controller;
