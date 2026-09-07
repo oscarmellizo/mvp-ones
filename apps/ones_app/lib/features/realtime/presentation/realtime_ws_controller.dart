@@ -30,6 +30,15 @@ class RealtimeWsController extends ChangeNotifier {
         ? 'null'
         : '***${token.substring(token.length - (token.length >= 5 ? 5 : token.length))}';
     print('realtime_ws: setIdToken token=${masked}');
+    // Proactively attempt connect/disconnect upon token change
+    if (token != null && token.isNotEmpty) {
+      // don't await to avoid blocking caller
+      // ignore: discarded_futures
+      connect();
+    } else {
+      // ignore: discarded_futures
+      disconnect();
+    }
   }
 
   Future<String?> _fetchSessionToken() async {
