@@ -78,6 +78,11 @@ class OnesApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final apiFactory = OnesApiFactory(config);
+    // Diagnostics: confirm WS config values on app build
+    // Note: these prints are temporary for realtime connectivity validation
+    // and will be removed once validated.
+    // ignore: avoid_print
+    print('[OnesApp] config.realtimeWsUrl=${config.realtimeWsUrl}');
 
     final authRepository =
         GoogleAuthRepository(webClientId: config.googleWebClientId);
@@ -130,6 +135,8 @@ class OnesApp extends StatelessWidget {
         PhotosWsController(wsUrl: config.photosWsUrl ?? '');
     final realtimeWsController =
         RealtimeWsController(wsUrl: config.realtimeWsUrl ?? '', apiFactory: apiFactory);
+    // ignore: avoid_print
+    print('[OnesApp] Created RealtimeWsController with wsUrl=${config.realtimeWsUrl}');
 
     return MultiProvider(
       providers: [
@@ -156,11 +163,17 @@ class OnesApp extends StatelessWidget {
           create: (_) => realtimeWsController,
           update: (_, auth, ctrl) {
             final controller = ctrl ?? realtimeWsController;
+            // ignore: avoid_print
+            print('[RealtimeDI] update called: idTokenPresent=${auth.idToken != null && auth.idToken!.isNotEmpty} wsUrl=${config.realtimeWsUrl}');
             controller.setIdToken(auth.idToken);
             final token = auth.idToken;
             if (token != null && token.isNotEmpty) {
+              // ignore: avoid_print
+              print('[RealtimeDI] calling connect()');
               controller.connect();
             } else {
+              // ignore: avoid_print
+              print('[RealtimeDI] calling disconnect()');
               controller.disconnect();
             }
             return controller;
@@ -511,6 +524,25 @@ class _RootRouterState extends State<_RootRouter> with WidgetsBindingObserver {
     _appLinks.getInitialLink().then(_handlePaymentLink);
     _appLinks.uriLinkStream.listen(_handlePaymentLink);
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkPendingNotif());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        final ctx = context;
+        final auth = ctx.read<AuthController>();
+        final rt = ctx.read<RealtimeWsController>();
+        final present = auth.idToken != null && auth.idToken!.isNotEmpty;
+        print('[RealtimeBootstrap] postFrame idTokenPresent=$present');
+        rt.setIdToken(auth.idToken);
+        if (present) {
+          print('[RealtimeBootstrap] invoking connect()');
+          rt.connect();
+        } else {
+          print('[RealtimeBootstrap] invoking disconnect()');
+          rt.disconnect();
+        }
+      } catch (e) {
+        print('[RealtimeBootstrap] error: $e');
+      }
+    });
   }
 
   void _handlePaymentLink(Uri? uri) {

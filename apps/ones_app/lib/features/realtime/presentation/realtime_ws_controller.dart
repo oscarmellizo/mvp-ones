@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:dio/dio.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../../core/http/ones_api_factory.dart';
 
@@ -19,7 +20,10 @@ class RealtimeWsController extends ChangeNotifier {
 
   bool _notifyScheduled = false;
 
-  RealtimeWsController({required this.wsUrl, required this.apiFactory});
+  RealtimeWsController({required this.wsUrl, required this.apiFactory}) {
+    // ignore: avoid_print
+    print('realtime_ws: controller constructed with wsUrl=$wsUrl');
+  }
 
   bool get connected => _connected;
   bool get connecting => _connecting;
@@ -30,13 +34,31 @@ class RealtimeWsController extends ChangeNotifier {
         ? 'null'
         : '***${token.substring(token.length - (token.length >= 5 ? 5 : token.length))}';
     print('realtime_ws: setIdToken token=${masked}');
+    // Proactively attempt connect/disconnect upon token change
+    if (token != null && token.isNotEmpty) {
+      // don't await to avoid blocking caller
+      // ignore: discarded_futures
+      connect();
+    } else {
+      // ignore: discarded_futures
+      disconnect();
+    }
   }
 
   Future<String?> _fetchSessionToken() async {
     try {
       final dio = apiFactory.create(idToken: _idToken).dio;
       print('realtime_ws: requesting /v1/realtime/session');
-      final res = await dio.post('/v1/realtime/session');
+      final auth = _idToken;
+      if (auth == null || auth.isEmpty) {
+        print('realtime_ws: cannot request session, idToken missing');
+        return null;
+      }
+      print('realtime_ws: attaching Authorization header (bearer)');
+      final res = await dio.post(
+        '/v1/realtime/session',
+        options: Options(headers: {'Authorization': 'Bearer $auth'}),
+      );
       print('realtime_ws: session response status=${res.statusCode} data=${res.data}');
       final data = res.data;
       if (data is Map) {
@@ -127,6 +149,9 @@ class RealtimeWsController extends ChangeNotifier {
         },
       );
 
+      // Confirm subscription attached (no onListen param in Stream.listen)
+      print('realtime_ws: stream subscription attached');
+
       _connected = true;
       _reconnectAttempts = 0;
       print('realtime_ws: connected');
@@ -141,6 +166,7 @@ class RealtimeWsController extends ChangeNotifier {
   }
 
   Future<void> disconnect() async {
+    print('realtime_ws: disconnect() called');
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     _reconnectAttempts = 0;
