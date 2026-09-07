@@ -524,6 +524,25 @@ class _RootRouterState extends State<_RootRouter> with WidgetsBindingObserver {
     _appLinks.getInitialLink().then(_handlePaymentLink);
     _appLinks.uriLinkStream.listen(_handlePaymentLink);
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkPendingNotif());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        final ctx = context;
+        final auth = ctx.read<AuthController>();
+        final rt = ctx.read<RealtimeWsController>();
+        final present = auth.idToken != null && auth.idToken!.isNotEmpty;
+        print('[RealtimeBootstrap] postFrame idTokenPresent=$present');
+        rt.setIdToken(auth.idToken);
+        if (present) {
+          print('[RealtimeBootstrap] invoking connect()');
+          rt.connect();
+        } else {
+          print('[RealtimeBootstrap] invoking disconnect()');
+          rt.disconnect();
+        }
+      } catch (e) {
+        print('[RealtimeBootstrap] error: $e');
+      }
+    });
   }
 
   void _handlePaymentLink(Uri? uri) {
