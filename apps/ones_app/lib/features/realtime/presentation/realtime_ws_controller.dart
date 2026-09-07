@@ -48,7 +48,16 @@ class RealtimeWsController extends ChangeNotifier {
     try {
       final dio = apiFactory.create(idToken: _idToken).dio;
       print('realtime_ws: requesting /v1/realtime/session');
-      final res = await dio.post('/v1/realtime/session');
+      final auth = _idToken;
+      if (auth == null || auth.isEmpty) {
+        print('realtime_ws: cannot request session, idToken missing');
+        return null;
+      }
+      print('realtime_ws: attaching Authorization header (bearer)');
+      final res = await dio.post(
+        '/v1/realtime/session',
+        options: Options(headers: {'Authorization': 'Bearer $auth'}),
+      );
       print('realtime_ws: session response status=${res.statusCode} data=${res.data}');
       final data = res.data;
       if (data is Map) {
