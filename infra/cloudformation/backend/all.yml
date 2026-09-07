@@ -2355,6 +2355,10 @@ Resources:
               Value: !Ref RealtimeWsSessionsTable
             - Name: ONES_WS_CONNECTIONS_TABLE
               Value: !Ref RealtimeWsConnectionsTable
+            - Name: ONES_DYNAMODB_DEVICE_TOKENS_TABLE_NAME
+              Value: !Ref DeviceTokensTable
+            - Name: ONES_DYNAMODB_NOTIFICATIONS_TABLE_NAME
+              Value: !Ref NotificationsTable
             - Name: ONES_APP_BASE_URL
               Value: !Ref AppBaseUrl
             - Name: ONES_MERCADOPAGO_TEST_PAYER_EMAIL
