@@ -7,17 +7,20 @@ class AppConfig {
   final String apiBaseUrl;
   final String? googleWebClientId;
   final String? photosWsUrl;
+  final String? realtimeWsUrl;
 
   const AppConfig({
     required this.env,
     required this.apiBaseUrl,
     required this.googleWebClientId,
     required this.photosWsUrl,
+    required this.realtimeWsUrl,
   });
 
   static const _assetPath = 'assets/config/app_config.json';
   static const _defaultApiBaseUrl = 'http://localhost:8080';
   static const _defaultPhotosWsUrl = '';
+  static const _defaultRealtimeWsUrl = '';
 
   static Future<AppConfig> load() async {
     final fromDefine = AppConfig.fromDartDefines();
@@ -32,6 +35,7 @@ class AppConfig {
       final apiBaseUrlFromFile = json['apiBaseUrl'] as String?;
       final googleWebClientIdFromFile = json['googleWebClientId'] as String?;
       final photosWsUrlFromFile = json['photosWsUrl'] as String?;
+      final realtimeWsUrlFromFile = json['realtimeWsUrl'] as String?;
 
       final resolvedEnv = fromDefine.env.isNotEmpty
           ? fromDefine.env
@@ -60,8 +64,21 @@ class AppConfig {
                   ? fromDefine.photosWsUrl
                   : photosWsUrlFromFile;
 
+      final resolvedRealtimeWsUrl =
+          (fromDefine.realtimeWsUrl != _defaultRealtimeWsUrl &&
+                  (fromDefine.realtimeWsUrl ?? '').isNotEmpty)
+              ? fromDefine.realtimeWsUrl
+              : (realtimeWsUrlFromFile == null || realtimeWsUrlFromFile.isEmpty)
+                  ? fromDefine.realtimeWsUrl
+                  : realtimeWsUrlFromFile;
+
       final normalizedPhotosWsUrl = _normalizePhotosWsUrl(
         resolvedPhotosWsUrl,
+        resolvedEnv,
+      );
+
+      final normalizedRealtimeWsUrl = _normalizeRealtimeWsUrl(
+        resolvedRealtimeWsUrl,
         resolvedEnv,
       );
 
@@ -70,6 +87,7 @@ class AppConfig {
         apiBaseUrl: resolvedApiBaseUrl,
         googleWebClientId: resolvedGoogleWebClientId,
         photosWsUrl: normalizedPhotosWsUrl,
+        realtimeWsUrl: normalizedRealtimeWsUrl,
       );
     } catch (_) {
       return fromDefine;
@@ -84,6 +102,8 @@ class AppConfig {
         String.fromEnvironment('GOOGLE_WEB_CLIENT_ID', defaultValue: '');
     const photosWsUrl =
         String.fromEnvironment('ONES_PHOTOS_WS_URL', defaultValue: '');
+    const realtimeWsUrl =
+        String.fromEnvironment('ONES_REALTIME_WS_URL', defaultValue: '');
 
     return AppConfig(
       env: env,
@@ -93,10 +113,46 @@ class AppConfig {
         photosWsUrl.isEmpty ? null : photosWsUrl,
         env,
       ),
+      realtimeWsUrl: _normalizeRealtimeWsUrl(
+        realtimeWsUrl.isEmpty ? null : realtimeWsUrl,
+        env,
+      ),
     );
   }
 
   static String? _normalizePhotosWsUrl(String? raw, String env) {
+    final trimmed = (raw ?? '').trim();
+    if (trimmed.isEmpty) return null;
+    Uri base;
+    try {
+      base = Uri.parse(trimmed);
+    } catch (_) {
+      return trimmed;
+    }
+
+    final scheme = (base.scheme.isEmpty || base.scheme == 'http' || base.scheme == 'https')
+        ? 'wss'
+        : base.scheme;
+
+    final hasStage = base.pathSegments.isNotEmpty &&
+        !(base.pathSegments.length == 1 && base.pathSegments.first.trim().isEmpty);
+    final defaultStage = (env.toLowerCase() == 'prod' || env.toLowerCase() == 'production')
+        ? 'prod'
+        : 'dev';
+    final pathSegments = hasStage ? base.pathSegments : <String>[defaultStage];
+
+    final port = (base.hasPort && base.port == 0) ? null : (base.hasPort ? base.port : null);
+
+    return base
+        .replace(
+          scheme: scheme,
+          port: port,
+          pathSegments: pathSegments,
+        )
+        .toString();
+  }
+
+  static String? _normalizeRealtimeWsUrl(String? raw, String env) {
     final trimmed = (raw ?? '').trim();
     if (trimmed.isEmpty) return null;
     Uri base;
