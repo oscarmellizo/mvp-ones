@@ -28,6 +28,7 @@ class EventsApiRepository implements EventsRepository {
             apiBaseUrl: 'http://localhost:0',
             googleWebClientId: '',
             photosWsUrl: null,
+            realtimeWsUrl: null,
           ),
         );
 

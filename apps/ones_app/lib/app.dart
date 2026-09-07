@@ -49,6 +49,7 @@ import 'features/photos/adapters/local/photo_storage.dart';
 import 'features/photos/adapters/local/photo_upload_db.dart';
 import 'features/photos/presentation/photos_upload_controller.dart';
 import 'features/photos/presentation/photos_ws_controller.dart';
+import 'features/realtime/presentation/realtime_ws_controller.dart';
 import 'features/users/adapters/api/users_api_repository.dart';
 import 'features/users/application/ensure_user_use_case.dart';
 import 'features/subscriptions/adapters/api/subscriptions_api_repository.dart';
@@ -127,6 +128,8 @@ class OnesApp extends StatelessWidget {
     final photoStorage = PhotoStorage();
     final photosWsController =
         PhotosWsController(wsUrl: config.photosWsUrl ?? '');
+    final realtimeWsController =
+        RealtimeWsController(wsUrl: config.realtimeWsUrl ?? '', apiFactory: apiFactory);
 
     return MultiProvider(
       providers: [
@@ -147,6 +150,20 @@ class OnesApp extends StatelessWidget {
             );
             ctrl.restoreSessionIfPossible();
             return ctrl;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthController, RealtimeWsController>(
+          create: (_) => realtimeWsController,
+          update: (_, auth, ctrl) {
+            final controller = ctrl ?? realtimeWsController;
+            controller.setIdToken(auth.idToken);
+            final token = auth.idToken;
+            if (token != null && token.isNotEmpty) {
+              controller.connect();
+            } else {
+              controller.disconnect();
+            }
+            return controller;
           },
         ),
         ProxyProvider<AuthController, EventsRepository>(

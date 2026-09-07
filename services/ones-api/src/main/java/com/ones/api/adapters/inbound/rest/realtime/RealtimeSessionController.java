@@ -38,7 +38,7 @@ public class RealtimeSessionController {
         RNG.nextBytes(rnd);
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(rnd);
         Instant now = Instant.now(clock);
-        Instant expiresAt = now.plusSeconds(120);
+        Instant expiresAt = now.plusSeconds(3600);
         repository.upsert(new RealtimeSessionToken(token, userId.trim(), now, expiresAt));
         return ResponseEntity.ok(Map.of(
                 "token", token,

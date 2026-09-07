@@ -51,6 +51,9 @@ import com.ones.api.application.subscriptions.ports.SubscriptionPlansRepository;
 import com.ones.api.application.subscriptions.ports.UserSubscriptionsRepository;
 
 import org.springframework.beans.factory.annotation.Value;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 
 @Configuration
 public class ApplicationConfig {
@@ -58,6 +61,21 @@ public class ApplicationConfig {
     @Bean
     Clock clock() {
         return Clock.systemUTC();
+    }
+
+    @Bean
+    public DynamoDbClient dynamoDbClient(
+            @Value("${ones.dynamodb.region:}") String region
+    ) {
+        String reg = (region != null && !region.isBlank()) ? region.trim() : System.getenv("AWS_REGION");
+        return (reg != null && !reg.isBlank())
+                ? DynamoDbClient.builder().region(Region.of(reg)).build()
+                : DynamoDbClient.create();
+    }
+
+    @Bean
+    public DynamoDbEnhancedClient dynamoDbEnhancedClient(DynamoDbClient ddb) {
+        return DynamoDbEnhancedClient.builder().dynamoDbClient(ddb).build();
     }
 
     @Bean
