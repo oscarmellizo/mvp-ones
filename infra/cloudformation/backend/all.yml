@@ -2102,6 +2102,8 @@ Resources:
                   - !GetAtt MpCheckoutAttemptsTable.Arn
                   - !GetAtt SubscriptionPaymentsTable.Arn
                   - !Sub ${SubscriptionPaymentsTable.Arn}/index/*
+                  # Realtime session tokens table is written by ones-api (/v1/realtime/session)
+                  - !GetAtt RealtimeWsSessionsTable.Arn
         - PolicyName: ones-photos-ws
           PolicyDocument:
             Version: '2012-10-17'
@@ -2330,6 +2332,10 @@ Resources:
               Value: !Ref AWS::Region
             - Name: ONES_ENV
               Value: !Ref Environment
+            - Name: ONES_WS_SESSIONS_TABLE
+              Value: !Ref RealtimeWsSessionsTable
+            - Name: ONES_WS_CONNECTIONS_TABLE
+              Value: !Ref RealtimeWsConnectionsTable
             - Name: ONES_APP_BASE_URL
               Value: !Ref AppBaseUrl
             - Name: ONES_MERCADOPAGO_TEST_PAYER_EMAIL
