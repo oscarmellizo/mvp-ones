@@ -811,6 +811,8 @@ Resources:
                 Action:
                   - dynamodb:PutItem
                   - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:BatchWriteItem
                   - dynamodb:BatchGetItem
                   - dynamodb:Query
                   - dynamodb:Scan
@@ -834,7 +836,9 @@ Resources:
                   - !Sub ${EventTemplatesTable.Arn}/index/*
                   # Allow ones-api to manage realtime session tokens and (optionally) connections
                   - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${StackPrefix}-${Environment}-ws-sessions
+                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${StackPrefix}-${Environment}-ws-sessions/index/*
                   - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${StackPrefix}-${Environment}-ws-connections
+                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${StackPrefix}-${Environment}-ws-connections/index/*
         - PolicyName: ones-s3
           PolicyDocument:
             Version: '2012-10-17'
