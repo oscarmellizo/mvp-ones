@@ -31,7 +31,9 @@ class RealtimeWsController extends ChangeNotifier {
   Future<String?> _fetchSessionToken() async {
     try {
       final dio = apiFactory.create(idToken: _idToken).dio;
+      if (kDebugMode) debugPrint('realtime_ws: requesting /v1/realtime/session');
       final res = await dio.post('/v1/realtime/session');
+      if (kDebugMode) debugPrint('realtime_ws: session response status=${res.statusCode} data=${res.data}');
       final data = res.data;
       if (data is Map) {
         final v = data['token'];
