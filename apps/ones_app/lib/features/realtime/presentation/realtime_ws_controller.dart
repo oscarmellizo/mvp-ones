@@ -26,22 +26,29 @@ class RealtimeWsController extends ChangeNotifier {
 
   void setIdToken(String? token) {
     _idToken = token;
+    final masked = (token == null || token.isEmpty)
+        ? 'null'
+        : '***${token.substring(token.length - (token.length >= 5 ? 5 : token.length))}';
+    print('realtime_ws: setIdToken token=${masked}');
   }
 
   Future<String?> _fetchSessionToken() async {
     try {
       final dio = apiFactory.create(idToken: _idToken).dio;
-      if (kDebugMode) debugPrint('realtime_ws: requesting /v1/realtime/session');
+      print('realtime_ws: requesting /v1/realtime/session');
       final res = await dio.post('/v1/realtime/session');
-      if (kDebugMode) debugPrint('realtime_ws: session response status=${res.statusCode} data=${res.data}');
+      print('realtime_ws: session response status=${res.statusCode} data=${res.data}');
       final data = res.data;
       if (data is Map) {
         final v = data['token'];
-        if (v is String && v.isNotEmpty) return v;
+        if (v is String && v.isNotEmpty) {
+          print('realtime_ws: obtained session token len=${v.length}');
+          return v;
+        }
       }
       return null;
     } catch (e) {
-      if (kDebugMode) debugPrint('realtime_ws: session token fetch error=$e');
+      print('realtime_ws: session token fetch error=$e');
       return null;
     }
   }
@@ -56,26 +63,39 @@ class RealtimeWsController extends ChangeNotifier {
   }
 
   Future<void> connect() async {
-    if (_connecting || _connected) return;
-    if (wsUrl.trim().isEmpty) return;
+    print('realtime_ws: connect() called');
+    if (_connecting) {
+      print('realtime_ws: skipping connect, already connecting');
+      return;
+    }
+    if (_connected) {
+      print('realtime_ws: skipping connect, already connected');
+      return;
+    }
+    if (wsUrl.trim().isEmpty) {
+      print('realtime_ws: abort connect, wsUrl is empty');
+      return;
+    }
 
     final token = _idToken;
-    if (token == null || token.isEmpty) return;
+    if (token == null || token.isEmpty) {
+      print('realtime_ws: abort connect, idToken is null/empty');
+      return;
+    }
 
     _connecting = true;
     _safeNotify();
 
     try {
+      print('realtime_ws: fetching session token...');
       final session = await _fetchSessionToken();
       if (session == null || session.isEmpty) {
-        if (kDebugMode) debugPrint('realtime_ws: failed to obtain session token');
+        print('realtime_ws: failed to obtain session token');
         _scheduleReconnect();
         return;
       }
       final uri = _normalizeWsUri(wsUrl, session);
-      if (kDebugMode) {
-        debugPrint('realtime_ws: connect url=$wsUrl normalized=$uri');
-      }
+      print('realtime_ws: connecting to normalized=$uri');
       final ch = WebSocketChannel.connect(uri);
       _channel = ch;
 
@@ -84,7 +104,7 @@ class RealtimeWsController extends ChangeNotifier {
           // Optional: handle incoming payloads for future UI features
           try {
             final raw = msg is String ? msg : utf8.decode(msg as List<int>);
-            if (kDebugMode) debugPrint('realtime_ws: message=$raw');
+            print('realtime_ws: message=$raw');
           } catch (_) {}
         },
         onDone: () {
@@ -92,7 +112,7 @@ class RealtimeWsController extends ChangeNotifier {
           _connecting = false;
           _channel = null;
           _sub = null;
-          if (kDebugMode) debugPrint('realtime_ws: closed');
+          print('realtime_ws: closed');
           _scheduleReconnect();
           _safeNotify();
         },
@@ -101,7 +121,7 @@ class RealtimeWsController extends ChangeNotifier {
           _connecting = false;
           _channel = null;
           _sub = null;
-          if (kDebugMode) debugPrint('realtime_ws: error=$e');
+          print('realtime_ws: error=$e');
           _scheduleReconnect();
           _safeNotify();
         },
@@ -109,9 +129,10 @@ class RealtimeWsController extends ChangeNotifier {
 
       _connected = true;
       _reconnectAttempts = 0;
+      print('realtime_ws: connected');
     } catch (e) {
       _connected = false;
-      if (kDebugMode) debugPrint('realtime_ws: connect failed: $e');
+      print('realtime_ws: connect failed: $e');
       _scheduleReconnect();
     } finally {
       _connecting = false;
@@ -153,7 +174,7 @@ class RealtimeWsController extends ChangeNotifier {
     final seconds = delays[_reconnectAttempts - 1];
     _reconnectTimer?.cancel();
     _reconnectTimer = Timer(Duration(seconds: seconds), () {
-      if (kDebugMode) debugPrint('realtime_ws: reconnect attempt=$_reconnectAttempts');
+      print('realtime_ws: reconnect attempt=$_reconnectAttempts after ${seconds}s');
       connect();
     });
   }
