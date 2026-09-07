@@ -129,7 +129,7 @@ class OnesApp extends StatelessWidget {
     final photosWsController =
         PhotosWsController(wsUrl: config.photosWsUrl ?? '');
     final realtimeWsController =
-        RealtimeWsController(wsUrl: config.realtimeWsUrl ?? '');
+        RealtimeWsController(wsUrl: config.realtimeWsUrl ?? '', apiFactory: apiFactory);
 
     return MultiProvider(
       providers: [

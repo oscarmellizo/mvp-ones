@@ -3,9 +3,11 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import '../../../core/http/ones_api_factory.dart';
 
 class RealtimeWsController extends ChangeNotifier {
   final String wsUrl;
+  final OnesApiFactory apiFactory;
 
   WebSocketChannel? _channel;
   StreamSubscription? _sub;
@@ -17,13 +19,29 @@ class RealtimeWsController extends ChangeNotifier {
 
   bool _notifyScheduled = false;
 
-  RealtimeWsController({required this.wsUrl});
+  RealtimeWsController({required this.wsUrl, required this.apiFactory});
 
   bool get connected => _connected;
   bool get connecting => _connecting;
 
   void setIdToken(String? token) {
     _idToken = token;
+  }
+
+  Future<String?> _fetchSessionToken() async {
+    try {
+      final dio = apiFactory.create(idToken: _idToken).dio;
+      final res = await dio.post('/v1/realtime/session');
+      final data = res.data;
+      if (data is Map) {
+        final v = data['token'];
+        if (v is String && v.isNotEmpty) return v;
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) debugPrint('realtime_ws: session token fetch error=$e');
+      return null;
+    }
   }
 
   void _safeNotify() {
@@ -46,7 +64,13 @@ class RealtimeWsController extends ChangeNotifier {
     _safeNotify();
 
     try {
-      final uri = _normalizeWsUri(wsUrl, token);
+      final session = await _fetchSessionToken();
+      if (session == null || session.isEmpty) {
+        if (kDebugMode) debugPrint('realtime_ws: failed to obtain session token');
+        _scheduleReconnect();
+        return;
+      }
+      final uri = _normalizeWsUri(wsUrl, session);
       if (kDebugMode) {
         debugPrint('realtime_ws: connect url=$wsUrl normalized=$uri');
       }
