@@ -44,9 +44,16 @@ public class RealtimeSessionController {
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(rnd);
         Instant now = Instant.now(clock);
         Instant expiresAt = now.plusSeconds(3600);
-        repository.upsert(new RealtimeSessionToken(token, userId.trim(), now, expiresAt));
-        LOG.info("[RealtimeSessionController] session created for userId={} tokenLen={} expiresAt={}",
-                userId, token.length(), expiresAt);
+        try {
+            repository.upsert(new RealtimeSessionToken(token, userId.trim(), now, expiresAt));
+            LOG.info("[RealtimeSessionController] session created for userId={} tokenLen={} expiresAt={}",
+                    userId, token.length(), expiresAt);
+        } catch (Exception e) {
+            LOG.error("[RealtimeSessionController] failed to persist session for userId={} cause={}", userId, e.toString(), e);
+            return ResponseEntity.status(500).body(Map.of(
+                    "error", "session_persist_failed"
+            ));
+        }
         return ResponseEntity.ok(Map.of(
                 "token", token,
                 "expiresAt", expiresAt.toString()

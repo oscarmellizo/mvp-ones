@@ -20,7 +20,7 @@ public class DynamoDbRealtimeSessionTokensRepository implements RealtimeSessionT
 
     public DynamoDbRealtimeSessionTokensRepository(
             DynamoDbEnhancedClient enhancedClient,
-            @Value("${ones.dynamodb.ws-sessions-table-name:ones-dev-ws-sessions}") String tableName
+            @Value("${ones.dynamodb.ws-sessions-table-name:${ONES_WS_SESSIONS_TABLE:ones-dev-ws-sessions}}") String tableName
     ) {
         this.table = enhancedClient.table(tableName, TableSchema.fromBean(DynamoRealtimeSessionTokenItem.class));
     }
