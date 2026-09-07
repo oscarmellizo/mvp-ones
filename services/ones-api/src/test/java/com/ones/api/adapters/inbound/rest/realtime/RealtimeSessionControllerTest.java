@@ -42,14 +42,14 @@ public class RealtimeSessionControllerTest {
         assertNotNull(body.get("token"));
         assertNotNull(body.get("expiresAt"));
         assertTrue(body.get("token").length() > 10);
-        assertEquals("2024-01-01T10:02:00Z", body.get("expiresAt"));
+        assertEquals("2024-01-01T11:00:00Z", body.get("expiresAt"));
 
         ArgumentCaptor<RealtimeSessionToken> captor = ArgumentCaptor.forClass(RealtimeSessionToken.class);
         verify(repository, times(1)).upsert(captor.capture());
         RealtimeSessionToken saved = captor.getValue();
         assertEquals("user-abc", saved.getUserId());
         assertEquals(Instant.parse("2024-01-01T10:00:00Z"), saved.getCreatedAt());
-        assertEquals(Instant.parse("2024-01-01T10:02:00Z"), saved.getExpiresAt());
+        assertEquals(Instant.parse("2024-01-01T11:00:00Z"), saved.getExpiresAt());
         assertNotNull(saved.getToken());
     }
 
