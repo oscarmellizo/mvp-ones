@@ -832,6 +832,9 @@ Resources:
                   - !Sub ${FramesTable.Arn}/index/*
                   - !GetAtt EventTemplatesTable.Arn
                   - !Sub ${EventTemplatesTable.Arn}/index/*
+                  # Allow ones-api to manage realtime session tokens and (optionally) connections
+                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${StackPrefix}-${Environment}-ws-sessions
+                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${StackPrefix}-${Environment}-ws-connections
         - PolicyName: ones-s3
           PolicyDocument:
             Version: '2012-10-17'
@@ -954,6 +957,10 @@ Resources:
               Value: !Ref FramesTable
             - Name: ONES_EVENT_TEMPLATES_TABLE
               Value: !Ref EventTemplatesTable
+            - Name: ONES_WS_SESSIONS_TABLE
+              Value: !Sub ${StackPrefix}-${Environment}-ws-sessions
+            - Name: ONES_WS_CONNECTIONS_TABLE
+              Value: !Sub ${StackPrefix}-${Environment}-ws-connections
             - Name: ONES_EVENTS_COVERS_TEMP_BUCKET
               Value: !Ref EventsCoversTempBucket
             - Name: ONES_EVENTS_ASSETS_BUCKET
