@@ -2104,6 +2104,10 @@ Resources:
                   - !Sub ${SubscriptionPaymentsTable.Arn}/index/*
                   # Realtime session tokens table is written by ones-api (/v1/realtime/session)
                   - !GetAtt RealtimeWsSessionsTable.Arn
+                  # Device tokens for push notifications (register/unregister from ones-api)
+                  - !GetAtt DeviceTokensTable.Arn
+                  # Notifications table (seed/list/mark-read)
+                  - !GetAtt NotificationsTable.Arn
         - PolicyName: ones-photos-ws
           PolicyDocument:
             Version: '2012-10-17'
@@ -2179,6 +2183,14 @@ Resources:
               - Effect: Allow
                 Action:
                   - ses:SendEmail
+                Resource: '*'
+        - PolicyName: ones-pinpoint-send
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - mobiletargeting:SendMessages
                 Resource: '*'
 
         - PolicyName: ones-amp-remote-write
@@ -2332,6 +2344,13 @@ Resources:
               Value: !Ref AWS::Region
             - Name: ONES_ENV
               Value: !Ref Environment
+            # Push (configure provider and app id; defaults keep noop if not set)
+            - Name: ONES_PUSH_PROVIDER
+              Value: pinpoint
+            - Name: ONES_PUSH_PINPOINT_APP_ID
+              Value: !Ref PinpointAppIdParam
+            - Name: ONES_PUSH_REGION
+              Value: !Ref AWS::Region
             - Name: ONES_WS_SESSIONS_TABLE
               Value: !Ref RealtimeWsSessionsTable
             - Name: ONES_WS_CONNECTIONS_TABLE
