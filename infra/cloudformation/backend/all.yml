@@ -52,6 +52,24 @@ Parameters:
   PinpointAppIdParam:
     Type: String
     Default: ''
+  # Pinpoint channel credentials (provided securely at deploy time)
+  FirebaseServerKey:
+    Type: String
+    Default: ''
+    NoEcho: true
+  ApnsTokenKey:
+    Type: String
+    Default: ''
+    NoEcho: true
+  ApnsKeyId:
+    Type: String
+    Default: ''
+  ApnsTeamId:
+    Type: String
+    Default: ''
+  ApnsBundleId:
+    Type: String
+    Default: ''
   BackendDesiredCount:
     Type: Number
     Default: 0
@@ -129,6 +147,12 @@ Conditions:
   HasApiAcmCertificateArn: !Not [!Equals [!Ref ApiAcmCertificateArn, '']]
   HasRealtimeJar: !Not [!Equals [!Ref RealtimeLambdasJarS3Key, '']]
   IsDevEnv: !Equals [!Ref Environment, 'dev']
+  HasFirebaseKey: !Not [!Equals [!Ref FirebaseServerKey, '']]
+  HasApnsConfig: !And
+    - !Not [!Equals [!Ref ApnsTokenKey, '']]
+    - !Not [!Equals [!Ref ApnsKeyId, '']]
+    - !Not [!Equals [!Ref ApnsTeamId, '']]
+    - !Not [!Equals [!Ref ApnsBundleId, '']]
 
 Resources:
   EventsTable:
@@ -622,6 +646,62 @@ Resources:
           KeyType: HASH
         - AttributeName: sk
           KeyType: RANGE
+
+  # Secrets for Pinpoint channels (values provided via parameters; created only if provided)
+  FirebaseServerKeySecret:
+    Condition: HasFirebaseKey
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ${StackPrefix}-${Environment}-fcm-server-key
+      Description: FCM legacy server key used by Pinpoint GCM channel
+      SecretString: !Sub '{"apiKey":"${FirebaseServerKey}"}'
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  ApnsTokenSecret:
+    Condition: HasApnsConfig
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ${StackPrefix}-${Environment}-apns-token
+      Description: APNs token-based auth credentials for Pinpoint
+      SecretString: !Sub '{"tokenKey":"${ApnsTokenKey}","keyId":"${ApnsKeyId}","teamId":"${ApnsTeamId}","bundleId":"${ApnsBundleId}"}'
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Pinpoint channels (enabled only if creds provided)
+  PinpointGCMChannel:
+    Condition: HasFirebaseKey
+    Type: AWS::Pinpoint::GCMChannel
+    Properties:
+      ApplicationId: !Ref PinpointAppIdParam
+      ApiKey: !Sub '{{resolve:secretsmanager:${FirebaseServerKeySecret}:SecretString:apiKey}}'
+      Enabled: true
+
+  PinpointAPNSChannel:
+    Condition: HasApnsConfig
+    Type: AWS::Pinpoint::APNSChannel
+    Properties:
+      ApplicationId: !Ref PinpointAppIdParam
+      DefaultAuthenticationMethod: key
+      TokenKey: !Sub '{{resolve:secretsmanager:${ApnsTokenSecret}:SecretString:tokenKey}}'
+      TokenKeyId: !Sub '{{resolve:secretsmanager:${ApnsTokenSecret}:SecretString:keyId}}'
+      TeamId: !Sub '{{resolve:secretsmanager:${ApnsTokenSecret}:SecretString:teamId}}'
+      BundleId: !Sub '{{resolve:secretsmanager:${ApnsTokenSecret}:SecretString:bundleId}}'
+      Enabled: true
+
+  PinpointAPNSSandboxChannel:
+    Condition: !And [IsDevEnv, HasApnsConfig]
+    Type: AWS::Pinpoint::APNSSandboxChannel
+    Properties:
+      ApplicationId: !Ref PinpointAppIdParam
+      DefaultAuthenticationMethod: key
+      TokenKey: !Sub '{{resolve:secretsmanager:${ApnsTokenSecret}:SecretString:tokenKey}}'
+      TokenKeyId: !Sub '{{resolve:secretsmanager:${ApnsTokenSecret}:SecretString:keyId}}'
+      TeamId: !Sub '{{resolve:secretsmanager:${ApnsTokenSecret}:SecretString:teamId}}'
+      BundleId: !Sub '{{resolve:secretsmanager:${ApnsTokenSecret}:SecretString:bundleId}}'
+      Enabled: true
 
   PhotosWsConnectionsTable:
     Type: AWS::DynamoDB::Table
@@ -2104,6 +2184,10 @@ Resources:
                   - !Sub ${SubscriptionPaymentsTable.Arn}/index/*
                   # Realtime session tokens table is written by ones-api (/v1/realtime/session)
                   - !GetAtt RealtimeWsSessionsTable.Arn
+                  # Device tokens for push notifications (register/unregister from ones-api)
+                  - !GetAtt DeviceTokensTable.Arn
+                  # Notifications table (seed/list/mark-read)
+                  - !GetAtt NotificationsTable.Arn
         - PolicyName: ones-photos-ws
           PolicyDocument:
             Version: '2012-10-17'
@@ -2179,6 +2263,14 @@ Resources:
               - Effect: Allow
                 Action:
                   - ses:SendEmail
+                Resource: '*'
+        - PolicyName: ones-pinpoint-send
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - mobiletargeting:SendMessages
                 Resource: '*'
 
         - PolicyName: ones-amp-remote-write
@@ -2332,10 +2424,21 @@ Resources:
               Value: !Ref AWS::Region
             - Name: ONES_ENV
               Value: !Ref Environment
+            # Push (configure provider and app id; defaults keep noop if not set)
+            - Name: ONES_PUSH_PROVIDER
+              Value: pinpoint
+            - Name: ONES_PUSH_PINPOINT_APP_ID
+              Value: !Ref PinpointAppIdParam
+            - Name: ONES_PUSH_REGION
+              Value: !Ref AWS::Region
             - Name: ONES_WS_SESSIONS_TABLE
               Value: !Ref RealtimeWsSessionsTable
             - Name: ONES_WS_CONNECTIONS_TABLE
               Value: !Ref RealtimeWsConnectionsTable
+            - Name: ONES_DYNAMODB_DEVICE_TOKENS_TABLE_NAME
+              Value: !Ref DeviceTokensTable
+            - Name: ONES_DYNAMODB_NOTIFICATIONS_TABLE_NAME
+              Value: !Ref NotificationsTable
             - Name: ONES_APP_BASE_URL
               Value: !Ref AppBaseUrl
             - Name: ONES_MERCADOPAGO_TEST_PAYER_EMAIL
