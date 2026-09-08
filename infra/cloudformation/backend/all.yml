@@ -153,6 +153,7 @@ Conditions:
     - !Not [!Equals [!Ref ApnsKeyId, '']]
     - !Not [!Equals [!Ref ApnsTeamId, '']]
     - !Not [!Equals [!Ref ApnsBundleId, '']]
+  HasApnsSandbox: !And [IsDevEnv, HasApnsConfig]
 
 Resources:
   EventsTable:
@@ -692,7 +693,7 @@ Resources:
       Enabled: true
 
   PinpointAPNSSandboxChannel:
-    Condition: !And [IsDevEnv, HasApnsConfig]
+    Condition: HasApnsSandbox
     Type: AWS::Pinpoint::APNSSandboxChannel
     Properties:
       ApplicationId: !Ref PinpointAppIdParam
