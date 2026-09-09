@@ -70,6 +70,14 @@ Parameters:
   ApnsBundleId:
     Type: String
     Default: ''
+  # FCM v1 (Android) via Service Account
+  FirebaseProjectId:
+    Type: String
+    Default: ''
+  FirebaseServiceAccountJson:
+    Type: String
+    Default: ''
+    NoEcho: true
   BackendDesiredCount:
     Type: Number
     Default: 0
@@ -154,6 +162,7 @@ Conditions:
     - !Not [!Equals [!Ref ApnsTeamId, '']]
     - !Not [!Equals [!Ref ApnsBundleId, '']]
   HasApnsSandbox: !And [IsDevEnv, HasApnsConfig]
+  HasFcmServiceAccount: !Not [!Equals [!Ref FirebaseServiceAccountJson, '']]
 
 Resources:
   EventsTable:
@@ -667,6 +676,17 @@ Resources:
       Name: !Sub ${StackPrefix}-${Environment}-apns-token
       Description: APNs token-based auth credentials for Pinpoint
       SecretString: !Sub '{"tokenKey":"${ApnsTokenKey}","keyId":"${ApnsKeyId}","teamId":"${ApnsTeamId}","bundleId":"${ApnsBundleId}"}'
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  FcmServiceAccountSecret:
+    Condition: HasFcmServiceAccount
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ${StackPrefix}-${Environment}-fcm-service-account
+      Description: Firebase Service Account JSON for FCM HTTP v1 (Android)
+      SecretString: !Sub '{"json":${FirebaseServiceAccountJson}}'
       Tags:
         - Key: Environment
           Value: !Ref Environment
@@ -2125,6 +2145,10 @@ Resources:
                     - !Ref CloudFrontPrivateKeySecret
                     - !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${StackPrefix}-${Environment}-cloudfront-private-key*'
                   - !Ref InvitationEmailActionTokenSecret
+                  - !If
+                    - HasFcmServiceAccount
+                    - !Ref FcmServiceAccountSecret
+                    - !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:nonexistent-fcm*'
 
   TaskRole:
     Type: AWS::IAM::Role
@@ -2256,6 +2280,10 @@ Resources:
                     - !Ref CloudFrontPrivateKeySecret
                     - !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${StackPrefix}-${Environment}-cloudfront-private-key*'
                   - !Ref InvitationEmailActionTokenSecret
+                  - !If
+                    - HasFcmServiceAccount
+                    - !Ref FcmServiceAccountSecret
+                    - !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:nonexistent-fcm*'
 
         - PolicyName: ones-ses
           PolicyDocument:
@@ -2420,6 +2448,11 @@ Resources:
               ValueFrom: !Sub '${MercadoPagoCredentialsSecret}:public_key::'
             - Name: ONES_MERCADOPAGO_WEBHOOK_SECRET
               ValueFrom: !Sub '${MercadoPagoCredentialsSecret}:webhook_secret::'
+            - !If
+              - HasFcmServiceAccount
+              - Name: ONES_PUSH_FCM_SERVICE_ACCOUNT_JSON
+                ValueFrom: !Sub '${FcmServiceAccountSecret}:json::'
+              - !Ref AWS::NoValue
           Environment:
             - Name: AWS_REGION
               Value: !Ref AWS::Region
@@ -2432,6 +2465,8 @@ Resources:
               Value: !Ref PinpointAppIdParam
             - Name: ONES_PUSH_REGION
               Value: !Ref AWS::Region
+            - Name: ONES_PUSH_FCM_PROJECT_ID
+              Value: !Ref FirebaseProjectId
             - Name: ONES_WS_SESSIONS_TABLE
               Value: !Ref RealtimeWsSessionsTable
             - Name: ONES_WS_CONNECTIONS_TABLE

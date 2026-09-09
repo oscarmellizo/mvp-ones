@@ -219,15 +219,38 @@ public class ApplicationConfig {
     PushGateway pushGateway(
             @Value("${ones.push.provider:noop}") String provider,
             @Value("${ones.push.pinpoint.app-id:}") String appId,
-            @Value("${ones.push.region:}") String region
+            @Value("${ones.push.region:}") String region,
+            @Value("${ones.push.fcm.project-id:}") String fcmProjectId,
+            @Value("${ones.push.fcm.service-account-json:}") String fcmServiceAccountJson
     ) {
-        if ("pinpoint".equalsIgnoreCase(provider) && appId != null && !appId.isBlank()) {
-            String reg = (region != null && !region.isBlank()) ? region : System.getenv("AWS_REGION");
+        String reg = (region != null && !region.isBlank()) ? region : System.getenv("AWS_REGION");
+
+        java.util.function.Supplier<PushGateway> pinpointSupplier = () -> {
+            if (appId == null || appId.isBlank()) return null;
             software.amazon.awssdk.services.pinpoint.PinpointClient client =
                     (reg != null && !reg.isBlank())
                             ? software.amazon.awssdk.services.pinpoint.PinpointClient.builder().region(software.amazon.awssdk.regions.Region.of(reg)).build()
                             : software.amazon.awssdk.services.pinpoint.PinpointClient.create();
             return new PinpointPushGateway(client, appId.trim());
+        };
+
+        java.util.function.Supplier<PushGateway> fcmSupplier = () -> {
+            if (fcmProjectId == null || fcmProjectId.isBlank() || fcmServiceAccountJson == null || fcmServiceAccountJson.isBlank()) return null;
+            return new com.ones.api.adapters.outbound.fcm.FcmV1PushGateway(fcmProjectId.trim(), fcmServiceAccountJson.trim());
+        };
+
+        if ("hybrid".equalsIgnoreCase(provider)) {
+            PushGateway ios = pinpointSupplier.get();
+            PushGateway android = fcmSupplier.get();
+            return new com.ones.api.adapters.outbound.hybrid.RoutingPushGateway(ios, android, new LoggingPushGateway());
+        }
+        if ("fcmv1".equalsIgnoreCase(provider)) {
+            PushGateway fcm = fcmSupplier.get();
+            return fcm != null ? fcm : new LoggingPushGateway();
+        }
+        if ("pinpoint".equalsIgnoreCase(provider)) {
+            PushGateway pp = pinpointSupplier.get();
+            return pp != null ? pp : new LoggingPushGateway();
         }
         return new LoggingPushGateway();
     }
