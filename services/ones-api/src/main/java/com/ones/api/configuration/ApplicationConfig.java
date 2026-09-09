@@ -25,6 +25,9 @@ import com.ones.api.application.users.EnsureUserUseCase;
 import com.ones.api.application.users.GetUserByIdUseCase;
 import com.ones.api.application.users.LookupUserByEmailUseCase;
 import com.ones.api.application.users.UpdateUserPreferencesUseCase;
+import com.ones.api.application.users.GetAccountUseCase;
+import com.ones.api.application.users.AccountDeactivateUseCase;
+import com.ones.api.application.users.AccountReactivateUseCase;
 import com.ones.api.application.users.ports.PreferredNamesCacheRepository;
 import com.ones.api.application.users.ports.UsersRepository;
 import com.ones.api.application.subscriptions.CheckPlanLimitUseCase;
@@ -143,6 +146,23 @@ public class ApplicationConfig {
             Clock clock
     ) {
         return new UpdateUserPreferencesUseCase(repository, preferredNamesCacheRepository, clock);
+    }
+
+    @Bean
+    GetAccountUseCase getAccountUseCase(UsersRepository repository) {
+        return new GetAccountUseCase(repository);
+    }
+
+    @Bean
+    AccountDeactivateUseCase accountDeactivateUseCase(UsersRepository repository, Clock clock) {
+        return new AccountDeactivateUseCase(repository, clock);
+    }
+
+    @Bean
+    AccountReactivateUseCase accountReactivateUseCase(UsersRepository repository, Clock clock,
+                                                     @Value("${ones.account.reactivate-window-days:30}") int windowDays) {
+        java.time.Duration window = java.time.Duration.ofDays(Math.max(1, windowDays));
+        return new AccountReactivateUseCase(repository, clock, window);
     }
 
     @Bean

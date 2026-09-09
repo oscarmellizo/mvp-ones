@@ -10,12 +10,56 @@ import 'create_event_page.dart';
 import 'events_list_page.dart';
 import 'galleries_page.dart';
 import 'profile_page.dart';
+import '../../../account/presentation/pages/account_page.dart';
+import '../../../account/presentation/pages/about_page.dart';
 
 class HomeShellPage extends StatefulWidget {
   const HomeShellPage({super.key});
 
   @override
   State<HomeShellPage> createState() => _HomeShellPageState();
+}
+
+enum _DrawerDest { perfil, cuenta, acercaDe }
+
+class _MainDrawer extends StatelessWidget {
+  final ValueChanged<_DrawerDest> onSelect;
+  const _MainDrawer({required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    return Drawer(
+      child: SafeArea(
+        child: ListView(
+          children: [
+            const DrawerHeader(
+              child: Center(
+                child: Image(
+                  image: AssetImage('assets/splash/symbol_purple.png'),
+                  width: 96,
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_outline),
+              title: const Text('Perfil'),
+              onTap: () => onSelect(_DrawerDest.perfil),
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings_outlined),
+              title: const Text('Cuenta'),
+              onTap: () => onSelect(_DrawerDest.cuenta),
+            ),
+            ListTile(
+              leading: const Icon(Icons.info_outline),
+              title: const Text('Acerca de'),
+              onTap: () => onSelect(_DrawerDest.acercaDe),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _HomeShellPageState extends State<HomeShellPage> {
@@ -82,6 +126,22 @@ class _HomeShellPageState extends State<HomeShellPage> {
     }
 
     return Scaffold(
+      drawer: _MainDrawer(
+        onSelect: (dest) {
+          Navigator.of(context).pop();
+          if (dest == _DrawerDest.perfil) {
+            setState(() => _index = 2);
+          } else if (dest == _DrawerDest.cuenta) {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AccountPage()),
+            );
+          } else if (dest == _DrawerDest.acercaDe) {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AboutPage()),
+            );
+          }
+        },
+      ),
       body: _pages[_index],
       floatingActionButton: FloatingActionButton(
         key: TutorialKeys.homeFabCreate,
