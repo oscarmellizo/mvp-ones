@@ -35,7 +35,7 @@ class AccountApiRepository {
 
   Future<bool> deactivate(String idToken) async {
     final res = await _dioFactory(idToken).post(
-      '/v1/account:deactivate',
+      '/v1/account/deactivate',
       options: Options(
         extra: {
           'secure': [
@@ -54,7 +54,7 @@ class AccountApiRepository {
   Future<AccountStatus?> reactivate(String idToken) async {
     try {
       final res = await _dioFactory(idToken).post(
-        '/v1/account:reactivate',
+        '/v1/account/reactivate',
         options: Options(
           extra: {
             'secure': [
