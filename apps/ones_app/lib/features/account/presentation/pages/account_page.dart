@@ -6,6 +6,7 @@ import '../../../../core/ui/widgets/ones_card.dart';
 import '../../../auth/presentation/auth_controller.dart';
 import '../../../subscriptions/presentation/subscriptions_controller.dart';
 import '../../presentation/account_controller.dart';
+import '../../../subscriptions/presentation/pages/subscription_plans_page.dart';
 
 class AccountPage extends StatelessWidget {
   static const routeName = '/account';
@@ -202,7 +203,11 @@ class _PlanCard extends StatelessWidget {
                 ),
               ),
               onPressed: () {
-                // podría navegar a planes si se requiere
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const SubscriptionPlansPage(),
+                  ),
+                );
               },
               child: const Text(
                 'Ver planes',

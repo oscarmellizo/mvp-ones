@@ -349,46 +349,19 @@ class _Header extends StatelessWidget {
                     onPressed: () => Scaffold.of(context).openDrawer(),
                   ),
                   if (!isPlusActive)
-                    GestureDetector(
-                      onTap: () {
+                    IconButton(
+                      tooltip: 'Plus',
+                      icon: const Icon(
+                        Icons.star,
+                        color: OnesColors.purpleMid,
+                      ),
+                      onPressed: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => const SubscriptionPlansPage(),
                           ),
                         );
                       },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 7,
-                        ),
-                        decoration: BoxDecoration(
-                          color: OnesColors.purpleMid.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: OnesColors.purpleMid.withOpacity(0.3),
-                          ),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.star,
-                              size: 16,
-                              color: OnesColors.purpleMid,
-                            ),
-                            SizedBox(width: 6),
-                            Text(
-                              'Hazte Plus',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 12,
-                                color: OnesColors.purpleMid,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     ),
                 ],
               ),

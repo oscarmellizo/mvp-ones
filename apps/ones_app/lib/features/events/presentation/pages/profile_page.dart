@@ -211,7 +211,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     ],
                   ),
                   const SizedBox(height: 14),
-                  _SubscriptionCard(subscriptions: subscriptions),
                   if (subscriptions.subscription?.isFree == true) ...[
                     const SizedBox(height: 14),
                     const _UpgradeBanner(),
@@ -404,101 +403,7 @@ class _ProfilePageState extends State<ProfilePage> {
   return (parts.first, parts.sublist(1).join(' '));
 }
 
-class _SubscriptionCard extends StatelessWidget {
-  final SubscriptionsController subscriptions;
-
-  const _SubscriptionCard({required this.subscriptions});
-
-  @override
-  Widget build(BuildContext context) {
-    final plan = subscriptions.currentPlan;
-    final status = subscriptions.subscription?.status ?? 'free';
-
-    return OnesCard(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Plan actual',
-            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      plan?.name ?? 'Free',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 18,
-                        color: OnesColors.black,
-                      ),
-                    ),
-                    Text(
-                      plan?.formattedPrice() ?? 'Gratis',
-                      style: TextStyle(
-                        color: OnesColors.black.withOpacity(0.6),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: status.toLowerCase() == 'active'
-                      ? OnesColors.green.withOpacity(0.15)
-                      : OnesColors.black.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  status.toUpperCase(),
-                  style: TextStyle(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 10,
-                    color: status.toLowerCase() == 'active'
-                        ? OnesColors.green
-                        : OnesColors.black.withOpacity(0.6),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: OnesColors.purpleMid,
-                side: const BorderSide(color: OnesColors.purpleMid),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.zero,
-                ),
-              ),
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const SubscriptionPlansPage(),
-                  ),
-                );
-              },
-              child: const Text(
-                'Ver planes',
-                style: TextStyle(fontWeight: FontWeight.w900),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// Se removió la sección de Plan actual de Perfil; ahora vive en Cuenta.
 
 class _UpgradeBanner extends StatelessWidget {
   const _UpgradeBanner();
