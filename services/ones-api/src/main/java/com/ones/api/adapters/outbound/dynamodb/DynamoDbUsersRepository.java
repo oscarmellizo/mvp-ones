@@ -137,10 +137,20 @@ public class DynamoDbUsersRepository implements UsersRepository {
         item.setTermsAccepted(u.isTermsAccepted());
         item.setCreatedAt(u.getCreatedAt().toString());
         item.setUpdatedAt(u.getUpdatedAt().toString());
+        if (u.getStatus() != null) item.setStatus(u.getStatus());
+        if (u.getDisabledAt() != null) item.setDisabledAt(u.getDisabledAt().toString());
+        if (u.getReactivatedAt() != null) item.setReactivatedAt(u.getReactivatedAt().toString());
         return item;
     }
 
     private static User toDomain(DynamoUserItem item) {
+        Instant created = Instant.parse(item.getCreatedAt());
+        Instant updated = Instant.parse(item.getUpdatedAt());
+        Instant disabled = null;
+        Instant reactivated = null;
+        try { if (item.getDisabledAt() != null) disabled = Instant.parse(item.getDisabledAt()); } catch (Exception ignore) {}
+        try { if (item.getReactivatedAt() != null) reactivated = Instant.parse(item.getReactivatedAt()); } catch (Exception ignore) {}
+
         return new User(
                 item.getUserId(),
                 item.getEmail(),
@@ -152,8 +162,11 @@ public class DynamoDbUsersRepository implements UsersRepository {
                 item.getProvider(),
                 null, // languagePreference - will be added to DynamoUserItem later
                 item.isTermsAccepted(),
-                Instant.parse(item.getCreatedAt()),
-                Instant.parse(item.getUpdatedAt())
+                created,
+                updated,
+                item.getStatus(),
+                disabled,
+                reactivated
         );
     }
 }
