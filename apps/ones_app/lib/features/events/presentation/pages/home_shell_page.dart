@@ -81,7 +81,6 @@ class _HomeShellPageState extends State<HomeShellPage> {
   static const _pages = [
     EventsListPage(),
     GalleriesPage(),
-    ProfilePage(),
   ];
 
   @override
@@ -130,7 +129,9 @@ class _HomeShellPageState extends State<HomeShellPage> {
         onSelect: (dest) {
           Navigator.of(context).pop();
           if (dest == _DrawerDest.perfil) {
-            setState(() => _index = 2);
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ProfilePage()),
+            );
           } else if (dest == _DrawerDest.cuenta) {
             Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const AccountPage()),
@@ -183,12 +184,6 @@ class _HomeShellPageState extends State<HomeShellPage> {
               icon: const Icon(Icons.photo_library_outlined),
               selectedIcon: const Icon(Icons.photo_library),
               label: translationsService.translate('nav.galleries'),
-            ),
-            NavigationDestination(
-              key: TutorialKeys.homeTabProfile,
-              icon: const Icon(Icons.person_outline),
-              selectedIcon: const Icon(Icons.person),
-              label: translationsService.translate('nav.profile'),
             ),
           ],
         ),

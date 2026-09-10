@@ -11,6 +11,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.LinkedHashMap;
 
 import com.ones.api.application.users.AccountDeactivateUseCase;
 import com.ones.api.application.users.AccountReactivateUseCase;
@@ -75,11 +76,15 @@ public class AccountController {
     }
 
     private static Map<String, Object> toResponse(User u) {
-        return Map.of(
-                "userId", u.getUserId(),
-                "status", u.getStatus() != null ? u.getStatus() : "ACTIVE",
-                "disabledAt", u.getDisabledAt(),
-                "reactivatedAt", u.getReactivatedAt()
-        );
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("userId", u.getUserId());
+        out.put("status", u.getStatus() != null ? u.getStatus() : "ACTIVE");
+        if (u.getDisabledAt() != null) {
+            out.put("disabledAt", u.getDisabledAt());
+        }
+        if (u.getReactivatedAt() != null) {
+            out.put("reactivatedAt", u.getReactivatedAt());
+        }
+        return out;
     }
 }
