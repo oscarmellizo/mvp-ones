@@ -48,7 +48,7 @@ class AccountPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      'Tu cuenta se desactivará ahora. Si vuelves a iniciar sesión dentro de 30 días, se reactivará automáticamente. Pasados 30 días te enviaremos tus fotos al correo registrado y procederemos al cierre definitivo de tu cuenta.',
+                      'Tu cuenta se desactivará ahora. Si vuelves a iniciar sesión dentro de los próximos 30 días, se reactivará automáticamente. Pasados 30 días te enviaremos tus fotos al correo registrado y procederemos al cierre definitivo de tu cuenta.',
                       style: TextStyle(color: OnesColors.black.withOpacity(0.6)),
                     ),
                     const SizedBox(height: 12),
@@ -69,7 +69,7 @@ class AccountPage extends StatelessWidget {
                                   builder: (ctx) => AlertDialog(
                                     title: const Text('Desactivar cuenta'),
                                     content: const Text(
-                                        'Tu cuenta se desactivará ahora. Si vuelves a iniciar sesión dentro de 30 días, se reactivará automáticamente. Pasados 30 días te enviaremos tus fotos al correo registrado y procederemos al cierre definitivo de tu cuenta. ¿Deseas continuar?'),
+                                        'Tu cuenta se desactivará ahora. Si vuelves a iniciar sesión dentro de los próximos 30 días, se reactivará automáticamente. Pasados 30 días te enviaremos tus fotos al correo registrado y procederemos al cierre definitivo de tu cuenta. ¿Deseas continuar?'),
                                     actions: [
                                       TextButton(
                                         onPressed: () => Navigator.of(ctx).pop(false),

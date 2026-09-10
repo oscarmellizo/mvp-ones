@@ -97,7 +97,7 @@ public class AccountEmailService {
     private String renderText(User user, Instant disabledAt, Instant scheduledPhotoDeliveryAt) {
         return "Hola " + safe(user.getPreferredName()) + ",\n\n" +
                 "Confirmamos que tu cuenta ha sido desactivada el " + DATE_FMT.format(disabledAt) + " UTC.\n" +
-                "Si vuelves a iniciar sesión dentro de 30 días, tu cuenta se reactivará automáticamente.\n" +
+                "Si vuelves a iniciar sesión dentro de los próximos 30 días, tu cuenta se reactivará automáticamente.\n" +
                 "Pasados 30 días (estimado: " + DATE_FMT.format(scheduledPhotoDeliveryAt) + ") te enviaremos tus fotos al correo registrado y procederemos al cierre definitivo de tu cuenta.\n\n" +
                 "Para reactivar, inicia sesión: " + normalizeBase(publicBaseUrl) + "/login\n";
     }
@@ -128,7 +128,7 @@ public class AccountEmailService {
                 "<div style=\"background:#ffffff;padding:20px;border-radius:12px;margin-top:12px\">" +
                 "<div style=\"color:#111827;font-size:16px;font-weight:700\">Hola " + escapeHtml(safe(user.getPreferredName())) + ",</div>" +
                 "<div style=\"margin-top:10px;color:#374151;font-size:14px\">Confirmamos que tu cuenta ha sido <b>desactivada</b> el " + escapeHtml(DATE_FMT.format(disabledAt)) + " UTC.</div>" +
-                "<div style=\"margin-top:10px;color:#374151;font-size:14px\">Si vuelves a iniciar sesión dentro de <b>30 días</b>, tu cuenta se <b>reactivará automáticamente</b>.</div>" +
+                "<div style=\"margin-top:10px;color:#374151;font-size:14px\">Si vuelves a iniciar sesión dentro de los próximos <b>30 días</b>, tu cuenta se <b>reactivará automáticamente</b>.</div>" +
                 "<div style=\"margin-top:10px;color:#374151;font-size:14px\">Pasados 30 días (estimado: <b>" + escapeHtml(DATE_FMT.format(scheduledPhotoDeliveryAt)) + "</b>), te <b>enviaremos tus fotos</b> al correo registrado y procederemos al cierre definitivo de tu cuenta.</div>" +
                 "<div style=\"margin-top:16px\"><a href=\"" + escapeHtml(loginUrl) + "\" style=\"display:inline-block;width:100%;text-align:center;padding:12px 14px;border-radius:10px;background:#6C47FF;color:#fff;text-decoration:none;font-weight:700\">Reactivar cuenta</a></div>" +
                 "<div style=\"margin-top:12px;color:#6b7280;font-size:12px\">Si el botón no funciona, copia y pega este enlace en tu navegador:<br/><a href=\"" + escapeHtml(loginUrl) + "\" style=\"color:#6C47FF\">" + escapeHtml(loginUrl) + "</a></div>" +
