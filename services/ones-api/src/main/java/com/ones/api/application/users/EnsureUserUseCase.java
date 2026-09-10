@@ -21,6 +21,7 @@ public class EnsureUserUseCase {
 
         return repository.findById(command.userId())
                 .map(existing -> {
+                    // Preserve account status fields so ensure() doesn't wipe deactivation/reactivation state
                     User merged = new User(
                             existing.getUserId(),
                             coalesce(command.email(), existing.getEmail()),
@@ -33,7 +34,10 @@ public class EnsureUserUseCase {
                             coalesce(command.languagePreference(), existing.getLanguagePreference()),
                             existing.isTermsAccepted(),
                             existing.getCreatedAt(),
-                            now
+                            now,
+                            existing.getStatus(),
+                            existing.getDisabledAt(),
+                            existing.getReactivatedAt()
                     );
                     return repository.upsert(merged);
                 })
@@ -50,6 +54,7 @@ public class EnsureUserUseCase {
                     String languagePref = command.languagePreference() != null ? command.languagePreference() : "es";
                     String existingLanguagePref = existingByEmail != null ? existingByEmail.getLanguagePreference() : languagePref;
                     boolean existingTermsAccepted = existingByEmail != null && existingByEmail.isTermsAccepted();
+                    // If we're creating but we already had a user by email, carry over status fields
                     User created = new User(
                             command.userId(),
                             normalizedEmail,
@@ -62,7 +67,10 @@ public class EnsureUserUseCase {
                             existingLanguagePref,
                             existingTermsAccepted,
                             createdAt,
-                            now
+                            now,
+                            existingByEmail != null ? existingByEmail.getStatus() : null,
+                            existingByEmail != null ? existingByEmail.getDisabledAt() : null,
+                            existingByEmail != null ? existingByEmail.getReactivatedAt() : null
                     );
                     User upserted = repository.upsert(created);
 
