@@ -51,7 +51,7 @@ public class AccountController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @PostMapping(path = ":deactivate")
+    @PostMapping(path = {"/deactivate", ":deactivate"})
     public ResponseEntity<Map<String, Object>> deactivate(Authentication authentication) {
         String userId = authentication.getName();
         return deactivate.execute(userId)
@@ -67,7 +67,7 @@ public class AccountController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @PostMapping(path = ":reactivate")
+    @PostMapping(path = {"/reactivate", ":reactivate"})
     public ResponseEntity<Map<String, Object>> reactivate(Authentication authentication) {
         String userId = authentication.getName();
         return reactivate.execute(userId)
