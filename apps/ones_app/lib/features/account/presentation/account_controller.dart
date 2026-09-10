@@ -8,6 +8,7 @@ class AccountController extends ChangeNotifier {
   final AccountApiRepository repository;
 
   String? _idToken;
+  String? _ensuredForToken;
   AccountStatus? _status;
   bool _loading = false;
   Object? _error;
@@ -16,7 +17,20 @@ class AccountController extends ChangeNotifier {
       : repository = AccountApiRepository(apiFactory);
 
   void setIdToken(String? idToken) {
+    if (_idToken == idToken) {
+      return;
+    }
     _idToken = idToken;
+    // Ensure reactivation only once per token assignment (i.e., on fresh login)
+    if (_idToken != null && _idToken!.isNotEmpty) {
+      if (_ensuredForToken != _idToken) {
+        _ensuredForToken = _idToken;
+        // Fire-and-forget; errors are ignored by design here
+        // to avoid blocking app startup
+        // ignore: discarded_futures
+        ensureReactivatedIfEligible();
+      }
+    }
   }
 
   AccountStatus? get status => _status;
@@ -59,10 +73,9 @@ class AccountController extends ChangeNotifier {
     final token = _idToken;
     if (token == null || token.isEmpty) return;
     try {
-      final st = await repository.getStatus(token);
-      if (st != null && st.status.toUpperCase() == 'DISABLED') {
-        await repository.reactivate(token);
-      }
+      await repository.reactivate(token);
+      _status = await repository.getStatus(token);
+      notifyListeners();
     } catch (_) {}
   }
 

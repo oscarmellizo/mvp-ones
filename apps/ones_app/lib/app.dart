@@ -185,6 +185,8 @@ class OnesApp extends StatelessWidget {
             controller.setIdToken(auth.idToken);
             final token = auth.idToken;
             if (token != null && token.isNotEmpty) {
+              // Ensure a one-time reactivation attempt on login
+              // ignore: discarded_futures
               controller.ensureReactivatedIfEligible();
             }
             return controller;
