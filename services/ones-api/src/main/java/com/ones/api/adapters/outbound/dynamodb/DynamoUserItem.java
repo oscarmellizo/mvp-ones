@@ -19,6 +19,9 @@ public class DynamoUserItem {
     private boolean termsAccepted;
     private String createdAt;
     private String updatedAt;
+    private String status;
+    private String disabledAt;
+    private String reactivatedAt;
 
     @DynamoDbPartitionKey
     @DynamoDbAttribute("userId")
@@ -119,5 +122,32 @@ public class DynamoUserItem {
 
     public void setUpdatedAt(String updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    @DynamoDbAttribute("status")
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    @DynamoDbAttribute("disabledAt")
+    public String getDisabledAt() {
+        return disabledAt;
+    }
+
+    public void setDisabledAt(String disabledAt) {
+        this.disabledAt = disabledAt;
+    }
+
+    @DynamoDbAttribute("reactivatedAt")
+    public String getReactivatedAt() {
+        return reactivatedAt;
+    }
+
+    public void setReactivatedAt(String reactivatedAt) {
+        this.reactivatedAt = reactivatedAt;
     }
 }

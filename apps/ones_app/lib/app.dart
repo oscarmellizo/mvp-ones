@@ -49,6 +49,7 @@ import 'features/photos/presentation/photos_upload_controller.dart';
 import 'features/photos/presentation/photos_ws_controller.dart';
 import 'features/users/adapters/api/users_api_repository.dart';
 import 'features/users/application/ensure_user_use_case.dart';
+import 'features/account/presentation/account_controller.dart';
 import 'features/subscriptions/adapters/api/subscriptions_api_repository.dart';
 import 'features/subscriptions/domain/subscriptions_repository.dart';
 import 'features/subscriptions/presentation/subscriptions_controller.dart';
@@ -175,6 +176,18 @@ class OnesApp extends StatelessWidget {
                   .syncLanguageFromUserPreference(preferredLanguage);
             }
             return translationsService;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthController, AccountController>(
+          create: (_) => AccountController(apiFactory: apiFactory),
+          update: (_, auth, ctrl) {
+            final controller = ctrl ?? AccountController(apiFactory: apiFactory);
+            controller.setIdToken(auth.idToken);
+            final token = auth.idToken;
+            if (token != null && token.isNotEmpty) {
+              controller.ensureReactivatedIfEligible();
+            }
+            return controller;
           },
         ),
         ProxyProvider<AuthController, EventTemplatesApiRepository>(
