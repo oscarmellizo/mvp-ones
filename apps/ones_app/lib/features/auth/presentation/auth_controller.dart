@@ -402,6 +402,24 @@ class AuthController extends ChangeNotifier {
     } catch (_) {}
   }
 
+  Future<void>? _accountBlockedSignOutInFlight;
+
+  /// Cierra la sesión porque el API rechazó la cuenta (ACCOUNT_DISABLED / ACCOUNT_CLOSED)
+  /// y deja un mensaje en [error] para que la pantalla de login lo muestre.
+  Future<void> signOutBecauseAccountBlocked(String code) {
+    return _accountBlockedSignOutInFlight ??= _doSignOutBecauseAccountBlocked(code).whenComplete(() {
+      _accountBlockedSignOutInFlight = null;
+    });
+  }
+
+  Future<void> _doSignOutBecauseAccountBlocked(String code) async {
+    await logout();
+    _error = code == 'ACCOUNT_CLOSED'
+        ? 'Tu cuenta fue cerrada porque pasaron más de 30 días desde su desactivación.'
+        : 'Tu cuenta está desactivada. Vuelve a iniciar sesión para reactivarla.';
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     _setLoading(true);
     try {

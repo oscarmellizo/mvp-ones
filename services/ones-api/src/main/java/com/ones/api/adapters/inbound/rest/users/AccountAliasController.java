@@ -10,7 +10,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 
+import com.ones.api.application.users.AccountAccessService;
 import com.ones.api.application.users.AccountDeactivateUseCase;
 import com.ones.api.application.users.AccountReactivateUseCase;
 import com.ones.api.application.users.email.AccountEmailService;
@@ -23,24 +25,29 @@ public class AccountAliasController {
     private final AccountReactivateUseCase reactivate;
     private final AccountEmailService emailService;
     private final Clock clock;
+    private final AccountAccessService accountAccess;
 
     public AccountAliasController(
             AccountDeactivateUseCase deactivate,
             AccountReactivateUseCase reactivate,
             AccountEmailService emailService,
-            Clock clock
+            Clock clock,
+            AccountAccessService accountAccess
     ) {
         this.deactivate = deactivate;
         this.reactivate = reactivate;
         this.emailService = emailService;
         this.clock = clock;
+        this.accountAccess = accountAccess;
     }
 
     // Compatibility aliases for colon-style endpoints used by older clients
     @PostMapping(path = "/v1/account:deactivate")
     public ResponseEntity<Map<String, Object>> deactivate(Authentication authentication) {
         String userId = authentication.getName();
-        return deactivate.execute(userId)
+        Optional<User> result = deactivate.execute(userId);
+        accountAccess.evict(userId);
+        return result
                 .map(u -> {
                     try {
                         Instant disabledAt = u.getDisabledAt() != null ? u.getDisabledAt() : Instant.now(clock);
@@ -55,7 +62,9 @@ public class AccountAliasController {
     @PostMapping(path = "/v1/account:reactivate")
     public ResponseEntity<Map<String, Object>> reactivate(Authentication authentication) {
         String userId = authentication.getName();
-        return reactivate.execute(userId)
+        Optional<User> result = reactivate.execute(userId);
+        accountAccess.evict(userId);
+        return result
                 .map(u -> ResponseEntity.ok(toResponse(u)))
                 .orElseGet(() -> ResponseEntity.status(403).build());
     }

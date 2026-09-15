@@ -21,6 +21,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
@@ -28,7 +29,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.config.http.SessionCreationPolicy;
 
+import com.ones.api.adapters.inbound.rest.DisabledAccountFilter;
 import com.ones.api.application.admin.AdminAccessService;
+import com.ones.api.application.users.AccountAccessService;
 
 @Configuration
 @EnableWebSecurity
@@ -125,7 +128,8 @@ public class SecurityConfig {
             HttpSecurity http,
             JwtDecoder jwtDecoder,
             JwtAuthenticationConverter jwtAuthenticationConverter,
-            AdminAccessService adminAccessService
+            AdminAccessService adminAccessService,
+            AccountAccessService accountAccessService
     ) throws Exception {
 
         AuthorizationManager<RequestAuthorizationContext> adminOnly = (authentication, context) -> {
@@ -164,7 +168,9 @@ public class SecurityConfig {
                                 .decoder(jwtDecoder)
                                 .jwtAuthenticationConverter(jwtAuthenticationConverter)
                         )
-                );
+                )
+                // Bloquea cuentas desactivadas una vez autenticado el JWT (ver DisabledAccountFilter).
+                .addFilterAfter(new DisabledAccountFilter(accountAccessService), BearerTokenAuthenticationFilter.class);
 
         return http.build();
     }

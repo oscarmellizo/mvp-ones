@@ -11,8 +11,10 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
 import java.util.LinkedHashMap;
 
+import com.ones.api.application.users.AccountAccessService;
 import com.ones.api.application.users.AccountDeactivateUseCase;
 import com.ones.api.application.users.AccountReactivateUseCase;
 import com.ones.api.application.users.GetAccountUseCase;
@@ -28,19 +30,22 @@ public class AccountController {
     private final AccountReactivateUseCase reactivate;
     private final AccountEmailService emailService;
     private final Clock clock;
+    private final AccountAccessService accountAccess;
 
     public AccountController(
             GetAccountUseCase getAccount,
             AccountDeactivateUseCase deactivate,
             AccountReactivateUseCase reactivate,
             AccountEmailService emailService,
-            Clock clock
+            Clock clock,
+            AccountAccessService accountAccess
     ) {
         this.getAccount = getAccount;
         this.deactivate = deactivate;
         this.reactivate = reactivate;
         this.emailService = emailService;
         this.clock = clock;
+        this.accountAccess = accountAccess;
     }
 
     @GetMapping
@@ -54,7 +59,9 @@ public class AccountController {
     @PostMapping(path = {"/deactivate", ":deactivate"})
     public ResponseEntity<Map<String, Object>> deactivate(Authentication authentication) {
         String userId = authentication.getName();
-        return deactivate.execute(userId)
+        Optional<User> result = deactivate.execute(userId);
+        accountAccess.evict(userId);
+        return result
                 .map(u -> {
                     // Send confirmation email (non-blocking best effort)
                     try {
@@ -70,7 +77,9 @@ public class AccountController {
     @PostMapping(path = {"/reactivate", ":reactivate"})
     public ResponseEntity<Map<String, Object>> reactivate(Authentication authentication) {
         String userId = authentication.getName();
-        return reactivate.execute(userId)
+        Optional<User> result = reactivate.execute(userId);
+        accountAccess.evict(userId);
+        return result
                 .map(u -> ResponseEntity.ok(toResponse(u)))
                 .orElseGet(() -> ResponseEntity.status(403).build());
     }
