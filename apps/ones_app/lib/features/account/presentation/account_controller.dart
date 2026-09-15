@@ -12,8 +12,9 @@ class AccountController extends ChangeNotifier {
   bool _loading = false;
   Object? _error;
 
-  AccountController({required OnesApiFactory apiFactory})
-      : repository = AccountApiRepository(apiFactory);
+  AccountController({OnesApiFactory? apiFactory, AccountApiRepository? repository})
+      : assert(apiFactory != null || repository != null, 'apiFactory or repository is required'),
+        repository = repository ?? AccountApiRepository(apiFactory!);
 
   void setIdToken(String? idToken) {
     _idToken = idToken;
@@ -55,13 +56,18 @@ class AccountController extends ChangeNotifier {
     }
   }
 
-  Future<void> ensureReactivatedIfEligible() async {
+  /// Reactiva la cuenta si está DISABLED y sigue dentro de la ventana.
+  /// Si el API rechaza la reactivación (ventana vencida), invoca [onClosed].
+  Future<void> ensureReactivatedIfEligible({Future<void> Function()? onClosed}) async {
     final token = _idToken;
     if (token == null || token.isEmpty) return;
     try {
       final st = await repository.getStatus(token);
       if (st != null && st.status.toUpperCase() == 'DISABLED') {
-        await repository.reactivate(token);
+        final reactivated = await repository.reactivate(token);
+        if (reactivated == null && onClosed != null) {
+          await onClosed();
+        }
       }
     } catch (_) {}
   }

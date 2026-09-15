@@ -2,11 +2,15 @@ import 'package:dio/dio.dart';
 import 'package:ones_api_client/ones_api_client.dart';
 
 import '../config/app_config.dart';
+import 'account_block.dart';
 
 class OnesApiFactory {
   final AppConfig config;
 
   Future<String?> Function()? _tokenRefresher;
+
+  /// Se invoca cuando el API responde 403 con ACCOUNT_DISABLED / ACCOUNT_CLOSED.
+  void Function(String code)? _accountBlockedHandler;
 
   Future<String?>? _refreshInFlight;
 
@@ -14,6 +18,10 @@ class OnesApiFactory {
 
   void setTokenRefresher(Future<String?> Function()? refresher) {
     _tokenRefresher = refresher;
+  }
+
+  void setAccountBlockedHandler(void Function(String code)? handler) {
+    _accountBlockedHandler = handler;
   }
 
   Future<String?> refreshToken() async {
@@ -48,6 +56,13 @@ class OnesApiFactory {
     client.dio.interceptors.add(
       InterceptorsWrapper(
         onError: (e, handler) async {
+          final blockCode = AccountBlock.codeFrom(e.response?.statusCode, e.response?.data);
+          if (blockCode != null) {
+            _accountBlockedHandler?.call(blockCode);
+            handler.next(e);
+            return;
+          }
+
           if (e.response?.statusCode != 401) {
             handler.next(e);
             return;

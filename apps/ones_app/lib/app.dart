@@ -5,6 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:app_links/app_links.dart';
 import 'package:provider/provider.dart';
 
+import 'core/http/account_block.dart';
 import 'core/config/app_config.dart';
 import 'core/http/ones_api_factory.dart';
 import 'core/i18n/translations_service.dart';
@@ -150,6 +151,7 @@ class OnesApp extends StatelessWidget {
         ProxyProvider<AuthController, EventsRepository>(
           update: (_, auth, __) {
             apiFactory.setTokenRefresher(auth.refreshIdToken);
+            apiFactory.setAccountBlockedHandler(auth.signOutBecauseAccountBlocked);
             eventsRepository.setIdToken(auth.idToken);
             return eventsRepository;
           },
@@ -185,7 +187,9 @@ class OnesApp extends StatelessWidget {
             controller.setIdToken(auth.idToken);
             final token = auth.idToken;
             if (token != null && token.isNotEmpty) {
-              controller.ensureReactivatedIfEligible();
+              controller.ensureReactivatedIfEligible(
+                onClosed: () => auth.signOutBecauseAccountBlocked(AccountBlock.closed),
+              );
             }
             return controller;
           },
