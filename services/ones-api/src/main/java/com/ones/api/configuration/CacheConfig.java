@@ -20,6 +20,7 @@ public class CacheConfig {
     public static final String INVITATIONS_BY_EVENT_CACHE = "invitationsByEvent";
     public static final String FRAMES_BY_ID_CACHE = "framesById";
     public static final String EVENT_TEMPLATES_BY_STATUS_CACHE = "eventTemplatesByStatus";
+    public static final String ACCOUNT_ACCESS_CACHE = "accountAccess";
 
     @Bean
     CacheManager cacheManager() {
@@ -31,8 +32,15 @@ public class CacheConfig {
                 PHOTOS_BY_EVENT_FIRST_PAGE_CACHE,
                 INVITATIONS_BY_EVENT_CACHE,
                 FRAMES_BY_ID_CACHE,
-                EVENT_TEMPLATES_BY_STATUS_CACHE
+                EVENT_TEMPLATES_BY_STATUS_CACHE,
+                ACCOUNT_ACCESS_CACHE
         ));
+        manager.registerCustomCache(
+                ACCOUNT_ACCESS_CACHE,
+                java.util.Objects.requireNonNull(
+                        Caffeine.<Object, Object>newBuilder().recordStats().maximumSize(10_000).expireAfterWrite(Duration.ofMinutes(1)).build()
+                )
+        );
         manager.registerCustomCache(
                 EVENTS_METADATA_CACHE,
                 java.util.Objects.requireNonNull(
