@@ -31,6 +31,7 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.config.http.SessionCreationPolicy;
 
 import com.ones.api.adapters.inbound.rest.DisabledAccountFilter;
+import com.ones.api.adapters.inbound.rest.EmailVerifiedFilter;
 import com.ones.api.application.admin.AdminAccessService;
 import com.ones.api.application.users.AccountAccessService;
 
@@ -166,8 +167,9 @@ public class SecurityConfig {
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .authenticationManagerResolver(jwtAuthenticationManagerResolver)
                 )
-                // Bloquea cuentas desactivadas una vez autenticado el JWT (ver DisabledAccountFilter).
-                .addFilterAfter(new DisabledAccountFilter(accountAccessService), BearerTokenAuthenticationFilter.class);
+                // Orden tras autenticar el JWT: correo verificado → cuentas desactivadas.
+                .addFilterAfter(new EmailVerifiedFilter(), BearerTokenAuthenticationFilter.class)
+                .addFilterAfter(new DisabledAccountFilter(accountAccessService), EmailVerifiedFilter.class);
 
         return http.build();
     }
