@@ -1,7 +1,7 @@
 # Migración de autenticación a Firebase Auth (Google, Apple, correo/contraseña)
 
 Fecha: 2026-09-19
-Rama de trabajo: `fix/ios-google-signin-audience` (se creará rama propia para la implementación)
+Rama de trabajo: `feature/firebase-auth` desde `origin/main` (tras mergear los ajustes de iOS de `fix/ios-google-signin-audience`)
 Estado: aprobado para plan de implementación
 
 ## 1. Contexto y objetivo
@@ -14,7 +14,9 @@ decide si se intenta restaurar sesión con login silencioso.
 
 App Store exige ofrecer un método de inicio de sesión adicional al de terceros.
 Se decidió migrar a **Firebase Auth** con tres proveedores: Google, Sign in with
-Apple (solo iOS) y correo/contraseña. Objetivos:
+Apple (solo iOS) y correo/contraseña. iOS y Android son apps gemelas: ambas migran
+a Firebase con Google y correo/contraseña; la única diferencia es el botón de Apple
+en iOS. Objetivos:
 
 - Cumplir el requisito de App Store.
 - Mejorar seguridad y manejo de sesión (refresh token real, verificación de
@@ -49,7 +51,7 @@ Spring Boot API (ECS)
               ├─ JWKS https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com
               ├─ validador EmailVerified (solo provider password)
               └─ principal = sub
-  └─ Filtro AccountStatus (rechaza DISABLED salvo /v1/account/**)
+  └─ DisabledAccountFilter (ya existe, PR #104)
 DynamoDB: sin cambios de esquema.
 ```
 
@@ -109,15 +111,11 @@ DynamoDB: sin cambios de esquema.
 
 ### 4.5 Filtro de cuentas desactivadas
 
-`AccountStatusFilter extends OncePerRequestFilter`, registrado después de la
-autenticación JWT en la cadena principal:
-
-- Si hay `Authentication` y el usuario existe en la tabla users con
-  `status = DISABLED`, responde 403 `{ "code": "ACCOUNT_DISABLED" }`.
-- Exento: `/v1/account/**` (reactivación) y rutas públicas.
-- Usa `UsersRepository.findById` con cache Caffeine (`CacheConfig`), TTL corto
-  (1 minuto) y se invalida en `AccountDeactivateUseCase` y
-  `AccountReactivateUseCase`.
+Ya implementado en main (PR #104): `DisabledAccountFilter` + `AccountAccessService`
+con cache en `CacheConfig`, responde 403 `ACCOUNT_DISABLED` / `ACCOUNT_CLOSED`.
+Al cambiar a `authenticationManagerResolver` hay que conservar su posición en la
+cadena (después de `BearerTokenAuthenticationFilter`) y verificar que funciona con
+principals de ambos issuers.
 
 ## 5. Cliente Flutter (`apps/ones_app`)
 
@@ -289,7 +287,7 @@ Backend (JUnit + spring-security-test):
   Se usa un JWKS de prueba servido por `MockWebServer` o clave RSA local.
 - `AuthClaimsTest`: casos con claims con forma Firebase (`firebase.sign_in_provider`,
   sin `given_name`).
-- `AccountStatusFilterTest`: DISABLED → 403 salvo en `/v1/account/**`.
+- `DisabledAccountFilterTest` (existente): sigue pasando con tokens de Firebase.
 - `UsersControllerTest`: `provider` persistido según el token.
 
 Flutter (flutter_test):
@@ -315,6 +313,9 @@ desvinculación de proveedores, y deshabilitar usuarios en Firebase desde el bac
 - Archivos `google-services.json` (dos por proyecto) y `GoogleService-Info.plist`
   (uno por proyecto), y config web de cada proyecto.
 - Capability Sign in with Apple habilitada en el App ID `co.ones.onesapp`.
+- App iOS registrada en Firebase con bundle `co.ones.onesapp` (el
+  `GoogleService-Info.plist` local actual es de `com.ones.events`, proyecto
+  `ones-a96a7`, y no sirve para el bundle real).
 - SHA-1 de debug y release de Android registrados en ambos proyectos.
 - Credenciales de servicio de cada proyecto Firebase para correr la importación.
 - Valor de `FIREBASE_PROJECT_ID` por ambiente para CloudFormation.
