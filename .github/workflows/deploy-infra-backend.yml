@@ -253,6 +253,8 @@ jobs:
               StackPrefix="${stackPrefix}" \
               Environment="${{ inputs.environment }}" \
               GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}${{ vars.GOOGLE_IOS_CLIENT_ID != '' && format(',{0}', vars.GOOGLE_IOS_CLIENT_ID) || '' }}" \
+              FirebaseProjectId="${{ vars.FIREBASE_PROJECT_ID }}" \
+              GoogleLegacyAuthEnabled="${{ vars.GOOGLE_LEGACY_AUTH_ENABLED != '' && vars.GOOGLE_LEGACY_AUTH_ENABLED || 'true' }}" \
               AppBaseUrl="${appBaseUrl}" \
               MercadoPagoTestPayerEmail="${{ vars.ONES_MERCADOPAGO_TEST_PAYER_EMAIL }}" \
               ApiAcmCertificateArn="${apiAcmCertificateArn}" \
@@ -494,6 +496,8 @@ jobs:
               StackPrefix="${stackPrefix}" \
               Environment="${{ inputs.environment }}" \
               GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}${{ vars.GOOGLE_IOS_CLIENT_ID != '' && format(',{0}', vars.GOOGLE_IOS_CLIENT_ID) || '' }}" \
+              FirebaseProjectId="${{ vars.FIREBASE_PROJECT_ID }}" \
+              GoogleLegacyAuthEnabled="${{ vars.GOOGLE_LEGACY_AUTH_ENABLED != '' && vars.GOOGLE_LEGACY_AUTH_ENABLED || 'true' }}" \
               AppBaseUrl="${appBaseUrl}" \
               MercadoPagoTestPayerEmail="${{ vars.ONES_MERCADOPAGO_TEST_PAYER_EMAIL }}" \
               EmailEnabled="true" \
