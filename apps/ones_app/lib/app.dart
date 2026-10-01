@@ -512,6 +512,8 @@ class _RootRouterState extends State<_RootRouter> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _checkPendingNotif();
+      // Volvió desde el correo (otra app o pestaña): si ya verificó, avanzamos sin pedirle nada.
+      context.read<AuthController>().refreshEmailVerification();
     }
   }
 
