@@ -14,6 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -55,12 +56,30 @@ public class FirebaseIdentityToolkitClient implements FirebaseIdentityAdmin {
         String token = accessToken();
 
         // Primero se borra el usuario nuevo: tiene la identidad google.com que el importado necesita.
-        post("/v1/projects/" + projectId + "/accounts:delete", Map.of("localId", newUid), token);
+        // Ambos pasos toleran haber sido aplicados ya (peticiones paralelas o reintentos con el token viejo).
+        try {
+            post("/v1/projects/" + projectId + "/accounts:delete", Map.of("localId", newUid), token);
+        } catch (WebClientResponseException e) {
+            if (!e.getResponseBodyAsString().contains("USER_NOT_FOUND")) {
+                throw new IllegalStateException("Firebase accounts:delete falló para " + newUid
+                        + " (" + e.getStatusCode().value() + "): " + e.getResponseBodyAsString(), e);
+            }
+        }
 
-        JsonNode result = post("/v1/projects/" + projectId + "/accounts:batchCreate", batchCreateBody(legacy), token);
-        List<String> errors = importErrors(result);
+        JsonNode result;
+        try {
+            result = post("/v1/projects/" + projectId + "/accounts:batchCreate", batchCreateBody(legacy), token);
+        } catch (WebClientResponseException e) {
+            throw new IllegalStateException("Firebase accounts:batchCreate falló para " + legacy.userId()
+                    + " tras borrar el uid " + newUid + " (" + e.getStatusCode().value() + "): "
+                    + e.getResponseBodyAsString(), e);
+        }
+        List<String> errors = importErrors(result).stream()
+                .filter(error -> !error.contains("DUPLICATE_LOCAL_ID"))
+                .toList();
         if (!errors.isEmpty()) {
-            throw new IllegalStateException("Firebase batchCreate falló para " + legacy.userId() + ": " + errors);
+            throw new IllegalStateException("Firebase batchCreate falló para " + legacy.userId()
+                    + " tras borrar el uid " + newUid + ": " + errors);
         }
     }
 
@@ -102,7 +121,7 @@ public class FirebaseIdentityToolkitClient implements FirebaseIdentityAdmin {
                 .block(TIMEOUT);
     }
 
-    private String accessToken() {
+    String accessToken() {
         try {
             GoogleCredentials c = credentials;
             if (c == null) {
