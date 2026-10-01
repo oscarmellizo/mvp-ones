@@ -49,7 +49,7 @@
 | `lib/features/auth/presentation/auth_controller.dart` | flujo de sesión |
 | `lib/features/auth/presentation/auth_route.dart` (nuevo) | `resolveAuthRoute` |
 | `lib/features/auth/presentation/widgets/auth_buttons.dart`, `.../widgets/email_auth_section.dart`, `.../widgets/auth_error_banner.dart`, `.../widgets/polaroid_frame.dart` (nuevos) | UI compartida |
-| `assets/auth/google_g.png` (+ `2.0x/`, `3.0x/`) (nuevos) | logo oficial de Google |
+| `assets/auth/{google_g,apple_logo}.png` (+ `2.0x/`, `3.0x/`, `4.0x/`) (ya en el repo) | logos oficiales de Google y Apple |
 | `lib/features/auth/presentation/pages/{login,register}_page.dart` | botones nuevos |
 | `lib/features/auth/presentation/pages/{verify_email,forgot_password}_page.dart` (nuevos) | pantallas nuevas |
 | `lib/app.dart` | cableado y router |
@@ -1496,14 +1496,13 @@ git commit -m "feat(app): AuthController sobre Firebase (correo, Apple, verifica
 **Dirección de diseño (aplica a todo el task).** Las pantallas de auth ya tienen identidad: fondo ámbar, morado profundo, títulos LemonMilk en mayúsculas, esquinas rectas y la pila de fotos tipo polaroid como elemento memorable. No se agrega otro protagonista. Decisiones:
 
 - **Primera pantalla sin ruido.** El login sigue mostrando logo, título, polaroids y los botones de proveedor. El correo es un tercer botón ("Continuar con correo") que al tocarlo despliega el formulario en el mismo lugar (`AnimatedSize`, 220 ms, sin animación si el sistema pide reducir movimiento). Así el formulario no empuja todo hacia abajo para quien entra con Google.
-- **Botones de proveedor como una familia.** Mismo alto (mín. 54), ancho completo, esquinas rectas, logo de 20–22 px a la izquierda del texto: Google blanco con borde sutil y su logo oficial a color (hoy el ícono de FontAwesome sale como un cuadro vacío en web); Apple negro con logo blanco (solo iOS, guía de Apple); correo con fondo transparente y borde morado. La acción principal de cada formulario es el morado lleno (`purpleMid`), como el botón "Crear cuenta" existente.
+- **Botones de proveedor como una familia.** Mismo alto (mín. 54), ancho completo, esquinas rectas, logo a la izquierda del texto con 12 px de separación: Google blanco con borde `#747775` y su "G" oficial de 20 px (hoy el ícono de FontAwesome sale como un cuadro vacío en web); Apple negro con su logo oficial blanco de 22 px de alto (solo iOS). Los logos salen de los kits oficiales (Google Sign-In Branding y Apple "Sign in with Apple" Left-aligned White) y están en el repo en 1x–4x, así que Flutter elige la densidad exacta y se ven nítidos incluso con zoom al 200 % en pantallas Retina; no se dibujan con fuentes de íconos ni se recolorean. correo con fondo transparente y borde morado. La acción principal de cada formulario es el morado lleno (`purpleMid`), como el botón "Crear cuenta" existente.
 - **Polaroid como lenguaje, no como adorno nuevo.** Las pantallas de verificación y de contraseña enviada usan un marco polaroid (mismo blanco, sombra y leve giro que la pila del login) con el ícono del sobre y, en el pie de foto, el correo del usuario.
 - **Errores legibles.** El rojo `danger` sobre ámbar tiene poco contraste: el aviso de error pasa a texto negro sobre blanco translúcido con una barra roja a la izquierda, sin el prefijo "Error:".
 - **Textos.** Verbo claro y consistente: "Continuar con Google/Apple/correo", "Iniciar sesión", "Crear cuenta", "Olvidé mi contraseña", "Enviar enlace", "Ya verifiqué mi correo", "Reenviar enlace", "Usar otra cuenta". Los errores dicen qué pasó y qué hacer.
 - **Calidad mínima.** Alturas mínimas (no fijas) para no cortar texto con tamaño de letra grande; foco de teclado visible (botones Material); `autofillHints` y `AutofillGroup` para que el gestor de contraseñas funcione; íconos decorativos fuera de la semántica; aviso de error como `liveRegion`.
 
 **Files:**
-- Create: `apps/ones_app/assets/auth/google_g.png`, `apps/ones_app/assets/auth/2.0x/google_g.png`, `apps/ones_app/assets/auth/3.0x/google_g.png`
 - Create: `apps/ones_app/lib/features/auth/presentation/auth_route.dart`
 - Create: `apps/ones_app/lib/features/auth/presentation/widgets/auth_buttons.dart`
 - Create: `apps/ones_app/lib/features/auth/presentation/widgets/email_auth_section.dart`
@@ -1521,19 +1520,12 @@ git commit -m "feat(app): AuthController sobre Firebase (correo, Apple, verifica
 - Consumes: `AuthController` (Task 3, incl. `refreshEmailVerification`), `FakeAuthRepository`/`fakeUser` (Task 3).
 - Produces: `enum AuthRoute { splash, verifyEmail, completeRegistration, login, home }`, `AuthRoute resolveAuthRoute(AuthController auth)`; `bool get appleSignInAvailable`; `AuthOptionButton`, `GoogleSignInButton({required bool busy, required VoidCallback? onPressed})`, `AppleSignInButton({required VoidCallback? onPressed})`; `EmailAuthSection({required String toggleLabel, required String submitLabel, required bool busy, bool isRegistration = false, Widget? footer, required Future<void> Function(String email, String password) onSubmit})`; `AuthErrorBanner({required String message})`; `PolaroidFrame({required Widget child, Widget? caption, double angle = -0.035, double width = 260})`; páginas `VerifyEmailPage()`, `ForgotPasswordPage()`. Keys: `auth.google`, `auth.apple`, `auth.emailToggle`, `auth.email`, `auth.password`, `auth.submit`, `auth.forgot`, `verify.email`, `verify.confirm`, `verify.resend`, `verify.logout`, `forgot.email`, `forgot.send`, `forgot.sent`, `forgot.back`.
 
-- [ ] **Step 1: Logo oficial de Google.** Desde `apps/ones_app`:
+- [ ] **Step 1: Logos (ya en el repo).** Verificar que existan y no modificarlos:
 
 ```bash
-cat > /tmp/google_g.svg <<'SVG'
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-SVG
-mkdir -p assets/auth/2.0x assets/auth/3.0x
-rsvg-convert -w 20 -h 20 /tmp/google_g.svg -o assets/auth/google_g.png
-rsvg-convert -w 40 -h 40 /tmp/google_g.svg -o assets/auth/2.0x/google_g.png
-rsvg-convert -w 60 -h 60 /tmp/google_g.svg -o assets/auth/3.0x/google_g.png
-file assets/auth/google_g.png assets/auth/2.0x/google_g.png assets/auth/3.0x/google_g.png
+for n in google_g apple_logo; do ls assets/auth/$n.png assets/auth/2.0x/$n.png assets/auth/3.0x/$n.png assets/auth/4.0x/$n.png; done
 ```
-Expected: tres PNG de 20×20, 40×40 y 60×60. (`assets/auth/` ya está declarado en `pubspec.yaml`; las variantes `2.0x/3.0x` se resuelven solas.)
+Expected: 8 archivos. `google_g` es 20×20 en 1x (recorte exacto de la "G" del PNG oficial `Theme=Light, Show text=No, Shape=Square`); `apple_logo` es 20×24 en 1x (glifo oficial de 22 px de alto con 1 px transparente por lado, del SVG `Logo - SIWA - Left-aligned - White - Medium`). `assets/auth/` ya está en `pubspec.yaml`; las carpetas `N.0x/` las resuelve Flutter solo.
 
 - [ ] **Step 2: Write the failing route test** `test/features/auth/presentation/auth_route_test.dart`:
 
@@ -1719,7 +1711,7 @@ class AuthOptionButton extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          ExcludeSemantics(child: SizedBox.square(dimension: 22, child: Center(child: logo))),
+          ExcludeSemantics(child: SizedBox.square(dimension: 24, child: Center(child: logo))),
           const SizedBox(width: 12),
           Flexible(child: Text(label, textAlign: TextAlign.center)),
         ],
@@ -1738,12 +1730,13 @@ class GoogleSignInButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return AuthOptionButton(
       key: const Key('auth.google'),
-      logo: Image.asset('assets/auth/google_g.png', width: 20, height: 20),
+      // Logo oficial sin modificar; borde y colores según las guías de marca de Google.
+      logo: Image.asset('assets/auth/google_g.png', width: 20, height: 20, filterQuality: FilterQuality.medium),
       label: busy ? 'Conectando...' : 'Continuar con Google',
       onPressed: onPressed,
       background: OnesColors.white,
-      foreground: OnesColors.black,
-      border: OnesColors.black.withOpacity(0.12),
+      foreground: const Color(0xFF1F1F1F),
+      border: const Color(0xFF747775),
     );
   }
 }
@@ -1757,7 +1750,8 @@ class AppleSignInButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return AuthOptionButton(
       key: const Key('auth.apple'),
-      logo: const Icon(Icons.apple, size: 22, color: OnesColors.white),
+      // Logo oficial de Apple (no el ícono de Material): lo exige la guía de Sign in with Apple.
+      logo: Image.asset('assets/auth/apple_logo.png', width: 20, height: 24, filterQuality: FilterQuality.medium),
       label: 'Continuar con Apple',
       onPressed: onPressed,
       background: OnesColors.black,
@@ -2678,10 +2672,12 @@ Expected: `✓ Built build/web`.
 ```
 
 En `http://127.0.0.1:7357/` capturar: login plegado; login con el correo desplegado; login tras enviar el formulario vacío (errores de validación); registro; "Olvidé mi contraseña". Recorrer con Tab para ver el foco en cada botón y campo. Revisar contra la dirección de diseño de Task 4:
-  - el logo de Google se ve a color (no un cuadro vacío);
+  - el logo de Google se ve a color (no un cuadro vacío) y con bordes limpios: hacer `zoom` del navegador sobre cada botón a 1280×800 y con zoom de página al 200 %;
   - los tres botones de acceso tienen el mismo ancho y alto, y el formulario no empuja la pila de fotos fuera de la primera pantalla en 390×844 cuando está plegado;
   - el aviso de error se lee (negro sobre blanco) y no lleva "Error:";
   - nada se corta con zoom del navegador al 200 %.
+
+- [ ] **Step 5b: Logo de Apple.** En web no aparece (solo iOS). Revisarlo en el simulador de iOS: `flutter run -d "iPhone 16"` (o el simulador disponible), captura con `xcrun simctl io booted screenshot /tmp/login-ios.png` y revisar el botón negro con el logo blanco nítido, centrado verticalmente con el texto.
 
 - [ ] **Step 6: Revisión visual de verificación y contraseña enviada** (no se llega a ellas sin una cuenta real). Crear `tool/auth_preview.dart` temporal que pinte `VerifyEmailPage` y la confirmación de `ForgotPasswordPage` con un `AuthController` falso:
 
