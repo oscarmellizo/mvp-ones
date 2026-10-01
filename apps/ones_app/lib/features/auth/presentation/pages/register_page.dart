@@ -203,6 +203,7 @@ class _RegisterPageState extends State<RegisterPage> {
                             submitLabel: 'Crear cuenta',
                             busy: auth.isLoading,
                             isRegistration: true,
+                            fieldFill: OnesColors.black.withOpacity(0.04),
                             onSubmit: (email, password) => _startWith(() => auth.registerWithEmail(email, password)),
                           ),
                         ] else ...[

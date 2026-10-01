@@ -3,9 +3,9 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/ones_typography.dart';
-import '../../../../core/ui/widgets/ones_input_decoration.dart';
 import '../auth_controller.dart';
 import '../widgets/auth_error_banner.dart';
+import '../widgets/email_auth_section.dart';
 import '../widgets/polaroid_frame.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
@@ -121,11 +121,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                             color: OnesColors.black,
                             fontWeight: FontWeight.w600,
                           ),
-                          decoration: OnesInputDecoration.build(
-                            hintText: 'Correo',
-                            prefixIcon: Icon(Icons.mail_outline, color: OnesColors.purpleDeep.withOpacity(0.7)),
-                            fillColor: OnesColors.white,
-                          ),
+                          decoration: authFieldDecoration(hintText: 'Correo', icon: Icons.mail_outline),
                         ),
                         if (error != null) ...[
                           const SizedBox(height: 16),

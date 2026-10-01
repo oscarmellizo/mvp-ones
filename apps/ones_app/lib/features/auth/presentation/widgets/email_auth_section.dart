@@ -5,6 +5,37 @@ import '../../../../core/ui/ones_typography.dart';
 import '../../../../core/ui/widgets/ones_input_decoration.dart';
 import 'auth_buttons.dart';
 
+/// Rojo oscuro: el rojo de error estándar no se lee sobre el fondo ámbar.
+const Color authErrorColor = Color(0xFF8C1D18);
+
+/// Decoración de campos de auth: sin gris al pasar el mouse y errores legibles sobre ámbar.
+InputDecoration authFieldDecoration({
+  required String hintText,
+  required IconData icon,
+  Widget? suffix,
+  String? helper,
+  Color fillColor = OnesColors.white,
+}) {
+  const errorBorder = OutlineInputBorder(
+    borderRadius: BorderRadius.zero,
+    borderSide: BorderSide(color: authErrorColor, width: 1.4),
+  );
+  return OnesInputDecoration.build(
+    hintText: hintText,
+    prefixIcon: Icon(icon, color: OnesColors.purpleDeep.withOpacity(0.7)),
+    suffixIcon: suffix,
+    fillColor: fillColor,
+  ).copyWith(
+    helperText: helper,
+    helperStyle: TextStyle(color: OnesColors.black.withOpacity(0.75), fontWeight: FontWeight.w600),
+    hoverColor: Colors.transparent,
+    suffixIconColor: OnesColors.black.withOpacity(0.6),
+    errorStyle: const TextStyle(color: authErrorColor, fontWeight: FontWeight.w700),
+    errorBorder: errorBorder,
+    focusedErrorBorder: errorBorder.copyWith(borderSide: const BorderSide(color: authErrorColor, width: 1.8)),
+  );
+}
+
 /// Botón "Continuar con correo" que se despliega en el formulario de correo y contraseña.
 class EmailAuthSection extends StatefulWidget {
   final String toggleLabel;
@@ -14,6 +45,9 @@ class EmailAuthSection extends StatefulWidget {
   /// Registro: exige 8 caracteres y sugiere contraseña nueva al gestor de contraseñas.
   final bool isRegistration;
   final Widget? footer;
+
+  /// Blanco sobre el fondo ámbar; dentro de una tarjeta blanca usar un gris suave.
+  final Color fieldFill;
   final Future<void> Function(String email, String password) onSubmit;
 
   const EmailAuthSection({
@@ -23,6 +57,7 @@ class EmailAuthSection extends StatefulWidget {
     required this.busy,
     this.isRegistration = false,
     this.footer,
+    this.fieldFill = OnesColors.white,
     required this.onSubmit,
   });
 
@@ -52,12 +87,13 @@ class _EmailAuthSectionState extends State<EmailAuthSection> {
   }
 
   InputDecoration _decoration(String hint, IconData icon, {Widget? suffix, String? helper}) {
-    return OnesInputDecoration.build(
+    return authFieldDecoration(
       hintText: hint,
-      prefixIcon: Icon(icon, color: OnesColors.purpleDeep.withOpacity(0.7)),
-      suffixIcon: suffix,
-      fillColor: OnesColors.white,
-    ).copyWith(helperText: helper);
+      icon: icon,
+      suffix: suffix,
+      helper: helper,
+      fillColor: widget.fieldFill,
+    );
   }
 
   @override
@@ -147,7 +183,10 @@ class _EmailAuthSectionState extends State<EmailAuthSection> {
                 style: const TextStyle(fontWeight: FontWeight.w900),
               ),
             ),
-            if (widget.footer != null) widget.footer!,
+            if (widget.footer != null) ...[
+              const SizedBox(height: 4),
+              widget.footer!,
+            ],
           ],
         ),
       ),
