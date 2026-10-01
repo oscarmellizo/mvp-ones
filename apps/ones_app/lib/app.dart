@@ -53,6 +53,9 @@ import 'features/subscriptions/presentation/subscriptions_controller.dart';
 import 'core/services/live_event_notification_service.dart';
 import 'core/widgets/live_events_selector.dart';
 import 'features/auth/presentation/pages/login_page.dart';
+import 'features/auth/presentation/auth_route.dart';
+import 'features/auth/presentation/pages/register_page.dart';
+import 'features/auth/presentation/pages/verify_email_page.dart';
 import 'features/events/presentation/pages/event_detail_page.dart';
 import 'features/events/presentation/pages/home_shell_page.dart';
 import 'features/events/presentation/pages/events_list_page.dart';
@@ -604,12 +607,17 @@ class _RootRouterState extends State<_RootRouter> with WidgetsBindingObserver {
       }
     }
 
-    if (auth.isLoading && !auth.isSignedIn) {
-      return const SplashPage();
-    }
-
-    if (!auth.isRegistered) {
-      return const LoginPage();
+    switch (resolveAuthRoute(auth)) {
+      case AuthRoute.splash:
+        return const SplashPage();
+      case AuthRoute.verifyEmail:
+        return const VerifyEmailPage();
+      case AuthRoute.completeRegistration:
+        return const RegisterPage(popToRootOnComplete: false);
+      case AuthRoute.login:
+        return const LoginPage();
+      case AuthRoute.home:
+        break;
     }
 
     _maybeRequestPermission();

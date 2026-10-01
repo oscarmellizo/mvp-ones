@@ -1,18 +1,15 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import 'dart:async';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/widgets/ones_card.dart';
 import '../../../../core/ui/widgets/ones_text_field.dart';
 import '../auth_controller.dart';
-import '../../infrastructure/google_sign_in_initializer.dart';
+import '../widgets/auth_buttons.dart';
+import '../widgets/auth_error_banner.dart';
+import '../widgets/email_auth_section.dart';
 import 'legal_markdown_page.dart';
-import '../google_sign_in_button.dart';
 
 class RegisterPage extends StatefulWidget {
   final bool popToRootOnComplete;
@@ -33,45 +30,35 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _termsAccepted = false;
   AuthController? _authController;
 
-  Widget? _webGisButton;
-
-  StreamSubscription<GoogleSignInAuthenticationEvent>? _webAuthSub;
-  bool _webConsumedSignIn = false;
-
-  Future<void> _onWebGoogleSignedIn(BuildContext context) async {
+  Future<void> _startWith(Future<AuthNextStep> Function() action) async {
     final auth = context.read<AuthController>();
-    final step = await auth.beginRegistration();
+    final step = await action();
     if (!mounted) return;
-    if (step == AuthNextStep.failed) {
-      return;
+    switch (step) {
+      case AuthNextStep.failed:
+        return;
+      case AuthNextStep.signedIn:
+      case AuthNextStep.needsEmailVerification:
+        // La raíz (Home o VerifyEmailPage) toma el control.
+        if (widget.popToRootOnComplete) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+        return;
+      case AuthNextStep.needsRegistration:
+        final seed = auth.preferredName ?? _guessPreferredName(auth.user?.displayName);
+        setState(() {
+          _showValidation = false;
+          if (_preferredNameController.text.trim().isEmpty && seed != null && seed.trim().isNotEmpty) {
+            _preferredNameController.text = seed.trim();
+          }
+        });
     }
-    final seed =
-        auth.preferredName ?? _guessPreferredName(auth.user?.displayName);
-    setState(() {
-      _showValidation = false;
-      if (_preferredNameController.text.trim().isEmpty &&
-          seed != null &&
-          seed.trim().isNotEmpty) {
-        _preferredNameController.text = seed.trim();
-      }
-    });
   }
 
   @override
   void initState() {
     super.initState();
 
-    if (kIsWeb) {
-      _webGisButton = renderGoogleSignInButton();
-      _webAuthSub = GoogleSignIn.instance.authenticationEvents.listen((e) {
-        if (!mounted) return;
-        if (_webConsumedSignIn) return;
-        if (e is! GoogleSignInAuthenticationEventSignIn) return;
-        GoogleSignInInitializer.recordWebUser(e.user);
-        _webConsumedSignIn = true;
-        _onWebGoogleSignedIn(context);
-      });
-    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -84,7 +71,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   void dispose() {
-    _webAuthSub?.cancel();
     _authController?.removeListener(_onAuthChanged);
     _preferredNameController.dispose();
     super.dispose();
@@ -182,7 +168,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Usa tu cuenta de Google para crear tu perfil en Ones.',
+                    'Elige cómo quieres crear tu cuenta en Ones.',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: OnesColors.black.withOpacity(0.7),
@@ -191,18 +177,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                   const SizedBox(height: 20),
                   if (auth.error != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: OnesColors.white.withOpacity(0.6),
-                        borderRadius: BorderRadius.zero,
-                      ),
-                      child: Text(
-                        'Error: ${auth.error}',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: OnesColors.danger),
-                      ),
-                    ),
+                    AuthErrorBanner(message: '${auth.error}'),
                     const SizedBox(height: 16),
                   ],
                   OnesCard(
@@ -212,109 +187,23 @@ class _RegisterPageState extends State<RegisterPage> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         if (user == null) ...[
-                          SizedBox(
-                            width: double.infinity,
-                            height: 54,
-                            child: kIsWeb
-                                ? Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      Positioned.fill(
-                                        child: IgnorePointer(
-                                          ignoring: auth.isLoading,
-                                          child: SizedBox.expand(
-                                            child: _webGisButton ??
-                                                renderGoogleSignInButton(),
-                                          ),
-                                        ),
-                                      ),
-                                      Positioned.fill(
-                                        child: IgnorePointer(
-                                          ignoring: true,
-                                          child: Container(
-                                            height: 54,
-                                            color: OnesColors.white,
-                                            alignment: Alignment.center,
-                                            child: Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                FaIcon(
-                                                  FontAwesomeIcons.google,
-                                                  size: 18,
-                                                  color: OnesColors.black
-                                                      .withOpacity(0.7),
-                                                ),
-                                                const SizedBox(width: 12),
-                                                Text(
-                                                  auth.isLoading
-                                                      ? 'Conectando...'
-                                                      : 'Continuar con Google',
-                                                  style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.w700),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                : ElevatedButton(
-                                    onPressed: auth.isLoading
-                                        ? null
-                                        : () async {
-                                            final step =
-                                                await auth.beginRegistration();
-                                            if (!context.mounted) return;
-                                            if (step == AuthNextStep.failed) {
-                                              return;
-                                            }
-                                            final seed = auth.preferredName ??
-                                                _guessPreferredName(
-                                                    auth.user?.displayName);
-                                            setState(() {
-                                              _showValidation = false;
-                                              if (_preferredNameController.text
-                                                      .trim()
-                                                      .isEmpty &&
-                                                  seed != null &&
-                                                  seed.trim().isNotEmpty) {
-                                                _preferredNameController.text =
-                                                    seed.trim();
-                                              }
-                                            });
-                                          },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: OnesColors.white,
-                                      foregroundColor: OnesColors.black,
-                                      shape: const RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.zero,
-                                      ),
-                                      elevation: 0,
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        FaIcon(
-                                          FontAwesomeIcons.google,
-                                          size: 18,
-                                          color:
-                                              OnesColors.black.withOpacity(0.7),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Text(
-                                          auth.isLoading
-                                              ? 'Conectando...'
-                                              : 'Continuar con Google',
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w700),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                          GoogleSignInButton(
+                            busy: auth.isLoading,
+                            onPressed: auth.isLoading ? null : () => _startWith(auth.beginRegistration),
+                          ),
+                          if (appleSignInAvailable) ...[
+                            const SizedBox(height: 12),
+                            AppleSignInButton(
+                              onPressed: auth.isLoading ? null : () => _startWith(auth.beginRegistrationWithApple),
+                            ),
+                          ],
+                          const SizedBox(height: 12),
+                          EmailAuthSection(
+                            toggleLabel: 'Crear cuenta con correo',
+                            submitLabel: 'Crear cuenta',
+                            busy: auth.isLoading,
+                            isRegistration: true,
+                            onSubmit: (email, password) => _startWith(() => auth.registerWithEmail(email, password)),
                           ),
                         ] else ...[
                           Row(

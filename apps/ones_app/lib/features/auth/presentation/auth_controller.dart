@@ -109,7 +109,7 @@ class AuthController extends ChangeNotifier {
       _user = current;
       final step = await _loadSession();
       // Google/Apple sin registro vuelven al login (como antes); correo sigue al formulario de registro.
-      if (step == AuthNextStep.needsRegistration && current!.provider != 'password') {
+      if (step == AuthNextStep.needsRegistration && current.provider != 'password') {
         _clearSession();
       }
     } catch (e) {

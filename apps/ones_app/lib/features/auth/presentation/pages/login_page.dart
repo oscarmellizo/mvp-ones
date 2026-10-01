@@ -1,28 +1,20 @@
 import 'package:flutter/material.dart';
 
-import 'package:flutter/foundation.dart';
-
-import 'dart:async';
-
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-
-import 'package:google_sign_in/google_sign_in.dart';
-
 import 'package:provider/provider.dart';
-
-
 
 import '../../../../core/ui/ones_colors.dart';
 
 import '../auth_controller.dart';
 
-import '../../infrastructure/google_sign_in_initializer.dart';
+import '../widgets/auth_buttons.dart';
+
+import '../widgets/auth_error_banner.dart';
+
+import '../widgets/email_auth_section.dart';
+
+import 'forgot_password_page.dart';
 
 import 'register_page.dart';
-
-import '../google_sign_in_button.dart';
-
-import '../google_sign_in_button.dart';
 
 
 
@@ -46,82 +38,14 @@ class _LoginPageState extends State<LoginPage> {
 
 
 
-  Widget? _webGisButton;
-
-
-
-  StreamSubscription<GoogleSignInAuthenticationEvent>? _webAuthSub;
-
-  Stream<GoogleSignInAuthenticationEvent>? _webAuthEvents;
-
-  bool _webConsumedSignIn = false;
-
-
-
-  Future<void> _onWebGoogleSignedIn(BuildContext context) async {
-
+  Future<void> _run(Future<AuthNextStep> Function() action) async {
     final auth = context.read<AuthController>();
-
-    final step = await auth.signInExisting();
-
-    // ignore: avoid_print
-
-    print('[LoginPage] web signInExisting step=$step error=${auth.error}');
-
+    final step = await action();
     if (!mounted) return;
-
     setState(() {
-
-      _accountNotFound = step == AuthNextStep.needsRegistration;
-
+      // Las cuentas de correo sin registro las lleva el router al formulario de registro.
+      _accountNotFound = step == AuthNextStep.needsRegistration && auth.user?.provider != 'password';
     });
-
-  }
-
-
-
-  @override
-
-  void initState() {
-
-    super.initState();
-
-    if (kIsWeb) {
-
-      _webGisButton = renderGoogleSignInButton();
-
-      _webAuthEvents = GoogleSignIn.instance.authenticationEvents;
-
-      _webAuthSub = _webAuthEvents!.listen((e) {
-
-        if (!mounted) return;
-
-        if (_webConsumedSignIn) return;
-
-        if (e is! GoogleSignInAuthenticationEventSignIn) return;
-
-        GoogleSignInInitializer.recordWebUser(e.user);
-
-        _webConsumedSignIn = true;
-
-        _onWebGoogleSignedIn(context);
-
-      });
-
-    }
-
-  }
-
-
-
-  @override
-
-  void dispose() {
-
-    _webAuthSub?.cancel();
-
-    super.dispose();
-
   }
 
 
@@ -400,158 +324,43 @@ class _LoginPageState extends State<LoginPage> {
 
                     if (auth.error != null) ...[
 
-                      Container(
-
-                        padding: const EdgeInsets.all(12),
-
-                        decoration: BoxDecoration(
-
-                          color: OnesColors.white.withOpacity(0.6),
-
-                          borderRadius: BorderRadius.zero,
-
-                        ),
-
-                        child: Text(
-
-                          'Error: ${auth.error}',
-
-                          textAlign: TextAlign.center,
-
-                          style: const TextStyle(color: OnesColors.danger),
-
-                        ),
-
-                      ),
+                      AuthErrorBanner(message: '${auth.error}'),
 
                       const SizedBox(height: 16),
 
                     ],
 
-                    SizedBox(
-
-                      width: double.infinity,
-
-                      height: 54,
-
-                      child: kIsWeb
-
-                          ? StreamBuilder<GoogleSignInAuthenticationEvent>(
-
-                              stream: _webAuthEvents,
-
-                              builder: (context, snapshot) {
-
-                                final hasSignedIn =
-
-                                    snapshot.data is GoogleSignInAuthenticationEventSignIn;
-
-                                if (hasSignedIn && !auth.isLoading) {
-
-                                  WidgetsBinding.instance.addPostFrameCallback((_) {
-
-                                    _onWebGoogleSignedIn(context);
-
-                                  });
-
-                                }
-
-
-
-                                return AbsorbPointer(
-
-                                  absorbing: auth.isLoading,
-
-                                  child: renderGoogleSignInButton(),
-
-                                );
-
-                              },
-
-                            )
-
-                          : ElevatedButton(
-
-                              onPressed: auth.isLoading
-
-                                  ? null
-
-                                  : () async {
-
-                                      final step = await auth.signInExisting();
-
-                                      // ignore: avoid_print
-
-                                      print(
-
-                                          '[LoginPage] signInExisting step=$step error=${auth.error}');
-
-                                      if (!context.mounted) return;
-
-                                      setState(() {
-
-                                        _accountNotFound = step ==
-
-                                            AuthNextStep.needsRegistration;
-
-                                      });
-
-                                    },
-
-                              style: ElevatedButton.styleFrom(
-
-                                backgroundColor: OnesColors.white,
-
-                                foregroundColor: OnesColors.black,
-
-                                shape: const RoundedRectangleBorder(
-
-                                  borderRadius: BorderRadius.zero,
-
-                                ),
-
-                                elevation: 0,
-
-                              ),
-
-                              child: Row(
-
-                                mainAxisAlignment: MainAxisAlignment.center,
-
-                                children: [
-
-                                  FaIcon(
-
-                                    FontAwesomeIcons.google,
-
-                                    size: 18,
-
-                                    color: OnesColors.black.withOpacity(0.7),
-
+                    GoogleSignInButton(
+                      busy: auth.isLoading,
+                      onPressed: auth.isLoading ? null : () => _run(auth.signInWithGoogle),
+                    ),
+                    if (appleSignInAvailable) ...[
+                      const SizedBox(height: 12),
+                      AppleSignInButton(
+                        onPressed: auth.isLoading ? null : () => _run(auth.signInWithApple),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    EmailAuthSection(
+                      toggleLabel: 'Continuar con correo',
+                      submitLabel: 'Iniciar sesión',
+                      busy: auth.isLoading,
+                      onSubmit: (email, password) => _run(() => auth.signInWithEmail(email, password)),
+                      footer: Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          key: const Key('auth.forgot'),
+                          onPressed: auth.isLoading
+                              ? null
+                              : () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const ForgotPasswordPage()),
                                   ),
-
-                                  const SizedBox(width: 12),
-
-                                  Text(
-
-                                    auth.isLoading
-
-                                        ? 'Iniciando sesión...'
-
-                                        : 'Continuar con Google',
-
-                                    style: const TextStyle(
-
-                                        fontWeight: FontWeight.w700),
-
-                                  ),
-
-                                ],
-
-                              ),
-
-                            ),
-
+                          child: const Text(
+                            'Olvidé mi contraseña',
+                            style: TextStyle(color: OnesColors.purpleDeep, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ),
                     ),
 
                     const SizedBox(height: 16),
