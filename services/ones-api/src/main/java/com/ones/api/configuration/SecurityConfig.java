@@ -32,8 +32,10 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 
 import com.ones.api.adapters.inbound.rest.DisabledAccountFilter;
 import com.ones.api.adapters.inbound.rest.EmailVerifiedFilter;
+import com.ones.api.adapters.inbound.rest.LegacyAccountMigrationFilter;
 import com.ones.api.application.admin.AdminAccessService;
 import com.ones.api.application.users.AccountAccessService;
+import com.ones.api.application.users.AccountMigrationService;
 
 @Configuration
 @EnableWebSecurity
@@ -130,7 +132,8 @@ public class SecurityConfig {
             HttpSecurity http,
             AuthenticationManagerResolver<HttpServletRequest> jwtAuthenticationManagerResolver,
             AdminAccessService adminAccessService,
-            AccountAccessService accountAccessService
+            AccountAccessService accountAccessService,
+            AccountMigrationService accountMigrationService
     ) throws Exception {
 
         AuthorizationManager<RequestAuthorizationContext> adminOnly = (authentication, context) -> {
@@ -167,9 +170,10 @@ public class SecurityConfig {
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .authenticationManagerResolver(jwtAuthenticationManagerResolver)
                 )
-                // Orden tras autenticar el JWT: correo verificado → cuentas desactivadas.
+                // Orden tras autenticar el JWT: correo verificado → migración de cuentas legadas → cuentas desactivadas.
                 .addFilterAfter(new EmailVerifiedFilter(), BearerTokenAuthenticationFilter.class)
-                .addFilterAfter(new DisabledAccountFilter(accountAccessService), EmailVerifiedFilter.class);
+                .addFilterAfter(new LegacyAccountMigrationFilter(accountMigrationService), EmailVerifiedFilter.class)
+                .addFilterAfter(new DisabledAccountFilter(accountAccessService), LegacyAccountMigrationFilter.class);
 
         return http.build();
     }
