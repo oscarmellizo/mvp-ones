@@ -36,6 +36,7 @@ import com.ones.api.application.invitations.InvitationNotFoundException;
 import com.ones.api.application.photos.PhotoNotFoundException;
 import com.ones.api.application.photos.PhotoNotOwnedException;
 import com.ones.api.application.photos.PhotoSharedException;
+import com.ones.api.application.users.EmailConflictException;
 
 import software.amazon.awssdk.services.dynamodb.model.DynamoDbException;
 
@@ -129,6 +130,15 @@ public class ApiExceptionHandler {
     public ResponseEntity<Map<String, Object>> photoShared(PhotoSharedException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
                 "error", "photo_is_shared",
+                "message", ex.getMessage()
+        ));
+    }
+
+    @ExceptionHandler(EmailConflictException.class)
+    public ResponseEntity<Map<String, Object>> emailConflict(EmailConflictException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                "code", "EMAIL_CONFLICT",
+                "error", "email_conflict",
                 "message", ex.getMessage()
         ));
     }

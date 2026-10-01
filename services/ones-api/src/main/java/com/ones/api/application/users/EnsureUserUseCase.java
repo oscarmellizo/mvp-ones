@@ -47,6 +47,12 @@ public class EnsureUserUseCase {
                             ? null
                             : repository.findByEmail(normalizedEmail).orElse(null);
 
+                    // Solo se fusionan los usuarios stub creados por invitaciones. Fusionar una cuenta real
+                    // borraría su fila y dejaría huérfanos sus eventos y fotos.
+                    if (existingByEmail != null && !"stub".equals(existingByEmail.getProvider())) {
+                        throw new EmailConflictException();
+                    }
+
                     Instant createdAt = existingByEmail != null ? existingByEmail.getCreatedAt() : now;
                     String preferredName = existingByEmail != null && existingByEmail.getPreferredName() != null
                             ? existingByEmail.getPreferredName()
