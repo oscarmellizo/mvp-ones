@@ -76,7 +76,7 @@ DynamoDB: sin cambios de esquema.
 - Issuer Google: decoder y validadores actuales (`GoogleAudienceValidator`,
   issuer). Se registra solo si `google-legacy.enabled` es `true`.
 - Issuer Firebase: `NimbusJwtDecoder.withJwkSetUri(...)` y validadores: issuer,
-  audiencia = projectId, timestamps por defecto, y `FirebaseEmailVerifiedValidator`.
+  audiencia = projectId y timestamps por defecto.
 - Si `FIREBASE_PROJECT_ID` está vacío el issuer Firebase no se registra y se loguea
   un warning al arrancar. Si ambos están deshabilitados la aplicación falla al
   arrancar.
