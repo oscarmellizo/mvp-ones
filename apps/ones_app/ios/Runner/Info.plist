@@ -38,17 +38,17 @@
 		</dict>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>com.googleusercontent.apps.403122779240-q28gv7474mvtpbgrkn863ag8imb2jb5j</string>
+			<string>com.googleusercontent.apps.403122779240-7e0p9b2rau3mkctg7s08ku1uql1ah0ii</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.403122779240-q28gv7474mvtpbgrkn863ag8imb2jb5j</string>
+				<string>com.googleusercontent.apps.403122779240-7e0p9b2rau3mkctg7s08ku1uql1ah0ii</string>
 			</array>
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>GIDClientID</key>
-	<string>403122779240-q28gv7474mvtpbgrkn863ag8imb2jb5j.apps.googleusercontent.com</string>
+	<string>403122779240-7e0p9b2rau3mkctg7s08ku1uql1ah0ii.apps.googleusercontent.com</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
