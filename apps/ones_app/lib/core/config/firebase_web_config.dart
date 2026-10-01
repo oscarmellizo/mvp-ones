@@ -1,3 +1,5 @@
+import 'package:firebase_core/firebase_core.dart';
+
 /// Configuración de la app Web registrada en Firebase (proyecto `ones-a96a7`).
 ///
 /// Es la misma para dev y prod (un solo proyecto Firebase). No es secreta: Firebase
@@ -14,5 +16,13 @@ class FirebaseWebConfig {
   static const projectId = 'ones-a96a7';
   static const authDomain = 'ones-a96a7.firebaseapp.com';
   static const storageBucket = 'ones-a96a7.firebasestorage.app';
-}
 
+  static FirebaseOptions get options => const FirebaseOptions(
+        apiKey: apiKey,
+        appId: appId,
+        messagingSenderId: messagingSenderId,
+        projectId: projectId,
+        authDomain: authDomain,
+        storageBucket: storageBucket,
+      );
+}
