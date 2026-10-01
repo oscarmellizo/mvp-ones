@@ -8,10 +8,11 @@
 class FirebaseWebConfig {
   const FirebaseWebConfig._();
 
-  static const apiKey = 'PEGAR_API_KEY';
-  static const appId = 'PEGAR_APP_ID'; // 1:403122779240:web:...
+  static const apiKey = 'AIzaSyANAMkjgBftHsly1BoAH5NcUnieX-CdDQ0';
+  static const appId = '1:403122779240:web:3c4119742bc3e6862e77dd';
   static const messagingSenderId = '403122779240';
   static const projectId = 'ones-a96a7';
   static const authDomain = 'ones-a96a7.firebaseapp.com';
   static const storageBucket = 'ones-a96a7.firebasestorage.app';
 }
+
