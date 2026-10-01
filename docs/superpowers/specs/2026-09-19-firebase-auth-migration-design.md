@@ -29,13 +29,14 @@ en iOS. Objetivos:
 
 | Decisión | Elección |
 |---|---|
-| Identidad de usuarios existentes | Importar a Firebase con `uid = userId` actual. `sub` del token nuevo coincide con las claves existentes. |
+| Identidad de usuarios existentes | Migración bajo demanda: la primera vez que un usuario de Google entra con Firebase, el backend reemplaza su usuario de Firebase por uno con `uid = userId` actual (sección 6). Sin importación masiva. |
 | Transición | Backend acepta tokens de Google directos y de Firebase en paralelo, con flag para retirar el issuer viejo. |
 | Sign in with Apple | Solo iOS. No se configura Service ID ni key `.p8`. |
 | Proyectos Firebase | Uno solo para dev y prod: `ones-a96a7` (proyecto Google Cloud `403122779240`). Contiene las apps Android `com.ones.events` y `com.ones.events.dev`, la iOS `co.ones.onesapp` y una web. |
 | Plataformas | iOS, Android y web migran a Firebase. Google y correo en todas; Apple solo en iOS. |
 | Verificación de correo | Obligatoria para cuentas `password`. El backend rechaza tokens sin `email_verified`. |
-| Firebase Admin SDK en backend | No. El backend solo valida JWT con JWKS público. |
+| Credenciales Firebase en backend | Sí, solo para la migración: service account en Secrets Manager y llamadas REST a Identity Toolkit (`accounts:delete`, `accounts:batchCreate`) con `google-auth-library`. Sin Firebase Admin SDK. |
+| Fusión por correo en `EnsureUserUseCase` | Se elimina. Un uid nuevo con correo de otro uid responde 409 `EMAIL_CONFLICT` y no borra nada. |
 
 ## 3. Arquitectura
 
@@ -83,18 +84,13 @@ DynamoDB: sin cambios de esquema.
 - `JwtAuthenticationConverter` se mantiene: principal `sub`, sin authorities.
 - Las rutas públicas, las de admin y los filtros de actuator/internal no cambian.
 
-### 4.3 Validador de correo verificado
+### 4.3 Filtro de correo verificado
 
-`FirebaseEmailVerifiedValidator implements OAuth2TokenValidator<Jwt>`:
-
-- Lee `firebase.sign_in_provider`. Si es `password` y `email_verified` no es `true`,
-  devuelve fallo con `OAuth2Error("invalid_token", "EMAIL_NOT_VERIFIED")`.
-- Cualquier otro proveedor pasa.
-- El `ApiExceptionHandler` / entry point traduce ese fallo a HTTP 403 con cuerpo
-  `{ "code": "EMAIL_NOT_VERIFIED", "message": ... }` para que el cliente lo distinga
-  de un 401 de token expirado. Implementación: `BearerTokenAuthenticationEntryPoint`
-  personalizado que inspecciona el `OAuth2Error` y responde 403 cuando el código
-  de error sea `EMAIL_NOT_VERIFIED`; en cualquier otro caso responde 401 como hoy.
+`EmailVerifiedFilter` (mismo patrón que `DisabledAccountFilter`), después de la
+autenticación JWT: si el token tiene `firebase.sign_in_provider = password` y
+`email_verified` no es `true`, responde 403 `{ "code": "EMAIL_NOT_VERIFIED" }`.
+Cualquier otro proveedor pasa. Se prefiere un filtro sobre un validador de JWT para
+no personalizar el entry point y poder distinguir el 403 del 401 de token expirado.
 
 ### 4.4 Claims
 
@@ -229,25 +225,27 @@ Todas en `features/auth/presentation/pages/`, reutilizando estilos actuales:
 Los textos entran por el sistema de traducciones existente (`TranslationsService`
 y `initial-translations.json`).
 
-## 6. Importación de usuarios a Firebase
+## 6. Migración de usuarios bajo demanda
 
-Script `infra/scripts/firebase-import-users/` (Node, `firebase-admin` +
-`@aws-sdk/client-dynamodb`):
+`LegacyAccountMigrationFilter`, después de la autenticación, solo en `/v1/users/**`
+(la app siempre consulta esas rutas al iniciar sesión) y solo para tokens de Firebase:
 
-- Entrada: nombre de tabla users y credenciales de servicio del proyecto Firebase
-  del ambiente (`GOOGLE_APPLICATION_CREDENTIALS`).
-- Escanea la tabla y por cada usuario con `provider = google` construye
-  `{ uid: userId, email, emailVerified: true, displayName: name, photoURL: picture,
-     providerData: [{ providerId: 'google.com', uid: userId, email, displayName, photoURL }] }`.
-- Llama `auth.importUsers` en lotes de hasta 1000. Los errores por uid existente
-  se ignoran (idempotente); el resto se reporta al final con conteo.
-- Modo `--dry-run` que solo imprime el conteo.
-- Se ejecuta manualmente por un admin: dev, luego prod, justo antes de publicar la
-  app. Puede repetirse para recoger usuarios nuevos entre corridas.
+1. `googleSub` = primer valor de `firebase.identities["google.com"]`. Si no existe o
+   es igual a `sub`, no hace nada.
+2. Si existe usuario con `userId = sub`, no hace nada.
+3. Si no existe usuario con `userId = googleSub`, no hace nada (usuario nuevo).
+4. Si existe: `accounts:delete` del uid `sub` (recién creado y vacío) y
+   `accounts:batchCreate` de `{ localId: googleSub, email, emailVerified: true,
+   displayName, photoUrl, providerUserInfo: [{ providerId: "google.com",
+   rawId: googleSub, email }] }`. Responde 409 `{ "code": "ACCOUNT_MIGRATED" }`.
+5. El cliente vuelve a llamar `signInWithCredential` con la misma credencial de
+   Google (sin interacción) y obtiene `uid = googleSub`.
 
-Comportamiento esperado: al iniciar sesión con Google, Firebase busca por
-`(google.com, sub)` y devuelve el usuario importado, por lo que el `sub` del token
-de Firebase es igual al `userId` existente.
+Seguridad: `firebase.identities["google.com"]` lo firma Firebase tras verificar la
+credencial de Google, así que prueba que es la misma cuenta de Google del usuario
+legado. Si la migración falla a mitad, el siguiente inicio de sesión la repite.
+Si la service account no está configurada, el filtro no migra y loguea error; el
+cliente recibe `EMAIL_CONFLICT` de `ensure` en lugar de perder datos.
 
 ## 7. Despliegue y transición
 
@@ -256,7 +254,7 @@ de Firebase es igual al `userId` existente.
    `app.ones.events`. Habilitar proveedores Google, Apple y
    Email/Password. Ajuste "Una cuenta por dirección de correo".
 2. Desplegar backend con ambos issuers a dev, validar con la app actual, luego prod.
-3. Ejecutar importación de usuarios en dev y prod.
+3. Cargar la service account en el secreto `…-firebase-service-account` de cada ambiente.
 4. Publicar app nueva (TestFlight, Play interno, web).
 5. Con adopción suficiente, poner `GOOGLE_LEGACY_AUTH_ENABLED=false` y redeploy.
 
@@ -272,13 +270,19 @@ de Firebase es igual al `userId` existente.
   muestra el flujo de reactivación desde `/v1/account`.
 - Cancelación del popup/hoja nativa: `AuthFailure.cancelled`, sin mensaje de error.
 - Sin `FIREBASE_PROJECT_ID` en backend: arranca solo con Google legacy y warning.
+- Correo de un usuario existente con otro uid y sin prueba de Google (Apple,
+  correo): 409 `EMAIL_CONFLICT`; la app indica entrar con Google.
+- 409 `ACCOUNT_MIGRATED`: la app reintenta el inicio de sesión con la credencial
+  guardada en memoria; si no la tiene, cierra sesión y pide entrar con Google.
 
 ## 9. Pruebas
 
 Backend (JUnit + spring-security-test):
 
-- `FirebaseEmailVerifiedValidatorTest`: password sin verificar falla; password
-  verificado pasa; google.com y apple.com pasan sin el claim.
+- `EmailVerifiedFilterTest`: password sin verificar → 403; password verificado,
+  google.com y apple.com pasan.
+- `LegacyAccountMigrationFilterTest` y `AccountMigrationServiceTest`: casos de 6.
+- `EnsureUserUseCaseTest`: correo de otro uid → `EmailConflictException`, sin borrar.
 - `IssuerResolverTest`: token con issuer Firebase se acepta; issuer desconocido
   responde 401; con `google-legacy.enabled=false` el issuer Google responde 401.
   Se usa un JWKS de prueba servido por `MockWebServer` o clave RSA local.
@@ -301,7 +305,7 @@ reactivar, app versión anterior contra backend nuevo.
 ## 10. Fuera de alcance
 
 MFA, Apple en Android y web, App Check, expiración máxima de sesión por
-`auth_time`, cambio del comportamiento de fusión por email en `EnsureUserUseCase`,
+`auth_time`, importación masiva de usuarios,
 desvinculación de proveedores, y deshabilitar usuarios en Firebase desde el backend.
 
 ## 11. Insumos que debe entregar el equipo
@@ -312,6 +316,6 @@ desvinculación de proveedores, y deshabilitar usuarios en Firebase desde el bac
 - [ ] App web registrada en `ones-a96a7` y su `firebaseConfig`.
 - [ ] Dominio `app.ones.events` en dominios autorizados de Firebase Auth.
 - [ ] Vinculación de cuentas: una cuenta por correo.
-- [ ] Clave de cuenta de servicio de `ones-a96a7` (local, solo para la importación).
+- [ ] Clave JSON de una service account de `ones-a96a7` con rol "Firebase Authentication Admin", cargada en Secrets Manager de dev y prod (no se comparte por chat).
 - [ ] `FIREBASE_PROJECT_ID=ones-a96a7` en dev y prod (CloudFormation).
 - [ ] Dispositivo o simulador iOS con Apple ID para QA.
