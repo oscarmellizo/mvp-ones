@@ -11,7 +11,7 @@ import 'core/http/ones_api_factory.dart';
 import 'core/i18n/translations_service.dart';
 import 'core/ui/ones_theme.dart';
 import 'core/ui/splash_page.dart';
-import 'features/auth/adapters/google/google_auth_repository.dart';
+import 'features/auth/adapters/firebase/firebase_auth_repository.dart';
 import 'features/auth/application/get_id_token_use_case.dart';
 import 'features/auth/application/sign_in_with_google_use_case.dart';
 import 'features/auth/application/sign_out_use_case.dart';
@@ -79,7 +79,7 @@ class OnesApp extends StatelessWidget {
     final apiFactory = OnesApiFactory(config);
 
     final authRepository =
-        GoogleAuthRepository(webClientId: config.googleWebClientId);
+        FirebaseAuthRepository(googleServerClientId: config.googleWebClientId);
 
     final tokenRefreshService = GoogleTokenRefreshService(
       webClientId: config.googleWebClientId,
