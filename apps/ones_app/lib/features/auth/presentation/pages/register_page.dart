@@ -76,9 +76,6 @@ class _RegisterPageState extends State<RegisterPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final auth = context.read<AuthController>();
-      if (kIsWeb) {
-        auth.warmUpGoogleSignIn();
-      }
       _authController = auth;
       auth.addListener(_onAuthChanged);
       _maybeSeedPreferredName(auth);

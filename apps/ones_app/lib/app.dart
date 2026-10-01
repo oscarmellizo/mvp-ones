@@ -12,10 +12,6 @@ import 'core/i18n/translations_service.dart';
 import 'core/ui/ones_theme.dart';
 import 'core/ui/splash_page.dart';
 import 'features/auth/adapters/firebase/firebase_auth_repository.dart';
-import 'features/auth/application/get_id_token_use_case.dart';
-import 'features/auth/application/sign_in_with_google_use_case.dart';
-import 'features/auth/application/sign_out_use_case.dart';
-import 'features/auth/infrastructure/google_token_refresh_service.dart';
 import 'features/auth/presentation/auth_controller.dart';
 import 'features/admin/adapters/api/admin_api_repository.dart';
 import 'features/admin/adapters/api/admin_admins_api_repository.dart';
@@ -81,14 +77,6 @@ class OnesApp extends StatelessWidget {
     final authRepository =
         FirebaseAuthRepository(googleServerClientId: config.googleWebClientId);
 
-    final tokenRefreshService = GoogleTokenRefreshService(
-      webClientId: config.googleWebClientId,
-    );
-
-    final signInWithGoogle = SignInWithGoogleUseCase(authRepository);
-    final signOut = SignOutUseCase(authRepository);
-    final getIdToken = GetIdTokenUseCase(authRepository);
-
     final usersRepository = UsersApiRepository(apiFactory);
     final ensureUser = EnsureUserUseCase(usersRepository);
     final getUserPreferences = GetUserPreferencesUseCase(usersRepository);
@@ -134,15 +122,12 @@ class OnesApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) {
             final ctrl = AuthController(
-              signInWithGoogle: signInWithGoogle,
-              signOut: signOut,
-              getIdToken: getIdToken,
+              authRepository: authRepository,
               ensureUser: ensureUser,
               getUserPreferences: getUserPreferences,
               updateUserPreferences: updateUserPreferences,
               lookupUserByEmailUseCase: lookupUserByEmail,
               getAdminMe: getAdminMe,
-              tokenRefreshService: tokenRefreshService,
             );
             ctrl.restoreSessionIfPossible();
             return ctrl;

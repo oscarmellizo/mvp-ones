@@ -108,14 +108,6 @@ class _LoginPageState extends State<LoginPage> {
 
       });
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-
-        if (!mounted) return;
-
-        context.read<AuthController>().warmUpGoogleSignIn();
-
-      });
-
     }
 
   }

@@ -1,33 +1,27 @@
-import 'package:flutter/foundation.dart';
-import 'dart:convert';
 import 'package:dio/dio.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 
-import '../application/get_id_token_use_case.dart';
-import '../application/sign_in_with_google_use_case.dart';
-import '../application/sign_out_use_case.dart';
+import '../domain/auth_failure.dart';
+import '../domain/auth_repository.dart';
 import '../domain/auth_user.dart';
 import '../../users/application/ensure_user_use_case.dart';
 import '../../users/domain/users_repository.dart';
 import '../../admin/application/get_admin_me_use_case.dart';
-import '../infrastructure/google_token_refresh_service.dart';
 
 enum AuthNextStep {
   signedIn,
   needsRegistration,
+  needsEmailVerification,
   failed,
 }
 
 class AuthController extends ChangeNotifier {
-  final SignInWithGoogleUseCase signInWithGoogle;
-  final SignOutUseCase signOut;
-  final GetIdTokenUseCase getIdToken;
+  final AuthRepository authRepository;
   final EnsureUserUseCase ensureUser;
   final GetUserPreferencesUseCase getUserPreferences;
   final UpdateUserPreferencesUseCase updateUserPreferences;
   final LookupUserByEmailUseCase lookupUserByEmailUseCase;
   final GetAdminMeUseCase getAdminMe;
-  final GoogleTokenRefreshService tokenRefreshService;
 
   AuthUser? _user;
   String? _idToken;
@@ -36,28 +30,20 @@ class AuthController extends ChangeNotifier {
   bool _termsAccepted = false;
   bool _isAdmin = false;
   bool _isRegistered = false;
+  bool _needsEmailVerification = false;
   bool _isLoading = false;
   Object? _error;
 
-  SharedPreferences? _prefs;
   Future<void>? _restoreInFlight;
-
-  Future<AuthNextStep>? _signInExistingInFlight;
-
-  static const String _lastInteractiveSignInAtKey =
-      'ones.auth.last_interactive_signin_at_v1';
-  static const Duration _interactiveSessionTtl = Duration(days: 30);
+  Future<AuthNextStep>? _signInInFlight;
 
   AuthController({
-    required this.signInWithGoogle,
-    required this.signOut,
-    required this.getIdToken,
+    required this.authRepository,
     required this.ensureUser,
     required this.getUserPreferences,
     required this.updateUserPreferences,
     required this.lookupUserByEmailUseCase,
     required this.getAdminMe,
-    required this.tokenRefreshService,
   });
 
   AuthUser? get user => _user;
@@ -68,6 +54,7 @@ class AuthController extends ChangeNotifier {
   bool get isAdmin => _isAdmin;
   bool get isSignedIn => _user != null;
   bool get isRegistered => _isRegistered;
+  bool get needsEmailVerification => _needsEmailVerification;
   bool get isLoading => _isLoading;
   Object? get error => _error;
 
@@ -75,11 +62,23 @@ class AuthController extends ChangeNotifier {
     await signInExisting();
   }
 
-  Future<void> warmUpGoogleSignIn() async {
-    try {
-      await tokenRefreshService.ensureInitialized();
-    } catch (_) {}
-  }
+  /// Compatibilidad: login e invitaciones usan este nombre para Google.
+  Future<AuthNextStep> signInExisting() => signInWithGoogle();
+
+  Future<AuthNextStep> signInWithGoogle() => _signIn(authRepository.signInWithGoogle);
+
+  Future<AuthNextStep> signInWithApple() => _signIn(authRepository.signInWithApple);
+
+  Future<AuthNextStep> signInWithEmail(String email, String password) =>
+      _signIn(() => authRepository.signInWithEmail(email, password));
+
+  Future<AuthNextStep> registerWithEmail(String email, String password) =>
+      _signIn(() => authRepository.registerWithEmail(email, password));
+
+  /// Registro con Google: si la cuenta ya existe en Ones devuelve signedIn.
+  Future<AuthNextStep> beginRegistration() => signInWithGoogle();
+
+  Future<AuthNextStep> beginRegistrationWithApple() => signInWithApple();
 
   Future<void> restoreSessionIfPossible() async {
     final existing = _restoreInFlight;
@@ -87,7 +86,6 @@ class AuthController extends ChangeNotifier {
       await existing;
       return;
     }
-
     final f = _restoreSessionInternal();
     _restoreInFlight = f;
     try {
@@ -98,204 +96,182 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> _restoreSessionInternal() async {
-    _prefs ??= await SharedPreferences.getInstance();
-
-    final last = _prefs!.getInt(_lastInteractiveSignInAtKey);
-    if (last == null) {
-      return;
-    }
-
-    final ageMs = DateTime.now().millisecondsSinceEpoch - last;
-    if (ageMs > _interactiveSessionTtl.inMilliseconds) {
-      await _prefs!.remove(_lastInteractiveSignInAtKey);
-      return;
-    }
+    var current = await authRepository.currentUser();
+    if (current == null) return;
 
     _setLoading(true);
     try {
       _error = null;
-      final token = await tokenRefreshService.refreshIdToken();
-      if (token == null || token.isEmpty) {
-        return;
+      if (current.needsEmailVerification) {
+        // Pudo verificar desde el correo mientras la app estaba cerrada.
+        current = await authRepository.reloadUser() ?? current;
       }
-
-      _idToken = token;
-      _user = _userFromIdToken(token);
-
-      try {
-        final prefs = await getUserPreferences.execute(token);
-        _preferredName = prefs?.preferredName;
-        final lp = prefs?.languagePreference;
-        _languagePreference = (lp != null && lp.trim().isNotEmpty)
-            ? lp.trim().toLowerCase()
-            : 'es';
-        _termsAccepted = prefs?.termsAccepted ?? false;
-        _isAdmin = await _safeLoadIsAdmin(token);
-        _isRegistered = true;
-      } on DioException catch (e) {
-        if (e.response?.statusCode == 404) {
-          _user = null;
-          _idToken = null;
-          _preferredName = null;
-          _languagePreference = null;
-          _termsAccepted = false;
-          _isAdmin = false;
-          _isRegistered = false;
-          _prefs ??= await SharedPreferences.getInstance();
-          await _prefs!.remove(_lastInteractiveSignInAtKey);
-          return;
-        }
-        rethrow;
+      _user = current;
+      final step = await _loadSession();
+      // Google/Apple sin registro vuelven al login (como antes); correo sigue al formulario de registro.
+      if (step == AuthNextStep.needsRegistration && current!.provider != 'password') {
+        _clearSession();
       }
     } catch (e) {
       _error = _formatDioOrRawError(e);
-      _user = null;
-      _idToken = null;
-      _preferredName = null;
-      _languagePreference = null;
-      _termsAccepted = false;
-      _isAdmin = false;
-      _isRegistered = false;
+      _clearSession();
     } finally {
       _setLoading(false);
     }
   }
 
-  Future<AuthNextStep> signInExisting() async {
-    final existing = _signInExistingInFlight;
-    if (existing != null) {
-      return existing;
-    }
-
-    final f = _signInExistingInternal();
-    _signInExistingInFlight = f;
-    try {
-      return await f;
-    } finally {
-      _signInExistingInFlight = null;
-    }
+  Future<AuthNextStep> _signIn(Future<AuthUser> Function() action) {
+    return _signInInFlight ??= _runSignIn(action).whenComplete(() => _signInInFlight = null);
   }
 
-  Future<AuthNextStep> _signInExistingInternal() async {
+  Future<AuthNextStep> _runSignIn(Future<AuthUser> Function() action) async {
     _setLoading(true);
     try {
       _error = null;
-      _isRegistered = false;
-
-      _user = await signInWithGoogle.execute();
-      _idToken = await getIdToken.execute();
-      // ignore: avoid_print
-      print('[AuthController] signInExisting userId=${_user?.userId} email=${_user?.email}');
-
-      final tokenForClaims = _idToken;
-      if (_user != null &&
-          tokenForClaims != null &&
-          tokenForClaims.isNotEmpty) {
-        final picture = _tryGetPictureFromIdToken(tokenForClaims);
-        if ((_user?.pictureUrl == null || _user!.pictureUrl!.isEmpty) &&
-            picture != null &&
-            picture.isNotEmpty) {
-          final u = _user!;
-          _user = AuthUser(
-            userId: u.userId,
-            email: u.email,
-            displayName: u.displayName,
-            pictureUrl: picture,
-          );
-        }
-      }
-
-      final token = _idToken;
-      if (token == null || token.isEmpty) {
-        throw StateError('Missing idToken');
-      }
-
-      try {
-        final prefs = await getUserPreferences.execute(token);
-        _preferredName = prefs?.preferredName;
-        final lp = prefs?.languagePreference;
-        _languagePreference = (lp != null && lp.trim().isNotEmpty)
-            ? lp.trim().toLowerCase()
-            : 'es';
-        _termsAccepted = prefs?.termsAccepted ?? false;
-        _isAdmin = await _safeLoadIsAdmin(token);
-        _isRegistered = true;
-        await _persistInteractiveSignInTimestamp();
-        return AuthNextStep.signedIn;
-      } on DioException catch (e) {
-        if (e.response?.statusCode == 404) {
-          _preferredName = null;
-          _languagePreference = null;
-          _termsAccepted = false;
-          _isAdmin = false;
-          _isRegistered = false;
-          return AuthNextStep.needsRegistration;
-        }
-        rethrow;
-      }
+      _user = await action();
+      return await _loadSession();
+    } on AuthException catch (e) {
+      _clearSession();
+      _error = e.failure == AuthFailure.cancelled ? null : authFailureMessage(e.failure);
+      return AuthNextStep.failed;
     } catch (e) {
-      // ignore: avoid_print
-      print('[AuthController] signInExisting FAILED: $e');
+      if (_errorCode(e) == 'EMAIL_CONFLICT') {
+        await _safeSignOut();
+      }
+      _clearSession();
       _error = _formatDioOrRawError(e);
-      _user = null;
-      _idToken = null;
-      _preferredName = null;
-      _languagePreference = null;
-      _termsAccepted = false;
-      _isAdmin = false;
-      _isRegistered = false;
       return AuthNextStep.failed;
     } finally {
       _setLoading(false);
     }
   }
 
-  Future<AuthNextStep> beginRegistration() async {
+  /// Con [_user] autenticado en Firebase, decide el siguiente paso consultando el API.
+  Future<AuthNextStep> _loadSession() async {
+    if (_user!.needsEmailVerification) {
+      _needsEmailVerification = true;
+      _isRegistered = false;
+      return AuthNextStep.needsEmailVerification;
+    }
+    _needsEmailVerification = false;
+
+    final token = await _requireToken();
+    try {
+      return await _loadPreferences(token);
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      final code = _errorCode(e);
+      if (status == 409 && code == 'ACCOUNT_MIGRATED') {
+        // El backend reasignó la cuenta al uid legado: se entra de nuevo con la misma credencial.
+        // Un segundo ACCOUNT_MIGRATED se propaga como error (sin bucle).
+        _user = await authRepository.signInAgainAfterMigration();
+        return await _loadPreferences(await _requireToken(forceRefresh: true));
+      }
+      if (status == 403 && code == 'EMAIL_NOT_VERIFIED') {
+        _needsEmailVerification = true;
+        return AuthNextStep.needsEmailVerification;
+      }
+      rethrow;
+    }
+  }
+
+  Future<AuthNextStep> _loadPreferences(String token) async {
+    try {
+      final prefs = await getUserPreferences.execute(token);
+      _preferredName = prefs?.preferredName;
+      final lp = prefs?.languagePreference;
+      _languagePreference = (lp != null && lp.trim().isNotEmpty) ? lp.trim().toLowerCase() : 'es';
+      _termsAccepted = prefs?.termsAccepted ?? false;
+      _isAdmin = await _safeLoadIsAdmin(token);
+      _isRegistered = true;
+      return AuthNextStep.signedIn;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        _preferredName = null;
+        _languagePreference = null;
+        _termsAccepted = false;
+        _isAdmin = false;
+        _isRegistered = false;
+        return AuthNextStep.needsRegistration;
+      }
+      rethrow;
+    }
+  }
+
+  Future<String> _requireToken({bool forceRefresh = false}) async {
+    final token = await authRepository.getIdToken(forceRefresh: forceRefresh);
+    if (token == null || token.isEmpty) {
+      throw StateError('Missing idToken');
+    }
+    _idToken = token;
+    return token;
+  }
+
+  /// "Ya verifiqué": recarga el usuario y, si está verificado, continúa con un token nuevo.
+  Future<AuthNextStep> confirmEmailVerified() async {
     _setLoading(true);
     try {
       _error = null;
-      _isRegistered = false;
-      _user = await signInWithGoogle.execute();
-      _idToken = await getIdToken.execute();
-
-      final tokenForClaims = _idToken;
-      if (_user != null &&
-          tokenForClaims != null &&
-          tokenForClaims.isNotEmpty) {
-        final picture = _tryGetPictureFromIdToken(tokenForClaims);
-        if ((_user?.pictureUrl == null || _user!.pictureUrl!.isEmpty) &&
-            picture != null &&
-            picture.isNotEmpty) {
-          final u = _user!;
-          _user = AuthUser(
-            userId: u.userId,
-            email: u.email,
-            displayName: u.displayName,
-            pictureUrl: picture,
-          );
-        }
+      final user = await authRepository.reloadUser();
+      if (user == null) {
+        _clearSession();
+        return AuthNextStep.failed;
       }
-
-      final token = _idToken;
-      if (token == null || token.isEmpty) {
-        throw StateError('Missing idToken');
+      _user = user;
+      if (user.needsEmailVerification) {
+        _error = 'Aún no vemos tu correo verificado. Abre el enlace que te enviamos y vuelve a intentarlo.';
+        return AuthNextStep.needsEmailVerification;
       }
-
-      await _persistInteractiveSignInTimestamp();
-
-      return AuthNextStep.needsRegistration;
+      // El token anterior no trae email_verified=true.
+      await _requireToken(forceRefresh: true);
+      return await _loadSession();
+    } on AuthException catch (e) {
+      _error = authFailureMessage(e.failure);
+      return AuthNextStep.failed;
     } catch (e) {
       _error = _formatDioOrRawError(e);
-      _user = null;
-      _idToken = null;
-      _preferredName = null;
-      _languagePreference = null;
-      _termsAccepted = false;
-      _isAdmin = false;
-      _isRegistered = false;
       return AuthNextStep.failed;
     } finally {
       _setLoading(false);
+    }
+  }
+
+  /// Revisión silenciosa al volver a la app: si ya verificó, continúa; si no, no muestra nada.
+  Future<void> refreshEmailVerification() async {
+    if (!_needsEmailVerification || _isLoading) return;
+    try {
+      final user = await authRepository.reloadUser();
+      if (user == null || user.needsEmailVerification) return;
+      _user = user;
+      await _requireToken(forceRefresh: true);
+      await _loadSession();
+      notifyListeners();
+    } catch (_) {
+      // El botón "Ya verifiqué" muestra el error si el usuario lo intenta a mano.
+    }
+  }
+
+  Future<bool> resendEmailVerification() async {
+    try {
+      _error = null;
+      await authRepository.sendEmailVerification();
+      return true;
+    } on AuthException catch (e) {
+      _error = authFailureMessage(e.failure);
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> sendPasswordReset(String email) async {
+    try {
+      _error = null;
+      await authRepository.sendPasswordReset(email);
+      return true;
+    } on AuthException catch (e) {
+      _error = authFailureMessage(e.failure);
+      notifyListeners();
+      return false;
     }
   }
 
@@ -318,15 +294,12 @@ class AuthController extends ChangeNotifier {
       _error = null;
       await ensureUser.execute(token);
       final lang = _languagePreference ?? 'es';
-      final updated =
-          await updateUserPreferences.execute(token, trimmed, lang, termsAccepted);
+      final updated = await updateUserPreferences.execute(token, trimmed, lang, termsAccepted);
       _preferredName = (updated?.preferredName ?? trimmed).trim();
-      _languagePreference =
-          (updated?.languagePreference ?? lang).trim().toLowerCase();
+      _languagePreference = (updated?.languagePreference ?? lang).trim().toLowerCase();
       _termsAccepted = updated?.termsAccepted ?? termsAccepted;
       _isAdmin = await _safeLoadIsAdmin(token);
       _isRegistered = true;
-      await _persistInteractiveSignInTimestamp();
     } catch (e) {
       _error = _formatDioOrRawError(e);
       rethrow;
@@ -359,11 +332,9 @@ class AuthController extends ChangeNotifier {
     _setLoading(true);
     try {
       _error = null;
-      final updated =
-          await updateUserPreferences.execute(token, pn, lang, _termsAccepted);
+      final updated = await updateUserPreferences.execute(token, pn, lang, _termsAccepted);
       _preferredName = updated?.preferredName ?? pn;
-      _languagePreference =
-          (updated?.languagePreference ?? lang).trim().toLowerCase();
+      _languagePreference = (updated?.languagePreference ?? lang).trim().toLowerCase();
       _termsAccepted = updated?.termsAccepted ?? _termsAccepted;
     } catch (e) {
       _error = e;
@@ -379,27 +350,27 @@ class AuthController extends ChangeNotifier {
     return lookupUserByEmailUseCase.execute(token, email);
   }
 
+  /// Usado por el interceptor 401 de OnesApiFactory.
   Future<String?> refreshIdToken() async {
     try {
-      final token = await tokenRefreshService.refreshIdToken();
-      if (token != null && token.isNotEmpty) {
-        _idToken = token;
-        if (_isRegistered) {
-          _isAdmin = await _safeLoadIsAdmin(token);
-        }
-        notifyListeners();
-        return token;
+      final token = await authRepository.getIdToken(forceRefresh: true);
+      if (token == null || token.isEmpty) return null;
+      _idToken = token;
+      if (_isRegistered) {
+        _isAdmin = await _safeLoadIsAdmin(token);
       }
-      return null;
+      notifyListeners();
+      return token;
     } catch (_) {
       return null;
     }
   }
 
+  /// "Intentar con otra cuenta" en el login.
   Future<void> clearGoogleSession() async {
-    try {
-      await signOut.execute();
-    } catch (_) {}
+    await _safeSignOut();
+    _clearSession();
+    notifyListeners();
   }
 
   Future<void>? _accountBlockedSignOutInFlight;
@@ -424,31 +395,43 @@ class AuthController extends ChangeNotifier {
     _setLoading(true);
     try {
       _error = null;
-      await signOut.execute();
-      _user = null;
-      _idToken = null;
-      _preferredName = null;
-      _isAdmin = false;
-      _isRegistered = false;
-      _prefs ??= await SharedPreferences.getInstance();
-      await _prefs!.remove(_lastInteractiveSignInAtKey);
+      await authRepository.signOut();
     } catch (e) {
       _error = e;
     } finally {
+      _clearSession();
       _setLoading(false);
     }
   }
 
-  Future<void> _persistInteractiveSignInTimestamp() async {
-    _prefs ??= await SharedPreferences.getInstance();
-    await _prefs!.setInt(
-      _lastInteractiveSignInAtKey,
-      DateTime.now().millisecondsSinceEpoch,
-    );
+  Future<void> _safeSignOut() async {
+    try {
+      await authRepository.signOut();
+    } catch (_) {}
+  }
+
+  void _clearSession() {
+    _user = null;
+    _idToken = null;
+    _preferredName = null;
+    _languagePreference = null;
+    _termsAccepted = false;
+    _isAdmin = false;
+    _isRegistered = false;
+    _needsEmailVerification = false;
+  }
+
+  static String? _errorCode(Object e) {
+    if (e is! DioException) return null;
+    final data = e.response?.data;
+    return data is Map ? data['code']?.toString() : null;
   }
 
   Object _formatDioOrRawError(Object e) {
     if (e is DioException) {
+      if (_errorCode(e) == 'EMAIL_CONFLICT') {
+        return 'Ya existe una cuenta de Ones con este correo. Entra con Google.';
+      }
       final status = e.response?.statusCode;
       final data = e.response?.data;
       if (data is Map) {
@@ -461,6 +444,7 @@ class AuthController extends ChangeNotifier {
         return 'HTTP $status ${e.message ?? 'Request failed'}'.trim();
       }
     }
+    if (e is AuthException) return authFailureMessage(e.failure);
     return e;
   }
 
@@ -475,52 +459,5 @@ class AuthController extends ChangeNotifier {
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();
-  }
-
-  String? _tryGetPictureFromIdToken(String idToken) {
-    try {
-      final parts = idToken.split('.');
-      if (parts.length < 2) return null;
-      final payload = parts[1];
-      final normalized = base64Url.normalize(payload);
-      final jsonStr = utf8.decode(base64Url.decode(normalized));
-      final map = json.decode(jsonStr);
-      if (map is Map<String, dynamic>) {
-        final v = map['picture'];
-        if (v is String) return v;
-      }
-      return null;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  AuthUser? _userFromIdToken(String idToken) {
-    try {
-      final parts = idToken.split('.');
-      if (parts.length < 2) return null;
-      final payload = parts[1];
-      final normalized = base64Url.normalize(payload);
-      final jsonStr = utf8.decode(base64Url.decode(normalized));
-      final decoded = json.decode(jsonStr);
-
-      if (decoded is! Map) return null;
-
-      final sub = decoded['sub']?.toString();
-      final email = decoded['email']?.toString();
-      final name = decoded['name']?.toString();
-      final picture = decoded['picture']?.toString();
-
-      if (sub == null || sub.isEmpty) return null;
-
-      return AuthUser(
-        userId: sub,
-        email: email,
-        displayName: name,
-        pictureUrl: picture,
-      );
-    } catch (_) {
-      return null;
-    }
   }
 }
