@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Que `apps/ones_app` (iOS, Android, web) inicie sesión con Firebase Auth usando Google, correo/contraseña y Apple (solo iOS), con verificación de correo, recuperación de contraseña y reintento automático tras la migración de cuentas legadas del backend.
+**Goal:** Que `apps/ones_app` (iOS, Android y web, que es la misma app compilada para navegador y desplegada con `deploy-web-app.yml`) inicie sesión con Firebase Auth usando Google, correo/contraseña y Apple (solo iOS), con verificación de correo, recuperación de contraseña y reintento automático tras la migración de cuentas legadas del backend.
 
 **Architecture:** Un único adaptador `FirebaseAuthRepository` implementa el puerto `AuthRepository`. `AuthController` conserva su API pública (la usan ~20 pantallas) y centraliza el flujo: sesión de Firebase → token → `GET /v1/users/me` (con manejo de 404, 409 `ACCOUNT_MIGRATED`, 403 `EMAIL_NOT_VERIFIED`, 409 `EMAIL_CONFLICT`). El router raíz decide la pantalla con una función pura `resolveAuthRoute`.
 
@@ -16,6 +16,8 @@
 - Bundle iOS `co.ones.onesapp`; `GIDClientID` = `403122779240-7e0p9b2rau3mkctg7s08ku1uql1ah0ii.apps.googleusercontent.com` (ya en `Info.plist`).
 - Apple: solo iOS (`!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS`). Web: Google con `signInWithPopup`.
 - Contraseña mínima: 8 caracteres.
+- Web: Google con `signInWithPopup`, llamado sin `await` previo dentro del gesto del usuario (si no, el navegador bloquea la ventana). CloudFront ya envía `cross-origin-opener-policy: same-origin-allow-popups` en `app.` y `appdev.ones.events` (`infra/cloudformation/frontend/cloudfront.yml`), que es lo que requiere el popup. Dominios autorizados en Firebase: `app.ones.events`, `appdev.ones.events` (pendiente de agregar), `localhost`.
+- Diseño: las pantallas nuevas usan el lenguaje visual existente, sin inventar otro: fondo `OnesColors.background` (ámbar `#FAB14E`), morado `purpleDeep #4A036E` / `purpleMid #5C036E`, esquinas rectas (`BorderRadius.zero`), títulos en LemonMilk vía `textTheme.headlineSmall` (se ven en mayúsculas), cuerpo con `bodyFallbacks`, campos con `OnesInputDecoration.build`, columna centrada de máx. 520 px. El elemento memorable sigue siendo la pila de fotos tipo polaroid; lo nuevo se mantiene sobrio.
 - Códigos del API: 404 en `/v1/users/me` = no registrado; 409 `ACCOUNT_MIGRATED` = reintentar inicio de sesión una vez con la credencial de Google; 403 `EMAIL_NOT_VERIFIED`; 409 `EMAIL_CONFLICT`; 403 `ACCOUNT_DISABLED|ACCOUNT_CLOSED` (ya manejado por `AccountBlock`).
 - API pública de `AuthController` que otras pantallas usan y NO cambia: `user`, `idToken`, `isLoading`, `error`, `preferredName`, `languagePreference`, `termsAccepted`, `isAdmin`, `isSignedIn`, `isRegistered`, `signIn()`, `signInExisting()`, `beginRegistration()`, `completeRegistration(...)`, `savePreferences(...)`, `savePreferredName(...)`, `lookupUserByEmail(...)`, `refreshIdToken()`, `logout()`, `clearGoogleSession()`, `restoreSessionIfPossible()`, `signOutBecauseAccountBlocked(...)`.
 - Textos en español escritos en el widget, como el resto de pantallas de auth (no hay claves de traducción para estas pantallas).
@@ -29,6 +31,7 @@
 - Cancelar la hoja de Google/Apple: no debe mostrar error. Test en Task 3.
 - 409 `EMAIL_CONFLICT` (Apple/correo con el correo de una cuenta Google existente): mensaje que indica entrar con Google y sesión de Firebase cerrada. Test en Task 3.
 - Registro con Google de una cuenta que ya existe en Ones desde `RegisterPage` (pantalla apilada): debe llegar al Home, no quedar atrapado en la pantalla de registro. Test en Task 4 (widget).
+- Usuario que verifica el correo en otra app/pestaña y vuelve: la app debe notarlo sola al volver, sin obligarlo a pulsar "Ya verifiqué". Test en Task 3 (`refreshEmailVerification`).
 
 ---
 
@@ -45,7 +48,8 @@
 | `lib/features/auth/adapters/firebase/firebase_auth_repository.dart` (nuevo) | adaptador |
 | `lib/features/auth/presentation/auth_controller.dart` | flujo de sesión |
 | `lib/features/auth/presentation/auth_route.dart` (nuevo) | `resolveAuthRoute` |
-| `lib/features/auth/presentation/widgets/auth_buttons.dart`, `.../widgets/email_password_form.dart` (nuevos) | UI compartida |
+| `lib/features/auth/presentation/widgets/auth_buttons.dart`, `.../widgets/email_auth_section.dart`, `.../widgets/auth_error_banner.dart`, `.../widgets/polaroid_frame.dart` (nuevos) | UI compartida |
+| `assets/auth/google_g.png` (+ `2.0x/`, `3.0x/`) (nuevos) | logo oficial de Google |
 | `lib/features/auth/presentation/pages/{login,register}_page.dart` | botones nuevos |
 | `lib/features/auth/presentation/pages/{verify_email,forgot_password}_page.dart` (nuevos) | pantallas nuevas |
 | `lib/app.dart` | cableado y router |
@@ -188,7 +192,7 @@ git commit -m "feat(app): inicializar Firebase y capability Sign in with Apple"
 **Interfaces:**
 - Produces:
   - `AuthUser({userId, email, displayName, pictureUrl, String provider = 'google.com', bool emailVerified = true})`, `bool get needsEmailVerification`.
-  - `enum AuthFailure { invalidCredentials, emailAlreadyInUse, weakPassword, invalidEmail, userDisabled, accountExistsWithDifferentCredential, tooManyRequests, cancelled, network, unsupported, unknown }`, `class AuthException(AuthFailure failure, [String? detail])`, `String authFailureMessage(AuthFailure)`.
+  - `enum AuthFailure { invalidCredentials, emailAlreadyInUse, weakPassword, invalidEmail, userDisabled, accountExistsWithDifferentCredential, tooManyRequests, popupBlocked, cancelled, network, unsupported, unknown }`, `class AuthException(AuthFailure failure, [String? detail])`, `String authFailureMessage(AuthFailure)`.
   - `AuthRepository` con `currentUser()`, `signInWithGoogle()`, `signInWithApple()`, `signInWithEmail(email, password)`, `registerWithEmail(email, password)`, `sendEmailVerification()`, `reloadUser()`, `sendPasswordReset(email)`, `getIdToken({bool forceRefresh = false})`, `signInAgainAfterMigration()`, `signOut()`.
   - `AuthFailure authFailureFromCode(String code)`.
   - `FirebaseAuthRepository({FirebaseAuth? auth, required String? googleServerClientId})`.
@@ -241,6 +245,7 @@ void main() {
       expect(authFailureFromCode('account-exists-with-different-credential'),
           AuthFailure.accountExistsWithDifferentCredential);
       expect(authFailureFromCode('too-many-requests'), AuthFailure.tooManyRequests);
+      expect(authFailureFromCode('popup-blocked'), AuthFailure.popupBlocked);
       expect(authFailureFromCode('network-request-failed'), AuthFailure.network);
       expect(authFailureFromCode('operation-not-allowed'), AuthFailure.unsupported);
       expect(authFailureFromCode('algo-nuevo'), AuthFailure.unknown);
@@ -306,6 +311,7 @@ enum AuthFailure {
   userDisabled,
   accountExistsWithDifferentCredential,
   tooManyRequests,
+  popupBlocked,
   cancelled,
   network,
   unsupported,
@@ -333,6 +339,8 @@ String authFailureMessage(AuthFailure failure) => switch (failure) {
       AuthFailure.accountExistsWithDifferentCredential =>
         'Ya tienes una cuenta con este correo usando otro método. Entra con ese método (por ejemplo, Google).',
       AuthFailure.tooManyRequests => 'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.',
+      AuthFailure.popupBlocked =>
+        'Tu navegador bloqueó la ventana de Google. Permite las ventanas emergentes de este sitio e inténtalo de nuevo.',
       AuthFailure.cancelled => '',
       AuthFailure.network => 'Sin conexión. Revisa tu internet e inténtalo de nuevo.',
       AuthFailure.unsupported => 'Este método de inicio de sesión no está disponible en este dispositivo.',
@@ -390,6 +398,7 @@ AuthFailure authFailureFromCode(String code) => switch (code) {
       'account-exists-with-different-credential' || 'credential-already-in-use' =>
         AuthFailure.accountExistsWithDifferentCredential,
       'too-many-requests' => AuthFailure.tooManyRequests,
+      'popup-blocked' => AuthFailure.popupBlocked,
       'network-request-failed' => AuthFailure.network,
       'canceled' ||
       'cancelled' ||
@@ -439,6 +448,7 @@ class FirebaseAuthRepository implements AuthRepository {
   @override
   Future<AuthUser> signInWithGoogle() => _guard(() async {
         if (kIsWeb) {
+          // Sin awaits antes del popup: debe abrirse dentro del clic o el navegador lo bloquea.
           final result = await _auth.signInWithPopup(GoogleAuthProvider()..addScope('email'));
           _lastGoogleCredential = result.credential;
           return _toAuthUser(result.user!);
@@ -476,13 +486,13 @@ class FirebaseAuthRepository implements AuthRepository {
   @override
   Future<AuthUser> registerWithEmail(String email, String password) => _guard(() async {
         final result = await _auth.createUserWithEmailAndPassword(email: email.trim(), password: password);
-        await result.user!.sendEmailVerification();
+        await result.user!.sendEmailVerification(_actionCodeSettings());
         return _toAuthUser(result.user!);
       });
 
   @override
   Future<void> sendEmailVerification() => _guard(() async {
-        await _auth.currentUser?.sendEmailVerification();
+        await _auth.currentUser?.sendEmailVerification(_actionCodeSettings());
       });
 
   @override
@@ -496,7 +506,7 @@ class FirebaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> sendPasswordReset(String email) =>
-      _guard(() => _auth.sendPasswordResetEmail(email: email.trim()));
+      _guard(() => _auth.sendPasswordResetEmail(email: email.trim(), actionCodeSettings: _actionCodeSettings()));
 
   @override
   Future<String?> getIdToken({bool forceRefresh = false}) async {
@@ -530,6 +540,11 @@ class FirebaseAuthRepository implements AuthRepository {
       }
     }
   }
+
+  /// En web, el botón "Continuar" de la página de Firebase devuelve al usuario a la app
+  /// (el dominio debe estar autorizado en Firebase). En móvil se usa la página por defecto.
+  static ActionCodeSettings? _actionCodeSettings() =>
+      kIsWeb ? ActionCodeSettings(url: Uri.base.origin) : null;
 
   Future<void> _ensureGoogleInitialized() {
     final serverClientId = googleServerClientId?.trim();
@@ -610,7 +625,7 @@ git commit -m "feat(app): adaptador FirebaseAuthRepository y errores de autentic
 
 **Interfaces:**
 - Consumes: `AuthRepository`, `AuthUser`, `AuthException`, `authFailureMessage` (Task 2).
-- Produces: `AuthController({required AuthRepository authRepository, required EnsureUserUseCase ensureUser, required GetUserPreferencesUseCase getUserPreferences, required UpdateUserPreferencesUseCase updateUserPreferences, required LookupUserByEmailUseCase lookupUserByEmailUseCase, required GetAdminMeUseCase getAdminMe})`; `enum AuthNextStep { signedIn, needsRegistration, needsEmailVerification, failed }`; nuevos: `bool needsEmailVerification`, `signInWithGoogle()`, `signInWithApple()`, `signInWithEmail(email, password)`, `registerWithEmail(email, password)`, `beginRegistrationWithApple()`, `confirmEmailVerified()` → `Future<AuthNextStep>`; `resendEmailVerification()`, `sendPasswordReset(email)` → `Future<bool>`. Se elimina `warmUpGoogleSignIn()`.
+- Produces: `AuthController({required AuthRepository authRepository, required EnsureUserUseCase ensureUser, required GetUserPreferencesUseCase getUserPreferences, required UpdateUserPreferencesUseCase updateUserPreferences, required LookupUserByEmailUseCase lookupUserByEmailUseCase, required GetAdminMeUseCase getAdminMe})`; `enum AuthNextStep { signedIn, needsRegistration, needsEmailVerification, failed }`; nuevos: `bool needsEmailVerification`, `signInWithGoogle()`, `signInWithApple()`, `signInWithEmail(email, password)`, `registerWithEmail(email, password)`, `beginRegistrationWithApple()`, `confirmEmailVerified()` → `Future<AuthNextStep>`; `refreshEmailVerification()` → `Future<void>` (silencioso, para cuando la app vuelve a primer plano); `resendEmailVerification()`, `sendPasswordReset(email)` → `Future<bool>`. Se elimina `warmUpGoogleSignIn()`.
 
 - [ ] **Step 1: Test double** `test/features/auth/fake_auth_repository.dart`:
 
@@ -867,6 +882,20 @@ void main() {
       expect(repo.tokenRequests, contains(true));
     });
 
+    test('al volver a la app detecta la verificación sin mostrar errores', () async {
+      repo.signInResult = fakeUser(provider: 'password', verified: false);
+      await auth.registerWithEmail('a@b.co', 'secreto123');
+
+      await auth.refreshEmailVerification();
+      expect(auth.needsEmailVerification, isTrue);
+      expect(auth.error, isNull);
+
+      repo.afterReload = fakeUser(provider: 'password', verified: true);
+      await auth.refreshEmailVerification();
+      expect(auth.needsEmailVerification, isFalse);
+      expect(auth.isRegistered, isTrue);
+    });
+
     test('reenviar y restablecer contraseña', () async {
       repo.current = fakeUser(provider: 'password', verified: false);
 
@@ -899,6 +928,16 @@ void main() {
       await auth.restoreSessionIfPossible();
 
       expect(auth.needsEmailVerification, isTrue);
+    });
+
+    test('al restaurar recarga el usuario por si verificó mientras la app estaba cerrada', () async {
+      repo.current = fakeUser(provider: 'password', verified: false);
+      repo.afterReload = fakeUser(provider: 'password', verified: true);
+
+      await auth.restoreSessionIfPossible();
+
+      expect(auth.needsEmailVerification, isFalse);
+      expect(auth.isRegistered, isTrue);
     });
 
     test('refreshIdToken fuerza refresh', () async {
@@ -1052,16 +1091,20 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> _restoreSessionInternal() async {
-    final current = await authRepository.currentUser();
+    var current = await authRepository.currentUser();
     if (current == null) return;
 
     _setLoading(true);
     try {
       _error = null;
+      if (current.needsEmailVerification) {
+        // Pudo verificar desde el correo mientras la app estaba cerrada.
+        current = await authRepository.reloadUser() ?? current;
+      }
       _user = current;
       final step = await _loadSession();
       // Google/Apple sin registro vuelven al login (como antes); correo sigue al formulario de registro.
-      if (step == AuthNextStep.needsRegistration && current.provider != 'password') {
+      if (step == AuthNextStep.needsRegistration && current!.provider != 'password') {
         _clearSession();
       }
     } catch (e) {
@@ -1185,6 +1228,21 @@ class AuthController extends ChangeNotifier {
       return AuthNextStep.failed;
     } finally {
       _setLoading(false);
+    }
+  }
+
+  /// Revisión silenciosa al volver a la app: si ya verificó, continúa; si no, no muestra nada.
+  Future<void> refreshEmailVerification() async {
+    if (!_needsEmailVerification || _isLoading) return;
+    try {
+      final user = await authRepository.reloadUser();
+      if (user == null || user.needsEmailVerification) return;
+      _user = user;
+      await _requireToken(forceRefresh: true);
+      await _loadSession();
+      notifyListeners();
+    } catch (_) {
+      // El botón "Ya verifiqué" muestra el error si el usuario lo intenta a mano.
     }
   }
 
@@ -1422,7 +1480,7 @@ class AuthController extends ChangeNotifier {
 - [ ] **Step 5: Run tests**
 
 Run: `flutter test test/features/auth && flutter analyze lib 2>&1 | grep -E 'error •' | head`
-Expected: todos PASS (22 en `auth_controller_test.dart` + 4 de dominio); sin `error •`.
+Expected: todos PASS (24 en `auth_controller_test.dart` + 4 de dominio); sin `error •`.
 
 - [ ] **Step 6: Commit**
 
@@ -1433,26 +1491,51 @@ git commit -m "feat(app): AuthController sobre Firebase (correo, Apple, verifica
 
 ---
 
-### Task 4: Pantallas y router
+### Task 4: Pantallas, componentes de diseño y router
+
+**Dirección de diseño (aplica a todo el task).** Las pantallas de auth ya tienen identidad: fondo ámbar, morado profundo, títulos LemonMilk en mayúsculas, esquinas rectas y la pila de fotos tipo polaroid como elemento memorable. No se agrega otro protagonista. Decisiones:
+
+- **Primera pantalla sin ruido.** El login sigue mostrando logo, título, polaroids y los botones de proveedor. El correo es un tercer botón ("Continuar con correo") que al tocarlo despliega el formulario en el mismo lugar (`AnimatedSize`, 220 ms, sin animación si el sistema pide reducir movimiento). Así el formulario no empuja todo hacia abajo para quien entra con Google.
+- **Botones de proveedor como una familia.** Mismo alto (mín. 54), ancho completo, esquinas rectas, logo de 20–22 px a la izquierda del texto: Google blanco con borde sutil y su logo oficial a color (hoy el ícono de FontAwesome sale como un cuadro vacío en web); Apple negro con logo blanco (solo iOS, guía de Apple); correo con fondo transparente y borde morado. La acción principal de cada formulario es el morado lleno (`purpleMid`), como el botón "Crear cuenta" existente.
+- **Polaroid como lenguaje, no como adorno nuevo.** Las pantallas de verificación y de contraseña enviada usan un marco polaroid (mismo blanco, sombra y leve giro que la pila del login) con el ícono del sobre y, en el pie de foto, el correo del usuario.
+- **Errores legibles.** El rojo `danger` sobre ámbar tiene poco contraste: el aviso de error pasa a texto negro sobre blanco translúcido con una barra roja a la izquierda, sin el prefijo "Error:".
+- **Textos.** Verbo claro y consistente: "Continuar con Google/Apple/correo", "Iniciar sesión", "Crear cuenta", "Olvidé mi contraseña", "Enviar enlace", "Ya verifiqué mi correo", "Reenviar enlace", "Usar otra cuenta". Los errores dicen qué pasó y qué hacer.
+- **Calidad mínima.** Alturas mínimas (no fijas) para no cortar texto con tamaño de letra grande; foco de teclado visible (botones Material); `autofillHints` y `AutofillGroup` para que el gestor de contraseñas funcione; íconos decorativos fuera de la semántica; aviso de error como `liveRegion`.
 
 **Files:**
+- Create: `apps/ones_app/assets/auth/google_g.png`, `apps/ones_app/assets/auth/2.0x/google_g.png`, `apps/ones_app/assets/auth/3.0x/google_g.png`
 - Create: `apps/ones_app/lib/features/auth/presentation/auth_route.dart`
 - Create: `apps/ones_app/lib/features/auth/presentation/widgets/auth_buttons.dart`
-- Create: `apps/ones_app/lib/features/auth/presentation/widgets/email_password_form.dart`
+- Create: `apps/ones_app/lib/features/auth/presentation/widgets/email_auth_section.dart`
+- Create: `apps/ones_app/lib/features/auth/presentation/widgets/auth_error_banner.dart`
+- Create: `apps/ones_app/lib/features/auth/presentation/widgets/polaroid_frame.dart`
 - Create: `apps/ones_app/lib/features/auth/presentation/pages/verify_email_page.dart`
 - Create: `apps/ones_app/lib/features/auth/presentation/pages/forgot_password_page.dart`
 - Modify: `apps/ones_app/lib/features/auth/presentation/pages/login_page.dart`
 - Modify: `apps/ones_app/lib/features/auth/presentation/pages/register_page.dart`
 - Modify: `apps/ones_app/lib/app.dart` (`_RootRouterState.build`)
-- Modify: `apps/ones_app/web/index.html`
 - Delete: `lib/features/auth/infrastructure/google_sign_in_initializer.dart`, `lib/features/auth/presentation/google_sign_in_button.dart`, `google_sign_in_button_stub.dart`, `google_sign_in_button_web.dart`
 - Test: `apps/ones_app/test/features/auth/presentation/auth_route_test.dart`, `.../auth_pages_test.dart`
 
 **Interfaces:**
-- Consumes: `AuthController` (Task 3), `FakeAuthRepository`/`fakeUser` (Task 3).
-- Produces: `enum AuthRoute { splash, verifyEmail, completeRegistration, login, home }`, `AuthRoute resolveAuthRoute(AuthController auth)`; widgets `GoogleSignInButton({required bool busy, required VoidCallback? onPressed})`, `AppleSignInButton({required VoidCallback? onPressed})`, `bool get appleSignInAvailable`, `OrDivider()`, `EmailPasswordForm({required String submitLabel, required bool busy, bool requireStrongPassword = false, required Future<void> Function(String email, String password) onSubmit})`; páginas `VerifyEmailPage()`, `ForgotPasswordPage()`. Keys: `auth.email`, `auth.password`, `auth.submit`, `auth.forgot`, `auth.apple`, `auth.google`, `verify.confirm`, `verify.resend`, `verify.logout`, `forgot.send`.
+- Consumes: `AuthController` (Task 3, incl. `refreshEmailVerification`), `FakeAuthRepository`/`fakeUser` (Task 3).
+- Produces: `enum AuthRoute { splash, verifyEmail, completeRegistration, login, home }`, `AuthRoute resolveAuthRoute(AuthController auth)`; `bool get appleSignInAvailable`; `AuthOptionButton`, `GoogleSignInButton({required bool busy, required VoidCallback? onPressed})`, `AppleSignInButton({required VoidCallback? onPressed})`; `EmailAuthSection({required String toggleLabel, required String submitLabel, required bool busy, bool isRegistration = false, Widget? footer, required Future<void> Function(String email, String password) onSubmit})`; `AuthErrorBanner({required String message})`; `PolaroidFrame({required Widget child, Widget? caption, double angle = -0.035, double width = 260})`; páginas `VerifyEmailPage()`, `ForgotPasswordPage()`. Keys: `auth.google`, `auth.apple`, `auth.emailToggle`, `auth.email`, `auth.password`, `auth.submit`, `auth.forgot`, `verify.email`, `verify.confirm`, `verify.resend`, `verify.logout`, `forgot.email`, `forgot.send`, `forgot.sent`, `forgot.back`.
 
-- [ ] **Step 1: Write the failing route test** `test/features/auth/presentation/auth_route_test.dart`:
+- [ ] **Step 1: Logo oficial de Google.** Desde `apps/ones_app`:
+
+```bash
+cat > /tmp/google_g.svg <<'SVG'
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+SVG
+mkdir -p assets/auth/2.0x assets/auth/3.0x
+rsvg-convert -w 20 -h 20 /tmp/google_g.svg -o assets/auth/google_g.png
+rsvg-convert -w 40 -h 40 /tmp/google_g.svg -o assets/auth/2.0x/google_g.png
+rsvg-convert -w 60 -h 60 /tmp/google_g.svg -o assets/auth/3.0x/google_g.png
+file assets/auth/google_g.png assets/auth/2.0x/google_g.png assets/auth/3.0x/google_g.png
+```
+Expected: tres PNG de 20×20, 40×40 y 60×60. (`assets/auth/` ya está declarado en `pubspec.yaml`; las variantes `2.0x/3.0x` se resuelven solas.)
+
+- [ ] **Step 2: Write the failing route test** `test/features/auth/presentation/auth_route_test.dart`:
 
 ```dart
 import 'package:dio/dio.dart';
@@ -1540,7 +1623,7 @@ void main() {
 Run: `flutter test test/features/auth/presentation/auth_route_test.dart`
 Expected: FAIL de compilación (`auth_route.dart` no existe).
 
-- [ ] **Step 2: Implement** `auth_route.dart`:
+- [ ] **Step 3: Implement** `auth_route.dart`:
 
 ```dart
 import 'auth_controller.dart';
@@ -1563,7 +1646,7 @@ AuthRoute resolveAuthRoute(AuthController auth) {
 Run: `flutter test test/features/auth/presentation/auth_route_test.dart`
 Expected: PASS (6).
 
-- [ ] **Step 3: Router.** En `lib/app.dart`, `_RootRouterState.build`, reemplazar desde `if (auth.isLoading && !auth.isSignedIn) {` hasta `return const LoginPage();\n    }` por:
+- [ ] **Step 4: Router.** En `lib/app.dart`, `_RootRouterState.build`, reemplazar desde `if (auth.isLoading && !auth.isSignedIn) {` hasta `return const LoginPage();\n    }` por:
 
 ```dart
     switch (resolveAuthRoute(auth)) {
@@ -1582,55 +1665,64 @@ Expected: PASS (6).
 
 Imports: `features/auth/presentation/auth_route.dart`, `features/auth/presentation/pages/verify_email_page.dart`, `features/auth/presentation/pages/register_page.dart`.
 
-- [ ] **Step 4: Shared widgets.** `widgets/auth_buttons.dart`:
+- [ ] **Step 5: Componentes.** `widgets/auth_buttons.dart`:
 
 ```dart
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../../../../core/ui/ones_colors.dart';
+import '../../../../core/ui/ones_typography.dart';
 
 /// Sign in with Apple solo se ofrece en iOS.
 bool get appleSignInAvailable => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
-class _ProviderButton extends StatelessWidget {
-  final Widget icon;
+/// Botón de método de acceso: todos comparten alto, ancho y esquinas rectas;
+/// solo cambian fondo, borde y logo.
+class AuthOptionButton extends StatelessWidget {
+  final Widget logo;
   final String label;
   final VoidCallback? onPressed;
   final Color background;
   final Color foreground;
+  final Color border;
 
-  const _ProviderButton({
+  const AuthOptionButton({
     super.key,
-    required this.icon,
+    required this.logo,
     required this.label,
     required this.onPressed,
     required this.background,
     required this.foreground,
+    required this.border,
   });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 54,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: background,
-          foregroundColor: foreground,
-          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-          elevation: 0,
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(54),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        backgroundColor: background,
+        foregroundColor: foreground,
+        disabledBackgroundColor: background,
+        disabledForegroundColor: foreground.withOpacity(0.5),
+        side: BorderSide(color: border, width: 1.5),
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        textStyle: const TextStyle(
+          fontFamilyFallback: OnesTypography.bodyFallbacks,
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            icon,
-            const SizedBox(width: 12),
-            Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
-          ],
-        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ExcludeSemantics(child: SizedBox.square(dimension: 22, child: Center(child: logo))),
+          const SizedBox(width: 12),
+          Flexible(child: Text(label, textAlign: TextAlign.center)),
+        ],
       ),
     );
   }
@@ -1644,13 +1736,14 @@ class GoogleSignInButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _ProviderButton(
+    return AuthOptionButton(
       key: const Key('auth.google'),
-      icon: FaIcon(FontAwesomeIcons.google, size: 18, color: OnesColors.black.withOpacity(0.7)),
+      logo: Image.asset('assets/auth/google_g.png', width: 20, height: 20),
       label: busy ? 'Conectando...' : 'Continuar con Google',
       onPressed: onPressed,
       background: OnesColors.white,
       foreground: OnesColors.black,
+      border: OnesColors.black.withOpacity(0.12),
     );
   }
 }
@@ -1662,70 +1755,146 @@ class AppleSignInButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _ProviderButton(
+    return AuthOptionButton(
       key: const Key('auth.apple'),
-      icon: const FaIcon(FontAwesomeIcons.apple, size: 20, color: OnesColors.white),
+      logo: const Icon(Icons.apple, size: 22, color: OnesColors.white),
       label: 'Continuar con Apple',
       onPressed: onPressed,
       background: OnesColors.black,
       foreground: OnesColors.white,
-    );
-  }
-}
-
-class OrDivider extends StatelessWidget {
-  const OrDivider({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final line = Expanded(child: Divider(color: OnesColors.black.withOpacity(0.25)));
-    return Row(
-      children: [
-        line,
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 12),
-          child: Text('o con tu correo', style: TextStyle(fontSize: 13, color: OnesColors.black)),
-        ),
-        line,
-      ],
+      border: OnesColors.black,
     );
   }
 }
 ```
 
-`widgets/email_password_form.dart`:
+`widgets/auth_error_banner.dart`:
 
 ```dart
 import 'package:flutter/material.dart';
 
 import '../../../../core/ui/ones_colors.dart';
 
-class EmailPasswordForm extends StatefulWidget {
+/// Texto negro sobre blanco con barra roja: el rojo directo sobre ámbar no se lee bien.
+class AuthErrorBanner extends StatelessWidget {
+  final String message;
+
+  const AuthErrorBanner({super.key, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        decoration: BoxDecoration(
+          color: OnesColors.white.withOpacity(0.8),
+          border: const Border(left: BorderSide(color: OnesColors.danger, width: 4)),
+        ),
+        child: Text(
+          message,
+          style: const TextStyle(color: OnesColors.black, fontWeight: FontWeight.w600, height: 1.3),
+        ),
+      ),
+    );
+  }
+}
+```
+
+`widgets/polaroid_frame.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+
+import '../../../../core/ui/ones_colors.dart';
+
+/// Marco tipo polaroid con la misma sombra y giro que la pila de fotos del login.
+class PolaroidFrame extends StatelessWidget {
+  final Widget child;
+  final Widget? caption;
+  final double angle;
+  final double width;
+
+  const PolaroidFrame({
+    super.key,
+    required this.child,
+    this.caption,
+    this.angle = -0.035,
+    this.width = 260,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Transform.rotate(
+      angle: angle,
+      child: Container(
+        width: width,
+        padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
+        decoration: BoxDecoration(
+          color: OnesColors.white,
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 28, offset: const Offset(0, 12)),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AspectRatio(aspectRatio: 4 / 3, child: child),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 14),
+              child: caption ?? const SizedBox(height: 8),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+```
+
+`widgets/email_auth_section.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+
+import '../../../../core/ui/ones_colors.dart';
+import '../../../../core/ui/ones_typography.dart';
+import '../../../../core/ui/widgets/ones_input_decoration.dart';
+import 'auth_buttons.dart';
+
+/// Botón "Continuar con correo" que se despliega en el formulario de correo y contraseña.
+class EmailAuthSection extends StatefulWidget {
+  final String toggleLabel;
   final String submitLabel;
   final bool busy;
 
-  /// Registro: exige mínimo 8 caracteres. Login: solo que no esté vacía.
-  final bool requireStrongPassword;
+  /// Registro: exige 8 caracteres y sugiere contraseña nueva al gestor de contraseñas.
+  final bool isRegistration;
+  final Widget? footer;
   final Future<void> Function(String email, String password) onSubmit;
 
-  const EmailPasswordForm({
+  const EmailAuthSection({
     super.key,
+    required this.toggleLabel,
     required this.submitLabel,
     required this.busy,
-    this.requireStrongPassword = false,
+    this.isRegistration = false,
+    this.footer,
     required this.onSubmit,
   });
 
   @override
-  State<EmailPasswordForm> createState() => _EmailPasswordFormState();
+  State<EmailAuthSection> createState() => _EmailAuthSectionState();
 }
 
-class _EmailPasswordFormState extends State<EmailPasswordForm> {
+class _EmailAuthSectionState extends State<EmailAuthSection> {
   static final _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
   final _formKey = GlobalKey<FormState>();
   final _email = TextEditingController();
   final _password = TextEditingController();
+  bool _expanded = false;
   bool _obscure = true;
 
   @override
@@ -1736,76 +1905,116 @@ class _EmailPasswordFormState extends State<EmailPasswordForm> {
   }
 
   Future<void> _submit() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (widget.busy || !(_formKey.currentState?.validate() ?? false)) return;
     await widget.onSubmit(_email.text.trim(), _password.text);
   }
 
-  InputDecoration _decoration(String label, {Widget? suffix}) => InputDecoration(
-        labelText: label,
-        filled: true,
-        fillColor: OnesColors.white,
-        border: const OutlineInputBorder(borderRadius: BorderRadius.zero),
-        suffixIcon: suffix,
-      );
+  InputDecoration _decoration(String hint, IconData icon, {Widget? suffix, String? helper}) {
+    return OnesInputDecoration.build(
+      hintText: hint,
+      prefixIcon: Icon(icon, color: OnesColors.purpleDeep.withOpacity(0.7)),
+      suffixIcon: suffix,
+      fillColor: OnesColors.white,
+    ).copyWith(helperText: helper);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Form(
-      key: _formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextFormField(
-            key: const Key('auth.email'),
-            controller: _email,
-            keyboardType: TextInputType.emailAddress,
-            autofillHints: const [AutofillHints.email],
-            textInputAction: TextInputAction.next,
-            decoration: _decoration('Correo'),
-            validator: (v) => _emailPattern.hasMatch((v ?? '').trim()) ? null : 'Ingresa un correo válido.',
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            key: const Key('auth.password'),
-            controller: _password,
-            obscureText: _obscure,
-            autofillHints: [widget.requireStrongPassword ? AutofillHints.newPassword : AutofillHints.password],
-            textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => widget.busy ? null : _submit(),
-            decoration: _decoration(
-              'Contraseña',
-              suffix: IconButton(
-                icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
-                onPressed: () => setState(() => _obscure = !_obscure),
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+    return AnimatedSize(
+      duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      alignment: Alignment.topCenter,
+      child: _expanded ? _form() : _toggle(),
+    );
+  }
+
+  Widget _toggle() {
+    return AuthOptionButton(
+      key: const Key('auth.emailToggle'),
+      logo: const Icon(Icons.mail_outline, size: 20, color: OnesColors.purpleDeep),
+      label: widget.toggleLabel,
+      onPressed: widget.busy ? null : () => setState(() => _expanded = true),
+      background: Colors.transparent,
+      foreground: OnesColors.purpleDeep,
+      border: OnesColors.purpleDeep,
+    );
+  }
+
+  Widget _form() {
+    const fieldStyle = TextStyle(
+      fontFamilyFallback: OnesTypography.bodyFallbacks,
+      color: OnesColors.black,
+      fontWeight: FontWeight.w600,
+    );
+    return AutofillGroup(
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextFormField(
+              key: const Key('auth.email'),
+              controller: _email,
+              autofocus: true,
+              style: fieldStyle,
+              keyboardType: TextInputType.emailAddress,
+              autofillHints: const [AutofillHints.email],
+              textInputAction: TextInputAction.next,
+              decoration: _decoration('Correo', Icons.mail_outline),
+              validator: (v) => _emailPattern.hasMatch((v ?? '').trim()) ? null : 'Escribe un correo válido.',
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              key: const Key('auth.password'),
+              controller: _password,
+              style: fieldStyle,
+              obscureText: _obscure,
+              autofillHints: [widget.isRegistration ? AutofillHints.newPassword : AutofillHints.password],
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => _submit(),
+              decoration: _decoration(
+                'Contraseña',
+                Icons.lock_outline,
+                helper: widget.isRegistration ? 'Mínimo 8 caracteres.' : null,
+                suffix: IconButton(
+                  tooltip: _obscure ? 'Mostrar contraseña' : 'Ocultar contraseña',
+                  icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                ),
+              ),
+              validator: (v) {
+                final value = v ?? '';
+                if (value.isEmpty) return 'Escribe tu contraseña.';
+                if (widget.isRegistration && value.length < 8) return 'Usa al menos 8 caracteres.';
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              key: const Key('auth.submit'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(54),
+                backgroundColor: OnesColors.purpleMid,
+                foregroundColor: OnesColors.white,
+                shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+              ),
+              onPressed: widget.busy ? null : _submit,
+              child: Text(
+                widget.busy ? 'Un momento...' : widget.submitLabel,
+                style: const TextStyle(fontWeight: FontWeight.w900),
               ),
             ),
-            validator: (v) {
-              final value = v ?? '';
-              if (value.isEmpty) return 'Ingresa tu contraseña.';
-              if (widget.requireStrongPassword && value.length < 8) return 'Mínimo 8 caracteres.';
-              return null;
-            },
-          ),
-          const SizedBox(height: 12),
-          FilledButton(
-            key: const Key('auth.submit'),
-            style: FilledButton.styleFrom(
-              backgroundColor: OnesColors.purpleMid,
-              foregroundColor: OnesColors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-            ),
-            onPressed: widget.busy ? null : _submit,
-            child: Text(widget.submitLabel, style: const TextStyle(fontWeight: FontWeight.w800)),
-          ),
-        ],
+            if (widget.footer != null) widget.footer!,
+          ],
+        ),
       ),
     );
   }
 }
 ```
 
-- [ ] **Step 5: New pages.** `pages/verify_email_page.dart`:
+- [ ] **Step 6: Páginas nuevas.** `pages/verify_email_page.dart`:
 
 ```dart
 import 'package:flutter/material.dart';
@@ -1813,6 +2022,8 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/ui/ones_colors.dart';
 import '../auth_controller.dart';
+import '../widgets/auth_error_banner.dart';
+import '../widgets/polaroid_frame.dart';
 
 class VerifyEmailPage extends StatelessWidget {
   const VerifyEmailPage({super.key});
@@ -1821,68 +2032,94 @@ class VerifyEmailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
     final email = auth.user?.email ?? '';
+    final text = Theme.of(context).textTheme;
 
     return Scaffold(
       backgroundColor: OnesColors.background,
-      appBar: AppBar(
-        backgroundColor: OnesColors.background,
-        elevation: 0,
-        foregroundColor: OnesColors.black,
-        title: const Text('Verifica tu correo'),
-      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 520),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(Icons.mark_email_unread_outlined, size: 56, color: OnesColors.purpleDeep),
-                  const SizedBox(height: 16),
-                  const Text('Te enviamos un enlace de verificación a', textAlign: TextAlign.center),
-                  const SizedBox(height: 4),
-                  Text(email,
-                      key: const Key('verify.email'),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 8),
-                  const Text('Ábrelo para activar tu cuenta y luego vuelve aquí.', textAlign: TextAlign.center),
+                  Center(
+                    child: PolaroidFrame(
+                      child: const ColoredBox(
+                        color: OnesColors.yellowLight,
+                        child: Center(
+                          child: Icon(Icons.mark_email_unread_outlined, size: 72, color: OnesColors.purpleDeep),
+                        ),
+                      ),
+                      caption: Text(
+                        email,
+                        key: const Key('verify.email'),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w800, color: OnesColors.black),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  Text(
+                    'Revisa tu correo',
+                    textAlign: TextAlign.center,
+                    style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: OnesColors.black),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Abre el enlace que te enviamos para activar tu cuenta. Cuando vuelvas, lo detectamos solos.',
+                    textAlign: TextAlign.center,
+                    style: text.bodyMedium?.copyWith(color: OnesColors.black.withOpacity(0.75), height: 1.35),
+                  ),
                   if (auth.error != null) ...[
-                    const SizedBox(height: 16),
-                    Text('${auth.error}', textAlign: TextAlign.center, style: const TextStyle(color: OnesColors.danger)),
+                    const SizedBox(height: 20),
+                    AuthErrorBanner(message: '${auth.error}'),
                   ],
                   const SizedBox(height: 24),
                   FilledButton(
                     key: const Key('verify.confirm'),
                     style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(54),
                       backgroundColor: OnesColors.purpleMid,
                       foregroundColor: OnesColors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
                     ),
                     onPressed: auth.isLoading ? null : () => auth.confirmEmailVerified(),
-                    child: const Text('Ya verifiqué mi correo', style: TextStyle(fontWeight: FontWeight.w800)),
+                    child: const Text('Ya verifiqué mi correo', style: TextStyle(fontWeight: FontWeight.w900)),
                   ),
                   const SizedBox(height: 12),
                   OutlinedButton(
                     key: const Key('verify.resend'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(54),
+                      foregroundColor: OnesColors.purpleDeep,
+                      side: const BorderSide(color: OnesColors.purpleDeep, width: 1.5),
+                      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                    ),
                     onPressed: auth.isLoading
                         ? null
                         : () async {
                             final ok = await auth.resendEmailVerification();
                             if (ok && context.mounted) {
-                              ScaffoldMessenger.of(context)
-                                  .showSnackBar(const SnackBar(content: Text('Te enviamos un nuevo enlace.')));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Te enviamos un nuevo enlace a $email.')),
+                              );
                             }
                           },
-                    child: const Text('Reenviar correo'),
+                    child: const Text('Reenviar enlace', style: TextStyle(fontWeight: FontWeight.w700)),
                   ),
+                  const SizedBox(height: 8),
                   TextButton(
                     key: const Key('verify.logout'),
                     onPressed: auth.isLoading ? null : () => auth.logout(),
-                    child: const Text('Usar otra cuenta'),
+                    child: const Text(
+                      'Usar otra cuenta',
+                      style: TextStyle(color: OnesColors.purpleDeep, fontWeight: FontWeight.w700),
+                    ),
                   ),
                 ],
               ),
@@ -1902,7 +2139,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/ui/ones_colors.dart';
+import '../../../../core/ui/ones_typography.dart';
+import '../../../../core/ui/widgets/ones_input_decoration.dart';
 import '../auth_controller.dart';
+import '../widgets/auth_error_banner.dart';
+import '../widgets/polaroid_frame.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -1913,7 +2154,7 @@ class ForgotPasswordPage extends StatefulWidget {
 
 class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final _email = TextEditingController();
-  bool _sent = false;
+  String? _sentTo;
   bool _sending = false;
 
   @override
@@ -1924,69 +2165,116 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
   Future<void> _send() async {
     final email = _email.text.trim();
-    if (email.isEmpty) return;
+    if (email.isEmpty || _sending) return;
     setState(() => _sending = true);
     final ok = await context.read<AuthController>().sendPasswordReset(email);
     if (!mounted) return;
     setState(() {
       _sending = false;
-      _sent = ok;
+      if (ok) _sentTo = email;
     });
   }
+
+  ButtonStyle get _primary => FilledButton.styleFrom(
+        minimumSize: const Size.fromHeight(54),
+        backgroundColor: OnesColors.purpleMid,
+        foregroundColor: OnesColors.white,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+      );
 
   @override
   Widget build(BuildContext context) {
     final error = context.watch<AuthController>().error;
+    final text = Theme.of(context).textTheme;
+    final body = text.bodyMedium?.copyWith(color: OnesColors.black.withOpacity(0.75), height: 1.35);
+
     return Scaffold(
       backgroundColor: OnesColors.background,
-      appBar: AppBar(
-        backgroundColor: OnesColors.background,
-        elevation: 0,
-        foregroundColor: OnesColors.black,
-        title: const Text('Restablecer contraseña'),
-      ),
+      appBar: AppBar(title: const Text('Restablecer contraseña')),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 520),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: _sent
-                  ? const Text(
-                      'Si existe una cuenta con ese correo, te enviamos un enlace para restablecer la contraseña.',
-                      key: Key('forgot.sent'),
-                      textAlign: TextAlign.center,
-                    )
-                  : Column(
-                      mainAxisSize: MainAxisSize.min,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+              child: _sentTo != null
+                  ? Column(
+                      key: const Key('forgot.sent'),
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        Center(
+                          child: PolaroidFrame(
+                            angle: 0.03,
+                            child: const ColoredBox(
+                              color: OnesColors.yellowLight,
+                              child: Center(child: Icon(Icons.lock_reset, size: 72, color: OnesColors.purpleDeep)),
+                            ),
+                            caption: Text(
+                              _sentTo!,
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.w800, color: OnesColors.black),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        Text('Revisa tu correo',
+                            textAlign: TextAlign.center,
+                            style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: OnesColors.black)),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Si hay una cuenta con ese correo, te llegará un enlace para crear una contraseña nueva.',
+                          textAlign: TextAlign.center,
+                          style: body,
+                        ),
+                        const SizedBox(height: 24),
+                        FilledButton(
+                          key: const Key('forgot.back'),
+                          style: _primary,
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Volver a iniciar sesión', style: TextStyle(fontWeight: FontWeight.w900)),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Escribe el correo de tu cuenta y te enviaremos un enlace para crear una contraseña nueva.',
+                          style: body,
+                        ),
+                        const SizedBox(height: 20),
                         TextField(
                           key: const Key('forgot.email'),
                           controller: _email,
+                          autofocus: true,
                           keyboardType: TextInputType.emailAddress,
-                          decoration: const InputDecoration(
-                            labelText: 'Correo',
-                            filled: true,
+                          autofillHints: const [AutofillHints.email],
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: (_) => _send(),
+                          style: const TextStyle(
+                            fontFamilyFallback: OnesTypography.bodyFallbacks,
+                            color: OnesColors.black,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          decoration: OnesInputDecoration.build(
+                            hintText: 'Correo',
+                            prefixIcon: Icon(Icons.mail_outline, color: OnesColors.purpleDeep.withOpacity(0.7)),
                             fillColor: OnesColors.white,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.zero),
                           ),
                         ),
                         if (error != null) ...[
-                          const SizedBox(height: 12),
-                          Text('$error', style: const TextStyle(color: OnesColors.danger)),
+                          const SizedBox(height: 16),
+                          AuthErrorBanner(message: '$error'),
                         ],
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
                         FilledButton(
                           key: const Key('forgot.send'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: OnesColors.purpleMid,
-                            foregroundColor: OnesColors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-                          ),
+                          style: _primary,
                           onPressed: _sending ? null : _send,
-                          child: const Text('Enviar enlace', style: TextStyle(fontWeight: FontWeight.w800)),
+                          child: Text(_sending ? 'Enviando...' : 'Enviar enlace',
+                              style: const TextStyle(fontWeight: FontWeight.w900)),
                         ),
                       ],
                     ),
@@ -1999,7 +2287,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 }
 ```
 
-- [ ] **Step 6: Write the failing page tests** `test/features/auth/presentation/auth_pages_test.dart`:
+- [ ] **Step 7: Write the failing page tests** `test/features/auth/presentation/auth_pages_test.dart`:
 
 ```dart
 import 'package:dio/dio.dart';
@@ -2008,6 +2296,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:ones_app/features/admin/application/get_admin_me_use_case.dart';
+import 'package:ones_app/features/auth/domain/auth_failure.dart';
 import 'package:ones_app/features/auth/presentation/auth_controller.dart';
 import 'package:ones_app/features/auth/presentation/pages/forgot_password_page.dart';
 import 'package:ones_app/features/auth/presentation/pages/login_page.dart';
@@ -2058,6 +2347,12 @@ void main() {
     await tester.pump();
   }
 
+  Future<void> tapKey(WidgetTester tester, String key) async {
+    await tester.ensureVisible(find.byKey(Key(key)));
+    await tester.tap(find.byKey(Key(key)));
+    await tester.pumpAndSettle();
+  }
+
   group('LoginPage', () {
     testWidgets('Apple solo aparece en iOS', (tester) async {
       await pump(tester, const LoginPage());
@@ -2069,37 +2364,53 @@ void main() {
       debugDefaultTargetPlatformOverride = null;
     });
 
+    testWidgets('el formulario de correo empieza plegado', (tester) async {
+      await pump(tester, const LoginPage());
+
+      expect(find.byKey(const Key('auth.email')), findsNothing);
+      await tapKey(tester, 'auth.emailToggle');
+      expect(find.byKey(const Key('auth.email')), findsOneWidget);
+      expect(find.byKey(const Key('auth.emailToggle')), findsNothing);
+    });
+
     testWidgets('valida el correo antes de enviar', (tester) async {
       await pump(tester, const LoginPage());
+      await tapKey(tester, 'auth.emailToggle');
 
       await tester.enterText(find.byKey(const Key('auth.email')), 'no-es-correo');
       await tester.enterText(find.byKey(const Key('auth.password')), 'x');
-      await tester.ensureVisible(find.byKey(const Key('auth.submit')));
-      await tester.tap(find.byKey(const Key('auth.submit')));
-      await tester.pump();
+      await tapKey(tester, 'auth.submit');
 
-      expect(find.text('Ingresa un correo válido.'), findsOneWidget);
+      expect(find.text('Escribe un correo válido.'), findsOneWidget);
       expect(auth.isSignedIn, isFalse);
     });
 
     testWidgets('inicia sesión con correo', (tester) async {
       await pump(tester, const LoginPage());
+      await tapKey(tester, 'auth.emailToggle');
 
       await tester.enterText(find.byKey(const Key('auth.email')), 'ana@example.com');
       await tester.enterText(find.byKey(const Key('auth.password')), 'secreto123');
-      await tester.ensureVisible(find.byKey(const Key('auth.submit')));
-      await tester.tap(find.byKey(const Key('auth.submit')));
-      await tester.pumpAndSettle();
+      await tapKey(tester, 'auth.submit');
 
       expect(auth.isRegistered, isTrue);
     });
 
-    testWidgets('abre "Olvidé mi contraseña"', (tester) async {
+    testWidgets('muestra el error sin el prefijo "Error:"', (tester) async {
+      repo.signInError = const AuthExceptionForTest();
       await pump(tester, const LoginPage());
 
-      await tester.ensureVisible(find.byKey(const Key('auth.forgot')));
-      await tester.tap(find.byKey(const Key('auth.forgot')));
-      await tester.pumpAndSettle();
+      await tapKey(tester, 'auth.google');
+
+      expect(find.text('Correo o contraseña incorrectos.'), findsOneWidget);
+      expect(find.textContaining('Error:'), findsNothing);
+    });
+
+    testWidgets('abre "Olvidé mi contraseña"', (tester) async {
+      await pump(tester, const LoginPage());
+      await tapKey(tester, 'auth.emailToggle');
+
+      await tapKey(tester, 'auth.forgot');
 
       expect(find.byType(ForgotPasswordPage), findsOneWidget);
     });
@@ -2108,14 +2419,14 @@ void main() {
   group('RegisterPage', () {
     testWidgets('exige contraseña de 8 caracteres', (tester) async {
       await pump(tester, const RegisterPage());
-
-      await tester.enterText(find.byKey(const Key('auth.email')), 'ana@example.com');
-      await tester.enterText(find.byKey(const Key('auth.password')), 'corta');
-      await tester.ensureVisible(find.byKey(const Key('auth.submit')));
-      await tester.tap(find.byKey(const Key('auth.submit')));
-      await tester.pump();
+      await tapKey(tester, 'auth.emailToggle');
 
       expect(find.text('Mínimo 8 caracteres.'), findsOneWidget);
+      await tester.enterText(find.byKey(const Key('auth.email')), 'ana@example.com');
+      await tester.enterText(find.byKey(const Key('auth.password')), 'corta');
+      await tapKey(tester, 'auth.submit');
+
+      expect(find.text('Usa al menos 8 caracteres.'), findsOneWidget);
     });
 
     testWidgets('Google con cuenta ya registrada vuelve a la raíz', (tester) async {
@@ -2131,8 +2442,7 @@ void main() {
       await tester.tap(find.text('abrir'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const Key('auth.google')));
-      await tester.pumpAndSettle();
+      await tapKey(tester, 'auth.google');
 
       expect(find.byType(RegisterPage), findsNothing);
       expect(auth.isRegistered, isTrue);
@@ -2144,29 +2454,27 @@ void main() {
           DioException(requestOptions: req, response: Response(requestOptions: req, statusCode: 404)));
       await pump(tester, const RegisterPage());
 
-      await tester.tap(find.byKey(const Key('auth.google')));
-      await tester.pumpAndSettle();
+      await tapKey(tester, 'auth.google');
 
-      expect(find.byKey(const Key('auth.email')), findsNothing);
+      expect(find.byKey(const Key('auth.emailToggle')), findsNothing);
       expect(auth.user, isNotNull);
     });
   });
 
   group('VerifyEmailPage', () {
-    testWidgets('reenviar y confirmar', (tester) async {
+    testWidgets('muestra el correo, reenvía y confirma', (tester) async {
       repo.signInResult = fakeUser(provider: 'password', verified: false);
       await auth.registerWithEmail('ana@example.com', 'secreto123');
       await pump(tester, const VerifyEmailPage());
 
       expect(find.text('uid-1@example.com'), findsOneWidget);
 
-      await tester.tap(find.byKey(const Key('verify.resend')));
-      await tester.pump();
+      await tapKey(tester, 'verify.resend');
       expect(repo.verificationEmails, 2);
+      expect(find.text('Te enviamos un nuevo enlace a uid-1@example.com.'), findsOneWidget);
 
       repo.afterReload = fakeUser(provider: 'password', verified: true);
-      await tester.tap(find.byKey(const Key('verify.confirm')));
-      await tester.pumpAndSettle();
+      await tapKey(tester, 'verify.confirm');
       expect(auth.needsEmailVerification, isFalse);
     });
   });
@@ -2176,22 +2484,26 @@ void main() {
       await pump(tester, const ForgotPasswordPage());
 
       await tester.enterText(find.byKey(const Key('forgot.email')), 'ana@example.com');
-      await tester.tap(find.byKey(const Key('forgot.send')));
-      await tester.pumpAndSettle();
+      await tapKey(tester, 'forgot.send');
 
       expect(repo.passwordResets, ['ana@example.com']);
       expect(find.byKey(const Key('forgot.sent')), findsOneWidget);
     });
   });
 }
+
+/// Error de credenciales para probar el aviso.
+class AuthExceptionForTest extends AuthException {
+  const AuthExceptionForTest() : super(AuthFailure.invalidCredentials);
+}
 ```
 
 Run: `flutter test test/features/auth/presentation/auth_pages_test.dart`
-Expected: FAIL (LoginPage/RegisterPage aún no tienen `auth.email`, `auth.apple`, `auth.google`, `auth.forgot`; VerifyEmailPage y ForgotPasswordPage ya existen y sus tests pueden pasar).
+Expected: FAIL (LoginPage/RegisterPage aún no tienen `auth.emailToggle`, `auth.apple`, `auth.google`, `auth.forgot`).
 
-- [ ] **Step 7: LoginPage.** En `login_page.dart`:
-  - Imports: quitar `dart:async`, `package:google_sign_in/google_sign_in.dart`, `../../infrastructure/google_sign_in_initializer.dart` y los dos `../google_sign_in_button.dart`; añadir `../widgets/auth_buttons.dart`, `../widgets/email_password_form.dart`, `forgot_password_page.dart`. Mantener `package:flutter/foundation.dart` solo si algo aún lo usa (si no, quitarlo).
-  - En `_LoginPageState`: borrar `_webGisButton`, `_webAuthSub`, `_webAuthEvents`, `_webConsumedSignIn`, `_onWebGoogleSignedIn`, `initState` y `dispose` completos (solo existían para GIS web). Añadir:
+- [ ] **Step 8: LoginPage.** En `login_page.dart`:
+  - Imports: quitar `dart:async`, `package:google_sign_in/google_sign_in.dart`, `../../infrastructure/google_sign_in_initializer.dart`, los dos `../google_sign_in_button.dart` y `font_awesome_flutter` si queda sin uso; añadir `../widgets/auth_buttons.dart`, `../widgets/email_auth_section.dart`, `../widgets/auth_error_banner.dart`, `forgot_password_page.dart`. Quitar `package:flutter/foundation.dart` si queda sin uso.
+  - En `_LoginPageState`: borrar `_webGisButton`, `_webAuthSub`, `_webAuthEvents`, `_webConsumedSignIn`, `_onWebGoogleSignedIn`, y `initState`/`dispose` completos (solo existían para GIS web). Añadir:
 
 ```dart
   Future<void> _run(Future<AuthNextStep> Function() action) async {
@@ -2205,7 +2517,7 @@ Expected: FAIL (LoginPage/RegisterPage aún no tienen `auth.email`, `auth.apple`
   }
 ```
 
-  - En `build`, dentro del bloque `else ...[` (el que muestra `auth.error`), reemplazar el elemento `SizedBox(width: double.infinity, height: 54, child: kIsWeb ? StreamBuilder<GoogleSignInAuthenticationEvent>(...) : ElevatedButton(...),),` completo por:
+  - En el bloque `else ...[`: reemplazar el `Container(...)` que muestra `'Error: ${auth.error}'` por `AuthErrorBanner(message: '${auth.error}'),` y reemplazar el elemento `SizedBox(width: double.infinity, height: 54, child: kIsWeb ? StreamBuilder<GoogleSignInAuthenticationEvent>(...) : ElevatedButton(...),),` completo por:
 
 ```dart
                     GoogleSignInButton(
@@ -2218,26 +2530,25 @@ Expected: FAIL (LoginPage/RegisterPage aún no tienen `auth.email`, `auth.apple`
                         onPressed: auth.isLoading ? null : () => _run(auth.signInWithApple),
                       ),
                     ],
-                    const SizedBox(height: 20),
-                    const OrDivider(),
                     const SizedBox(height: 12),
-                    EmailPasswordForm(
+                    EmailAuthSection(
+                      toggleLabel: 'Continuar con correo',
                       submitLabel: 'Iniciar sesión',
                       busy: auth.isLoading,
                       onSubmit: (email, password) => _run(() => auth.signInWithEmail(email, password)),
-                    ),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        key: const Key('auth.forgot'),
-                        onPressed: auth.isLoading
-                            ? null
-                            : () => Navigator.of(context).push(
-                                  MaterialPageRoute(builder: (_) => const ForgotPasswordPage()),
-                                ),
-                        child: const Text(
-                          'Olvidé mi contraseña',
-                          style: TextStyle(color: OnesColors.purpleDeep, fontWeight: FontWeight.w600),
+                      footer: Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          key: const Key('auth.forgot'),
+                          onPressed: auth.isLoading
+                              ? null
+                              : () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const ForgotPasswordPage()),
+                                  ),
+                          child: const Text(
+                            'Olvidé mi contraseña',
+                            style: TextStyle(color: OnesColors.purpleDeep, fontWeight: FontWeight.w700),
+                          ),
                         ),
                       ),
                     ),
@@ -2245,8 +2556,8 @@ Expected: FAIL (LoginPage/RegisterPage aún no tienen `auth.email`, `auth.apple`
 
   - Quitar los `print(` de depuración que queden en el archivo.
 
-- [ ] **Step 8: RegisterPage.** En `register_page.dart`:
-  - Imports: quitar `dart:async`, `package:google_sign_in/google_sign_in.dart`, `../../infrastructure/google_sign_in_initializer.dart`, `../google_sign_in_button.dart`; añadir `../widgets/auth_buttons.dart`, `../widgets/email_password_form.dart`. Quitar `package:flutter/foundation.dart` y `font_awesome_flutter` si quedan sin uso.
+- [ ] **Step 9: RegisterPage.** En `register_page.dart`:
+  - Imports: quitar `dart:async`, `package:google_sign_in/google_sign_in.dart`, `../../infrastructure/google_sign_in_initializer.dart`, `../google_sign_in_button.dart`; añadir `../widgets/auth_buttons.dart`, `../widgets/email_auth_section.dart`, `../widgets/auth_error_banner.dart`. Quitar `package:flutter/foundation.dart` y `font_awesome_flutter` si quedan sin uso.
   - Borrar `_webGisButton`, `_webAuthSub`, `_webConsumedSignIn`, `_onWebGoogleSignedIn` y, en `initState`, el bloque `if (kIsWeb) { ... }` del listener; en `dispose` quitar `_webAuthSub?.cancel();`.
   - Añadir:
 
@@ -2277,7 +2588,8 @@ Expected: FAIL (LoginPage/RegisterPage aún no tienen `auth.email`, `auth.apple`
   }
 ```
 
-  - Cambiar el subtítulo `'Usa tu cuenta de Google para crear tu perfil en Ones.'` por `'Elige cómo quieres crear tu cuenta en Ones.'`.
+  - Subtítulo `'Usa tu cuenta de Google para crear tu perfil en Ones.'` → `'Elige cómo quieres crear tu cuenta en Ones.'`.
+  - Reemplazar el `Container(...)` de `'Error: ${auth.error}'` por `AuthErrorBanner(message: '${auth.error}'),`.
   - En `if (user == null) ...[`, reemplazar el `SizedBox(width: double.infinity, height: 54, child: kIsWeb ? Stack(...) : ElevatedButton(...),),` completo por:
 
 ```dart
@@ -2291,38 +2603,148 @@ Expected: FAIL (LoginPage/RegisterPage aún no tienen `auth.email`, `auth.apple`
                               onPressed: auth.isLoading ? null : () => _startWith(auth.beginRegistrationWithApple),
                             ),
                           ],
-                          const SizedBox(height: 20),
-                          const OrDivider(),
                           const SizedBox(height: 12),
-                          EmailPasswordForm(
-                            submitLabel: 'Crear cuenta con correo',
+                          EmailAuthSection(
+                            toggleLabel: 'Crear cuenta con correo',
+                            submitLabel: 'Crear cuenta',
                             busy: auth.isLoading,
-                            requireStrongPassword: true,
+                            isRegistration: true,
                             onSubmit: (email, password) => _startWith(() => auth.registerWithEmail(email, password)),
                           ),
 ```
 
-- [ ] **Step 9: Remove GIS web.** `git rm` de `lib/features/auth/infrastructure/google_sign_in_initializer.dart`, `lib/features/auth/presentation/google_sign_in_button.dart`, `google_sign_in_button_stub.dart`, `google_sign_in_button_web.dart`. En `web/index.html` borrar las líneas `<meta name="google-signin-client_id" ...>` y `<script src="https://accounts.google.com/gsi/client" async defer></script>`.
+- [ ] **Step 10: Remove GIS.** `git rm` de `lib/features/auth/infrastructure/google_sign_in_initializer.dart`, `lib/features/auth/presentation/google_sign_in_button.dart`, `google_sign_in_button_stub.dart`, `google_sign_in_button_web.dart`.
 
-- [ ] **Step 10: Run tests and build**
+- [ ] **Step 11: Run tests**
 
 Run:
 ```bash
 flutter test test/features/auth test/core/config
 flutter analyze lib 2>&1 | grep -E 'error •' | head
-flutter build web --release > /tmp/web-build.log 2>&1; tail -1 /tmp/web-build.log
 ```
-Expected: todos PASS; sin `error •`; `✓ Built build/web`.
+Expected: todos PASS; sin `error •`.
 
-- [ ] **Step 11: Commit**
+- [ ] **Step 12: Commit**
 
 ```bash
-git add -A apps/ones_app/lib apps/ones_app/web/index.html apps/ones_app/test/features/auth
+git add -A apps/ones_app/lib apps/ones_app/assets/auth apps/ones_app/test/features/auth
 git commit -m "feat(app): login y registro con Google, Apple y correo; verificación y recuperación de contraseña"
 ```
 
 ---
 
+### Task 5: Web y revisión visual
+
+**Files:**
+- Modify: `apps/ones_app/web/index.html`
+- Modify: `apps/ones_app/lib/app.dart` (`_RootRouterState.didChangeAppLifecycleState`)
+- Temporal (no se commitea): `apps/ones_app/tool/auth_preview.dart`
+
+**Interfaces:**
+- Consumes: `AuthController.refreshEmailVerification()` (Task 3), páginas de Task 4.
+
+- [ ] **Step 1: Limpiar GIS de `web/index.html`.** Borrar `<meta name="google-signin-client_id" ...>` y `<script src="https://accounts.google.com/gsi/client" async defer></script>`. Firebase carga su propio SDK de autenticación; ese script ya no se usa.
+
+- [ ] **Step 2: Detectar la verificación al volver.** En `lib/app.dart`, `_RootRouterState` ya es `WidgetsBindingObserver`. En su `didChangeAppLifecycleState` (crearlo si no existe, llamando a `super`), añadir al recibir `AppLifecycleState.resumed`:
+
+```dart
+    if (state == AppLifecycleState.resumed) {
+      // Volvió desde el correo (otra app o pestaña): si ya verificó, avanzamos sin pedirle nada.
+      context.read<AuthController>().refreshEmailVerification();
+    }
+```
+
+En web, Flutter emite `resumed` cuando la pestaña vuelve a estar visible, así que cubre a quien verifica en otra pestaña.
+
+Run: `flutter test test/features/auth && flutter analyze lib 2>&1 | grep -E 'error •' | head`
+Expected: PASS; sin `error •`.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add apps/ones_app/web/index.html apps/ones_app/lib/app.dart
+git commit -m "feat(web): quitar Google Identity Services y detectar verificación al volver a la app"
+```
+
+- [ ] **Step 4: Build web**
+
+Run: `flutter build web --release > /tmp/web-build.log 2>&1; tail -1 /tmp/web-build.log`
+Expected: `✓ Built build/web`.
+
+- [ ] **Step 5: Revisión visual de las pantallas reales.** Servir y capturar con Chrome (Claude in Chrome) en 390×844 y 1280×800:
+
+```bash
+(cd build/web && python3 -m http.server 7357 --bind 127.0.0.1) &
+```
+
+En `http://127.0.0.1:7357/` capturar: login plegado; login con el correo desplegado; login tras enviar el formulario vacío (errores de validación); registro; "Olvidé mi contraseña". Recorrer con Tab para ver el foco en cada botón y campo. Revisar contra la dirección de diseño de Task 4:
+  - el logo de Google se ve a color (no un cuadro vacío);
+  - los tres botones de acceso tienen el mismo ancho y alto, y el formulario no empuja la pila de fotos fuera de la primera pantalla en 390×844 cuando está plegado;
+  - el aviso de error se lee (negro sobre blanco) y no lleva "Error:";
+  - nada se corta con zoom del navegador al 200 %.
+
+- [ ] **Step 6: Revisión visual de verificación y contraseña enviada** (no se llega a ellas sin una cuenta real). Crear `tool/auth_preview.dart` temporal que pinte `VerifyEmailPage` y la confirmación de `ForgotPasswordPage` con un `AuthController` falso:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:ones_app/core/ui/ones_theme.dart';
+import 'package:ones_app/features/admin/application/get_admin_me_use_case.dart';
+import 'package:ones_app/features/admin/domain/admin_repository.dart';
+import 'package:ones_app/features/auth/domain/auth_repository.dart';
+import 'package:ones_app/features/auth/domain/auth_user.dart';
+import 'package:ones_app/features/auth/presentation/auth_controller.dart';
+import 'package:ones_app/features/auth/presentation/pages/verify_email_page.dart';
+import 'package:ones_app/features/users/application/ensure_user_use_case.dart';
+import 'package:ones_app/features/users/domain/users_repository.dart';
+
+/// Solo para revisar diseño en local. No se commitea.
+class _PreviewAuth implements AuthRepository {
+  static const _user = AuthUser(
+      userId: 'preview', email: 'ana.perez@example.com', displayName: null, pictureUrl: null,
+      provider: 'password', emailVerified: false);
+  @override
+  Future<AuthUser> registerWithEmail(String e, String p) async => _user;
+  @override
+  dynamic noSuchMethod(Invocation invocation) => Future.value(null);
+}
+
+class _NoUsers implements UsersRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => Future.value(null);
+}
+
+class _NoAdmin implements AdminRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => Future.value(false);
+}
+
+Future<void> main() async {
+  final users = _NoUsers();
+  final auth = AuthController(
+    authRepository: _PreviewAuth(),
+    ensureUser: EnsureUserUseCase(users),
+    getUserPreferences: GetUserPreferencesUseCase(users),
+    updateUserPreferences: UpdateUserPreferencesUseCase(users),
+    lookupUserByEmailUseCase: LookupUserByEmailUseCase(users),
+    getAdminMe: GetAdminMeUseCase(_NoAdmin()),
+  );
+  await auth.registerWithEmail('ana.perez@example.com', 'x');
+  runApp(ChangeNotifierProvider.value(
+    value: auth,
+    child: MaterialApp(theme: OnesTheme.light(), home: const VerifyEmailPage()),
+  ));
+}
+```
+
+Ajustar el import de `AdminRepository` a su ruta real (`grep -rn 'class AdminRepository' lib`). Run: `flutter build web --release -t tool/auth_preview.dart` y capturar igual que en Step 5 (390×844 y 1280×800). Revisar: el marco polaroid con el correo como pie de foto, jerarquía título → texto → botón morado → contorno → enlace, y que un correo largo se corte con "…" sin romper el marco. Repetir cambiando `home:` por la confirmación de `ForgotPasswordPage` si hace falta. Al terminar: `rm tool/auth_preview.dart`, `rm -rf build/web` y detener el servidor.
+
+- [ ] **Step 7: Ajustes de diseño.** Si la revisión muestra algo que no cumple la dirección de Task 4, corregirlo con su test de widget cuando sea comportamiento, o directamente cuando sea solo estilo, y commitear: `git commit -m "fix(app): ajustes visuales de autenticación"`.
+
+---
+
 ## Verificación manual (después del plan, con el backend desplegado)
 
-Matriz del spec §9: iOS Google/Apple/correo, Android Google/correo, web Google/correo; persistencia tras reinstalar; expiración del token tras 1 h; desactivar y reactivar cuenta; usuario legado de Google entrando por primera vez (debe conservar sus eventos); app versión anterior contra backend nuevo.
+Configuración previa: agregar `appdev.ones.events` a los dominios autorizados de Firebase.
+
+Matriz del spec §9: iOS Google/Apple/correo, Android Google/correo, web Google/correo (Chrome, Safari y Safari en iPhone; con bloqueador de ventanas emergentes activo debe salir el mensaje de ventana bloqueada); verificar correo abriendo el enlace en otra pestaña/app y volver (debe avanzar solo); persistencia tras reinstalar; expiración del token tras 1 h; desactivar y reactivar cuenta; usuario legado de Google entrando por primera vez (debe conservar sus eventos); app versión anterior contra backend nuevo.
