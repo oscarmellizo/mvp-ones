@@ -32,7 +32,8 @@ en iOS. Objetivos:
 | Identidad de usuarios existentes | Importar a Firebase con `uid = userId` actual. `sub` del token nuevo coincide con las claves existentes. |
 | Transición | Backend acepta tokens de Google directos y de Firebase en paralelo, con flag para retirar el issuer viejo. |
 | Sign in with Apple | Solo iOS. No se configura Service ID ni key `.p8`. |
-| Proyectos Firebase | Prod: proyecto existente vinculado al proyecto Google Cloud actual (client IDs `403122779240-…`). Dev: proyecto nuevo. |
+| Proyectos Firebase | Uno solo para dev y prod: `ones-a96a7` (proyecto Google Cloud `403122779240`). Contiene las apps Android `com.ones.events` y `com.ones.events.dev`, la iOS `co.ones.onesapp` y una web. |
+| Plataformas | iOS, Android y web migran a Firebase. Google y correo en todas; Apple solo en iOS. |
 | Verificación de correo | Obligatoria para cuentas `password`. El backend rechaza tokens sin `email_verified`. |
 | Firebase Admin SDK en backend | No. El backend solo valida JWT con JWKS público. |
 
@@ -134,15 +135,11 @@ principals de ambos issuers.
 
 ### 5.2 Configuración por ambiente
 
-- Android: `google-services.json` por flavor en `android/app/src/dev/` y
-  `android/app/src/prod/` (applicationId `com.ones.events.dev` y `com.ones.events`).
-  Ambos archivos siguen ignorados en git; se documenta dónde obtenerlos.
-- iOS: `GoogleService-Info.plist` por ambiente en `ios/config/dev/` y
-  `ios/config/prod/` (ignorados en git). `scripts/ios_config.sh` copia el del
-  ambiente a `ios/Runner/GoogleService-Info.plist` además de generar los
-  dart-defines. El `GIDClientID` de `Info.plist` se toma del plist de Firebase
-  del proyecto correspondiente (`CLIENT_ID`) y el `REVERSED_CLIENT_ID` va en
-  `CFBundleURLSchemes`.
+- Android: un solo `android/app/google-services.json` (ignorado en git) con ambas
+  apps (`com.ones.events`, `com.ones.events.dev`); Gradle elige por flavor.
+- iOS: un solo `ios/Runner/GoogleService-Info.plist` (ignorado en git, bundle
+  `co.ones.onesapp`). `GIDClientID` y `CFBundleURLSchemes` de `Info.plist` ya usan
+  el client `403122779240-7e0p9b2r…` (PR #105).
 - Web: `AppConfig` gana `firebaseWeb` con `apiKey`, `authDomain`, `projectId`,
   `appId`, `messagingSenderId`, desde dart-defines `FIREBASE_WEB_*` y desde
   `assets/config/app_config.json`. `Firebase.initializeApp` recibe
@@ -254,9 +251,9 @@ de Firebase es igual al `userId` existente.
 
 ## 7. Despliegue y transición
 
-1. Configurar proyectos Firebase (dev nuevo, prod existente), registrar apps
-   Android (`com.ones.events`, `com.ones.events.dev`) con SHA-1, app iOS
-   (`co.ones.onesapp`) y app web. Habilitar proveedores Google, Apple y
+1. En `ones-a96a7`: apps Android con SHA-1/SHA-256 (hecho), app iOS
+   `co.ones.onesapp` (hecho), app web (pendiente) y dominio autorizado
+   `app.ones.events`. Habilitar proveedores Google, Apple y
    Email/Password. Ajuste "Una cuenta por dirección de correo".
 2. Desplegar backend con ambos issuers a dev, validar con la app actual, luego prod.
 3. Ejecutar importación de usuarios en dev y prod.
@@ -309,14 +306,12 @@ desvinculación de proveedores, y deshabilitar usuarios en Firebase desde el bac
 
 ## 11. Insumos que debe entregar el equipo
 
-- Proyecto Firebase dev nuevo y acceso al proyecto existente para prod.
-- Archivos `google-services.json` (dos por proyecto) y `GoogleService-Info.plist`
-  (uno por proyecto), y config web de cada proyecto.
-- Capability Sign in with Apple habilitada en el App ID `co.ones.onesapp`.
-- App iOS registrada en Firebase con bundle `co.ones.onesapp` (el
-  `GoogleService-Info.plist` local actual es de `com.ones.events`, proyecto
-  `ones-a96a7`, y no sirve para el bundle real).
-- SHA-1 de debug y release de Android registrados en ambos proyectos.
-- Credenciales de servicio de cada proyecto Firebase para correr la importación.
-- Valor de `FIREBASE_PROJECT_ID` por ambiente para CloudFormation.
-- Dispositivo o simulador iOS con Apple ID para QA.
+- [x] `android/app/google-services.json` con SHA-1/SHA-256 (debug, carga y Play App Signing).
+- [x] `ios/Runner/GoogleService-Info.plist` de `co.ones.onesapp`.
+- [x] Sign in with Apple habilitado en el App ID y proveedores en Firebase.
+- [ ] App web registrada en `ones-a96a7` y su `firebaseConfig`.
+- [ ] Dominio `app.ones.events` en dominios autorizados de Firebase Auth.
+- [ ] Vinculación de cuentas: una cuenta por correo.
+- [ ] Clave de cuenta de servicio de `ones-a96a7` (local, solo para la importación).
+- [ ] `FIREBASE_PROJECT_ID=ones-a96a7` en dev y prod (CloudFormation).
+- [ ] Dispositivo o simulador iOS con Apple ID para QA.
