@@ -49,7 +49,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   Widget build(BuildContext context) {
     final error = context.watch<AuthController>().error;
     final text = Theme.of(context).textTheme;
-    final body = text.bodyMedium?.copyWith(color: OnesColors.black.withOpacity(0.75), height: 1.35);
+    final body = text.bodyMedium
+        ?.copyWith(color: OnesColors.black.withOpacity(0.75), height: 1.35);
 
     return Scaffold(
       backgroundColor: OnesColors.background,
@@ -70,21 +71,29 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                             angle: 0.03,
                             child: const ColoredBox(
                               color: OnesColors.yellowLight,
-                              child: Center(child: Icon(Icons.lock_reset, size: 72, color: OnesColors.purpleDeep)),
+                              child: Center(
+                                  child: Icon(Icons.lock_reset,
+                                      size: 72, color: OnesColors.purpleDeep)),
                             ),
-                            caption: Text(
-                              _sentTo!,
-                              textAlign: TextAlign.center,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.w800, color: OnesColors.black),
+                            caption: FittedBox(
+                              // Correos largos se achican para verse completos (el dominio importa).
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                _sentTo!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    color: OnesColors.black),
+                              ),
                             ),
                           ),
                         ),
                         const SizedBox(height: 32),
                         Text('Revisa tu correo',
                             textAlign: TextAlign.center,
-                            style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: OnesColors.black)),
+                            style: text.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: OnesColors.black)),
                         const SizedBox(height: 10),
                         Text(
                           'Si hay una cuenta con ese correo, te llegará un enlace para crear una contraseña nueva.',
@@ -96,7 +105,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           key: const Key('forgot.back'),
                           style: _primary,
                           onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Volver a iniciar sesión', style: TextStyle(fontWeight: FontWeight.w900)),
+                          child: const Text('Volver a iniciar sesión',
+                              style: TextStyle(fontWeight: FontWeight.w900)),
                         ),
                       ],
                     )
@@ -121,7 +131,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                             color: OnesColors.black,
                             fontWeight: FontWeight.w600,
                           ),
-                          decoration: authFieldDecoration(hintText: 'Correo', icon: Icons.mail_outline),
+                          decoration: authFieldDecoration(
+                              hintText: 'Correo', icon: Icons.mail_outline),
                         ),
                         if (error != null) ...[
                           const SizedBox(height: 16),
@@ -132,8 +143,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           key: const Key('forgot.send'),
                           style: _primary,
                           onPressed: _sending ? null : _send,
-                          child: Text(_sending ? 'Enviando...' : 'Enviar enlace',
-                              style: const TextStyle(fontWeight: FontWeight.w900)),
+                          child: Text(
+                              _sending ? 'Enviando...' : 'Enviar enlace',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w900)),
                         ),
                       ],
                     ),
