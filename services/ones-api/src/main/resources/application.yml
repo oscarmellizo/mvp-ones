@@ -44,6 +44,11 @@ ones:
   auth:
     google:
       client-id: ${GOOGLE_CLIENT_ID:}
+    google-legacy:
+      enabled: ${GOOGLE_LEGACY_AUTH_ENABLED:true}
+    firebase:
+      project-id: ${FIREBASE_PROJECT_ID:}
+      service-account-secret-name: ${FIREBASE_SERVICE_ACCOUNT_SECRET_NAME:}
   ai:
     openai:
       api-key-secret-name: ${OPENAI_API_KEY_SECRET_NAME:ones/dev/openai-api-key}
