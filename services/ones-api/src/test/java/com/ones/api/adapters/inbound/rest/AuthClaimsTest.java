@@ -1,9 +1,13 @@
 package com.ones.api.adapters.inbound.rest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -55,6 +59,50 @@ class AuthClaimsTest {
         ));
 
         assertEquals(null, AuthClaims.getClaim(auth, "not_present"));
+    }
+
+    @Test
+    void provider_legacyGoogleToken_isGoogle() {
+        Authentication auth = authWithClaims(Map.of("email", "a@b.com"));
+
+        assertFalse(AuthClaims.isFirebase(auth));
+        assertEquals("google", AuthClaims.provider(auth));
+    }
+
+    @Test
+    void provider_firebaseToken_usesSignInProvider() {
+        Authentication auth = authWithClaims(Map.of("firebase", Map.of("sign_in_provider", "password")));
+
+        assertTrue(AuthClaims.isFirebase(auth));
+        assertEquals("password", AuthClaims.provider(auth));
+    }
+
+    @Test
+    void emailVerified_readsBooleanClaim() {
+        assertTrue(AuthClaims.emailVerified(authWithClaims(Map.of("email_verified", true))));
+        assertFalse(AuthClaims.emailVerified(authWithClaims(Map.of("email_verified", false))));
+        assertFalse(AuthClaims.emailVerified(authWithClaims(Map.of())));
+    }
+
+    @Test
+    void googleIdentity_returnsFirstGoogleSub() {
+        Authentication auth = authWithClaims(Map.of("firebase", Map.of(
+                "sign_in_provider", "google.com",
+                "identities", Map.of("google.com", List.of("1234567890"), "email", List.of("a@b.com"))
+        )));
+
+        assertEquals("1234567890", AuthClaims.googleIdentity(auth));
+    }
+
+    @Test
+    void googleIdentity_withoutGoogleIdentity_isNull() {
+        Authentication auth = authWithClaims(Map.of("firebase", Map.of(
+                "sign_in_provider", "password",
+                "identities", Map.of("email", List.of("a@b.com"))
+        )));
+
+        assertNull(AuthClaims.googleIdentity(auth));
+        assertNull(AuthClaims.googleIdentity(authWithClaims(Map.of())));
     }
 
     private static Authentication authWithClaims(Map<String, Object> claims) {

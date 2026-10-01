@@ -55,7 +55,7 @@ public class UsersController {
                 AuthClaims.getClaim(authentication, "given_name"),
                 AuthClaims.getClaim(authentication, "family_name"),
                 AuthClaims.getClaim(authentication, "picture"),
-                "google",
+                AuthClaims.provider(authentication),
                 null // languagePreference will default to "es" in EnsureUserUseCase
         );
 
