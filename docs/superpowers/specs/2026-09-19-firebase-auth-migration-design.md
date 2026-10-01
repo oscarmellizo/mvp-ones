@@ -51,9 +51,8 @@ Spring Boot API (ECS)
         └─ issuer https://securetoken.google.com/<projectId> (Firebase)
               ├─ audiencia = projectId
               ├─ JWKS https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com
-              ├─ validador EmailVerified (solo provider password)
               └─ principal = sub
-  └─ DisabledAccountFilter (ya existe, PR #104)
+  └─ Filtros: EmailVerified → LegacyAccountMigration → DisabledAccount (PR #104)
 DynamoDB: sin cambios de esquema.
 ```
 
