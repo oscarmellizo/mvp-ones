@@ -24,8 +24,6 @@ class _ProfilePageState extends State<ProfilePage> {
     'profile.guest',
     'profile.no_authenticated_user',
     'profile.account',
-    'profile.first_name',
-    'profile.last_name',
     'profile.email',
     'profile.preferences',
     'profile.preferred_name_question',
@@ -122,12 +120,8 @@ class _ProfilePageState extends State<ProfilePage> {
     _seedPreferredNameIfNeeded(auth);
 
     final user = auth.user;
-    final displayName = user?.displayName;
     final email = user?.email;
     final pictureUrl = user?.pictureUrl;
-    final parts = _splitDisplayName(displayName);
-    final firstName = parts.$1;
-    final lastName = parts.$2;
 
     return Scaffold(
       backgroundColor: OnesColors.background,
@@ -183,28 +177,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   const SizedBox(height: 14),
                   _Card(
                     title: translationsService.translate('profile.account'),
+                    // Solo datos que tienen todas las cuentas (Google, Apple y correo):
+                    // nombre y apellido no existen para correo ni, en la práctica, para Apple.
                     children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: _ReadOnlyField(
-                              label: translationsService
-                                  .translate('profile.first_name'),
-                              value: firstName,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _ReadOnlyField(
-                              label: translationsService
-                                  .translate('profile.last_name'),
-                              value: lastName,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
                       _ReadOnlyField(
                           label: translationsService.translate('profile.email'),
                           value: email ?? ''),
