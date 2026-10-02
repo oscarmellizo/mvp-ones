@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -315,6 +317,28 @@ void main() {
 
       expect(tester.testTextInput.isVisible, isFalse);
     });
+  });
+
+  group('Botón ocupado', () {
+    for (final page in [const LoginPage(), const RegisterPage()]) {
+      testWidgets('${page.runtimeType}: con Apple en curso solo Apple dice "Conectando..."', (tester) async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+        repo.signInGate = Completer<void>();
+        await pump(tester, page);
+
+        await tester.tap(find.byKey(const Key('auth.apple')));
+        await tester.pump();
+
+        expect(find.descendant(of: find.byKey(const Key('auth.google')), matching: find.text('Continuar con Google')),
+            findsOneWidget);
+        expect(find.descendant(of: find.byKey(const Key('auth.apple')), matching: find.text('Conectando...')),
+            findsOneWidget);
+
+        repo.signInGate!.complete();
+        await tester.pumpAndSettle();
+        debugDefaultTargetPlatformOverride = null;
+      });
+    }
   });
 }
 

@@ -38,9 +38,18 @@ class _LoginPageState extends State<LoginPage> {
 
 
 
-  Future<void> _run(Future<AuthNextStep> Function() action) async {
+  /// Proveedor cuyo inicio de sesión está en curso: solo ese botón muestra "Conectando...".
+  String? _pending;
+
+  Future<void> _run(String provider, Future<AuthNextStep> Function() action) async {
     final auth = context.read<AuthController>();
-    final step = await action();
+    setState(() => _pending = provider);
+    final AuthNextStep step;
+    try {
+      step = await action();
+    } finally {
+      if (mounted) setState(() => _pending = null);
+    }
     if (!mounted) return;
     setState(() {
       // Las cuentas de correo sin registro las lleva el router al formulario de registro.
@@ -335,13 +344,14 @@ class _LoginPageState extends State<LoginPage> {
                     ],
 
                     GoogleSignInButton(
-                      busy: auth.isLoading,
-                      onPressed: auth.isLoading ? null : () => _run(auth.signInWithGoogle),
+                      busy: _pending == 'google',
+                      onPressed: auth.isLoading ? null : () => _run('google', auth.signInWithGoogle),
                     ),
                     if (appleSignInAvailable) ...[
                       const SizedBox(height: 12),
                       AppleSignInButton(
-                        onPressed: auth.isLoading ? null : () => _run(auth.signInWithApple),
+                        busy: _pending == 'apple',
+                        onPressed: auth.isLoading ? null : () => _run('apple', auth.signInWithApple),
                       ),
                     ],
                     const SizedBox(height: 12),
@@ -349,7 +359,7 @@ class _LoginPageState extends State<LoginPage> {
                       toggleLabel: 'Continuar con correo',
                       submitLabel: 'Iniciar sesión',
                       busy: auth.isLoading,
-                      onSubmit: (email, password) => _run(() => auth.signInWithEmail(email, password)),
+                      onSubmit: (email, password) => _run('email', () => auth.signInWithEmail(email, password)),
                       footer: Align(
                         alignment: Alignment.centerLeft,
                         child: TextButton(

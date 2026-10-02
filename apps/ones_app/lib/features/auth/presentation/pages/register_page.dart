@@ -30,9 +30,18 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _termsAccepted = false;
   AuthController? _authController;
 
-  Future<void> _startWith(Future<AuthNextStep> Function() action) async {
+  /// Proveedor cuyo inicio de sesión está en curso: solo ese botón muestra "Conectando...".
+  String? _pending;
+
+  Future<void> _startWith(String provider, Future<AuthNextStep> Function() action) async {
     final auth = context.read<AuthController>();
-    final step = await action();
+    setState(() => _pending = provider);
+    final AuthNextStep step;
+    try {
+      step = await action();
+    } finally {
+      if (mounted) setState(() => _pending = null);
+    }
     if (!mounted) return;
     switch (step) {
       case AuthNextStep.failed:
@@ -190,13 +199,15 @@ class _RegisterPageState extends State<RegisterPage> {
                       children: [
                         if (user == null) ...[
                           GoogleSignInButton(
-                            busy: auth.isLoading,
-                            onPressed: auth.isLoading ? null : () => _startWith(auth.beginRegistration),
+                            busy: _pending == 'google',
+                            onPressed: auth.isLoading ? null : () => _startWith('google', auth.beginRegistration),
                           ),
                           if (appleSignInAvailable) ...[
                             const SizedBox(height: 12),
                             AppleSignInButton(
-                              onPressed: auth.isLoading ? null : () => _startWith(auth.beginRegistrationWithApple),
+                              busy: _pending == 'apple',
+                              onPressed:
+                                  auth.isLoading ? null : () => _startWith('apple', auth.beginRegistrationWithApple),
                             ),
                           ],
                           const SizedBox(height: 12),
@@ -206,7 +217,8 @@ class _RegisterPageState extends State<RegisterPage> {
                             busy: auth.isLoading,
                             isRegistration: true,
                             fieldFill: OnesColors.black.withOpacity(0.04),
-                            onSubmit: (email, password) => _startWith(() => auth.registerWithEmail(email, password)),
+                            onSubmit: (email, password) =>
+                                _startWith('email', () => auth.registerWithEmail(email, password)),
                           ),
                         ] else ...[
                           Row(

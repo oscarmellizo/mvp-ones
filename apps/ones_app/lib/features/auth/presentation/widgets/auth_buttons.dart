@@ -80,9 +80,10 @@ class GoogleSignInButton extends StatelessWidget {
 }
 
 class AppleSignInButton extends StatelessWidget {
+  final bool busy;
   final VoidCallback? onPressed;
 
-  const AppleSignInButton({super.key, required this.onPressed});
+  const AppleSignInButton({super.key, this.busy = false, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +91,7 @@ class AppleSignInButton extends StatelessWidget {
       key: const Key('auth.apple'),
       // Logo oficial de Apple (no el ícono de Material): lo exige la guía de Sign in with Apple.
       logo: Image.asset('assets/auth/apple_logo.png', width: 20, height: 24, filterQuality: FilterQuality.medium),
-      label: 'Continuar con Apple',
+      label: busy ? 'Conectando...' : 'Continuar con Apple',
       onPressed: onPressed,
       background: OnesColors.black,
       foreground: OnesColors.white,
