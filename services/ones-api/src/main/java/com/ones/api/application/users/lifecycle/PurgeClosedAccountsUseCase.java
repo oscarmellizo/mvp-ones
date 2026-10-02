@@ -45,6 +45,8 @@ public class PurgeClosedAccountsUseCase {
     private static final int EVENTS_PAGE = 200;
     private static final int PHOTOS_PAGE = 50;
     private static final int INVITATIONS_PAGE = 500;
+    private static final int STALE_RETRIES = 3;
+    private static final Duration STALE_BACKOFF = Duration.ofMillis(500);
 
     private final UsersRepository usersRepository;
     private final EventsRepository eventsRepository;
@@ -60,6 +62,7 @@ public class PurgeClosedAccountsUseCase {
     private final AccountAccessService accountAccessService;
     private final Clock clock;
     private final String exportsBucket;
+    private final Sleeper sleeper;
 
     public PurgeClosedAccountsUseCase(UsersRepository usersRepository, EventsRepository eventsRepository,
                                       PhotosRepository photosRepository, PhotoLikesRepository photoLikesRepository,
@@ -70,6 +73,28 @@ public class PurgeClosedAccountsUseCase {
                                       ObjectStorage objectStorage, FirebaseIdentityAdmin firebaseIdentityAdmin,
                                       EventPurger eventPurger, AccountAccessService accountAccessService,
                                       Clock clock, String exportsBucket) {
+        this(usersRepository, eventsRepository, photosRepository, photoLikesRepository, invitationsRepository,
+                paymentProfilesRepository, subscriptionPaymentsRepository, preferredNamesCacheRepository,
+                objectStorage, firebaseIdentityAdmin, eventPurger, accountAccessService, clock, exportsBucket,
+                PurgeClosedAccountsUseCase::sleep);
+    }
+
+    /** Pausa entre reintentos de listados obsoletos; inyectable para que los tests no esperen. */
+    @FunctionalInterface
+    interface Sleeper {
+        void sleep(Duration d) throws InterruptedException;
+    }
+
+    PurgeClosedAccountsUseCase(UsersRepository usersRepository, EventsRepository eventsRepository,
+                               PhotosRepository photosRepository, PhotoLikesRepository photoLikesRepository,
+                               InvitationsRepository invitationsRepository,
+                               PaymentProfilesRepository paymentProfilesRepository,
+                               SubscriptionPaymentsRepository subscriptionPaymentsRepository,
+                               PreferredNamesCacheRepository preferredNamesCacheRepository,
+                               ObjectStorage objectStorage, FirebaseIdentityAdmin firebaseIdentityAdmin,
+                               EventPurger eventPurger, AccountAccessService accountAccessService,
+                               Clock clock, String exportsBucket, Sleeper sleeper) {
+        this.sleeper = sleeper;
         this.usersRepository = usersRepository;
         this.eventsRepository = eventsRepository;
         this.photosRepository = photosRepository;
@@ -109,7 +134,7 @@ public class PurgeClosedAccountsUseCase {
         String userId = u.getUserId();
 
         // Eventos propios: listByOwnerId tiene tope, así que se repite hasta que no queden.
-        drain("eventos de userId=" + userId,
+        drain("eventos de userId=" + userId, EVENTS_PAGE,
                 () -> eventsRepository.listByOwnerId(userId, EVENTS_PAGE), Event::getEventId, eventPurger::purge);
 
         // Fotos subidas por la persona en eventos ajenos.
@@ -125,7 +150,7 @@ public class PurgeClosedAccountsUseCase {
         // Invitaciones recibidas.
         if (u.getEmail() != null) {
             String email = u.getEmail();
-            drain("invitaciones de userId=" + userId, () -> invitationsRepository.listByInviteeEmail(email, INVITATIONS_PAGE),
+            drain("invitaciones de userId=" + userId, INVITATIONS_PAGE, () -> invitationsRepository.listByInviteeEmail(email, INVITATIONS_PAGE),
                     inv -> inv.getInviteeEmail() + "|" + inv.getEventId(),
                     inv -> invitationsRepository.delete(inv.getInviteeEmail(), inv.getEventId()));
         }
@@ -145,20 +170,40 @@ public class PurgeClosedAccountsUseCase {
     }
 
     /**
-     * Lista y borra por lotes hasta que la lista vuelve vacía. Si reaparece un elemento ya procesado,
-     * el borrado no avanzó y se aborta para no ciclar.
+     * Lista y borra por lotes hasta terminar. Los listados salen de un índice eventualmente consistente, así
+     * que pueden seguir devolviendo filas ya borradas: solo se procesan ids nuevos. Sin ids nuevos, un listado
+     * incompleto significa que terminamos; uno completo (== limit) de ids ya procesados se reintenta con pausa
+     * y, si no se despeja, se aborta por falta de progreso.
      */
-    private static <T> void drain(String what, java.util.function.Supplier<List<T>> lister,
-                                  Function<T, String> idOf, Consumer<T> remover) {
+    private <T> void drain(String what, int limit, java.util.function.Supplier<List<T>> lister,
+                           Function<T, String> idOf, Consumer<T> remover) {
         Set<String> processed = new HashSet<>();
-        List<T> batch;
-        while (!(batch = lister.get()).isEmpty()) {
+        int retries = 0;
+        while (true) {
+            List<T> batch = lister.get();
+            boolean progressed = false;
             for (T item : batch) {
-                if (!processed.add(idOf.apply(item))) {
-                    throw new IllegalStateException("Borrado sin progreso: " + what);
-                }
+                if (!processed.add(idOf.apply(item))) continue;
                 remover.accept(item);
+                progressed = true;
+            }
+            if (progressed) {
+                retries = 0;
+                continue;
+            }
+            if (batch.size() < limit) return;
+            if (retries >= STALE_RETRIES) throw new IllegalStateException("Borrado sin progreso: " + what);
+            retries++;
+            try {
+                sleeper.sleep(STALE_BACKOFF);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Interrumpido: " + what, ie);
             }
         }
+    }
+
+    private static void sleep(Duration d) throws InterruptedException {
+        Thread.sleep(d.toMillis());
     }
 }

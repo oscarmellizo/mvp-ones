@@ -83,7 +83,7 @@ class PurgeClosedAccountsUseCaseTest {
         doAnswer(i -> { events.deleteById(((Event) i.getArgument(0)).getEventId()); return 0; }).when(purger).purge(any(Event.class));
         doAnswer(i -> { photos.deleteById(((Photo) i.getArgument(0)).getPhotoId()); return null; }).when(purger).purgePhoto(any(Photo.class));
         useCase = new PurgeClosedAccountsUseCase(repo, events, photos, likes, invitations, profiles, payments,
-                names, storage, firebase, purger, access, Clock.fixed(NOW, ZoneOffset.UTC), "exports");
+                names, storage, firebase, purger, access, Clock.fixed(NOW, ZoneOffset.UTC), "exports", d -> { });
     }
 
     private static User closed(String id, Instant closedAt) {
@@ -195,7 +195,7 @@ class PurgeClosedAccountsUseCaseTest {
     @Test
     void purgeThatRemovesNothing_failsInsteadOfLooping() {
         repo.upsert(closed("u1", NOW.minus(Duration.ofDays(9))));
-        events.save(event("e1", "u1"));
+        for (int i = 0; i < 200; i++) events.save(event("e" + i, "u1")); // página completa
         doAnswer(i -> 0).when(purger).purge(any(Event.class)); // no borra el evento
 
         assertEquals(0, useCase.execute());
@@ -212,18 +212,82 @@ class PurgeClosedAccountsUseCaseTest {
         assertTrue(invitations.listByInviteeEmail("ana@example.com", 10).isEmpty());
     }
 
+    @Test
+    void staleEventListing_afterPurge_stillSucceeds_andPurgesEachOnce() {
+        repo.upsert(closed("u1", NOW.minus(Duration.ofDays(9))));
+        events.stale = true;
+        for (int i = 0; i < 3; i++) events.save(event("e" + i, "u1"));
+
+        assertEquals(1, useCase.execute());
+
+        verify(purger, times(3)).purge(any(Event.class));
+        assertEquals("DELETED", repo.findById("u1").get().getStatus());
+    }
+
+    @Test
+    void fullStalePageOfEvents_neverClearing_failsAndStaysClosed() {
+        repo.upsert(closed("u1", NOW.minus(Duration.ofDays(9))));
+        events.stale = true;
+        for (int i = 0; i < 200; i++) events.save(event("e" + i, "u1"));
+
+        assertEquals(0, useCase.execute());
+
+        assertEquals("CLOSED", repo.findById("u1").get().getStatus());
+        verify(firebase, never()).deleteUser(any());
+    }
+
+    @Test
+    void staleInvitationListing_afterDelete_stillSucceeds() {
+        repo.upsert(closed("u1", NOW.minus(Duration.ofDays(9))));
+        invitations.stale = true;
+        for (int i = 0; i < 3; i++) invitations.upsert(invitation("ana@example.com", "ev" + i));
+
+        assertEquals(1, useCase.execute());
+        assertEquals("DELETED", repo.findById("u1").get().getStatus());
+    }
+
+    @Test
+    void fullStalePageOfInvitations_neverClearing_failsAndStaysClosed() {
+        repo.upsert(closed("u1", NOW.minus(Duration.ofDays(9))));
+        invitations.stale = true;
+        for (int i = 0; i < 500; i++) invitations.upsert(invitation("ana@example.com", "ev" + i));
+
+        assertEquals(0, useCase.execute());
+
+        assertEquals("CLOSED", repo.findById("u1").get().getStatus());
+        verify(firebase, never()).deleteUser(any());
+    }
+
+    @Test
+    void accountWithoutExportZip_purgesWithoutTouchingExportsBucket() {
+        repo.upsert(closed("u1", NOW.minus(Duration.ofDays(9))).withLifecycle(User.STATUS_CLOSED,
+                NOW.minus(Duration.ofDays(9)), "tok", null));
+
+        assertEquals(1, useCase.execute());
+
+        assertTrue(storage.deleted.isEmpty());
+        assertEquals("DELETED", repo.findById("u1").get().getStatus());
+    }
+
     // ---- fakes ----
 
     static class FakeEvents implements EventsRepository {
         final Map<String, Event> store = new LinkedHashMap<>();
+        boolean stale; // simula el GSI: sigue devolviendo filas ya borradas
+        final List<Event> ghosts = new ArrayList<>();
         public Event save(Event e) { store.put(e.getEventId(), e); return e; }
         public Optional<Event> findById(String id) { return Optional.ofNullable(store.get(id)); }
         public List<Event> findByIds(List<String> ids) { return ids.stream().map(store::get).filter(x -> x != null).toList(); }
         public List<Event> listByOwnerId(String owner, int limit) {
-            return store.values().stream().filter(e -> e.getOwnerId().equals(owner)).limit(Math.min(limit, 200)).toList();
+            List<Event> all = new ArrayList<>(store.values());
+            all.addAll(ghosts);
+            return all.stream().filter(e -> e.getOwnerId().equals(owner)).limit(Math.min(limit, 200)).toList();
         }
         public long countByOwnerId(String owner) { return listByOwnerId(owner, 1000).size(); }
-        public void deleteById(String id) { store.remove(id); }
+        public void deleteById(String id) {
+            Event e = store.remove(id);
+            if (stale && e != null) ghosts.add(e);
+        }
     }
 
     static class FakePhotos implements PhotosRepository {
@@ -243,17 +307,24 @@ class PurgeClosedAccountsUseCaseTest {
 
     static class FakeInvitations implements InvitationsRepository {
         final Map<String, Invitation> store = new LinkedHashMap<>();
+        boolean stale; // simula el GSI: sigue devolviendo filas ya borradas
+        final List<Invitation> ghosts = new ArrayList<>();
         private static String k(String email, String eventId) { return email + "|" + eventId; }
         public Optional<Invitation> findByInviteeEmailAndEventId(String e, String ev) { return Optional.ofNullable(store.get(k(e, ev))); }
         public Invitation upsert(Invitation i) { store.put(k(i.getInviteeEmail(), i.getEventId()), i); return i; }
         public List<Invitation> listByInviteeEmail(String email, int limit) {
-            return store.values().stream().filter(i -> i.getInviteeEmail().equals(email)).limit(limit).toList();
+            List<Invitation> all = new ArrayList<>(store.values());
+            all.addAll(ghosts);
+            return all.stream().filter(i -> i.getInviteeEmail().equals(email)).limit(limit).toList();
         }
         public List<Invitation> listByEventId(String ev, int limit) {
             return store.values().stream().filter(i -> i.getEventId().equals(ev)).limit(limit).toList();
         }
         public List<Invitation> listAcceptedByInviteeEmail(String email, int limit) { return List.of(); }
-        public void delete(String email, String ev) { store.remove(k(email, ev)); }
+        public void delete(String email, String ev) {
+            Invitation i = store.remove(k(email, ev));
+            if (stale && i != null) ghosts.add(i);
+        }
         public void deleteAllByEventId(String ev) { store.values().removeIf(i -> i.getEventId().equals(ev)); }
     }
 
