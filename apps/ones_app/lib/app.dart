@@ -11,11 +11,7 @@ import 'core/http/ones_api_factory.dart';
 import 'core/i18n/translations_service.dart';
 import 'core/ui/ones_theme.dart';
 import 'core/ui/splash_page.dart';
-import 'features/auth/adapters/google/google_auth_repository.dart';
-import 'features/auth/application/get_id_token_use_case.dart';
-import 'features/auth/application/sign_in_with_google_use_case.dart';
-import 'features/auth/application/sign_out_use_case.dart';
-import 'features/auth/infrastructure/google_token_refresh_service.dart';
+import 'features/auth/adapters/firebase/firebase_auth_repository.dart';
 import 'features/auth/presentation/auth_controller.dart';
 import 'features/admin/adapters/api/admin_api_repository.dart';
 import 'features/admin/adapters/api/admin_admins_api_repository.dart';
@@ -57,6 +53,11 @@ import 'features/subscriptions/presentation/subscriptions_controller.dart';
 import 'core/services/live_event_notification_service.dart';
 import 'core/widgets/live_events_selector.dart';
 import 'features/auth/presentation/pages/login_page.dart';
+import 'features/auth/presentation/auth_route.dart';
+import 'features/auth/presentation/pages/register_page.dart';
+import 'features/auth/presentation/pages/verify_email_page.dart';
+import 'features/auth/presentation/pages/offline_page.dart';
+import 'features/account/adapters/api/account_api_repository.dart';
 import 'features/events/presentation/pages/event_detail_page.dart';
 import 'features/events/presentation/pages/home_shell_page.dart';
 import 'features/events/presentation/pages/events_list_page.dart';
@@ -79,17 +80,10 @@ class OnesApp extends StatelessWidget {
     final apiFactory = OnesApiFactory(config);
 
     final authRepository =
-        GoogleAuthRepository(webClientId: config.googleWebClientId);
-
-    final tokenRefreshService = GoogleTokenRefreshService(
-      webClientId: config.googleWebClientId,
-    );
-
-    final signInWithGoogle = SignInWithGoogleUseCase(authRepository);
-    final signOut = SignOutUseCase(authRepository);
-    final getIdToken = GetIdTokenUseCase(authRepository);
+        FirebaseAuthRepository(googleServerClientId: config.googleWebClientId);
 
     final usersRepository = UsersApiRepository(apiFactory);
+    final accountRepository = AccountApiRepository(apiFactory);
     final ensureUser = EnsureUserUseCase(usersRepository);
     final getUserPreferences = GetUserPreferencesUseCase(usersRepository);
     final updateUserPreferences = UpdateUserPreferencesUseCase(usersRepository);
@@ -134,15 +128,13 @@ class OnesApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) {
             final ctrl = AuthController(
-              signInWithGoogle: signInWithGoogle,
-              signOut: signOut,
-              getIdToken: getIdToken,
+              authRepository: authRepository,
               ensureUser: ensureUser,
               getUserPreferences: getUserPreferences,
               updateUserPreferences: updateUserPreferences,
               lookupUserByEmailUseCase: lookupUserByEmail,
               getAdminMe: getAdminMe,
-              tokenRefreshService: tokenRefreshService,
+              reactivateAccount: (token) async => (await accountRepository.reactivate(token)) != null,
             );
             ctrl.restoreSessionIfPossible();
             return ctrl;
@@ -188,6 +180,7 @@ class OnesApp extends StatelessWidget {
             final token = auth.idToken;
             if (token != null && token.isNotEmpty) {
               controller.ensureReactivatedIfEligible(
+                sessionKey: auth.user?.userId,
                 onClosed: () => auth.signOutBecauseAccountBlocked(AccountBlock.closed),
               );
             }
@@ -524,6 +517,11 @@ class _RootRouterState extends State<_RootRouter> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _checkPendingNotif();
+      // Volvió desde el correo (otra app o pestaña): si ya verificó, avanzamos sin pedirle nada.
+      final auth = context.read<AuthController>();
+      auth.refreshEmailVerification();
+      // Si la sesión murió en segundo plano (cuenta borrada, sesión revocada), vuelve al login.
+      auth.checkSessionOnResume();
     }
   }
 
@@ -619,12 +617,19 @@ class _RootRouterState extends State<_RootRouter> with WidgetsBindingObserver {
       }
     }
 
-    if (auth.isLoading && !auth.isSignedIn) {
-      return const SplashPage();
-    }
-
-    if (!auth.isRegistered) {
-      return const LoginPage();
+    switch (resolveAuthRoute(auth)) {
+      case AuthRoute.splash:
+        return const SplashPage();
+      case AuthRoute.offline:
+        return const OfflinePage();
+      case AuthRoute.verifyEmail:
+        return const VerifyEmailPage();
+      case AuthRoute.completeRegistration:
+        return const RegisterPage(popToRootOnComplete: false);
+      case AuthRoute.login:
+        return const LoginPage();
+      case AuthRoute.home:
+        break;
     }
 
     _maybeRequestPermission();

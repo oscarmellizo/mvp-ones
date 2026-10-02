@@ -147,7 +147,18 @@ class DisabledAccountFilterTest {
     }
 
     private static class InMemoryUsersRepository implements UsersRepository {
+
+        @Override public boolean upsertIfStatus(User user, String expectedStatus) { throw new UnsupportedOperationException(); }
+        @Override public boolean upsertIfClosing(User user, java.time.Instant expectedClosingAt) { throw new UnsupportedOperationException(); }
         private final Map<String, User> byId = new HashMap<>();
+
+
+        @Override
+        public java.util.List<User> findByStatusIn(java.util.Set<String> statuses) {
+            return byId.values().stream()
+                    .filter(u -> u.getStatus() != null && statuses.contains(u.getStatus().toUpperCase()))
+                    .toList();
+        }
 
         @Override public Optional<User> findById(String userId) { return Optional.ofNullable(byId.get(userId)); }
         @Override public Optional<User> findByEmail(String email) { return Optional.empty(); }

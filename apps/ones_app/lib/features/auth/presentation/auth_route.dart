@@ -1,0 +1,17 @@
+import 'auth_controller.dart';
+
+enum AuthRoute { splash, offline, verifyEmail, completeRegistration, login, home }
+
+/// Pantalla raíz según el estado de sesión.
+AuthRoute resolveAuthRoute(AuthController auth) {
+  // Solo al restaurar la sesión: en un inicio de sesión interactivo el login conserva su estado.
+  if (auth.isRestoring) return AuthRoute.splash;
+  if (auth.needsConnection) return AuthRoute.offline;
+  if (auth.needsEmailVerification) return AuthRoute.verifyEmail;
+  if (!auth.isRegistered) {
+    // Google/Apple completan el registro en la RegisterPage apilada desde el login;
+    // las cuentas de correo llegan aquí tras verificar y no tienen pantalla apilada.
+    return auth.user?.provider == 'password' ? AuthRoute.completeRegistration : AuthRoute.login;
+  }
+  return AuthRoute.home;
+}

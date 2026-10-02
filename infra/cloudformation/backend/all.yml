@@ -18,6 +18,20 @@ Parameters:
       Uno o varios OAuth client IDs de Google separados por coma (web, iOS, Android).
       El ID token se valida si su claim aud coincide con cualquiera de ellos.
     Default: ''
+  FirebaseProjectId:
+    Type: String
+    Description: Project ID de Firebase Auth (ej. ones-a96a7). Vacío = solo Google legado.
+    Default: ''
+  ApiPublicBaseUrl:
+    Type: String
+    Description: URL pública base de la API (ej. https://api.ones.events), usada en enlaces de descarga de exportaciones.
+    Default: ''
+  GoogleLegacyAuthEnabled:
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
   AppBaseUrl:
     Type: String
     Default: ''
@@ -268,6 +282,8 @@ Resources:
           AttributeType: S
         - AttributeName: eventSortKey
           AttributeType: S
+        - AttributeName: guestId
+          AttributeType: S
       KeySchema:
         - AttributeName: photoId
           KeyType: HASH
@@ -278,6 +294,15 @@ Resources:
               KeyType: HASH
             - AttributeName: eventSortKey
               KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 2
+        - IndexName: byGuestId
+          KeySchema:
+            - AttributeName: guestId
+              KeyType: HASH
           Projection:
             ProjectionType: ALL
           ProvisionedThroughput:
@@ -756,6 +781,52 @@ Resources:
         ScaleInCooldown: 60
         ScaleOutCooldown: 60
 
+  PhotosByGuestIdIndexReadScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 500
+      MinCapacity: 5
+      ResourceId: !Sub table/${PhotosTable}/index/byGuestId
+      RoleARN: !GetAtt DynamoDbAutoScalingRole.Arn
+      ScalableDimension: dynamodb:index:ReadCapacityUnits
+      ServiceNamespace: dynamodb
+
+  PhotosByGuestIdIndexReadScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: photos-byGuestId-read
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref PhotosByGuestIdIndexReadScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBReadCapacityUtilization
+        TargetValue: 70.0
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+
+  PhotosByGuestIdIndexWriteScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 200
+      MinCapacity: 2
+      ResourceId: !Sub table/${PhotosTable}/index/byGuestId
+      RoleARN: !GetAtt DynamoDbAutoScalingRole.Arn
+      ScalableDimension: dynamodb:index:WriteCapacityUnits
+      ServiceNamespace: dynamodb
+
+  PhotosByGuestIdIndexWriteScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: photos-byGuestId-write
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref PhotosByGuestIdIndexWriteScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBWriteCapacityUtilization
+        TargetValue: 70.0
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+
   InvitationsTableReadScalableTarget:
     Type: AWS::ApplicationAutoScaling::ScalableTarget
     Properties:
@@ -939,6 +1010,35 @@ Resources:
         TargetValue: 70.0
         ScaleInCooldown: 60
         ScaleOutCooldown: 60
+
+  AccountExportsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${StackPrefix}-${Environment}-account-exports
+      Tags:
+        - Key: Name
+          Value: !Sub ${StackPrefix}-${Environment}-account-exports
+        - Key: Environment
+          Value: !Ref Environment
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireExports
+            Status: Enabled
+            ExpirationInDays: 9
+          # Subidas multipart del ZIP que quedaron a medias (tarea caída): se descartan.
+          - Id: AbortIncompleteExportUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
 
   EventsCoversTempBucket:
     Type: AWS::S3::Bucket
@@ -1140,6 +1240,16 @@ Resources:
     Properties:
       Name: !Sub ${StackPrefix}-${Environment}-openai-api-key
       Description: OpenAI API key for AI Event Cover generation
+      SecretString: '{}'
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  FirebaseServiceAccountSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ${StackPrefix}-${Environment}-firebase-service-account
+      Description: JSON de la service account de Firebase (migración de usuarios legados)
       SecretString: '{}'
       Tags:
         - Key: Environment
@@ -2089,6 +2199,14 @@ Resources:
                 Resource:
                   - !Sub ${EventsCoversTempBucket.Arn}/*
                   - !Sub ${EventsAssetsBucket.Arn}/*
+                  - !Sub ${AccountExportsBucket.Arn}/*
+              # El ZIP de exportación se sube en multipart; si falla se aborta la subida.
+              - Sid: AccountExportsMultipartAbort
+                Effect: Allow
+                Action:
+                  - s3:AbortMultipartUpload
+                Resource:
+                  - !Sub ${AccountExportsBucket.Arn}/*
               - Sid: EventPhotosObjectAccess
                 Effect: Allow
                 Action:
@@ -2112,6 +2230,7 @@ Resources:
                     - !Ref CloudFrontPrivateKeySecret
                     - !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${StackPrefix}-${Environment}-cloudfront-private-key*'
                   - !Ref InvitationEmailActionTokenSecret
+                  - !Ref FirebaseServiceAccountSecret
 
         - PolicyName: ones-ses
           PolicyDocument:
@@ -2235,6 +2354,10 @@ Resources:
               ValueFrom: !Sub '${MercadoPagoCredentialsSecret}:public_key::'
             - Name: ONES_MERCADOPAGO_WEBHOOK_SECRET
               ValueFrom: !Sub '${MercadoPagoCredentialsSecret}:webhook_secret::'
+            - Name: ONES_INTERNAL_BASIC_USERNAME
+              ValueFrom: !Sub '${InternalBasicAuthSecret}:username::'
+            - Name: ONES_INTERNAL_BASIC_PASSWORD
+              ValueFrom: !Sub '${InternalBasicAuthSecret}:password::'
           Environment:
             - Name: AWS_REGION
               Value: !Ref AWS::Region
@@ -2306,6 +2429,12 @@ Resources:
               Value: !Ref OpenAiApiKeySecret
             - Name: GOOGLE_CLIENT_ID
               Value: !Ref GoogleClientId
+            - Name: FIREBASE_PROJECT_ID
+              Value: !Ref FirebaseProjectId
+            - Name: GOOGLE_LEGACY_AUTH_ENABLED
+              Value: !Ref GoogleLegacyAuthEnabled
+            - Name: FIREBASE_SERVICE_ACCOUNT_SECRET_NAME
+              Value: !Ref FirebaseServiceAccountSecret
             - Name: CORS_ALLOWED_ORIGINS
               Value: '*'
             # CDN Configuration
@@ -2330,6 +2459,10 @@ Resources:
               Value: !Sub https://${PhotosWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
             - Name: ONES_WS_SUBSCRIPTIONS_TABLE
               Value: !Ref PhotosWsSubscriptionsTable
+            - Name: ONES_ACCOUNT_EXPORTS_BUCKET
+              Value: !Ref AccountExportsBucket
+            - Name: ONES_API_PUBLIC_BASE_URL
+              Value: !Ref ApiPublicBaseUrl
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -2725,6 +2858,151 @@ Resources:
       Code:
         S3Bucket: !Ref LambdaArtifactsBucket
         S3Key: !Ref PhotoThumbnailsZipS3Key
+
+  AccountLifecycleTriggerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: read-internal-secret
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref InternalBasicAuthSecret
+
+  AccountLifecycleTriggerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${StackPrefix}-${Environment}-account-lifecycle-trigger
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      Runtime: python3.12
+      Handler: index.handler
+      Timeout: 30
+      Role: !GetAtt AccountLifecycleTriggerRole.Arn
+      Environment:
+        Variables:
+          BACKEND_BASE_URL: !Sub http://${LoadBalancer.DNSName}
+          INTERNAL_SECRET_ARN: !Ref InternalBasicAuthSecret
+      Code:
+        ZipFile: |
+          import base64, json, os, urllib.request, urllib.error
+          import boto3
+
+          def handler(event, context):
+              secret = json.loads(boto3.client('secretsmanager').get_secret_value(
+                  SecretId=os.environ['INTERNAL_SECRET_ARN'])['SecretString'])
+              auth = base64.b64encode(f"{secret['username']}:{secret['password']}".encode()).decode()
+              req = urllib.request.Request(
+                  os.environ['BACKEND_BASE_URL'] + '/internal/accounts/lifecycle',
+                  data=b'{}', method='POST',
+                  headers={'Authorization': 'Basic ' + auth, 'Content-Type': 'application/json'})
+              try:
+                  with urllib.request.urlopen(req, timeout=20) as r:
+                      print('lifecycle', r.status, r.read().decode())
+              except urllib.error.HTTPError as e:
+                  if e.code == 409:
+                      print('lifecycle ya en curso')
+                      return
+                  raise
+
+  AccountLifecycleSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: scheduler.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: invoke-trigger
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt AccountLifecycleTriggerFunction.Arn
+
+  AccountLifecycleSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub ${StackPrefix}-${Environment}-account-lifecycle
+      ScheduleExpression: cron(0 3 * * ? *)
+      ScheduleExpressionTimezone: America/Bogota
+      FlexibleTimeWindow: { Mode: 'OFF' }
+      Target:
+        Arn: !GetAtt AccountLifecycleTriggerFunction.Arn
+        RoleArn: !GetAtt AccountLifecycleSchedulerRole.Arn
+        RetryPolicy:
+          MaximumRetryAttempts: 2
+
+  # La tarea diaria de baja de cuentas es un camino de cumplimiento (App Store): sus fallos no pueden quedar
+  # solo en los logs. Errors del disparador = 401 del secreto interno, API caída o timeout.
+  AccountLifecycleTriggerErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-account-lifecycle-trigger-errors
+      AlarmDescription: El disparador diario del ciclo de vida de cuentas falló.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref AccountLifecycleTriggerFunction
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  # Cuentas atrasadas: DISABLED hace más de 31 días sin cerrar o CLOSED hace más de 9 días sin borrar.
+  # El API escribe "ACCOUNT_LIFECYCLE_OVERDUE" en el log en cada corrida que las encuentra.
+  AccountLifecycleOverdueMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref LogGroup
+      FilterPattern: '"ACCOUNT_LIFECYCLE_OVERDUE"'
+      MetricTransformations:
+        - MetricNamespace: !Sub ${StackPrefix}/${Environment}
+          MetricName: account_lifecycle_overdue
+          MetricValue: '1'
+
+  AccountLifecycleOverdueAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-account-lifecycle-overdue
+      AlarmDescription: Hay cuentas cuyo cierre o borrado lleva más de un día de atraso.
+      Namespace: !Sub ${StackPrefix}/${Environment}
+      MetricName: account_lifecycle_overdue
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
 
   PhotoThumbnailsFunctionImage:
     Type: AWS::Lambda::Function

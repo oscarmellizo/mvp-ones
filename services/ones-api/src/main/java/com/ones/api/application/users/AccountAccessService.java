@@ -46,7 +46,9 @@ public class AccountAccessService {
         Optional<User> user = usersRepository.findById(userId);
         if (user.isEmpty()) return AccountAccess.ACTIVE;
         User u = user.get();
-        if (!"DISABLED".equalsIgnoreCase(u.getStatus())) return AccountAccess.ACTIVE;
+        String status = u.getStatus() == null ? "" : u.getStatus().toUpperCase();
+        if (u.isClosedOrDeleted()) return AccountAccess.CLOSED; // CLOSING cuenta como CLOSED
+        if (!User.STATUS_DISABLED.equals(status)) return AccountAccess.ACTIVE;
         Instant disabledAt = u.getDisabledAt();
         if (disabledAt == null) return AccountAccess.DISABLED;
         Instant now = Instant.now(clock);

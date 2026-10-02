@@ -1,9 +1,12 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'app.dart';
 import 'core/config/app_config.dart';
+import 'core/config/firebase_web_config.dart';
 import 'core/services/live_event_notification_service.dart';
 
 const String _kLiveCheckTask = 'com.ones.liveEventCheck';
@@ -23,6 +26,10 @@ void callbackDispatcher() {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Móvil lee google-services.json / GoogleService-Info.plist; web necesita las opciones explícitas.
+  await Firebase.initializeApp(options: kIsWeb ? FirebaseWebConfig.options : null);
+  // La app solo se usa en vertical (en horizontal se rompían pantallas en iOS).
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
   if (!kIsWeb) {
     final notifService = LiveEventNotificationService();

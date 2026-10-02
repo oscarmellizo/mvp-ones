@@ -78,34 +78,26 @@ class AccountAccessServiceTest {
         assertEquals(AccountAccess.DISABLED, service.check("u1"));
     }
 
+    @Test
+    void closedStatus_isClosed_evenInsideTheWindow() {
+        InMemoryUsersRepository repo = new InMemoryUsersRepository();
+        repo.upsert(user("u1", "DISABLED", NOW.minus(Duration.ofDays(2))).withLifecycle("CLOSED", NOW, "t", null));
+
+        assertEquals(AccountAccess.CLOSED, new AccountAccessService(repo, CLOCK, WINDOW).check("u1"));
+    }
+
+    @Test
+    void deletedTombstone_isClosed() {
+        InMemoryUsersRepository repo = new InMemoryUsersRepository();
+        repo.upsert(user("u1", "DISABLED", NOW.minus(Duration.ofDays(40))).tombstone(NOW));
+
+        assertEquals(AccountAccess.CLOSED, new AccountAccessService(repo, CLOCK, WINDOW).check("u1"));
+    }
+
     private static User user(String id, String status, Instant disabledAt) {
         Instant created = Instant.parse("2026-01-01T00:00:00Z");
         return new User(id, id + "@example.com", null, null, null, null, null, "google", null, true,
                 created, created, status, disabledAt, null);
     }
 
-    private static class InMemoryUsersRepository implements UsersRepository {
-        private final Map<String, User> byId = new HashMap<>();
-
-        @Override
-        public Optional<User> findById(String userId) {
-            return Optional.ofNullable(byId.get(userId));
-        }
-
-        @Override
-        public Optional<User> findByEmail(String email) {
-            return byId.values().stream().filter(u -> email != null && email.equals(u.getEmail())).findFirst();
-        }
-
-        @Override
-        public User upsert(User user) {
-            byId.put(user.getUserId(), user);
-            return user;
-        }
-
-        @Override
-        public void deleteById(String userId) {
-            byId.remove(userId);
-        }
-    }
 }

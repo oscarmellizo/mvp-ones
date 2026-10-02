@@ -119,6 +119,37 @@ class MercadoPagoCheckoutCorrelationTest {
         org.junit.jupiter.api.Assertions.assertEquals("active", saved.getValue().getStatus());
     }
 
+    @Test
+    void paymentForDeletedTombstone_recordsLedgerWithoutPayerEmail() {
+        UserSubscriptionsRepository subscriptions = mock(UserSubscriptionsRepository.class);
+        MercadoPagoGateway mercadoPago = mock(MercadoPagoGateway.class);
+        UsersRepository users = mock(UsersRepository.class);
+        CheckoutAttemptsRepository checkoutAttempts = mock(CheckoutAttemptsRepository.class);
+        SubscriptionPaymentsRepository subscriptionPayments = mock(SubscriptionPaymentsRepository.class);
+        when(mercadoPago.getPaymentCorrelation("pay-9")).thenReturn(Optional.of(new MercadoPagoGateway.PaymentCorrelation(
+                "pay-9", "preapproval-9", "user-123", "ana@mp.com", "payer-1", "plan-1")));
+        when(mercadoPago.getPreapproval("preapproval-9")).thenReturn(Optional.of(new MercadoPagoGateway.Preapproval(
+                "preapproval-9", "authorized", null, "ana@mp.com", "user-123", null, "plan-1")));
+        when(subscriptions.findByMercadoPagoPreapprovalId("preapproval-9")).thenReturn(Optional.empty());
+        when(checkoutAttempts.findActiveByPayerEmailLower("ana@mp.com")).thenReturn(Optional.of(
+                new com.ones.api.domain.subscriptions.CheckoutAttempt("ana@mp.com", NOW.toString(), "created",
+                        "user-123", "ones-plus-monthly", NOW.plusSeconds(3600).getEpochSecond(), "plan-1", null, null)));
+        when(subscriptions.findByUserId("user-123")).thenReturn(Optional.of(
+                new UserSubscription("user-123", "ones-plus-monthly", "cancelled", null, NOW, null, null, NOW, NOW)));
+        when(users.findById("user-123")).thenReturn(Optional.of(user("user-123").tombstone(NOW)));
+        when(subscriptionPayments.findByPaymentId("pay-9")).thenReturn(Optional.empty());
+
+        new ProcessMercadoPagoWebhookUseCase(subscriptions, mercadoPago, users, checkoutAttempts, subscriptionPayments, CLOCK, null)
+                .execute("payment", "pay-9");
+
+        ArgumentCaptor<com.ones.api.domain.subscriptions.SubscriptionPayment> ledger =
+                ArgumentCaptor.forClass(com.ones.api.domain.subscriptions.SubscriptionPayment.class);
+        verify(subscriptionPayments).upsert(ledger.capture());
+        assertNull(ledger.getValue().getPayerEmail());
+        org.junit.jupiter.api.Assertions.assertEquals("payer-1", ledger.getValue().getPayerId());
+        org.junit.jupiter.api.Assertions.assertEquals("user-123", ledger.getValue().getUserId());
+    }
+
     private static SubscriptionPlan paidPlan() {
         return new SubscriptionPlan(
                 "ones-plus-monthly", "Ones Plus Monthly", "", "paid", 19900, "COP", "month", "shared-plan-id",

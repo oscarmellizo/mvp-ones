@@ -123,6 +123,11 @@ class ListEventGuestsUseCaseTest {
         }
 
         @Override
+        public void delete(String inviteeEmail, String eventId) {
+            items.removeIf(i -> i.getInviteeEmail().equals(inviteeEmail) && i.getEventId().equals(eventId));
+        }
+
+        @Override
         public void deleteAllByEventId(String eventId) {
             items.removeIf(i -> i.getEventId().equals(eventId));
         }
@@ -137,7 +142,18 @@ class ListEventGuestsUseCaseTest {
     }
 
     private static class InMemoryUsersRepo implements UsersRepository {
+
+        @Override public boolean upsertIfStatus(User user, String expectedStatus) { throw new UnsupportedOperationException(); }
+        @Override public boolean upsertIfClosing(User user, java.time.Instant expectedClosingAt) { throw new UnsupportedOperationException(); }
         private final Map<String, User> byId = new HashMap<>();
+
+
+        @Override
+        public java.util.List<User> findByStatusIn(java.util.Set<String> statuses) {
+            return byId.values().stream()
+                    .filter(u -> u.getStatus() != null && statuses.contains(u.getStatus().toUpperCase()))
+                    .toList();
+        }
         private final Map<String, User> byEmail = new HashMap<>();
 
         @Override

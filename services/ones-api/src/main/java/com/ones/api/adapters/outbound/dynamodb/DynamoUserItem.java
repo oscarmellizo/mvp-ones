@@ -22,6 +22,10 @@ public class DynamoUserItem {
     private String status;
     private String disabledAt;
     private String reactivatedAt;
+    private String closedAt;
+    private String exportToken;
+    private String exportKey;
+    private String closingAt;
 
     @DynamoDbPartitionKey
     @DynamoDbAttribute("userId")
@@ -149,5 +153,41 @@ public class DynamoUserItem {
 
     public void setReactivatedAt(String reactivatedAt) {
         this.reactivatedAt = reactivatedAt;
+    }
+
+    @DynamoDbAttribute("closedAt")
+    public String getClosedAt() {
+        return closedAt;
+    }
+
+    public void setClosedAt(String closedAt) {
+        this.closedAt = closedAt;
+    }
+
+    @DynamoDbAttribute("exportToken")
+    public String getExportToken() {
+        return exportToken;
+    }
+
+    public void setExportToken(String exportToken) {
+        this.exportToken = exportToken;
+    }
+
+    @DynamoDbAttribute("exportKey")
+    public String getExportKey() {
+        return exportKey;
+    }
+
+    public void setExportKey(String exportKey) {
+        this.exportKey = exportKey;
+    }
+
+    @DynamoDbAttribute("closingAt")
+    public String getClosingAt() {
+        return closingAt;
+    }
+
+    public void setClosingAt(String closingAt) {
+        this.closingAt = closingAt;
     }
 }

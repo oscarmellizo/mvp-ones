@@ -1,28 +1,20 @@
 import 'package:flutter/material.dart';
 
-import 'package:flutter/foundation.dart';
-
-import 'dart:async';
-
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-
-import 'package:google_sign_in/google_sign_in.dart';
-
 import 'package:provider/provider.dart';
-
-
 
 import '../../../../core/ui/ones_colors.dart';
 
 import '../auth_controller.dart';
 
-import '../../infrastructure/google_sign_in_initializer.dart';
+import '../widgets/auth_buttons.dart';
+
+import '../widgets/auth_error_banner.dart';
+
+import '../widgets/email_auth_section.dart';
+
+import 'forgot_password_page.dart';
 
 import 'register_page.dart';
-
-import '../google_sign_in_button.dart';
-
-import '../google_sign_in_button.dart';
 
 
 
@@ -42,94 +34,27 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
 
-  bool _accountNotFound = false;
 
 
 
-  Widget? _webGisButton;
+  /// Proveedor cuyo inicio de sesión está en curso: solo ese botón muestra "Conectando...".
+  String? _pending;
 
-
-
-  StreamSubscription<GoogleSignInAuthenticationEvent>? _webAuthSub;
-
-  Stream<GoogleSignInAuthenticationEvent>? _webAuthEvents;
-
-  bool _webConsumedSignIn = false;
-
-
-
-  Future<void> _onWebGoogleSignedIn(BuildContext context) async {
-
+  Future<void> _run(String provider, Future<AuthNextStep> Function() action) async {
     final auth = context.read<AuthController>();
-
-    final step = await auth.signInExisting();
-
-    // ignore: avoid_print
-
-    print('[LoginPage] web signInExisting step=$step error=${auth.error}');
-
-    if (!mounted) return;
-
-    setState(() {
-
-      _accountNotFound = step == AuthNextStep.needsRegistration;
-
-    });
-
-  }
-
-
-
-  @override
-
-  void initState() {
-
-    super.initState();
-
-    if (kIsWeb) {
-
-      _webGisButton = renderGoogleSignInButton();
-
-      _webAuthEvents = GoogleSignIn.instance.authenticationEvents;
-
-      _webAuthSub = _webAuthEvents!.listen((e) {
-
-        if (!mounted) return;
-
-        if (_webConsumedSignIn) return;
-
-        if (e is! GoogleSignInAuthenticationEventSignIn) return;
-
-        GoogleSignInInitializer.recordWebUser(e.user);
-
-        _webConsumedSignIn = true;
-
-        _onWebGoogleSignedIn(context);
-
-      });
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-
-        if (!mounted) return;
-
-        context.read<AuthController>().warmUpGoogleSignIn();
-
-      });
-
+    setState(() => _pending = provider);
+    final AuthNextStep step;
+    try {
+      step = await action();
+    } finally {
+      if (mounted) setState(() => _pending = null);
     }
-
-  }
-
-
-
-  @override
-
-  void dispose() {
-
-    _webAuthSub?.cancel();
-
-    super.dispose();
-
+    if (!mounted) return;
+    // Google/Apple sin cuenta en Ones: directo al formulario de registro (nombre y términos).
+    // Las cuentas de correo sin registro las lleva el router a ese mismo formulario.
+    if (step == AuthNextStep.needsRegistration && auth.user?.provider != 'password') {
+      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RegisterPage()));
+    }
   }
 
 
@@ -161,6 +86,10 @@ class _LoginPageState extends State<LoginPage> {
             constraints: const BoxConstraints(maxWidth: 520),
 
             child: SingleChildScrollView(
+
+              // Arrastrar la pantalla oculta el teclado, como en las apps nativas.
+
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
 
               padding: EdgeInsets.symmetric(
 
@@ -246,320 +175,48 @@ class _LoginPageState extends State<LoginPage> {
 
                   const SizedBox(height: 28),
 
-                  if (_accountNotFound) ...[
-
-                    Container(
-
-                      padding: const EdgeInsets.all(14),
-
-                      decoration: BoxDecoration(
-
-                        color: OnesColors.yellowLight.withOpacity(0.6),
-
-                        borderRadius: BorderRadius.zero,
-
-                        border: Border.all(
-
-                          color: OnesColors.purpleMid.withOpacity(0.4),
-
-                        ),
-
-                      ),
-
-                      child: Column(
-
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-
-                        children: [
-
-                          const Text(
-
-                            'No encontramos una cuenta con ese correo.',
-
-                            textAlign: TextAlign.center,
-
-                            style: TextStyle(
-
-                              fontWeight: FontWeight.w700,
-
-                              color: OnesColors.black,
-
-                            ),
-
-                          ),
-
-                          const SizedBox(height: 6),
-
-                          const Text(
-
-                            'Crea tu cuenta primero para poder ingresar.',
-
-                            textAlign: TextAlign.center,
-
-                            style: TextStyle(
-
-                              fontSize: 13,
-
-                              color: OnesColors.black,
-
-                            ),
-
-                          ),
-
-                          const SizedBox(height: 12),
-
-                          FilledButton(
-
-                            style: FilledButton.styleFrom(
-
-                              backgroundColor: OnesColors.purpleMid,
-
-                              foregroundColor: OnesColors.white,
-
-                              padding:
-
-                                  const EdgeInsets.symmetric(vertical: 12),
-
-                              shape: const RoundedRectangleBorder(
-
-                                borderRadius: BorderRadius.zero,
-
-                              ),
-
-                            ),
-
-                            onPressed: auth.isLoading
-
-                                ? null
-
-                                : () {
-
-                                    setState(() {
-
-                                      _accountNotFound = false;
-
-                                    });
-
-                                    Navigator.of(context).push(
-
-                                      MaterialPageRoute(
-
-                                        builder: (_) => const RegisterPage(),
-
-                                      ),
-
-                                    );
-
-                                  },
-
-                            child: const Text(
-
-                              'Crear cuenta',
-
-                              style: TextStyle(fontWeight: FontWeight.w900),
-
-                            ),
-
-                          ),
-
-                          const SizedBox(height: 8),
-
-                          TextButton(
-
-                            onPressed: () {
-
-                              setState(() {
-
-                                _accountNotFound = false;
-
-                              });
-
-                              auth.clearGoogleSession();
-
-                            },
-
-                            child: const Text(
-
-                              'Intentar con otra cuenta',
-
-                              style: TextStyle(
-
-                                color: OnesColors.purpleDeep,
-
-                                fontWeight: FontWeight.w600,
-
-                                fontSize: 13,
-
-                              ),
-
-                            ),
-
-                          ),
-
-                        ],
-
-                      ),
-
-                    ),
-
-                    const SizedBox(height: 16),
-
-                  ] else ...[
+                  ...[
 
                     if (auth.error != null) ...[
 
-                      Container(
-
-                        padding: const EdgeInsets.all(12),
-
-                        decoration: BoxDecoration(
-
-                          color: OnesColors.white.withOpacity(0.6),
-
-                          borderRadius: BorderRadius.zero,
-
-                        ),
-
-                        child: Text(
-
-                          'Error: ${auth.error}',
-
-                          textAlign: TextAlign.center,
-
-                          style: const TextStyle(color: OnesColors.danger),
-
-                        ),
-
-                      ),
+                      AuthErrorBanner(message: '${auth.error}'),
 
                       const SizedBox(height: 16),
 
                     ],
 
-                    SizedBox(
-
-                      width: double.infinity,
-
-                      height: 54,
-
-                      child: kIsWeb
-
-                          ? StreamBuilder<GoogleSignInAuthenticationEvent>(
-
-                              stream: _webAuthEvents,
-
-                              builder: (context, snapshot) {
-
-                                final hasSignedIn =
-
-                                    snapshot.data is GoogleSignInAuthenticationEventSignIn;
-
-                                if (hasSignedIn && !auth.isLoading) {
-
-                                  WidgetsBinding.instance.addPostFrameCallback((_) {
-
-                                    _onWebGoogleSignedIn(context);
-
-                                  });
-
-                                }
-
-
-
-                                return AbsorbPointer(
-
-                                  absorbing: auth.isLoading,
-
-                                  child: renderGoogleSignInButton(),
-
-                                );
-
-                              },
-
-                            )
-
-                          : ElevatedButton(
-
-                              onPressed: auth.isLoading
-
-                                  ? null
-
-                                  : () async {
-
-                                      final step = await auth.signInExisting();
-
-                                      // ignore: avoid_print
-
-                                      print(
-
-                                          '[LoginPage] signInExisting step=$step error=${auth.error}');
-
-                                      if (!context.mounted) return;
-
-                                      setState(() {
-
-                                        _accountNotFound = step ==
-
-                                            AuthNextStep.needsRegistration;
-
-                                      });
-
-                                    },
-
-                              style: ElevatedButton.styleFrom(
-
-                                backgroundColor: OnesColors.white,
-
-                                foregroundColor: OnesColors.black,
-
-                                shape: const RoundedRectangleBorder(
-
-                                  borderRadius: BorderRadius.zero,
-
-                                ),
-
-                                elevation: 0,
-
-                              ),
-
-                              child: Row(
-
-                                mainAxisAlignment: MainAxisAlignment.center,
-
-                                children: [
-
-                                  FaIcon(
-
-                                    FontAwesomeIcons.google,
-
-                                    size: 18,
-
-                                    color: OnesColors.black.withOpacity(0.7),
-
+                    GoogleSignInButton(
+                      busy: _pending == 'google',
+                      onPressed: auth.isLoading ? null : () => _run('google', auth.signInWithGoogle),
+                    ),
+                    if (appleSignInAvailable) ...[
+                      const SizedBox(height: 12),
+                      AppleSignInButton(
+                        busy: _pending == 'apple',
+                        onPressed: auth.isLoading ? null : () => _run('apple', auth.signInWithApple),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    EmailAuthSection(
+                      toggleLabel: 'Continuar con correo',
+                      submitLabel: 'Iniciar sesión',
+                      busy: auth.isLoading,
+                      onSubmit: (email, password) => _run('email', () => auth.signInWithEmail(email, password)),
+                      footer: Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          key: const Key('auth.forgot'),
+                          onPressed: auth.isLoading
+                              ? null
+                              : () => Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const ForgotPasswordPage()),
                                   ),
-
-                                  const SizedBox(width: 12),
-
-                                  Text(
-
-                                    auth.isLoading
-
-                                        ? 'Iniciando sesión...'
-
-                                        : 'Continuar con Google',
-
-                                    style: const TextStyle(
-
-                                        fontWeight: FontWeight.w700),
-
-                                  ),
-
-                                ],
-
-                              ),
-
-                            ),
-
+                          child: const Text(
+                            'Olvidé mi contraseña',
+                            style: TextStyle(color: OnesColors.purpleDeep, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ),
                     ),
 
                     const SizedBox(height: 16),

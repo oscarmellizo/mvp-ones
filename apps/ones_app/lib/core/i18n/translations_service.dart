@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ones_api_client/ones_api_client.dart';
+// ignore: implementation_imports
+import 'package:ones_api_client/src/auth/bearer_auth.dart' show BearerAuthInterceptor;
 
 import '../../../features/auth/presentation/auth_controller.dart';
 
@@ -102,6 +104,11 @@ class TranslationsService extends ChangeNotifier {
     final token = authController.idToken;
     if (token != null && token.isNotEmpty) {
       _apiClient.setBearerAuth('bearerAuth', token);
+    } else {
+      // Al cerrar sesión no se debe seguir enviando el token anterior.
+      for (final interceptor in _apiClient.dio.interceptors.whereType<BearerAuthInterceptor>()) {
+        interceptor.tokens.remove('bearerAuth');
+      }
     }
   }
 

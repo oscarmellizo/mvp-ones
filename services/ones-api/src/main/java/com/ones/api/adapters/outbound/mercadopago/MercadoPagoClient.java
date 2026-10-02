@@ -436,6 +436,28 @@ public class MercadoPagoClient implements MercadoPagoGateway {
         }
     }
 
+    @Override
+    public void cancelPreapproval(String preapprovalId) {
+        if (accessToken == null || accessToken.isBlank()) {
+            throw new IllegalStateException("Mercado Pago no está configurado en este ambiente (access token faltante).");
+        }
+        log.info("[MP outbound] PUT /preapproval/{} status=cancelled", preapprovalId);
+        // retrieve() convierte 4xx/5xx en WebClientResponseException: el llamador decide reintentar.
+        webClient.put()
+                .uri("/preapproval/{id}", preapprovalId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .bodyValue(new CancelPreapprovalRequest("cancelled"))
+                .retrieve()
+                .toBodilessEntity()
+                .block(Duration.ofSeconds(30));
+        log.info("[MP inbound] PUT /preapproval/{} cancelada", preapprovalId);
+    }
+
+    record CancelPreapprovalRequest(String status) {
+    }
+
     private static String maskEmail(String email) {
         if (email == null || email.isBlank()) {
             return null;

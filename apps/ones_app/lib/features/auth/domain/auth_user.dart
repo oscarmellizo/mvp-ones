@@ -4,12 +4,21 @@ class AuthUser {
   final String? displayName;
   final String? pictureUrl;
 
+  /// Proveedor con el que se autenticó: google.com, apple.com o password.
+  final String provider;
+  final bool emailVerified;
+
   const AuthUser({
     required this.userId,
     required this.email,
     required this.displayName,
     required this.pictureUrl,
+    this.provider = 'google.com',
+    this.emailVerified = true,
   });
+
+  /// Las cuentas de correo/contraseña deben verificar el correo antes de usar el API.
+  bool get needsEmailVerification => provider == 'password' && !emailVerified;
 
   factory AuthUser.fromJson(Map<String, dynamic> json) {
     return AuthUser(

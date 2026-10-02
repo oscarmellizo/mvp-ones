@@ -36,6 +36,8 @@ public class AccountEmailService {
 
     private final Counter sentCounter;
     private final Counter failedCounter;
+    private final Counter closureSentCounter;
+    private final Counter closureFailedCounter;
 
     public AccountEmailService(
             SesV2Client ses,
@@ -52,6 +54,8 @@ public class AccountEmailService {
         this.enabled = enabled;
         this.sentCounter = Counter.builder("ones.email.account_deactivation.sent").register(meterRegistry);
         this.failedCounter = Counter.builder("ones.email.account_deactivation.failed").register(meterRegistry);
+        this.closureSentCounter = Counter.builder("ones.email.account_closure.sent").register(meterRegistry);
+        this.closureFailedCounter = Counter.builder("ones.email.account_closure.failed").register(meterRegistry);
         log.info("[AccountEmailService] enabled={} from='{}' publicBaseUrl='{}' logoUrl='{}'", enabled, fromAddress, publicBaseUrl, logoUrl);
     }
 
@@ -67,6 +71,46 @@ public class AccountEmailService {
         final String html = renderHtml(user, disabledAt, scheduledPhotoDeliveryAt);
         final String text = renderText(user, disabledAt, scheduledPhotoDeliveryAt);
 
+        send(user, to, subject, html, text, sentCounter, failedCounter);
+    }
+
+    /**
+     * Correo de cierre de cuenta con el enlace de descarga de fotos (downloadUrl null = sin fotos).
+     * Devuelve true si SES lo aceptó, o si no hay nada que enviar ni reintentar: correo deshabilitado
+     * (entornos locales) o usuario sin email. Devuelve false si SES falló o si el envío está habilitado
+     * pero mal configurado (from / publicBaseUrl vacíos): así el cierre se reintenta y el error queda en logs.
+     */
+    public boolean sendClosureEmail(User user, String downloadUrl, Instant linkExpiresAt) {
+        if (!enabled) return true;
+        if (user == null) return true;
+        final String to = user.getEmail();
+        if (to == null || to.isBlank()) {
+            log.warn("[AccountEmailService] Usuario sin email, se omite correo de cierre userId={}", user.getUserId());
+            return true;
+        }
+        if (fromAddress == null || fromAddress.isBlank() || publicBaseUrl == null || publicBaseUrl.isBlank()) {
+            log.error("[AccountEmailService] Correo habilitado pero sin from/publicBaseUrl; no se envió cierre userId={}", user.getUserId());
+            return false;
+        }
+        final boolean withPhotos = downloadUrl != null && !downloadUrl.isBlank();
+        final String name = user.getPreferredName() != null && !user.getPreferredName().isBlank()
+                ? user.getPreferredName() : "hola";
+        final String text;
+        if (withPhotos) {
+            text = "Hola " + name + ": pasaron 30 días desde que desactivaste tu cuenta, así que la cerramos. " +
+                    "Puedes descargar tus fotos aquí: " + downloadUrl + ". " +
+                    "El enlace dura 8 días (hasta el " + DATE_FMT.format(linkExpiresAt) + "). " +
+                    "Después borraremos tu cuenta y todo su contenido definitivamente.";
+        } else {
+            text = "Hola: pasaron 30 días desde que desactivaste tu cuenta, así que la cerramos. " +
+                    "Tu cuenta no tenía fotos para descargar. " +
+                    "En 8 días borraremos tu cuenta y todo su contenido definitivamente.";
+        }
+        final String html = renderClosureHtml(name, withPhotos, downloadUrl, linkExpiresAt);
+        return send(user, to, "Tu cuenta de Ones fue cerrada", html, text, closureSentCounter, closureFailedCounter);
+    }
+
+    private boolean send(User user, String to, String subject, String html, String text, Counter ok, Counter failed) {
         try {
             SendEmailRequest req = SendEmailRequest.builder()
                     .fromEmailAddress(fromAddress)
@@ -82,16 +126,52 @@ public class AccountEmailService {
                             .build())
                     .build();
             ses.sendEmail(req);
-            sentCounter.increment();
+            ok.increment();
+            return true;
         } catch (software.amazon.awssdk.services.sesv2.model.SesV2Exception e) {
-            failedCounter.increment();
+            failed.increment();
             log.error("[AccountEmailService] SES error sending to={} userId={} awsErrorCode={} message={}",
                     to, user.getUserId(), e.awsErrorDetails() != null ? e.awsErrorDetails().errorCode() : "unknown", e.getMessage());
         } catch (Exception e) {
-            failedCounter.increment();
+            failed.increment();
             log.error("[AccountEmailService] Unexpected error sending to={} userId={} errorType={} message={}",
                     to, user.getUserId(), e.getClass().getSimpleName(), e.getMessage());
         }
+        return false;
+    }
+
+    private String renderClosureHtml(String name, boolean withPhotos, String downloadUrl, Instant linkExpiresAt) {
+        String logoBlock = logoBlock();
+        String body = withPhotos
+                ? "<div style=\"margin-top:10px;color:#374151;font-size:14px\">Pasaron 30 días desde que desactivaste tu cuenta, así que la cerramos. Puedes descargar tus fotos con el botón de abajo.</div>" +
+                  "<div style=\"margin-top:10px;color:#374151;font-size:14px\">El enlace dura <b>8 días</b> (hasta el " + escapeHtml(DATE_FMT.format(linkExpiresAt)) + " UTC). Después borraremos tu cuenta y todo su contenido definitivamente.</div>" +
+                  "<div style=\"margin-top:16px\"><a href=\"" + escapeHtml(downloadUrl) + "\" style=\"display:inline-block;width:100%;text-align:center;padding:12px 14px;border-radius:10px;background:#6C47FF;color:#fff;text-decoration:none;font-weight:700\">Descargar mis fotos</a></div>" +
+                  "<div style=\"margin-top:12px;color:#6b7280;font-size:12px\">Si el botón no funciona, copia y pega este enlace en tu navegador:<br/><a href=\"" + escapeHtml(downloadUrl) + "\" style=\"color:#6C47FF\">" + escapeHtml(downloadUrl) + "</a></div>"
+                : "<div style=\"margin-top:10px;color:#374151;font-size:14px\">Pasaron 30 días desde que desactivaste tu cuenta, así que la cerramos. Tu cuenta no tenía fotos para descargar.</div>" +
+                  "<div style=\"margin-top:10px;color:#374151;font-size:14px\">En <b>8 días</b> borraremos tu cuenta y todo su contenido definitivamente.</div>";
+        return "<!doctype html>" +
+                "<html data-ones-template=\"account-closure-v1\"><head><meta charset=\"utf-8\"></head>" +
+                "<body style=\"margin:0;padding:0;background:#F5F5F7;font-family:Arial,sans-serif\">" +
+                "<div style=\"max-width:600px;margin:0 auto;padding:24px\">" +
+                "<div style=\"background:#4A036E;color:#fff;padding:18px 20px;border-radius:12px\">" +
+                logoBlock +
+                "<div style=\"font-size:20px;font-weight:700;margin-top:6px\">Tu cuenta fue cerrada</div>" +
+                "</div>" +
+                "<div style=\"background:#ffffff;padding:20px;border-radius:12px;margin-top:12px\">" +
+                "<div style=\"color:#111827;font-size:16px;font-weight:700\">Hola " + (withPhotos ? escapeHtml(name) : "") + "</div>" +
+                body +
+                "</div></div></body></html>";
+    }
+
+    private String logoBlock() {
+        String resolvedLogoUrl = (logoUrl != null && !logoUrl.isBlank()) ? logoUrl.trim() : null;
+        if (resolvedLogoUrl == null && publicBaseUrl != null && !publicBaseUrl.isBlank()) {
+            resolvedLogoUrl = normalizeBase(publicBaseUrl) + "/assets/assets/branding/ones-logo.png";
+        }
+        return resolvedLogoUrl != null
+                ? ("<div style=\"margin-bottom:10px\"><img src=\"" + escapeHtml(resolvedLogoUrl) +
+                "\" alt=\"Ones\" width=\"48\" height=\"48\" style=\"display:block;border-radius:12px;background:#FFFFFF\"/></div>")
+                : "";
     }
 
     private String renderText(User user, Instant disabledAt, Instant scheduledPhotoDeliveryAt) {
@@ -103,19 +183,8 @@ public class AccountEmailService {
     }
 
     private String renderHtml(User user, Instant disabledAt, Instant scheduledPhotoDeliveryAt) {
-        String resolvedLogoUrl = (logoUrl != null && !logoUrl.isBlank()) ? logoUrl.trim() : null;
-        if (resolvedLogoUrl == null || resolvedLogoUrl.isBlank()) {
-            String base = publicBaseUrl != null ? publicBaseUrl.trim() : "";
-            if (!base.isBlank()) {
-                while (base.endsWith("/")) base = base.substring(0, base.length() - 1);
-                resolvedLogoUrl = base + "/assets/assets/branding/ones-logo.png";
-            }
-        }
         String loginUrl = normalizeBase(publicBaseUrl) + "/login";
-        String logoBlock = (resolvedLogoUrl != null && !resolvedLogoUrl.isBlank())
-                ? ("<div style=\"margin-bottom:10px\"><img src=\"" + escapeHtml(resolvedLogoUrl) +
-                "\" alt=\"Ones\" width=\"48\" height=\"48\" style=\"display:block;border-radius:12px;background:#FFFFFF\"/></div>")
-                : "";
+        String logoBlock = logoBlock();
 
         return "<!doctype html>" +
                 "<html data-ones-template=\"account-deactivation-v1\"><head><meta charset=\"utf-8\"></head>" +

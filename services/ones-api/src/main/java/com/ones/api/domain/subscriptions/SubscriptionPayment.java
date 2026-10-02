@@ -66,4 +66,11 @@ public class SubscriptionPayment {
     public String getUserId() { return userId; }
     public String getPlanId() { return planId; }
     public String getCheckoutAttemptId() { return checkoutAttemptId; }
+
+    /** Copia idéntica sin el correo del pagador (borrado de cuenta); se conserva lo necesario para contabilidad. */
+    public SubscriptionPayment withoutPayerEmail() {
+        return new SubscriptionPayment(paymentId, createdAt, mpDateCreated, status, statusDetail,
+                transactionAmountCents, currency, null, payerId, preapprovalId, preapprovalPlanId,
+                userId, planId, checkoutAttemptId);
+    }
 }

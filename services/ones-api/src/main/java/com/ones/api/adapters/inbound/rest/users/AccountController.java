@@ -14,6 +14,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.LinkedHashMap;
 
+import com.ones.api.adapters.inbound.rest.DisabledAccountFilter;
+import com.ones.api.application.subscriptions.SubscriptionCancellationException;
 import com.ones.api.application.users.AccountAccessService;
 import com.ones.api.application.users.AccountDeactivateUseCase;
 import com.ones.api.application.users.AccountReactivateUseCase;
@@ -24,6 +26,8 @@ import com.ones.api.domain.users.User;
 @RestController
 @RequestMapping("/v1/account")
 public class AccountController {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AccountController.class);
 
     private final GetAccountUseCase getAccount;
     private final AccountDeactivateUseCase deactivate;
@@ -59,7 +63,14 @@ public class AccountController {
     @PostMapping(path = {"/deactivate", ":deactivate"})
     public ResponseEntity<Map<String, Object>> deactivate(Authentication authentication) {
         String userId = authentication.getName();
-        Optional<User> result = deactivate.execute(userId);
+        Optional<User> result;
+        try {
+            result = deactivate.execute(userId);
+        } catch (SubscriptionCancellationException e) {
+            // No se desactiva mientras Mercado Pago siga cobrando: la persona puede reintentar.
+            log.warn("[AccountController] no se pudo cancelar la suscripción al desactivar userId={}", userId, e);
+            return ResponseEntity.status(502).body(Map.of("code", "SUBSCRIPTION_CANCEL_FAILED"));
+        }
         accountAccess.evict(userId);
         return result
                 .map(u -> {
@@ -71,7 +82,10 @@ public class AccountController {
                     } catch (Exception ignore) {}
                     return ResponseEntity.ok(toResponse(u));
                 })
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .orElseGet(() -> getAccount.execute(userId).isPresent()
+                        // Existe pero está cerrándose, cerrada o borrada: no vuelve a DISABLED.
+                        ? ResponseEntity.status(409).body(Map.of("code", DisabledAccountFilter.CODE_CLOSED))
+                        : ResponseEntity.notFound().build());
     }
 
     @PostMapping(path = {"/reactivate", ":reactivate"})

@@ -12,4 +12,7 @@ public interface PhotoLikesRepository {
     void unlike(String photoId, String userId);
 
     void deleteAllByPhotoId(String photoId);
+
+    /** Borra todos los likes dados por el usuario (índice gsi1). Intenta borrar todos y lanza IllegalStateException si la consulta o algún borrado falló. */
+    void deleteAllByUserId(String userId);
 }

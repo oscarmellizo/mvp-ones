@@ -28,6 +28,11 @@ import com.ones.api.application.users.UpdateUserPreferencesUseCase;
 import com.ones.api.application.users.GetAccountUseCase;
 import com.ones.api.application.users.AccountDeactivateUseCase;
 import com.ones.api.application.users.AccountReactivateUseCase;
+import com.ones.api.application.users.AccountAccessService;
+import com.ones.api.application.users.email.AccountEmailService;
+import com.ones.api.application.users.lifecycle.CloseExpiredAccountsUseCase;
+import com.ones.api.application.users.lifecycle.PhotosExportService;
+import com.ones.api.application.users.lifecycle.PurgeClosedAccountsUseCase;
 import com.ones.api.application.users.ports.PreferredNamesCacheRepository;
 import com.ones.api.application.users.ports.UsersRepository;
 import com.ones.api.application.subscriptions.CheckPlanLimitUseCase;
@@ -154,8 +159,16 @@ public class ApplicationConfig {
     }
 
     @Bean
-    AccountDeactivateUseCase accountDeactivateUseCase(UsersRepository repository, Clock clock) {
-        return new AccountDeactivateUseCase(repository, clock);
+    com.ones.api.application.subscriptions.CancelRecurringSubscriptionService cancelRecurringSubscriptionService(
+            UserSubscriptionsRepository subscriptionsRepository, MercadoPagoGateway mercadoPagoGateway, Clock clock) {
+        return new com.ones.api.application.subscriptions.CancelRecurringSubscriptionService(
+                subscriptionsRepository, mercadoPagoGateway, clock);
+    }
+
+    @Bean
+    AccountDeactivateUseCase accountDeactivateUseCase(UsersRepository repository, Clock clock,
+                                                      com.ones.api.application.subscriptions.CancelRecurringSubscriptionService cancelSubscriptions) {
+        return new AccountDeactivateUseCase(repository, clock, cancelSubscriptions);
     }
 
     @Bean
@@ -163,6 +176,39 @@ public class ApplicationConfig {
                                                      @Value("${ones.account.reactivate-window-days:30}") int windowDays) {
         java.time.Duration window = java.time.Duration.ofDays(Math.max(1, windowDays));
         return new AccountReactivateUseCase(repository, clock, window);
+    }
+
+    @Bean
+    CloseExpiredAccountsUseCase closeExpiredAccountsUseCase(UsersRepository repository, PhotosExportService exportService,
+                                                           AccountEmailService emailService, AccountAccessService accessService,
+                                                           com.ones.api.application.subscriptions.CancelRecurringSubscriptionService cancelSubscriptions,
+                                                           Clock clock,
+                                                           @Value("${ones.account.reactivate-window-days:30}") int windowDays,
+                                                           @Value("${ones.api.public-base-url:}") String apiPublicBaseUrl,
+                                                           io.micrometer.core.instrument.MeterRegistry meterRegistry) {
+        java.time.Duration window = java.time.Duration.ofDays(Math.max(1, windowDays));
+        return new CloseExpiredAccountsUseCase(repository, exportService, emailService, accessService, cancelSubscriptions,
+                clock, window, apiPublicBaseUrl, meterRegistry);
+    }
+
+    @Bean
+    PurgeClosedAccountsUseCase purgeClosedAccountsUseCase(UsersRepository usersRepository, EventsRepository eventsRepository,
+                                                         com.ones.api.application.photos.ports.PhotosRepository photosRepository,
+                                                         com.ones.api.application.photos.ports.PhotoLikesRepository photoLikesRepository,
+                                                         InvitationsRepository invitationsRepository,
+                                                         PaymentProfilesRepository paymentProfilesRepository,
+                                                         SubscriptionPaymentsRepository subscriptionPaymentsRepository,
+                                                         PreferredNamesCacheRepository preferredNamesCacheRepository,
+                                                         com.ones.api.application.events.ports.ObjectStorage objectStorage,
+                                                         com.ones.api.application.users.ports.FirebaseIdentityAdmin firebaseIdentityAdmin,
+                                                         com.ones.api.application.events.EventPurger eventPurger,
+                                                         AccountAccessService accessService, Clock clock,
+                                                         @Value("${ones.account.exports-bucket:}") String exportsBucket,
+                                                         io.micrometer.core.instrument.MeterRegistry meterRegistry) {
+        return new PurgeClosedAccountsUseCase(usersRepository, eventsRepository, photosRepository, photoLikesRepository,
+                invitationsRepository, paymentProfilesRepository, subscriptionPaymentsRepository,
+                preferredNamesCacheRepository, objectStorage, firebaseIdentityAdmin, eventPurger, accessService,
+                clock, exportsBucket, meterRegistry);
     }
 
     @Bean

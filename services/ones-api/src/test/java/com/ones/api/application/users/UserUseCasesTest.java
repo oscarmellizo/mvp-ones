@@ -1,6 +1,9 @@
 package com.ones.api.application.users;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Clock;
@@ -14,10 +17,171 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 import com.ones.api.application.users.ports.PreferredNamesCacheRepository;
-import com.ones.api.application.users.ports.UsersRepository;
 import com.ones.api.domain.users.User;
 
 class UserUseCasesTest {
+
+    private static final Instant NOW = Instant.parse("2026-09-15T12:00:00Z");
+    private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
+
+    private static User disabledUser(String id, Instant disabledAt) {
+        Instant created = Instant.parse("2026-01-01T00:00:00Z");
+        return new User(id, id + "@example.com", "Nombre", null, null, null, "Pref", "google", null, true,
+                created, created, "DISABLED", disabledAt, null);
+    }
+
+    @Test
+    void reactivate_closedAccount_isRejected() {
+        InMemoryUsersRepository repo = new InMemoryUsersRepository();
+        repo.upsert(disabledUser("u1", NOW.minus(java.time.Duration.ofDays(2))).withLifecycle("CLOSED", NOW, "t", null));
+        assertTrue(new AccountReactivateUseCase(repo, CLOCK, java.time.Duration.ofDays(30)).execute("u1").isEmpty());
+    }
+
+    @Test
+    void reactivate_closingAccount_isRejected() {
+        InMemoryUsersRepository repo = new InMemoryUsersRepository();
+        repo.upsert(disabledUser("u1", NOW.minus(java.time.Duration.ofDays(2))).withClosing(NOW));
+        assertTrue(new AccountReactivateUseCase(repo, CLOCK, java.time.Duration.ofDays(30)).execute("u1").isEmpty());
+        assertEquals(User.STATUS_CLOSING, repo.findById("u1").get().getStatus());
+    }
+
+    @Test
+    void deactivate_closedClosingOrDeleted_returnsEmpty_andWritesNothing() {
+        User base = disabledUser("u1", NOW.minus(java.time.Duration.ofDays(31)));
+        for (User stored : java.util.List.of(
+                base.withLifecycle(User.STATUS_CLOSED, NOW, "tok", "exports/u1/ones-fotos.zip"),
+                base.withClosing(NOW),
+                base.withLifecycle(User.STATUS_CLOSED, NOW, "tok", null).tombstone(NOW))) {
+            InMemoryUsersRepository repo = new InMemoryUsersRepository();
+            repo.upsert(stored);
+            int writes = repo.writes();
+
+            assertTrue(new AccountDeactivateUseCase(repo, CLOCK, noSubscriptions()).execute("u1").isEmpty(), stored.getStatus());
+
+            assertEquals(writes, repo.writes(), stored.getStatus());
+            assertSame(stored, repo.findById("u1").get());
+        }
+    }
+
+    @Test
+    void deactivate_alreadyDisabled_isIdempotent_keepsOriginalDisabledAt() {
+        InMemoryUsersRepository repo = new InMemoryUsersRepository();
+        Instant disabledAt = NOW.minus(java.time.Duration.ofDays(10));
+        repo.upsert(disabledUser("u1", disabledAt));
+
+        Optional<User> out = new AccountDeactivateUseCase(repo, CLOCK, noSubscriptions()).execute("u1");
+
+        assertTrue(out.isPresent());
+        assertEquals(disabledAt, out.get().getDisabledAt());
+        assertEquals(disabledAt, repo.findById("u1").get().getDisabledAt());
+    }
+
+    @Test
+    void deactivate_active_setsDisabled_andKeepsProfile() {
+        InMemoryUsersRepository repo = new InMemoryUsersRepository();
+        Instant created = Instant.parse("2026-01-01T00:00:00Z");
+        repo.upsert(new User("u1", "a@b.com", "Ana", null, null, null, "Pref", "google", "es", true,
+                created, created, User.STATUS_ACTIVE, null, created));
+
+        Optional<User> out = new AccountDeactivateUseCase(repo, CLOCK, noSubscriptions()).execute("u1");
+
+        assertTrue(out.isPresent());
+        User stored = repo.findById("u1").get();
+        assertEquals(User.STATUS_DISABLED, stored.getStatus());
+        assertEquals(NOW, stored.getDisabledAt());
+        assertEquals("Pref", stored.getPreferredName());
+    }
+
+    @Test
+    void updateUserPreferences_keepsStatusAndLifecycleFields() {
+        InMemoryUsersRepository repo = new InMemoryUsersRepository();
+        Instant disabledAt = NOW.minus(java.time.Duration.ofDays(3));
+        repo.upsert(disabledUser("u1", disabledAt));
+
+        new UpdateUserPreferencesUseCase(repo, new InMemoryPreferredNamesCacheRepository(), CLOCK)
+                .execute("u1", "Nuevo", "en", true);
+
+        User stored = repo.findById("u1").get();
+        assertEquals("Nuevo", stored.getPreferredName());
+        assertEquals(User.STATUS_DISABLED, stored.getStatus());
+        assertEquals(disabledAt, stored.getDisabledAt());
+    }
+
+    @Test
+    void reactivate_staleReadWhileJobClaimsAccount_doesNotReopen() {
+        User stale = disabledUser("u1", NOW.minus(java.time.Duration.ofDays(29)));
+        EnsureUserUseCaseTest.StaleOnceRepository repo = new EnsureUserUseCaseTest.StaleOnceRepository(stale);
+        repo.upsert(stale.withClosing(NOW));
+
+        assertTrue(new AccountReactivateUseCase(repo, CLOCK, java.time.Duration.ofDays(30)).execute("u1").isEmpty());
+        assertEquals(User.STATUS_CLOSING, repo.findById("u1").get().getStatus());
+    }
+
+    private static com.ones.api.application.subscriptions.CancelRecurringSubscriptionService noSubscriptions() {
+        return org.mockito.Mockito.mock(com.ones.api.application.subscriptions.CancelRecurringSubscriptionService.class);
+    }
+
+    @Test
+    void deactivate_cancelsRecurringSubscriptions_beforeMarkingDisabled() {
+        InMemoryUsersRepository repo = new InMemoryUsersRepository();
+        Instant created = Instant.parse("2026-01-01T00:00:00Z");
+        repo.upsert(new User("u1", "a@b.com", "Ana", null, null, null, "Pref", "google", "es", true,
+                created, created, User.STATUS_ACTIVE, null, null));
+        var cancel = noSubscriptions();
+        org.mockito.Mockito.doAnswer(i -> {
+            assertEquals(User.STATUS_ACTIVE, repo.findById("u1").get().getStatus()); // todavía no DISABLED
+            return null;
+        }).when(cancel).cancelFor("u1");
+
+        assertTrue(new AccountDeactivateUseCase(repo, CLOCK, cancel).execute("u1").isPresent());
+
+        org.mockito.Mockito.verify(cancel).cancelFor("u1");
+        assertEquals(User.STATUS_DISABLED, repo.findById("u1").get().getStatus());
+    }
+
+    @Test
+    void deactivate_subscriptionCancelFails_accountStaysActive_andErrorPropagates() {
+        InMemoryUsersRepository repo = new InMemoryUsersRepository();
+        Instant created = Instant.parse("2026-01-01T00:00:00Z");
+        repo.upsert(new User("u1", "a@b.com", "Ana", null, null, null, "Pref", "google", "es", true,
+                created, created, User.STATUS_ACTIVE, null, null));
+        var cancel = noSubscriptions();
+        org.mockito.Mockito.doThrow(new com.ones.api.application.subscriptions.SubscriptionCancellationException("u1",
+                new IllegalStateException("MP 500"))).when(cancel).cancelFor("u1");
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                com.ones.api.application.subscriptions.SubscriptionCancellationException.class,
+                () -> new AccountDeactivateUseCase(repo, CLOCK, cancel).execute("u1"));
+
+        assertEquals(User.STATUS_ACTIVE, repo.findById("u1").get().getStatus());
+        assertNull(repo.findById("u1").get().getDisabledAt());
+    }
+
+    @Test
+    void reactivate_doesNotTouchSubscriptions() {
+        // AccountReactivateUseCase no depende de suscripciones: la persona vuelve a suscribirse si quiere.
+        for (var c : AccountReactivateUseCase.class.getConstructors()) {
+            for (Class<?> t : c.getParameterTypes()) {
+                assertTrue(!t.getPackageName().contains("subscriptions"), t.getName());
+            }
+        }
+        InMemoryUsersRepository repo = new InMemoryUsersRepository();
+        repo.upsert(disabledUser("u1", NOW.minus(java.time.Duration.ofDays(2))));
+        assertEquals(User.STATUS_ACTIVE,
+                new AccountReactivateUseCase(repo, CLOCK, java.time.Duration.ofDays(30)).execute("u1").get().getStatus());
+    }
+
+    @Test
+    void tombstone_dropsPersonalData_keepsIdentity() {
+        User t = disabledUser("u1", NOW.minus(java.time.Duration.ofDays(40)))
+                .withLifecycle("CLOSED", NOW, "tok", "exports/u1/x.zip").tombstone(NOW);
+        assertEquals("u1", t.getUserId());
+        assertEquals("DELETED", t.getStatus());
+        assertNull(t.getEmail());
+        assertNull(t.getPreferredName());
+        assertNull(t.getExportToken());
+        assertNotNull(t.getProvider());
+    }
 
     @Test
     void getUserById_returnsUserWhenExists() {
@@ -96,35 +260,4 @@ class UserUseCasesTest {
         }
     }
 
-    private static class InMemoryUsersRepository implements UsersRepository {
-        private final Map<String, User> byId = new HashMap<>();
-        private final Map<String, User> byEmail = new HashMap<>();
-
-        @Override
-        public Optional<User> findById(String userId) {
-            return Optional.ofNullable(byId.get(userId));
-        }
-
-        @Override
-        public Optional<User> findByEmail(String email) {
-            if (email == null) {
-                return Optional.empty();
-            }
-            return Optional.ofNullable(byEmail.get(email));
-        }
-
-        @Override
-        public User upsert(User user) {
-            byId.put(user.getUserId(), user);
-            if (user.getEmail() != null) {
-                byEmail.put(user.getEmail(), user);
-            }
-            return user;
-        }
-
-        @Override
-        public void deleteById(String userId) {
-            byId.remove(userId);
-        }
-    }
 }

@@ -1,8 +1,12 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../core/http/ones_api_factory.dart';
+import '../../auth/domain/auth_failure.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../adapters/api/account_api_repository.dart';
+
+/// Resultado de la baja: [cancelled] es decisión de la persona (diálogo de Apple), no un fallo.
+enum DeactivationResult { done, cancelled, failed }
 
 class AccountController extends ChangeNotifier {
   final AccountApiRepository repository;
@@ -16,8 +20,12 @@ class AccountController extends ChangeNotifier {
       : assert(apiFactory != null || repository != null, 'apiFactory or repository is required'),
         repository = repository ?? AccountApiRepository(apiFactory!);
 
+  /// Sesión para la que ya se revisó la reactivación (se reinicia al cerrar sesión).
+  String? _reactivationCheckedFor;
+
   void setIdToken(String? idToken) {
     _idToken = idToken;
+    if (idToken == null || idToken.isEmpty) _reactivationCheckedFor = null;
   }
 
   AccountStatus? get status => _status;
@@ -38,19 +46,27 @@ class AccountController extends ChangeNotifier {
     }
   }
 
-  Future<bool> deactivateAndSignOut(AuthController auth) async {
+  Future<DeactivationResult> deactivateAndSignOut(AuthController auth) async {
     final token = _idToken;
-    if (token == null || token.isEmpty) return false;
+    if (token == null || token.isEmpty) return DeactivationResult.failed;
     _setLoading(true);
     try {
       _error = null;
+      try {
+        await auth.revokeAppleAccessIfNeeded();
+      } on AuthException catch (e) {
+        if (e.failure == AuthFailure.cancelled) return DeactivationResult.cancelled;
+        debugPrint('[account] no se pudo revocar el acceso de Apple: $e');
+      } catch (e) {
+        debugPrint('[account] no se pudo revocar el acceso de Apple: $e');
+      }
       final ok = await repository.deactivate(token);
-      if (!ok) return false;
+      if (!ok) return DeactivationResult.failed;
       await auth.logout();
-      return true;
+      return DeactivationResult.done;
     } catch (e) {
       _error = e;
-      return false;
+      return DeactivationResult.failed;
     } finally {
       _setLoading(false);
     }
@@ -58,9 +74,15 @@ class AccountController extends ChangeNotifier {
 
   /// Reactiva la cuenta si está DISABLED y sigue dentro de la ventana.
   /// Si el API rechaza la reactivación (ventana vencida), invoca [onClosed].
-  Future<void> ensureReactivatedIfEligible({Future<void> Function()? onClosed}) async {
+  /// Se llama en cada cambio de la sesión; con [sessionKey] solo consulta una vez por sesión
+  /// (renovar el token cada hora no vuelve a disparar la consulta).
+  Future<void> ensureReactivatedIfEligible({Future<void> Function()? onClosed, String? sessionKey}) async {
     final token = _idToken;
     if (token == null || token.isEmpty) return;
+    if (sessionKey != null) {
+      if (_reactivationCheckedFor == sessionKey) return;
+      _reactivationCheckedFor = sessionKey;
+    }
     try {
       final st = await repository.getStatus(token);
       if (st != null && st.status.toUpperCase() == 'DISABLED') {

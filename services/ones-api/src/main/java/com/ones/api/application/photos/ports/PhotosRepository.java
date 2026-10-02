@@ -13,6 +13,8 @@ public interface PhotosRepository {
 
     PageResult<Photo> listByEventId(String eventId, int limit, String nextToken);
 
+    PageResult<Photo> listByGuestId(String guestId, int limit, String nextToken);
+
     PageResult<Photo> listAll(int limit, String nextToken);
 
     long countByEventId(String eventId);

@@ -8,7 +8,10 @@ import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -34,6 +37,18 @@ public class DynamoDbSubscriptionPaymentsRepository implements SubscriptionPayme
     public SubscriptionPayment upsert(SubscriptionPayment payment) {
         table.putItem(toItem(payment));
         return payment;
+    }
+
+    @Override
+    public List<SubscriptionPayment> listByUserId(String userId) {
+        if (userId == null || userId.isBlank()) return List.of();
+        QueryEnhancedRequest request = QueryEnhancedRequest.builder()
+                .queryConditional(QueryConditional.keyEqualTo(Key.builder().partitionValue(userId.trim()).build()))
+                .build();
+        return table.index("byUserId").query(request).stream()
+                .flatMap(page -> page.items().stream())
+                .map(DynamoDbSubscriptionPaymentsRepository::toDomain)
+                .toList();
     }
 
     private static DynamoSubscriptionPaymentItem toItem(SubscriptionPayment p) {

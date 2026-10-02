@@ -61,6 +61,7 @@ public class DynamoPhotoItem {
     }
 
     @DynamoDbAttribute("guestId")
+    @DynamoDbSecondaryPartitionKey(indexNames = {"byGuestId"})
     public String getGuestId() {
         return guestId;
     }

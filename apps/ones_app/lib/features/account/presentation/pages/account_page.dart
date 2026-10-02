@@ -48,7 +48,7 @@ class AccountPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      'Tu cuenta se desactivará ahora. Si vuelves a iniciar sesión dentro de los próximos 30 días, se reactivará automáticamente. Pasados 30 días te enviaremos tus fotos al correo registrado y procederemos al cierre definitivo de tu cuenta.',
+                      'Tu cuenta se desactivará ahora. Si vuelves a iniciar sesión dentro de los próximos 30 días, se reactivará automáticamente. Pasados 30 días te enviaremos tus fotos por correo; el enlace dura 8 días y después borraremos tu cuenta y todo su contenido definitivamente.',
                       style: TextStyle(color: OnesColors.black.withOpacity(0.6)),
                     ),
                     const SizedBox(height: 12),
@@ -69,7 +69,7 @@ class AccountPage extends StatelessWidget {
                                   builder: (ctx) => AlertDialog(
                                     title: const Text('Desactivar cuenta'),
                                     content: const Text(
-                                        'Tu cuenta se desactivará ahora. Si vuelves a iniciar sesión dentro de los próximos 30 días, se reactivará automáticamente. Pasados 30 días te enviaremos tus fotos al correo registrado y procederemos al cierre definitivo de tu cuenta. ¿Deseas continuar?'),
+                                        'Tu cuenta se desactivará ahora. Si vuelves a iniciar sesión dentro de los próximos 30 días, se reactivará automáticamente. Pasados 30 días te enviaremos tus fotos por correo; el enlace dura 8 días y después borraremos tu cuenta y todo su contenido definitivamente. ¿Deseas continuar?'),
                                     actions: [
                                       TextButton(
                                         onPressed: () => Navigator.of(ctx).pop(false),
@@ -101,9 +101,10 @@ class AccountPage extends StatelessWidget {
                                   ),
                                 );
                                 if (confirmed2 != true) return;
-                                final ok = await context.read<AccountController>().deactivateAndSignOut(auth);
+                                final result = await context.read<AccountController>().deactivateAndSignOut(auth);
                                 if (!context.mounted) return;
-                                if (!ok) {
+                                if (result == DeactivationResult.cancelled) return;
+                                if (result == DeactivationResult.failed) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(content: Text('No fue posible desactivar la cuenta. Intenta de nuevo.')),
                                   );

@@ -325,6 +325,20 @@ class EventCoversServiceTest {
         }
 
         @Override
+        public java.io.InputStream open(String bucket, String key) {
+            byte[] bytes = objects.get(bucket + "/" + key);
+            if (bytes == null) {
+                throw new IllegalStateException("No existe el objeto " + bucket + "/" + key);
+            }
+            return new java.io.ByteArrayInputStream(bytes);
+        }
+
+        @Override
+        public Upload openUpload(String bucket, String key, String contentType) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public void delete(String bucket, String key) {
             objects.remove(bucket + "/" + key);
         }
@@ -412,7 +426,8 @@ class EventCoversServiceTest {
         public void deleteById(String eventId) {
             items.remove(eventId);
         }
-    }
+    }
+
 }
 
 

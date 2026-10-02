@@ -1,10 +1,15 @@
 package com.ones.api.configuration;
 
+import java.util.Map;
+
+import jakarta.servlet.http.HttpServletRequest;
+
 import org.springframework.http.HttpMethod;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.security.authentication.AuthenticationManagerResolver;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -12,11 +17,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.oauth2.core.OAuth2TokenValidator;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtValidators;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;
@@ -30,8 +31,11 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.config.http.SessionCreationPolicy;
 
 import com.ones.api.adapters.inbound.rest.DisabledAccountFilter;
+import com.ones.api.adapters.inbound.rest.EmailVerifiedFilter;
+import com.ones.api.adapters.inbound.rest.LegacyAccountMigrationFilter;
 import com.ones.api.application.admin.AdminAccessService;
 import com.ones.api.application.users.AccountAccessService;
+import com.ones.api.application.users.AccountMigrationService;
 
 @Configuration
 @EnableWebSecurity
@@ -126,10 +130,10 @@ public class SecurityConfig {
     @Order(4)
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            JwtDecoder jwtDecoder,
-            JwtAuthenticationConverter jwtAuthenticationConverter,
+            AuthenticationManagerResolver<HttpServletRequest> jwtAuthenticationManagerResolver,
             AdminAccessService adminAccessService,
-            AccountAccessService accountAccessService
+            AccountAccessService accountAccessService,
+            AccountMigrationService accountMigrationService
     ) throws Exception {
 
         AuthorizationManager<RequestAuthorizationContext> adminOnly = (authentication, context) -> {
@@ -157,35 +161,34 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/events/*/invite-link/preview").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/translations/page", "/v1/translations/key").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/v1/translations", "/v1/translations/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/v1/account-exports/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/v1/translations","/v1/translations/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/v1/admin/translations", "/v1/admin/translations/**").authenticated()
                         .requestMatchers("/v1/admin/me").authenticated()
                         .requestMatchers("/v1/admin/**").access(adminOnly)
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> jwt
-                                .decoder(jwtDecoder)
-                                .jwtAuthenticationConverter(jwtAuthenticationConverter)
-                        )
+                        .authenticationManagerResolver(jwtAuthenticationManagerResolver)
                 )
-                // Bloquea cuentas desactivadas una vez autenticado el JWT (ver DisabledAccountFilter).
-                .addFilterAfter(new DisabledAccountFilter(accountAccessService), BearerTokenAuthenticationFilter.class);
+                // Orden tras autenticar el JWT: correo verificado → migración de cuentas legadas → cuentas desactivadas.
+                .addFilterAfter(new EmailVerifiedFilter(), BearerTokenAuthenticationFilter.class)
+                .addFilterAfter(new LegacyAccountMigrationFilter(accountMigrationService), EmailVerifiedFilter.class)
+                .addFilterAfter(new DisabledAccountFilter(accountAccessService), LegacyAccountMigrationFilter.class);
 
         return http.build();
     }
 
     @Bean
-    JwtDecoder jwtDecoder(
-            @Value("${GOOGLE_CLIENT_ID:${ones.auth.google.client-id:}}") String googleClientIds
+    AuthenticationManagerResolver<HttpServletRequest> jwtAuthenticationManagerResolver(
+            @Value("${GOOGLE_CLIENT_ID:${ones.auth.google.client-id:}}") String googleClientIds,
+            @Value("${ones.auth.google-legacy.enabled:true}") boolean googleLegacyEnabled,
+            @Value("${ones.auth.firebase.project-id:}") String firebaseProjectId,
+            JwtAuthenticationConverter jwtAuthenticationConverter
     ) {
-        NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri("https://www.googleapis.com/oauth2/v3/certs").build();
-
-        OAuth2TokenValidator<Jwt> issuerValidator = JwtValidators.createDefaultWithIssuer("https://accounts.google.com");
-        OAuth2TokenValidator<Jwt> audienceValidator = new GoogleAudienceValidator(googleClientIds);
-
-        decoder.setJwtValidator(new DelegatingOAuth2TokenValidatorWithAll<>(issuerValidator, audienceValidator));
-        return decoder;
+        Map<String, JwtDecoder> decoders = AuthIssuers.decoders(
+                AuthIssuers.validators(googleLegacyEnabled, googleClientIds, firebaseProjectId));
+        return AuthIssuers.resolver(decoders, jwtAuthenticationConverter);
     }
 
     @Bean

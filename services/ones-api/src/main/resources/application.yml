@@ -15,6 +15,8 @@ ones:
   env: ${ONES_ENV:dev}
   app:
     base-url: ${ONES_APP_BASE_URL:}
+  api:
+    public-base-url: ${ONES_API_PUBLIC_BASE_URL:}
   email:
     enabled: ${ONES_EMAIL_ENABLED:false}
     from: ${ONES_EMAIL_FROM:}
@@ -44,6 +46,11 @@ ones:
   auth:
     google:
       client-id: ${GOOGLE_CLIENT_ID:}
+    google-legacy:
+      enabled: ${GOOGLE_LEGACY_AUTH_ENABLED:true}
+    firebase:
+      project-id: ${FIREBASE_PROJECT_ID:}
+      service-account-secret-name: ${FIREBASE_SERVICE_ACCOUNT_SECRET_NAME:}
   ai:
     openai:
       api-key-secret-name: ${OPENAI_API_KEY_SECRET_NAME:ones/dev/openai-api-key}
@@ -260,6 +267,8 @@ ones:
     app-base-url: ${ONES_APP_BASE_URL:}
     test-payer-email: ${ONES_MERCADOPAGO_TEST_PAYER_EMAIL:}
 
+  account:
+    exports-bucket: ${ONES_ACCOUNT_EXPORTS_BUCKET:}
   photos:
     social-share-ttl-days: ${ONES_PHOTOS_SOCIAL_SHARE_TTL_DAYS:7}
   ws:
