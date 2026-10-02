@@ -16,8 +16,12 @@ class AccountController extends ChangeNotifier {
       : assert(apiFactory != null || repository != null, 'apiFactory or repository is required'),
         repository = repository ?? AccountApiRepository(apiFactory!);
 
+  /// Sesión para la que ya se revisó la reactivación (se reinicia al cerrar sesión).
+  String? _reactivationCheckedFor;
+
   void setIdToken(String? idToken) {
     _idToken = idToken;
+    if (idToken == null || idToken.isEmpty) _reactivationCheckedFor = null;
   }
 
   AccountStatus? get status => _status;
@@ -58,9 +62,15 @@ class AccountController extends ChangeNotifier {
 
   /// Reactiva la cuenta si está DISABLED y sigue dentro de la ventana.
   /// Si el API rechaza la reactivación (ventana vencida), invoca [onClosed].
-  Future<void> ensureReactivatedIfEligible({Future<void> Function()? onClosed}) async {
+  /// Se llama en cada cambio de la sesión; con [sessionKey] solo consulta una vez por sesión
+  /// (renovar el token cada hora no vuelve a disparar la consulta).
+  Future<void> ensureReactivatedIfEligible({Future<void> Function()? onClosed, String? sessionKey}) async {
     final token = _idToken;
     if (token == null || token.isEmpty) return;
+    if (sessionKey != null) {
+      if (_reactivationCheckedFor == sessionKey) return;
+      _reactivationCheckedFor = sessionKey;
+    }
     try {
       final st = await repository.getStatus(token);
       if (st != null && st.status.toUpperCase() == 'DISABLED') {

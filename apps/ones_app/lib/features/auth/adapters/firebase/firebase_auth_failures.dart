@@ -11,6 +11,7 @@ AuthFailure authFailureFromCode(String code) => switch (code) {
         AuthFailure.accountExistsWithDifferentCredential,
       'too-many-requests' => AuthFailure.tooManyRequests,
       'popup-blocked' => AuthFailure.popupBlocked,
+      'user-token-expired' || 'invalid-user-token' => AuthFailure.sessionExpired,
       'network-request-failed' => AuthFailure.network,
       'canceled' ||
       'cancelled' ||

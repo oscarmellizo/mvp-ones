@@ -335,4 +335,83 @@ void main() {
       expect(repo.reloadCalls, 1);
     });
   });
+
+  group('sesión que muere', () {
+    setUp(() async {
+      await auth.signInWithGoogle();
+      expect(auth.isRegistered, isTrue);
+    });
+
+    test('sesión expirada al renovar el token: cierra sesión y avisa', () async {
+      repo.tokenError = const AuthException(AuthFailure.sessionExpired);
+
+      expect(await auth.refreshIdToken(), isNull);
+
+      expect(auth.isSignedIn, isFalse);
+      expect(repo.signOutCalls, 1);
+      expect(auth.error, 'Tu sesión expiró. Inicia sesión de nuevo.');
+    });
+
+    test('cuenta deshabilitada o borrada en Firebase: cierra sesión', () async {
+      repo.tokenError = const AuthException(AuthFailure.userDisabled);
+      await auth.refreshIdToken();
+      expect(auth.isSignedIn, isFalse);
+      expect(auth.error, authFailureMessage(AuthFailure.userDisabled));
+    });
+
+    test('sin internet al renovar: mantiene la sesión', () async {
+      repo.tokenError = const AuthException(AuthFailure.network);
+
+      expect(await auth.refreshIdToken(), isNull);
+
+      expect(auth.isSignedIn, isTrue);
+      expect(auth.isRegistered, isTrue);
+      expect(repo.signOutCalls, 0);
+    });
+
+    test('Firebase ya no tiene usuario: cierra sesión', () async {
+      repo.current = null;
+
+      expect(await auth.refreshIdToken(), isNull);
+
+      expect(auth.isSignedIn, isFalse);
+      expect(auth.error, 'Tu sesión expiró. Inicia sesión de nuevo.');
+    });
+
+    test('al volver a la app sin usuario en Firebase: cierra sesión', () async {
+      repo.current = null;
+
+      await auth.checkSessionOnResume();
+
+      expect(auth.isSignedIn, isFalse);
+    });
+
+    test('al volver a la app con la sesión viva: no hace nada', () async {
+      await auth.checkSessionOnResume();
+
+      expect(auth.isSignedIn, isTrue);
+      expect(repo.signOutCalls, 0);
+    });
+  });
+
+  group('instalación nueva', () {
+    test('la primera apertura tras instalar descarta la sesión guardada', () async {
+      repo.current = fakeUser();
+      repo.freshInstall = true;
+
+      await auth.restoreSessionIfPossible();
+
+      expect(repo.freshInstallChecks, 1);
+      expect(auth.isSignedIn, isFalse);
+    });
+
+    test('en aperturas normales restaura la sesión', () async {
+      repo.current = fakeUser();
+
+      await auth.restoreSessionIfPossible();
+
+      expect(repo.freshInstallChecks, 1);
+      expect(auth.isRegistered, isTrue);
+    });
+  });
 }

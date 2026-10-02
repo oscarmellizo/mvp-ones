@@ -28,6 +28,13 @@ class FakeAuthRepository implements AuthRepository {
   /// Si no es null, los inicios de sesión esperan a que se complete.
   Completer<void>? signInGate;
   AuthException? migrationError;
+
+  /// Error al pedir el ID token (sesión muerta, sin internet...).
+  AuthException? tokenError;
+
+  /// Simula la primera apertura tras instalar: la sesión guardada se descarta.
+  bool freshInstall = false;
+  int freshInstallChecks = 0;
   final List<String> passwordResets = [];
   final List<bool> tokenRequests = [];
 
@@ -76,8 +83,16 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> clearSessionIfFreshInstall() async {
+    freshInstallChecks++;
+    if (freshInstall) current = null;
+  }
+
+  @override
   Future<String?> getIdToken({bool forceRefresh = false}) async {
     tokenRequests.add(forceRefresh);
+    final error = tokenError;
+    if (error != null) throw error;
     return current == null ? null : token;
   }
 

@@ -4,6 +4,10 @@ import 'auth_user.dart';
 abstract interface class AuthRepository {
   Future<AuthUser?> currentUser();
 
+  /// La primera vez que se abre la app tras instalarla descarta la sesión guardada
+  /// (en iOS el Keychain la conserva aunque se desinstale la app).
+  Future<void> clearSessionIfFreshInstall();
+
   Future<AuthUser> signInWithGoogle();
 
   /// Solo iOS; en otras plataformas lanza AuthException(AuthFailure.unsupported).

@@ -102,6 +102,11 @@ class AuthController extends ChangeNotifier {
 
   Future<void> _restoreSessionInternal() async {
     _isRestoring = true;
+    try {
+      await authRepository.clearSessionIfFreshInstall();
+    } catch (_) {
+      // Si no se puede comprobar, se sigue con la sesión que haya.
+    }
     var current = await authRepository.currentUser();
     if (current == null) {
       _isRestoring = false;
@@ -383,11 +388,22 @@ class AuthController extends ChangeNotifier {
     return lookupUserByEmailUseCase.execute(token, email);
   }
 
-  /// Usado por el interceptor 401 de OnesApiFactory.
+  /// Usado por el interceptor 401 de OnesApiFactory. Si la sesión murió (cuenta borrada o
+  /// deshabilitada, sesión revocada o Firebase sin usuario) vuelve al login con un aviso;
+  /// ante fallas pasajeras (sin internet) conserva la sesión.
   Future<String?> refreshIdToken() async {
     try {
-      final token = await authRepository.getIdToken(forceRefresh: true);
-      if (token == null || token.isEmpty) return null;
+      final String? token;
+      try {
+        token = await authRepository.getIdToken(forceRefresh: true);
+      } on AuthException catch (e) {
+        if (_sessionIsOver(e.failure)) await _endSession(authFailureMessage(e.failure));
+        return null;
+      }
+      if (token == null || token.isEmpty) {
+        if (_user != null) await _endSession(authFailureMessage(AuthFailure.sessionExpired));
+        return null;
+      }
       _idToken = token;
       if (_isRegistered) {
         _isAdmin = await _safeLoadIsAdmin(token);
@@ -397,6 +413,36 @@ class AuthController extends ChangeNotifier {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Al volver a la app: si Firebase ya no tiene usuario, la sesión murió mientras estaba en segundo plano.
+  Future<void> checkSessionOnResume() async {
+    if (_user == null || _isLoading) return;
+    try {
+      final current = await authRepository.currentUser();
+      if (current == null && _user != null && !_isLoading) {
+        await _endSession(authFailureMessage(AuthFailure.sessionExpired));
+      }
+    } catch (_) {
+      // Si no se puede comprobar, se mantiene la sesión.
+    }
+  }
+
+  static bool _sessionIsOver(AuthFailure failure) =>
+      failure == AuthFailure.sessionExpired ||
+      failure == AuthFailure.userDisabled ||
+      failure == AuthFailure.invalidCredentials;
+
+  Future<void>? _endSessionInFlight;
+
+  Future<void> _endSession(String message) {
+    return _endSessionInFlight ??= () async {
+      await _safeSignOut();
+      _clearSession();
+      _error = message;
+      notifyListeners();
+    }()
+        .whenComplete(() => _endSessionInFlight = null);
   }
 
   /// "Intentar con otra cuenta" en el login.

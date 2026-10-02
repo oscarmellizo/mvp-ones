@@ -53,4 +53,27 @@ void main() {
       verifyNever(() => repo.reactivate(any()));
     });
   });
+
+  group('una sola vez por sesión', () {
+    test('no vuelve a consultar el estado cuando solo se renueva el token', () async {
+      when(() => repo.getStatus(any())).thenAnswer((_) async => const AccountStatus(status: 'ACTIVE'));
+
+      await controller.ensureReactivatedIfEligible(sessionKey: 'uid-1');
+      controller.setIdToken('token-renovado');
+      await controller.ensureReactivatedIfEligible(sessionKey: 'uid-1');
+
+      verify(() => repo.getStatus(any())).called(1);
+    });
+
+    test('vuelve a consultar en una sesión nueva', () async {
+      when(() => repo.getStatus(any())).thenAnswer((_) async => const AccountStatus(status: 'ACTIVE'));
+
+      await controller.ensureReactivatedIfEligible(sessionKey: 'uid-1');
+      controller.setIdToken(null);
+      controller.setIdToken('token-otra-sesion');
+      await controller.ensureReactivatedIfEligible(sessionKey: 'uid-1');
+
+      verify(() => repo.getStatus(any())).called(2);
+    });
+  });
 }

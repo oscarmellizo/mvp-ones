@@ -176,6 +176,7 @@ class OnesApp extends StatelessWidget {
             final token = auth.idToken;
             if (token != null && token.isNotEmpty) {
               controller.ensureReactivatedIfEligible(
+                sessionKey: auth.user?.userId,
                 onClosed: () => auth.signOutBecauseAccountBlocked(AccountBlock.closed),
               );
             }
@@ -513,7 +514,10 @@ class _RootRouterState extends State<_RootRouter> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _checkPendingNotif();
       // Volvió desde el correo (otra app o pestaña): si ya verificó, avanzamos sin pedirle nada.
-      context.read<AuthController>().refreshEmailVerification();
+      final auth = context.read<AuthController>();
+      auth.refreshEmailVerification();
+      // Si la sesión murió en segundo plano (cuenta borrada, sesión revocada), vuelve al login.
+      auth.checkSessionOnResume();
     }
   }
 

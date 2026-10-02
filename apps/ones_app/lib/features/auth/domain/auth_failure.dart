@@ -7,6 +7,7 @@ enum AuthFailure {
   accountExistsWithDifferentCredential,
   tooManyRequests,
   popupBlocked,
+  sessionExpired,
   cancelled,
   network,
   unsupported,
@@ -36,6 +37,7 @@ String authFailureMessage(AuthFailure failure) => switch (failure) {
       AuthFailure.tooManyRequests => 'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.',
       AuthFailure.popupBlocked =>
         'Tu navegador bloqueó la ventana de Google. Permite las ventanas emergentes de este sitio e inténtalo de nuevo.',
+      AuthFailure.sessionExpired => 'Tu sesión expiró. Inicia sesión de nuevo.',
       AuthFailure.cancelled => '',
       AuthFailure.network => 'Sin conexión. Revisa tu internet e inténtalo de nuevo.',
       AuthFailure.unsupported => 'Este método de inicio de sesión no está disponible en este dispositivo.',

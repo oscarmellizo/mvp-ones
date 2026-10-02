@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/auth_failure.dart';
 import '../../domain/auth_repository.dart';
@@ -18,6 +19,18 @@ class FirebaseAuthRepository implements AuthRepository {
 
   FirebaseAuthRepository({FirebaseAuth? auth, required this.googleServerClientId})
       : _auth = auth ?? FirebaseAuth.instance;
+
+  /// SharedPreferences se borra al desinstalar; el Keychain de iOS no.
+  static const _installedKey = 'ones.auth.installed_v1';
+
+  @override
+  Future<void> clearSessionIfFreshInstall() async {
+    if (kIsWeb) return;
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_installedKey) == true) return;
+    await prefs.setBool(_installedKey, true);
+    if (_auth.currentUser != null) await _auth.signOut();
+  }
 
   @override
   Future<AuthUser?> currentUser() async {
