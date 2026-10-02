@@ -165,27 +165,35 @@ public class DynamoDbPhotoLikesRepository implements PhotoLikesRepository {
     @Override
     public void deleteAllByUserId(String userId) {
         if (userId == null || userId.isBlank()) return;
+        QueryEnhancedRequest req = QueryEnhancedRequest.builder()
+                .queryConditional(QueryConditional.keyEqualTo(
+                        Key.builder().partitionValue("user#" + userId.trim()).build()))
+                .build();
+
+        // Se intenta borrar cada like aunque alguno falle; al final se lanza si quedó algo sin borrar.
+        int failed = 0;
+        RuntimeException firstCause = null;
         try {
-            QueryEnhancedRequest req = QueryEnhancedRequest.builder()
-                    .queryConditional(QueryConditional.keyEqualTo(
-                            Key.builder().partitionValue("user#" + userId.trim()).build()))
-                    .build();
-            table.index("gsi1").query(req).stream()
-                    .flatMap(page -> page.items().stream())
-                    .forEach(item -> {
-                        try {
-                            table.deleteItem(Key.builder()
-                                    .partitionValue(item.getPhotoId())
-                                    .sortValue(item.getUserId())
-                                    .build());
-                        } catch (Exception e) {
-                            log.warn("[DynamoDbPhotoLikesRepository.deleteAllByUserId] delete item failed photoId={} userId={} err={}",
-                                    item.getPhotoId(), item.getUserId(), e.toString());
-                        }
-                    });
-        } catch (Exception e) {
-            log.warn("[DynamoDbPhotoLikesRepository.deleteAllByUserId] failed userId={} err={}",
-                    userId, e.toString());
+            for (var page : table.index("gsi1").query(req)) {
+                for (DynamoPhotoLikeItem item : page.items()) {
+                    try {
+                        table.deleteItem(Key.builder()
+                                .partitionValue(item.getPhotoId())
+                                .sortValue(item.getUserId())
+                                .build());
+                    } catch (RuntimeException e) {
+                        failed++;
+                        if (firstCause == null) firstCause = e;
+                        log.warn("[DynamoDbPhotoLikesRepository.deleteAllByUserId] delete item failed photoId={} userId={} err={}",
+                                item.getPhotoId(), item.getUserId(), e.toString());
+                    }
+                }
+            }
+        } catch (RuntimeException e) {
+            throw new IllegalStateException("No se pudieron consultar los likes del usuario " + userId, e);
+        }
+        if (failed > 0) {
+            throw new IllegalStateException("No se pudieron borrar " + failed + " likes del usuario " + userId, firstCause);
         }
     }
 }
