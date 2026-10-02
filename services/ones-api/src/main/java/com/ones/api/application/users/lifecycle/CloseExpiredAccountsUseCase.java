@@ -4,10 +4,16 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +35,9 @@ public class CloseExpiredAccountsUseCase {
     /** Tras este tiempo un reclamo CLOSING se considera abandonado (tarea caída) y otra corrida lo retoma. */
     public static final Duration CLAIM_LEASE = Duration.ofHours(6);
 
+    /** Margen tras la ventana a partir del cual una cuenta sin cerrar se considera atrasada (día 31). */
+    static final Duration OVERDUE_MARGIN = Duration.ofDays(1);
+
     private final UsersRepository usersRepository;
     private final PhotosExportService photosExportService;
     private final AccountEmailService accountEmailService;
@@ -37,10 +46,14 @@ public class CloseExpiredAccountsUseCase {
     private final Clock clock;
     private final Duration window;
     private final String base;
+    private final Counter closedCounter;
+    private final Counter failedCounter;
+    private final AtomicInteger overdue = new AtomicInteger();
 
     public CloseExpiredAccountsUseCase(UsersRepository usersRepository, PhotosExportService photosExportService,
                                        AccountEmailService accountEmailService, AccountAccessService accountAccessService,
-                                       CancelRecurringSubscriptionService cancelSubscriptions, Clock clock, Duration window, String apiPublicBaseUrl) {
+                                       CancelRecurringSubscriptionService cancelSubscriptions, Clock clock, Duration window,
+                                       String apiPublicBaseUrl, MeterRegistry meterRegistry) {
         this.usersRepository = usersRepository;
         this.photosExportService = photosExportService;
         this.accountEmailService = accountEmailService;
@@ -52,25 +65,43 @@ public class CloseExpiredAccountsUseCase {
         String b = apiPublicBaseUrl == null ? "" : apiPublicBaseUrl.trim();
         while (b.endsWith("/")) b = b.substring(0, b.length() - 1);
         this.base = b;
+        this.closedCounter = Counter.builder("ones.account.lifecycle.closed").tag("phase", "close").register(meterRegistry);
+        this.failedCounter = Counter.builder("ones.account.lifecycle.failed").tag("phase", "close").register(meterRegistry);
+        Gauge.builder("ones.account.lifecycle.overdue", overdue, AtomicInteger::get).tag("phase", "close")
+                .description("Cuentas DISABLED hace más de 31 días que esta corrida no pudo cerrar")
+                .register(meterRegistry);
     }
 
     /** @return cantidad de cuentas cerradas en esta corrida. */
     public int execute() {
         Instant now = Instant.now(clock);
         int closed = 0;
+        List<String> overdueIds = new ArrayList<>();
         for (User u : usersRepository.findByStatusIn(Set.of(User.STATUS_DISABLED, User.STATUS_CLOSING))) {
             if (!claim(u, now)) continue;
             User claimed = u.withClosing(now);
+            boolean ok = false;
             try {
-                if (close(claimed, now)) {
-                    closed++;
-                } else {
-                    revert(claimed, now);
-                }
+                ok = close(claimed, now);
+                if (!ok) revert(claimed, now);
             } catch (Exception e) {
                 log.warn("[CloseExpiredAccounts] userId={} falló el cierre; vuelve a DISABLED para reintentar", u.getUserId(), e);
                 revert(claimed, now);
             }
+            if (ok) {
+                closed++;
+                closedCounter.increment();
+            } else {
+                failedCounter.increment();
+                if (u.getDisabledAt() != null && now.isAfter(u.getDisabledAt().plus(window).plus(OVERDUE_MARGIN))) {
+                    overdueIds.add(u.getUserId());
+                }
+            }
+        }
+        overdue.set(overdueIds.size());
+        if (!overdueIds.isEmpty()) {
+            // Este texto lo cuenta un filtro de métricas de CloudWatch que dispara una alarma.
+            log.warn("[AccountLifecycle] ACCOUNT_LIFECYCLE_OVERDUE phase=close count={} userIds={}", overdueIds.size(), overdueIds);
         }
         return closed;
     }

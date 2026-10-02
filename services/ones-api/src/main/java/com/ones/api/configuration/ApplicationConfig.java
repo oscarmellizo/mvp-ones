@@ -184,10 +184,11 @@ public class ApplicationConfig {
                                                            com.ones.api.application.subscriptions.CancelRecurringSubscriptionService cancelSubscriptions,
                                                            Clock clock,
                                                            @Value("${ones.account.reactivate-window-days:30}") int windowDays,
-                                                           @Value("${ones.api.public-base-url:}") String apiPublicBaseUrl) {
+                                                           @Value("${ones.api.public-base-url:}") String apiPublicBaseUrl,
+                                                           io.micrometer.core.instrument.MeterRegistry meterRegistry) {
         java.time.Duration window = java.time.Duration.ofDays(Math.max(1, windowDays));
         return new CloseExpiredAccountsUseCase(repository, exportService, emailService, accessService, cancelSubscriptions,
-                clock, window, apiPublicBaseUrl);
+                clock, window, apiPublicBaseUrl, meterRegistry);
     }
 
     @Bean
@@ -202,11 +203,12 @@ public class ApplicationConfig {
                                                          com.ones.api.application.users.ports.FirebaseIdentityAdmin firebaseIdentityAdmin,
                                                          com.ones.api.application.events.EventPurger eventPurger,
                                                          AccountAccessService accessService, Clock clock,
-                                                         @Value("${ones.account.exports-bucket:}") String exportsBucket) {
+                                                         @Value("${ones.account.exports-bucket:}") String exportsBucket,
+                                                         io.micrometer.core.instrument.MeterRegistry meterRegistry) {
         return new PurgeClosedAccountsUseCase(usersRepository, eventsRepository, photosRepository, photoLikesRepository,
                 invitationsRepository, paymentProfilesRepository, subscriptionPaymentsRepository,
                 preferredNamesCacheRepository, objectStorage, firebaseIdentityAdmin, eventPurger, accessService,
-                clock, exportsBucket);
+                clock, exportsBucket, meterRegistry);
     }
 
     @Bean

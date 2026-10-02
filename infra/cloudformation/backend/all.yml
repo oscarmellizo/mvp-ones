@@ -2953,6 +2953,57 @@ Resources:
         RetryPolicy:
           MaximumRetryAttempts: 2
 
+  # La tarea diaria de baja de cuentas es un camino de cumplimiento (App Store): sus fallos no pueden quedar
+  # solo en los logs. Errors del disparador = 401 del secreto interno, API caída o timeout.
+  AccountLifecycleTriggerErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-account-lifecycle-trigger-errors
+      AlarmDescription: El disparador diario del ciclo de vida de cuentas falló.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref AccountLifecycleTriggerFunction
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  # Cuentas atrasadas: DISABLED hace más de 31 días sin cerrar o CLOSED hace más de 9 días sin borrar.
+  # El API escribe "ACCOUNT_LIFECYCLE_OVERDUE" en el log en cada corrida que las encuentra.
+  AccountLifecycleOverdueMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref LogGroup
+      FilterPattern: '"ACCOUNT_LIFECYCLE_OVERDUE"'
+      MetricTransformations:
+        - MetricNamespace: !Sub ${StackPrefix}/${Environment}
+          MetricName: account_lifecycle_overdue
+          MetricValue: '1'
+
+  AccountLifecycleOverdueAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-account-lifecycle-overdue
+      AlarmDescription: Hay cuentas cuyo cierre o borrado lleva más de un día de atraso.
+      Namespace: !Sub ${StackPrefix}/${Environment}
+      MetricName: account_lifecycle_overdue
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
   PhotoThumbnailsFunctionImage:
     Type: AWS::Lambda::Function
     Condition: UsePhotoThumbnailsImageCond

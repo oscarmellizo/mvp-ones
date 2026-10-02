@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -63,6 +64,7 @@ class PurgeClosedAccountsUseCaseTest {
     private FirebaseIdentityAdmin firebase;
     private AccountAccessService access;
     private PurgeClosedAccountsUseCase useCase;
+    private SimpleMeterRegistry meters;
 
     @BeforeEach
     void setUp() {
@@ -81,8 +83,9 @@ class PurgeClosedAccountsUseCaseTest {
         // El purger real borra el evento y la foto; el mock lo imita sobre los fakes.
         doAnswer(i -> { events.deleteById(((Event) i.getArgument(0)).getEventId()); return 0; }).when(purger).purge(any(Event.class));
         doAnswer(i -> { photos.deleteById(((Photo) i.getArgument(0)).getPhotoId()); return null; }).when(purger).purgePhoto(any(Photo.class));
+        meters = new SimpleMeterRegistry();
         useCase = new PurgeClosedAccountsUseCase(repo, events, photos, likes, invitations, profiles, payments,
-                names, storage, firebase, purger, access, Clock.fixed(NOW, ZoneOffset.UTC), "exports", d -> { });
+                names, storage, firebase, purger, access, Clock.fixed(NOW, ZoneOffset.UTC), "exports", meters, d -> { });
     }
 
     private static User closed(String id, Instant closedAt) {
@@ -185,6 +188,21 @@ class PurgeClosedAccountsUseCaseTest {
         assertEquals(0, useCase.execute());
 
         assertEquals(NOW.minusSeconds(1), repo.findById("u1").get().getUpdatedAt());
+    }
+
+    @Test
+    void metrics_purgedFailedAndOverdue_withPhaseTag() {
+        repo.upsert(closed("ok", NOW.minus(Duration.ofDays(9))));
+        repo.upsert(closed("late-ko", NOW.minus(Duration.ofDays(10)))); // pasada closedAt+9d y falla → overdue
+        repo.upsert(closed("ko", NOW.minus(Duration.ofDays(8)).minusSeconds(5))); // falla, aún no atrasada
+        doThrow(new IllegalStateException("firebase")).when(firebase).deleteUser("late-ko");
+        doThrow(new IllegalStateException("firebase")).when(firebase).deleteUser("ko");
+
+        assertEquals(1, useCase.execute());
+
+        assertEquals(1.0, meters.get("ones.account.lifecycle.purged").tag("phase", "purge").counter().count());
+        assertEquals(2.0, meters.get("ones.account.lifecycle.failed").tag("phase", "purge").counter().count());
+        assertEquals(1.0, meters.get("ones.account.lifecycle.overdue").tag("phase", "purge").gauge().value());
     }
 
     @Test

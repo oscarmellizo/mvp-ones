@@ -3,12 +3,17 @@ package com.ones.api.application.users.lifecycle;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,6 +68,12 @@ public class PurgeClosedAccountsUseCase {
     private final Clock clock;
     private final String exportsBucket;
     private final Sleeper sleeper;
+    private final Counter purgedCounter;
+    private final Counter failedCounter;
+    private final AtomicInteger overdue = new AtomicInteger();
+
+    /** Margen tras la gracia a partir del cual una cuenta sin borrar se considera atrasada (cierre + 9 días). */
+    static final Duration OVERDUE_MARGIN = Duration.ofDays(1);
 
     public PurgeClosedAccountsUseCase(UsersRepository usersRepository, EventsRepository eventsRepository,
                                       PhotosRepository photosRepository, PhotoLikesRepository photoLikesRepository,
@@ -72,11 +83,11 @@ public class PurgeClosedAccountsUseCase {
                                       PreferredNamesCacheRepository preferredNamesCacheRepository,
                                       ObjectStorage objectStorage, FirebaseIdentityAdmin firebaseIdentityAdmin,
                                       EventPurger eventPurger, AccountAccessService accountAccessService,
-                                      Clock clock, String exportsBucket) {
+                                      Clock clock, String exportsBucket, MeterRegistry meterRegistry) {
         this(usersRepository, eventsRepository, photosRepository, photoLikesRepository, invitationsRepository,
                 paymentProfilesRepository, subscriptionPaymentsRepository, preferredNamesCacheRepository,
                 objectStorage, firebaseIdentityAdmin, eventPurger, accountAccessService, clock, exportsBucket,
-                PurgeClosedAccountsUseCase::sleep);
+                meterRegistry, PurgeClosedAccountsUseCase::sleep);
     }
 
     /** Pausa entre reintentos de listados obsoletos; inyectable para que los tests no esperen. */
@@ -93,8 +104,13 @@ public class PurgeClosedAccountsUseCase {
                                PreferredNamesCacheRepository preferredNamesCacheRepository,
                                ObjectStorage objectStorage, FirebaseIdentityAdmin firebaseIdentityAdmin,
                                EventPurger eventPurger, AccountAccessService accountAccessService,
-                               Clock clock, String exportsBucket, Sleeper sleeper) {
+                               Clock clock, String exportsBucket, MeterRegistry meterRegistry, Sleeper sleeper) {
         this.sleeper = sleeper;
+        this.purgedCounter = Counter.builder("ones.account.lifecycle.purged").tag("phase", "purge").register(meterRegistry);
+        this.failedCounter = Counter.builder("ones.account.lifecycle.failed").tag("phase", "purge").register(meterRegistry);
+        Gauge.builder("ones.account.lifecycle.overdue", overdue, AtomicInteger::get).tag("phase", "purge")
+                .description("Cuentas CLOSED hace más de 9 días que esta corrida no pudo borrar")
+                .register(meterRegistry);
         this.usersRepository = usersRepository;
         this.eventsRepository = eventsRepository;
         this.photosRepository = photosRepository;
@@ -115,6 +131,7 @@ public class PurgeClosedAccountsUseCase {
     public int execute() {
         Instant now = Instant.now(clock);
         int purged = 0;
+        List<String> overdueIds = new ArrayList<>();
         for (User u : usersRepository.findByStatusIn(Set.of(User.STATUS_CLOSED))) {
             if (u.getClosedAt() == null || !now.isAfter(u.getClosedAt().plus(GRACE))) continue;
             try {
@@ -126,10 +143,18 @@ public class PurgeClosedAccountsUseCase {
                 }
                 accountAccessService.evict(u.getUserId());
                 purged++;
+                purgedCounter.increment();
             } catch (Exception e) {
                 // Todo lo anterior es idempotente: la próxima corrida retoma desde el principio.
                 log.warn("[PurgeClosedAccounts] userId={} falló el borrado; se reintenta en la próxima corrida", u.getUserId(), e);
+                failedCounter.increment();
+                if (now.isAfter(u.getClosedAt().plus(GRACE).plus(OVERDUE_MARGIN))) overdueIds.add(u.getUserId());
             }
+        }
+        overdue.set(overdueIds.size());
+        if (!overdueIds.isEmpty()) {
+            // Este texto lo cuenta un filtro de métricas de CloudWatch que dispara una alarma.
+            log.warn("[AccountLifecycle] ACCOUNT_LIFECYCLE_OVERDUE phase=purge count={} userIds={}", overdueIds.size(), overdueIds);
         }
         return purged;
     }

@@ -18,6 +18,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -37,6 +38,7 @@ class CloseExpiredAccountsUseCaseTest {
     private AccountEmailService email;
     private AccountAccessService access;
     private CancelRecurringSubscriptionService cancelSubscriptions;
+    private SimpleMeterRegistry meters;
     private CloseExpiredAccountsUseCase useCase;
 
     @BeforeEach
@@ -46,12 +48,13 @@ class CloseExpiredAccountsUseCaseTest {
         email = mock(AccountEmailService.class);
         access = mock(AccountAccessService.class);
         cancelSubscriptions = mock(CancelRecurringSubscriptionService.class);
+        meters = new SimpleMeterRegistry();
         useCase = build("https://api.ones.events/");
     }
 
     private CloseExpiredAccountsUseCase build(String baseUrl) {
         return new CloseExpiredAccountsUseCase(repo, exporter, email, access, cancelSubscriptions,
-                Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofDays(30), baseUrl);
+                Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofDays(30), baseUrl, meters);
     }
 
     private static User user(String id, String status, Instant disabledAt) {
@@ -220,6 +223,35 @@ class CloseExpiredAccountsUseCaseTest {
 
         verifyNoInteractions(email);
         assertEquals(User.STATUS_DISABLED, repo.findById("u1").get().getStatus());
+    }
+
+    @Test
+    void metrics_countClosedAndFailed_withPhaseTag() {
+        repo.upsert(disabled("ok", NOW.minus(Duration.ofDays(31))));
+        repo.upsert(disabled("ko", NOW.minus(Duration.ofDays(31))));
+        when(exporter.export("ok")).thenReturn(Optional.empty());
+        when(exporter.export("ko")).thenThrow(new RuntimeException("s3"));
+        when(email.sendClosureEmail(any(), any(), any())).thenReturn(true);
+
+        useCase.execute();
+
+        assertEquals(1.0, meters.get("ones.account.lifecycle.closed").tag("phase", "close").counter().count());
+        assertEquals(1.0, meters.get("ones.account.lifecycle.failed").tag("phase", "close").counter().count());
+    }
+
+    @Test
+    void overdue_countsOnlyAccountsPast31DaysLeftUnclosed() {
+        repo.upsert(disabled("late-ko", NOW.minus(Duration.ofDays(32))));   // atrasada y falla → overdue
+        repo.upsert(disabled("late-ok", NOW.minus(Duration.ofDays(32))));   // atrasada pero se cierra hoy
+        repo.upsert(disabled("fresh-ko", NOW.minus(Duration.ofDays(30)).minusSeconds(5))); // falla, aún no atrasada
+        when(exporter.export("late-ko")).thenThrow(new RuntimeException("s3"));
+        when(exporter.export("fresh-ko")).thenThrow(new RuntimeException("s3"));
+        when(exporter.export("late-ok")).thenReturn(Optional.empty());
+        when(email.sendClosureEmail(any(), any(), any())).thenReturn(true);
+
+        useCase.execute();
+
+        assertEquals(1.0, meters.get("ones.account.lifecycle.overdue").tag("phase", "close").gauge().value());
     }
 
     @Test
