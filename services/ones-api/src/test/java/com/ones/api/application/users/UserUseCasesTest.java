@@ -1,6 +1,8 @@
 package com.ones.api.application.users;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Clock;
@@ -14,10 +16,37 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 import com.ones.api.application.users.ports.PreferredNamesCacheRepository;
-import com.ones.api.application.users.ports.UsersRepository;
 import com.ones.api.domain.users.User;
 
 class UserUseCasesTest {
+
+    private static final Instant NOW = Instant.parse("2026-09-15T12:00:00Z");
+    private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
+
+    private static User disabledUser(String id, Instant disabledAt) {
+        Instant created = Instant.parse("2026-01-01T00:00:00Z");
+        return new User(id, id + "@example.com", "Nombre", null, null, null, "Pref", "google", null, true,
+                created, created, "DISABLED", disabledAt, null);
+    }
+
+    @Test
+    void reactivate_closedAccount_isRejected() {
+        InMemoryUsersRepository repo = new InMemoryUsersRepository();
+        repo.upsert(disabledUser("u1", NOW.minus(java.time.Duration.ofDays(2))).withLifecycle("CLOSED", NOW, "t", null));
+        assertTrue(new AccountReactivateUseCase(repo, CLOCK, java.time.Duration.ofDays(30)).execute("u1").isEmpty());
+    }
+
+    @Test
+    void tombstone_dropsPersonalData_keepsIdentity() {
+        User t = disabledUser("u1", NOW.minus(java.time.Duration.ofDays(40)))
+                .withLifecycle("CLOSED", NOW, "tok", "exports/u1/x.zip").tombstone(NOW);
+        assertEquals("u1", t.getUserId());
+        assertEquals("DELETED", t.getStatus());
+        assertNull(t.getEmail());
+        assertNull(t.getPreferredName());
+        assertNull(t.getExportToken());
+        assertNotNull(t.getProvider());
+    }
 
     @Test
     void getUserById_returnsUserWhenExists() {
@@ -96,35 +125,4 @@ class UserUseCasesTest {
         }
     }
 
-    private static class InMemoryUsersRepository implements UsersRepository {
-        private final Map<String, User> byId = new HashMap<>();
-        private final Map<String, User> byEmail = new HashMap<>();
-
-        @Override
-        public Optional<User> findById(String userId) {
-            return Optional.ofNullable(byId.get(userId));
-        }
-
-        @Override
-        public Optional<User> findByEmail(String email) {
-            if (email == null) {
-                return Optional.empty();
-            }
-            return Optional.ofNullable(byEmail.get(email));
-        }
-
-        @Override
-        public User upsert(User user) {
-            byId.put(user.getUserId(), user);
-            if (user.getEmail() != null) {
-                byEmail.put(user.getEmail(), user);
-            }
-            return user;
-        }
-
-        @Override
-        public void deleteById(String userId) {
-            byId.remove(userId);
-        }
-    }
 }

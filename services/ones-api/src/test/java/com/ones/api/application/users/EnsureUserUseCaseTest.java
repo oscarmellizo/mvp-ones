@@ -60,6 +60,14 @@ class EnsureUserUseCaseTest {
     private static class InMemoryUsersRepository implements UsersRepository {
         private final Map<String, User> byId = new HashMap<>();
 
+
+        @Override
+        public java.util.List<User> findByStatusIn(java.util.Set<String> statuses) {
+            return byId.values().stream()
+                    .filter(u -> u.getStatus() != null && statuses.contains(u.getStatus().toUpperCase()))
+                    .toList();
+        }
+
         @Override public Optional<User> findById(String userId) { return Optional.ofNullable(byId.get(userId)); }
         @Override public Optional<User> findByEmail(String email) {
             return byId.values().stream().filter(u -> email.equalsIgnoreCase(u.getEmail())).findFirst();

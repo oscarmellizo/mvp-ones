@@ -30,6 +30,9 @@ public class AccountReactivateUseCase {
         Optional<User> existing = usersRepository.findById(userId);
         if (existing.isEmpty()) return Optional.empty();
         User u = existing.get();
+        if (User.STATUS_CLOSED.equalsIgnoreCase(u.getStatus()) || User.STATUS_DELETED.equalsIgnoreCase(u.getStatus())) {
+            return Optional.empty(); // cuenta cerrada o borrada: no se puede reactivar
+        }
         if (!"DISABLED".equalsIgnoreCase(u.getStatus())) {
             return Optional.of(u); // already active or unknown status
         }

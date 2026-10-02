@@ -1,8 +1,12 @@
 package com.ones.api.adapters.outbound.dynamodb;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -124,6 +128,27 @@ public class DynamoDbUsersRepository implements UsersRepository {
         table.deleteItem(Key.builder().partitionValue(userId.trim()).build());
     }
 
+    @Override
+    public List<User> findByStatusIn(Set<String> statuses) {
+        if (statuses == null || statuses.isEmpty()) return List.of();
+        Map<String, AttributeValue> values = new HashMap<>();
+        List<String> placeholders = new ArrayList<>();
+        int i = 0;
+        for (String s : statuses) {
+            values.put(":s" + i, AttributeValue.fromS(s));
+            placeholders.add(":s" + i);
+            i++;
+        }
+        Expression filter = Expression.builder()
+                .expression("#st IN (" + String.join(", ", placeholders) + ")")
+                .expressionNames(Map.of("#st", "status"))
+                .expressionValues(values)
+                .build();
+        // Scan paginado: la tabla de usuarios es pequeña y esto corre una vez al día.
+        return table.scan(ScanEnhancedRequest.builder().filterExpression(filter).build())
+                .items().stream().map(DynamoDbUsersRepository::toDomain).toList();
+    }
+
     private static DynamoUserItem toItem(User u) {
         DynamoUserItem item = new DynamoUserItem();
         item.setUserId(u.getUserId());
@@ -140,6 +165,9 @@ public class DynamoDbUsersRepository implements UsersRepository {
         if (u.getStatus() != null) item.setStatus(u.getStatus());
         if (u.getDisabledAt() != null) item.setDisabledAt(u.getDisabledAt().toString());
         if (u.getReactivatedAt() != null) item.setReactivatedAt(u.getReactivatedAt().toString());
+        if (u.getClosedAt() != null) item.setClosedAt(u.getClosedAt().toString());
+        if (u.getExportToken() != null) item.setExportToken(u.getExportToken());
+        if (u.getExportKey() != null) item.setExportKey(u.getExportKey());
         return item;
     }
 
@@ -148,8 +176,10 @@ public class DynamoDbUsersRepository implements UsersRepository {
         Instant updated = Instant.parse(item.getUpdatedAt());
         Instant disabled = null;
         Instant reactivated = null;
+        Instant closed = null;
         try { if (item.getDisabledAt() != null) disabled = Instant.parse(item.getDisabledAt()); } catch (Exception ignore) {}
         try { if (item.getReactivatedAt() != null) reactivated = Instant.parse(item.getReactivatedAt()); } catch (Exception ignore) {}
+        try { if (item.getClosedAt() != null) closed = Instant.parse(item.getClosedAt()); } catch (Exception ignore) {}
 
         return new User(
                 item.getUserId(),
@@ -166,7 +196,10 @@ public class DynamoDbUsersRepository implements UsersRepository {
                 updated,
                 item.getStatus(),
                 disabled,
-                reactivated
+                reactivated,
+                closed,
+                item.getExportToken(),
+                item.getExportKey()
         );
     }
 }

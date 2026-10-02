@@ -138,6 +138,14 @@ class ListEventGuestsUseCaseTest {
 
     private static class InMemoryUsersRepo implements UsersRepository {
         private final Map<String, User> byId = new HashMap<>();
+
+
+        @Override
+        public java.util.List<User> findByStatusIn(java.util.Set<String> statuses) {
+            return byId.values().stream()
+                    .filter(u -> u.getStatus() != null && statuses.contains(u.getStatus().toUpperCase()))
+                    .toList();
+        }
         private final Map<String, User> byEmail = new HashMap<>();
 
         @Override

@@ -149,6 +149,14 @@ class DisabledAccountFilterTest {
     private static class InMemoryUsersRepository implements UsersRepository {
         private final Map<String, User> byId = new HashMap<>();
 
+
+        @Override
+        public java.util.List<User> findByStatusIn(java.util.Set<String> statuses) {
+            return byId.values().stream()
+                    .filter(u -> u.getStatus() != null && statuses.contains(u.getStatus().toUpperCase()))
+                    .toList();
+        }
+
         @Override public Optional<User> findById(String userId) { return Optional.ofNullable(byId.get(userId)); }
         @Override public Optional<User> findByEmail(String email) { return Optional.empty(); }
         @Override public User upsert(User user) { byId.put(user.getUserId(), user); return user; }
