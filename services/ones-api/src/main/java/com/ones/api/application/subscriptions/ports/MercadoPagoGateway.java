@@ -24,6 +24,9 @@ public interface MercadoPagoGateway {
 
     Optional<Preapproval> getPreapproval(String preapprovalId);
 
+    /** Cancela la suscripción recurrente en Mercado Pago (deja de cobrar). Lanza si Mercado Pago falla. */
+    void cancelPreapproval(String preapprovalId);
+
     Optional<String> resolvePreapprovalIdFromPayment(String paymentId);
 
     Optional<String> getPayerEmailFromPayment(String paymentId);

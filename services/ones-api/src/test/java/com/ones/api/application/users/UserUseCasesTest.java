@@ -56,7 +56,7 @@ class UserUseCasesTest {
             repo.upsert(stored);
             int writes = repo.writes();
 
-            assertTrue(new AccountDeactivateUseCase(repo, CLOCK).execute("u1").isEmpty(), stored.getStatus());
+            assertTrue(new AccountDeactivateUseCase(repo, CLOCK, noSubscriptions()).execute("u1").isEmpty(), stored.getStatus());
 
             assertEquals(writes, repo.writes(), stored.getStatus());
             assertSame(stored, repo.findById("u1").get());
@@ -69,7 +69,7 @@ class UserUseCasesTest {
         Instant disabledAt = NOW.minus(java.time.Duration.ofDays(10));
         repo.upsert(disabledUser("u1", disabledAt));
 
-        Optional<User> out = new AccountDeactivateUseCase(repo, CLOCK).execute("u1");
+        Optional<User> out = new AccountDeactivateUseCase(repo, CLOCK, noSubscriptions()).execute("u1");
 
         assertTrue(out.isPresent());
         assertEquals(disabledAt, out.get().getDisabledAt());
@@ -83,7 +83,7 @@ class UserUseCasesTest {
         repo.upsert(new User("u1", "a@b.com", "Ana", null, null, null, "Pref", "google", "es", true,
                 created, created, User.STATUS_ACTIVE, null, created));
 
-        Optional<User> out = new AccountDeactivateUseCase(repo, CLOCK).execute("u1");
+        Optional<User> out = new AccountDeactivateUseCase(repo, CLOCK, noSubscriptions()).execute("u1");
 
         assertTrue(out.isPresent());
         User stored = repo.findById("u1").get();
@@ -115,6 +115,60 @@ class UserUseCasesTest {
 
         assertTrue(new AccountReactivateUseCase(repo, CLOCK, java.time.Duration.ofDays(30)).execute("u1").isEmpty());
         assertEquals(User.STATUS_CLOSING, repo.findById("u1").get().getStatus());
+    }
+
+    private static com.ones.api.application.subscriptions.CancelRecurringSubscriptionService noSubscriptions() {
+        return org.mockito.Mockito.mock(com.ones.api.application.subscriptions.CancelRecurringSubscriptionService.class);
+    }
+
+    @Test
+    void deactivate_cancelsRecurringSubscriptions_beforeMarkingDisabled() {
+        InMemoryUsersRepository repo = new InMemoryUsersRepository();
+        Instant created = Instant.parse("2026-01-01T00:00:00Z");
+        repo.upsert(new User("u1", "a@b.com", "Ana", null, null, null, "Pref", "google", "es", true,
+                created, created, User.STATUS_ACTIVE, null, null));
+        var cancel = noSubscriptions();
+        org.mockito.Mockito.doAnswer(i -> {
+            assertEquals(User.STATUS_ACTIVE, repo.findById("u1").get().getStatus()); // todavía no DISABLED
+            return null;
+        }).when(cancel).cancelFor("u1");
+
+        assertTrue(new AccountDeactivateUseCase(repo, CLOCK, cancel).execute("u1").isPresent());
+
+        org.mockito.Mockito.verify(cancel).cancelFor("u1");
+        assertEquals(User.STATUS_DISABLED, repo.findById("u1").get().getStatus());
+    }
+
+    @Test
+    void deactivate_subscriptionCancelFails_accountStaysActive_andErrorPropagates() {
+        InMemoryUsersRepository repo = new InMemoryUsersRepository();
+        Instant created = Instant.parse("2026-01-01T00:00:00Z");
+        repo.upsert(new User("u1", "a@b.com", "Ana", null, null, null, "Pref", "google", "es", true,
+                created, created, User.STATUS_ACTIVE, null, null));
+        var cancel = noSubscriptions();
+        org.mockito.Mockito.doThrow(new com.ones.api.application.subscriptions.SubscriptionCancellationException("u1",
+                new IllegalStateException("MP 500"))).when(cancel).cancelFor("u1");
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                com.ones.api.application.subscriptions.SubscriptionCancellationException.class,
+                () -> new AccountDeactivateUseCase(repo, CLOCK, cancel).execute("u1"));
+
+        assertEquals(User.STATUS_ACTIVE, repo.findById("u1").get().getStatus());
+        assertNull(repo.findById("u1").get().getDisabledAt());
+    }
+
+    @Test
+    void reactivate_doesNotTouchSubscriptions() {
+        // AccountReactivateUseCase no depende de suscripciones: la persona vuelve a suscribirse si quiere.
+        for (var c : AccountReactivateUseCase.class.getConstructors()) {
+            for (Class<?> t : c.getParameterTypes()) {
+                assertTrue(!t.getPackageName().contains("subscriptions"), t.getName());
+            }
+        }
+        InMemoryUsersRepository repo = new InMemoryUsersRepository();
+        repo.upsert(disabledUser("u1", NOW.minus(java.time.Duration.ofDays(2))));
+        assertEquals(User.STATUS_ACTIVE,
+                new AccountReactivateUseCase(repo, CLOCK, java.time.Duration.ofDays(30)).execute("u1").get().getStatus());
     }
 
     @Test

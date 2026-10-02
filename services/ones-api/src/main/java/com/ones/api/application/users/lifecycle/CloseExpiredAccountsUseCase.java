@@ -11,6 +11,7 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.ones.api.application.subscriptions.CancelRecurringSubscriptionService;
 import com.ones.api.application.users.AccountAccessService;
 import com.ones.api.application.users.email.AccountEmailService;
 import com.ones.api.application.users.ports.UsersRepository;
@@ -32,17 +33,19 @@ public class CloseExpiredAccountsUseCase {
     private final PhotosExportService photosExportService;
     private final AccountEmailService accountEmailService;
     private final AccountAccessService accountAccessService;
+    private final CancelRecurringSubscriptionService cancelSubscriptions;
     private final Clock clock;
     private final Duration window;
     private final String base;
 
     public CloseExpiredAccountsUseCase(UsersRepository usersRepository, PhotosExportService photosExportService,
                                        AccountEmailService accountEmailService, AccountAccessService accountAccessService,
-                                       Clock clock, Duration window, String apiPublicBaseUrl) {
+                                       CancelRecurringSubscriptionService cancelSubscriptions, Clock clock, Duration window, String apiPublicBaseUrl) {
         this.usersRepository = usersRepository;
         this.photosExportService = photosExportService;
         this.accountEmailService = accountEmailService;
         this.accountAccessService = accountAccessService;
+        this.cancelSubscriptions = cancelSubscriptions;
         this.clock = clock;
         this.window = window;
         // Sin "/" final para no generar "//" al armar el enlace.
@@ -98,6 +101,9 @@ public class CloseExpiredAccountsUseCase {
             log.error("[CloseExpiredAccounts] ones.api.public-base-url vacío; no se cierra userId={} (tiene fotos)", u.getUserId());
             return false;
         }
+        // Defensivo: la suscripción se cancela al desactivar, pero si sigue activa se cancela aquí.
+        // Si Mercado Pago falla, lanza: no hay correo y la cuenta vuelve a DISABLED para reintentar.
+        cancelSubscriptions.cancelFor(u.getUserId());
         String token = randomToken();
         String url = exportKey.map(k -> base + "/v1/account-exports/" + u.getUserId() + "." + token).orElse(null);
         Instant linkExpiresAt = now.plus(LINK_TTL);

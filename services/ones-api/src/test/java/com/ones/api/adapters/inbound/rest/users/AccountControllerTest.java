@@ -17,6 +17,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 
+import com.ones.api.application.subscriptions.CancelRecurringSubscriptionService;
+import com.ones.api.application.subscriptions.SubscriptionCancellationException;
 import com.ones.api.application.users.AccountAccessService;
 import com.ones.api.application.users.AccountDeactivateUseCase;
 import com.ones.api.application.users.AccountReactivateUseCase;
@@ -33,9 +35,10 @@ class AccountControllerTest {
 
     private final InMemoryUsersRepository repo = new InMemoryUsersRepository();
     private final AccountAccessService accountAccess = mock(AccountAccessService.class);
+    private final CancelRecurringSubscriptionService cancelSubscriptions = mock(CancelRecurringSubscriptionService.class);
     private final AccountController controller = new AccountController(
             new GetAccountUseCase(repo),
-            new AccountDeactivateUseCase(repo, CLOCK),
+            new AccountDeactivateUseCase(repo, CLOCK, cancelSubscriptions),
             new AccountReactivateUseCase(repo, CLOCK, Duration.ofDays(30)),
             mock(AccountEmailService.class),
             CLOCK,
@@ -64,6 +67,19 @@ class AccountControllerTest {
         assertEquals("ACCOUNT_CLOSED", res.getBody().get("code"));
         assertEquals(User.STATUS_CLOSED, repo.findById("u1").get().getStatus());
         assertEquals("tok", repo.findById("u1").get().getExportToken());
+    }
+
+    @Test
+    void deactivate_subscriptionCancelFails_returns502_andAccountStaysActive() {
+        repo.upsert(user("u1", "ACTIVE", null));
+        org.mockito.Mockito.doThrow(new SubscriptionCancellationException("u1", new IllegalStateException("MP")))
+                .when(cancelSubscriptions).cancelFor("u1");
+
+        ResponseEntity<Map<String, Object>> res = controller.deactivate(authAs("u1"));
+
+        assertEquals(502, res.getStatusCode().value());
+        assertEquals("SUBSCRIPTION_CANCEL_FAILED", res.getBody().get("code"));
+        assertEquals("ACTIVE", repo.findById("u1").get().getStatus());
     }
 
     @Test

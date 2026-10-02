@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.LinkedHashMap;
 
 import com.ones.api.adapters.inbound.rest.DisabledAccountFilter;
+import com.ones.api.application.subscriptions.SubscriptionCancellationException;
 import com.ones.api.application.users.AccountAccessService;
 import com.ones.api.application.users.AccountDeactivateUseCase;
 import com.ones.api.application.users.AccountReactivateUseCase;
@@ -25,6 +26,8 @@ import com.ones.api.domain.users.User;
 @RestController
 @RequestMapping("/v1/account")
 public class AccountController {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AccountController.class);
 
     private final GetAccountUseCase getAccount;
     private final AccountDeactivateUseCase deactivate;
@@ -60,7 +63,14 @@ public class AccountController {
     @PostMapping(path = {"/deactivate", ":deactivate"})
     public ResponseEntity<Map<String, Object>> deactivate(Authentication authentication) {
         String userId = authentication.getName();
-        Optional<User> result = deactivate.execute(userId);
+        Optional<User> result;
+        try {
+            result = deactivate.execute(userId);
+        } catch (SubscriptionCancellationException e) {
+            // No se desactiva mientras Mercado Pago siga cobrando: la persona puede reintentar.
+            log.warn("[AccountController] no se pudo cancelar la suscripción al desactivar userId={}", userId, e);
+            return ResponseEntity.status(502).body(Map.of("code", "SUBSCRIPTION_CANCEL_FAILED"));
+        }
         accountAccess.evict(userId);
         return result
                 .map(u -> {

@@ -21,6 +21,8 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.ones.api.application.subscriptions.CancelRecurringSubscriptionService;
+import com.ones.api.application.subscriptions.SubscriptionCancellationException;
 import com.ones.api.application.users.AccountAccessService;
 import com.ones.api.application.users.InMemoryUsersRepository;
 import com.ones.api.application.users.email.AccountEmailService;
@@ -34,6 +36,7 @@ class CloseExpiredAccountsUseCaseTest {
     private PhotosExportService exporter;
     private AccountEmailService email;
     private AccountAccessService access;
+    private CancelRecurringSubscriptionService cancelSubscriptions;
     private CloseExpiredAccountsUseCase useCase;
 
     @BeforeEach
@@ -42,11 +45,12 @@ class CloseExpiredAccountsUseCaseTest {
         exporter = mock(PhotosExportService.class);
         email = mock(AccountEmailService.class);
         access = mock(AccountAccessService.class);
+        cancelSubscriptions = mock(CancelRecurringSubscriptionService.class);
         useCase = build("https://api.ones.events/");
     }
 
     private CloseExpiredAccountsUseCase build(String baseUrl) {
-        return new CloseExpiredAccountsUseCase(repo, exporter, email, access,
+        return new CloseExpiredAccountsUseCase(repo, exporter, email, access, cancelSubscriptions,
                 Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofDays(30), baseUrl);
     }
 
@@ -190,6 +194,32 @@ class CloseExpiredAccountsUseCaseTest {
         assertEquals(User.STATUS_DISABLED, u.getStatus());
         assertNull(u.getClosingAt());
         assertEquals(NOW.minus(Duration.ofDays(31)), u.getDisabledAt());
+    }
+
+    @Test
+    void closure_defensivelyCancelsStillActiveSubscription_beforeEmail() {
+        repo.upsert(disabled("u1", NOW.minus(Duration.ofDays(31))));
+        when(exporter.export("u1")).thenReturn(Optional.empty());
+        when(email.sendClosureEmail(any(), any(), any())).thenReturn(true);
+
+        assertEquals(1, useCase.execute());
+
+        org.mockito.InOrder order = org.mockito.Mockito.inOrder(cancelSubscriptions, email);
+        order.verify(cancelSubscriptions).cancelFor("u1");
+        order.verify(email).sendClosureEmail(any(), any(), any());
+    }
+
+    @Test
+    void closure_subscriptionCancelFails_noEmail_revertsToDisabled() {
+        repo.upsert(disabled("u1", NOW.minus(Duration.ofDays(31))));
+        when(exporter.export("u1")).thenReturn(Optional.empty());
+        org.mockito.Mockito.doThrow(new SubscriptionCancellationException("u1", new IllegalStateException("MP")))
+                .when(cancelSubscriptions).cancelFor("u1");
+
+        assertEquals(0, useCase.execute());
+
+        verifyNoInteractions(email);
+        assertEquals(User.STATUS_DISABLED, repo.findById("u1").get().getStatus());
     }
 
     @Test

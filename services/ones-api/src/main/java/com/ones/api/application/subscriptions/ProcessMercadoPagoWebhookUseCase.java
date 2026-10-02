@@ -350,6 +350,11 @@ public class ProcessMercadoPagoWebhookUseCase {
             if (existing.isPresent()) return; // idempotent
             Instant now = Instant.now(clock);
             String payerEmail = paymentCorrelation.map(MercadoPagoGateway.PaymentCorrelation::payerEmail).orElse(null);
+            if (isDeletedAccount(userId)) {
+                // Cuenta borrada (lápida): se registra el pago para contabilidad pero sin datos personales.
+                payerEmail = null;
+                log.info("[MP webhook] pago de una cuenta borrada; se registra sin correo del pagador. paymentId={}", paymentId);
+            }
             String payerId = paymentCorrelation.map(MercadoPagoGateway.PaymentCorrelation::payerId).orElse(null);
             String preapprovalPlanId = paymentCorrelation.map(MercadoPagoGateway.PaymentCorrelation::preapprovalPlanId).orElse(null);
             SubscriptionPayment ledger = new SubscriptionPayment(
@@ -373,6 +378,13 @@ public class ProcessMercadoPagoWebhookUseCase {
         } catch (Exception e) {
             log.warn("[MP webhook] failed to upsert subscription payment ledger for paymentId={}: {}", paymentId, e.getMessage());
         }
+    }
+
+    private boolean isDeletedAccount(String userId) {
+        if (userId == null || userId.isBlank()) return false;
+        return usersRepository.findById(userId)
+                .map(u -> User.STATUS_DELETED.equalsIgnoreCase(u.getStatus()))
+                .orElse(false);
     }
 
     private static String maskEmail(String email) {

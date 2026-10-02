@@ -159,8 +159,16 @@ public class ApplicationConfig {
     }
 
     @Bean
-    AccountDeactivateUseCase accountDeactivateUseCase(UsersRepository repository, Clock clock) {
-        return new AccountDeactivateUseCase(repository, clock);
+    com.ones.api.application.subscriptions.CancelRecurringSubscriptionService cancelRecurringSubscriptionService(
+            UserSubscriptionsRepository subscriptionsRepository, MercadoPagoGateway mercadoPagoGateway, Clock clock) {
+        return new com.ones.api.application.subscriptions.CancelRecurringSubscriptionService(
+                subscriptionsRepository, mercadoPagoGateway, clock);
+    }
+
+    @Bean
+    AccountDeactivateUseCase accountDeactivateUseCase(UsersRepository repository, Clock clock,
+                                                      com.ones.api.application.subscriptions.CancelRecurringSubscriptionService cancelSubscriptions) {
+        return new AccountDeactivateUseCase(repository, clock, cancelSubscriptions);
     }
 
     @Bean
@@ -173,11 +181,13 @@ public class ApplicationConfig {
     @Bean
     CloseExpiredAccountsUseCase closeExpiredAccountsUseCase(UsersRepository repository, PhotosExportService exportService,
                                                            AccountEmailService emailService, AccountAccessService accessService,
+                                                           com.ones.api.application.subscriptions.CancelRecurringSubscriptionService cancelSubscriptions,
                                                            Clock clock,
                                                            @Value("${ones.account.reactivate-window-days:30}") int windowDays,
                                                            @Value("${ones.api.public-base-url:}") String apiPublicBaseUrl) {
         java.time.Duration window = java.time.Duration.ofDays(Math.max(1, windowDays));
-        return new CloseExpiredAccountsUseCase(repository, exportService, emailService, accessService, clock, window, apiPublicBaseUrl);
+        return new CloseExpiredAccountsUseCase(repository, exportService, emailService, accessService, cancelSubscriptions,
+                clock, window, apiPublicBaseUrl);
     }
 
     @Bean
