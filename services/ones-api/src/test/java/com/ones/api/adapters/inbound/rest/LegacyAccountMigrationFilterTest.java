@@ -62,6 +62,20 @@ class LegacyAccountMigrationFilterTest {
     }
 
     @Test
+    void migrationNotConfigured_respondsServiceUnavailable_insteadOfTreatingUserAsNew() throws Exception {
+        authenticateFirebase("firebase-uid-9", "google-sub-1");
+        when(service.migrateIfLegacy("firebase-uid-9", "google-sub-1")).thenReturn(Outcome.NOT_CONFIGURED);
+        AtomicBoolean chained = new AtomicBoolean(false);
+        MockHttpServletResponse res = new MockHttpServletResponse();
+
+        filter.doFilter(request("GET", "/v1/users/me"), res, (q, r) -> chained.set(true));
+
+        assertFalse(chained.get());
+        assertEquals(503, res.getStatus());
+        assertTrue(res.getContentAsString().contains("\"code\":\"ACCOUNT_MIGRATION_FAILED\""));
+    }
+
+    @Test
     void noMigration_passesThrough() throws Exception {
         authenticateFirebase("uid-1", "uid-1");
         when(service.migrateIfLegacy("uid-1", "uid-1")).thenReturn(Outcome.NONE);

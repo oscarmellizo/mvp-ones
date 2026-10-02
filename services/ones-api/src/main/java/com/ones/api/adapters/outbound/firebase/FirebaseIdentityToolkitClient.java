@@ -9,6 +9,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -24,6 +26,8 @@ import com.ones.api.application.users.ports.FirebaseIdentityAdmin;
 /** Cliente REST de Identity Toolkit (Firebase Auth) autenticado con una service account de Secrets Manager. */
 @Component
 public class FirebaseIdentityToolkitClient implements FirebaseIdentityAdmin {
+
+    private static final Logger log = LoggerFactory.getLogger(FirebaseIdentityToolkitClient.class);
 
     private static final String SCOPE = "https://www.googleapis.com/auth/cloud-platform";
     private static final Duration TIMEOUT = Duration.ofSeconds(15);
@@ -44,6 +48,10 @@ public class FirebaseIdentityToolkitClient implements FirebaseIdentityAdmin {
         this.secretsProvider = secretsProvider;
         this.projectId = projectId != null ? projectId.trim() : "";
         this.serviceAccountSecretName = serviceAccountSecretName != null ? serviceAccountSecretName.trim() : "";
+        if (StringUtils.hasText(this.projectId) && !StringUtils.hasText(this.serviceAccountSecretName)) {
+            log.warn("[firebase] FIREBASE_PROJECT_ID configurado sin FIREBASE_SERVICE_ACCOUNT_SECRET_NAME: "
+                    + "los usuarios de Google anteriores a Firebase no podrán migrarse");
+        }
     }
 
     @Override

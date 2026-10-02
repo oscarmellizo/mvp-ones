@@ -68,6 +68,12 @@ public class LegacyAccountMigrationFilter extends OncePerRequestFilter {
             write(response, HttpServletResponse.SC_CONFLICT, CODE_MIGRATED);
             return;
         }
+        if (outcome == Outcome.NOT_CONFIGURED) {
+            // Es un usuario legado que no se pudo migrar: seguir lo trataría como usuario nuevo
+            // (404 y luego EMAIL_CONFLICT). Se responde como falla temporal.
+            write(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, CODE_FAILED);
+            return;
+        }
         chain.doFilter(request, response);
     }
 
