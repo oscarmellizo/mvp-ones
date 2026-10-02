@@ -781,6 +781,52 @@ Resources:
         ScaleInCooldown: 60
         ScaleOutCooldown: 60
 
+  PhotosByGuestIdIndexReadScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 500
+      MinCapacity: 5
+      ResourceId: !Sub table/${PhotosTable}/index/byGuestId
+      RoleARN: !GetAtt DynamoDbAutoScalingRole.Arn
+      ScalableDimension: dynamodb:index:ReadCapacityUnits
+      ServiceNamespace: dynamodb
+
+  PhotosByGuestIdIndexReadScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: photos-byGuestId-read
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref PhotosByGuestIdIndexReadScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBReadCapacityUtilization
+        TargetValue: 70.0
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+
+  PhotosByGuestIdIndexWriteScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 200
+      MinCapacity: 2
+      ResourceId: !Sub table/${PhotosTable}/index/byGuestId
+      RoleARN: !GetAtt DynamoDbAutoScalingRole.Arn
+      ScalableDimension: dynamodb:index:WriteCapacityUnits
+      ServiceNamespace: dynamodb
+
+  PhotosByGuestIdIndexWriteScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: photos-byGuestId-write
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref PhotosByGuestIdIndexWriteScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBWriteCapacityUtilization
+        TargetValue: 70.0
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+
   InvitationsTableReadScalableTarget:
     Type: AWS::ApplicationAutoScaling::ScalableTarget
     Properties:
