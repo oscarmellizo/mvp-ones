@@ -101,9 +101,10 @@ class AccountPage extends StatelessWidget {
                                   ),
                                 );
                                 if (confirmed2 != true) return;
-                                final ok = await context.read<AccountController>().deactivateAndSignOut(auth);
+                                final result = await context.read<AccountController>().deactivateAndSignOut(auth);
                                 if (!context.mounted) return;
-                                if (!ok) {
+                                if (result == DeactivationResult.cancelled) return;
+                                if (result == DeactivationResult.failed) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(content: Text('No fue posible desactivar la cuenta. Intenta de nuevo.')),
                                   );

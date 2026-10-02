@@ -5,6 +5,9 @@ import '../../auth/domain/auth_failure.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../adapters/api/account_api_repository.dart';
 
+/// Resultado de la baja: [cancelled] es decisión de la persona (diálogo de Apple), no un fallo.
+enum DeactivationResult { done, cancelled, failed }
+
 class AccountController extends ChangeNotifier {
   final AccountApiRepository repository;
 
@@ -43,27 +46,27 @@ class AccountController extends ChangeNotifier {
     }
   }
 
-  Future<bool> deactivateAndSignOut(AuthController auth) async {
+  Future<DeactivationResult> deactivateAndSignOut(AuthController auth) async {
     final token = _idToken;
-    if (token == null || token.isEmpty) return false;
+    if (token == null || token.isEmpty) return DeactivationResult.failed;
     _setLoading(true);
     try {
       _error = null;
       try {
         await auth.revokeAppleAccessIfNeeded();
       } on AuthException catch (e) {
-        if (e.failure == AuthFailure.cancelled) return false;
+        if (e.failure == AuthFailure.cancelled) return DeactivationResult.cancelled;
         debugPrint('[account] no se pudo revocar el acceso de Apple: $e');
       } catch (e) {
         debugPrint('[account] no se pudo revocar el acceso de Apple: $e');
       }
       final ok = await repository.deactivate(token);
-      if (!ok) return false;
+      if (!ok) return DeactivationResult.failed;
       await auth.logout();
-      return true;
+      return DeactivationResult.done;
     } catch (e) {
       _error = e;
-      return false;
+      return DeactivationResult.failed;
     } finally {
       _setLoading(false);
     }

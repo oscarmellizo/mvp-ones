@@ -124,15 +124,16 @@ void main() {
 
     test('si cancela el diálogo de Apple no se desactiva la cuenta', () async {
       authRepo.revokeError = const AuthException(AuthFailure.cancelled);
-      final ok = await controller.deactivateAndSignOut(auth);
-      expect(ok, isFalse);
+      final result = await controller.deactivateAndSignOut(auth);
+      expect(result, DeactivationResult.cancelled);
       expect(authRepo.calls, ['revokeAppleAccessIfNeeded']);
+      verifyNever(() => repo.deactivate(any()));
     });
 
     test('otro error de revocación no bloquea la baja', () async {
       authRepo.revokeError = const AuthException(AuthFailure.unknown);
-      final ok = await controller.deactivateAndSignOut(auth);
-      expect(ok, isTrue);
+      final result = await controller.deactivateAndSignOut(auth);
+      expect(result, DeactivationResult.done);
       expect(authRepo.calls, ['revokeAppleAccessIfNeeded', 'deactivate', 'signOut']);
     });
   });
@@ -151,5 +152,46 @@ void main() {
       ),
     );
     expect(find.textContaining('el enlace dura 8 días'), findsOneWidget);
+  });
+
+  group('AccountPage: baja', () {
+    Future<void> runDeactivation(WidgetTester tester, FakeAuthRepository authRepo) async {
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<SubscriptionsController>(
+                create: (_) => SubscriptionsController(_MockSubscriptionsRepository())),
+            ChangeNotifierProvider<AuthController>(create: (_) => _authWith(authRepo)),
+            ChangeNotifierProvider<AccountController>.value(value: controller),
+          ],
+          child: MaterialApp(
+            home: Navigator(onGenerateRoute: (_) => MaterialPageRoute(builder: (_) => const AccountPage())),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Borrar cuenta'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Darse de baja'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Confirmar'));
+      await tester.pumpAndSettle();
+    }
+
+    const failureText = 'No fue posible desactivar la cuenta. Intenta de nuevo.';
+
+    testWidgets('cancelar el diálogo de Apple no muestra error ni llama al API', (tester) async {
+      final authRepo = FakeAuthRepository()
+        ..current = fakeUser(provider: 'apple.com')
+        ..revokeError = const AuthException(AuthFailure.cancelled);
+      await runDeactivation(tester, authRepo);
+      expect(find.text(failureText), findsNothing);
+      verifyNever(() => repo.deactivate(any()));
+    });
+
+    testWidgets('si la baja falla se muestra el aviso', (tester) async {
+      when(() => repo.deactivate('token')).thenAnswer((_) async => false);
+      await runDeactivation(tester, FakeAuthRepository());
+      expect(find.text(failureText), findsOneWidget);
+    });
   });
 }
