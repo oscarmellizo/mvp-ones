@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -32,8 +34,12 @@ void main() {
   late _MockEnsureUser ensureUser;
   late _MockUpdatePrefs updatePrefs;
   late AuthController auth;
+  var reactivations = 0;
+  var reactivationSucceeds = true;
 
   setUp(() {
+    reactivations = 0;
+    reactivationSucceeds = true;
     repo = FakeAuthRepository();
     getPrefs = _MockGetPrefs();
     ensureUser = _MockEnsureUser();
@@ -48,6 +54,10 @@ void main() {
       updateUserPreferences: updatePrefs,
       lookupUserByEmailUseCase: _MockLookup(),
       getAdminMe: getAdminMe,
+      reactivateAccount: (_) async {
+        reactivations++;
+        return reactivationSucceeds;
+      },
     );
   });
 
@@ -412,6 +422,113 @@ void main() {
 
       expect(repo.freshInstallChecks, 1);
       expect(auth.isRegistered, isTrue);
+    });
+  });
+
+  group('cuenta dada de baja', () {
+    test('C1: desactivada hace poco → se reactiva y entra', () async {
+      var calls = 0;
+      when(() => getPrefs.execute(any())).thenAnswer((_) async {
+        calls++;
+        if (calls == 1) throw apiError(403, 'ACCOUNT_DISABLED');
+        return registeredPrefs;
+      });
+
+      expect(await auth.signInWithGoogle(), AuthNextStep.signedIn);
+      expect(reactivations, 1);
+      expect(repo.signOutCalls, 0);
+    });
+
+    test('C1: si no se puede reactivar → sale con aviso claro y cierra Firebase', () async {
+      reactivationSucceeds = false;
+      when(() => getPrefs.execute(any())).thenThrow(apiError(403, 'ACCOUNT_DISABLED'));
+
+      expect(await auth.signInWithGoogle(), AuthNextStep.failed);
+      expect(repo.signOutCalls, 1);
+      expect(auth.error.toString(), isNot(contains('HTTP')));
+    });
+
+    test('H2: cerrada → sale con el aviso de cuenta cerrada y cierra Firebase', () async {
+      when(() => getPrefs.execute(any())).thenThrow(apiError(403, 'ACCOUNT_CLOSED'));
+
+      expect(await auth.signInWithApple(), AuthNextStep.failed);
+      expect(repo.signOutCalls, 1);
+      expect(auth.error.toString(), contains('cerrada'));
+      expect(reactivations, 0);
+    });
+
+    test('H2: al restaurar una cuenta cerrada también cierra Firebase y avisa', () async {
+      repo.current = fakeUser();
+      when(() => getPrefs.execute(any())).thenThrow(apiError(403, 'ACCOUNT_CLOSED'));
+
+      await auth.restoreSessionIfPossible();
+
+      expect(auth.isSignedIn, isFalse);
+      expect(repo.signOutCalls, 1);
+      expect(auth.error.toString(), contains('cerrada'));
+    });
+
+    test('C1: el bloqueo global no cierra la sesión mientras hay un inicio de sesión en curso', () async {
+      repo.signInGate = Completer<void>();
+      final pending = auth.signInWithGoogle();
+
+      await auth.signOutBecauseAccountBlocked('ACCOUNT_DISABLED');
+      expect(repo.signOutCalls, 0);
+
+      repo.signInGate!.complete();
+      await pending;
+    });
+  });
+
+  group('H1: abrir la app sin conexión', () {
+    DioException offline() => DioException(
+          requestOptions: RequestOptions(path: '/v1/users/me'),
+          type: DioExceptionType.connectionError,
+        );
+
+    test('conserva la sesión y pide conexión en vez de ir al login', () async {
+      repo.current = fakeUser();
+      when(() => getPrefs.execute(any())).thenThrow(offline());
+
+      await auth.restoreSessionIfPossible();
+
+      expect(auth.needsConnection, isTrue);
+      expect(auth.isSignedIn, isTrue);
+      expect(repo.signOutCalls, 0);
+    });
+
+    test('al reintentar con conexión entra normalmente', () async {
+      repo.current = fakeUser();
+      when(() => getPrefs.execute(any())).thenThrow(offline());
+      await auth.restoreSessionIfPossible();
+      when(() => getPrefs.execute(any())).thenAnswer((_) async => registeredPrefs);
+
+      await auth.retryConnection();
+
+      expect(auth.needsConnection, isFalse);
+      expect(auth.isRegistered, isTrue);
+    });
+
+    test('al volver a la app reintenta solo', () async {
+      repo.current = fakeUser();
+      when(() => getPrefs.execute(any())).thenThrow(offline());
+      await auth.restoreSessionIfPossible();
+      when(() => getPrefs.execute(any())).thenAnswer((_) async => registeredPrefs);
+
+      await auth.checkSessionOnResume();
+
+      expect(auth.isRegistered, isTrue);
+    });
+
+    test('cerrar sesión desde la pantalla sin conexión vuelve al login', () async {
+      repo.current = fakeUser();
+      when(() => getPrefs.execute(any())).thenThrow(offline());
+      await auth.restoreSessionIfPossible();
+
+      await auth.logout();
+
+      expect(auth.needsConnection, isFalse);
+      expect(auth.isSignedIn, isFalse);
     });
   });
 }

@@ -56,6 +56,8 @@ import 'features/auth/presentation/pages/login_page.dart';
 import 'features/auth/presentation/auth_route.dart';
 import 'features/auth/presentation/pages/register_page.dart';
 import 'features/auth/presentation/pages/verify_email_page.dart';
+import 'features/auth/presentation/pages/offline_page.dart';
+import 'features/account/adapters/api/account_api_repository.dart';
 import 'features/events/presentation/pages/event_detail_page.dart';
 import 'features/events/presentation/pages/home_shell_page.dart';
 import 'features/events/presentation/pages/events_list_page.dart';
@@ -81,6 +83,7 @@ class OnesApp extends StatelessWidget {
         FirebaseAuthRepository(googleServerClientId: config.googleWebClientId);
 
     final usersRepository = UsersApiRepository(apiFactory);
+    final accountRepository = AccountApiRepository(apiFactory);
     final ensureUser = EnsureUserUseCase(usersRepository);
     final getUserPreferences = GetUserPreferencesUseCase(usersRepository);
     final updateUserPreferences = UpdateUserPreferencesUseCase(usersRepository);
@@ -131,6 +134,7 @@ class OnesApp extends StatelessWidget {
               updateUserPreferences: updateUserPreferences,
               lookupUserByEmailUseCase: lookupUserByEmail,
               getAdminMe: getAdminMe,
+              reactivateAccount: (token) async => (await accountRepository.reactivate(token)) != null,
             );
             ctrl.restoreSessionIfPossible();
             return ctrl;
@@ -616,6 +620,8 @@ class _RootRouterState extends State<_RootRouter> with WidgetsBindingObserver {
     switch (resolveAuthRoute(auth)) {
       case AuthRoute.splash:
         return const SplashPage();
+      case AuthRoute.offline:
+        return const OfflinePage();
       case AuthRoute.verifyEmail:
         return const VerifyEmailPage();
       case AuthRoute.completeRegistration:

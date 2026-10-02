@@ -10,6 +10,7 @@ import 'package:ones_app/features/auth/domain/auth_failure.dart';
 import 'package:ones_app/features/auth/presentation/auth_controller.dart';
 import 'package:ones_app/features/auth/presentation/pages/forgot_password_page.dart';
 import 'package:ones_app/features/auth/presentation/pages/login_page.dart';
+import 'package:ones_app/features/auth/presentation/pages/offline_page.dart';
 import 'package:ones_app/features/auth/presentation/pages/register_page.dart';
 import 'package:ones_app/features/auth/presentation/pages/verify_email_page.dart';
 import 'package:ones_app/features/users/application/ensure_user_use_case.dart';
@@ -339,6 +340,37 @@ void main() {
         debugDefaultTargetPlatformOverride = null;
       });
     }
+  });
+
+  group('M1: Google/Apple sin cuenta desde el login', () {
+    testWidgets('lleva directo al formulario de registro', (tester) async {
+      final req = RequestOptions(path: '/v1/users/me');
+      when(() => getPrefs.execute(any())).thenThrow(
+          DioException(requestOptions: req, response: Response(requestOptions: req, statusCode: 404)));
+      await pump(tester, const LoginPage());
+
+      await tapKey(tester, 'auth.google');
+
+      expect(find.byType(RegisterPage), findsOneWidget);
+      expect(find.text('No encontramos una cuenta con ese correo.'), findsNothing);
+    });
+  });
+
+  group('H1: pantalla sin conexión', () {
+    testWidgets('Reintentar vuelve a intentar entrar', (tester) async {
+      repo.current = fakeUser();
+      final req = RequestOptions(path: '/v1/users/me');
+      when(() => getPrefs.execute(any()))
+          .thenThrow(DioException(requestOptions: req, type: DioExceptionType.connectionError));
+      await auth.restoreSessionIfPossible();
+      when(() => getPrefs.execute(any()))
+          .thenAnswer((_) async => const UserPreferences(preferredName: 'Ana', languagePreference: 'es'));
+      await pump(tester, const OfflinePage());
+
+      await tapKey(tester, 'offline.retry');
+
+      expect(auth.isRegistered, isTrue);
+    });
   });
 }
 

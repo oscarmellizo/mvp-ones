@@ -469,7 +469,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               ),
                             ),
                           ),
-                          if (!widget.popToRootOnComplete) ...[
+                          ...[
                             const SizedBox(height: 8),
                             TextButton(
                               key: const Key('register.logout'),

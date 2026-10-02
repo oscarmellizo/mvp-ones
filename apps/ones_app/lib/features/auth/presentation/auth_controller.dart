@@ -23,6 +23,10 @@ class AuthController extends ChangeNotifier {
   final LookupUserByEmailUseCase lookupUserByEmailUseCase;
   final GetAdminMeUseCase getAdminMe;
 
+  /// Reactiva una cuenta dada de baja dentro del plazo (POST /v1/account/reactivate).
+  /// Devuelve false si el backend la rechaza (cuenta ya cerrada).
+  final Future<bool> Function(String idToken)? reactivateAccount;
+
   AuthUser? _user;
   String? _idToken;
   String? _preferredName;
@@ -33,6 +37,7 @@ class AuthController extends ChangeNotifier {
   bool _needsEmailVerification = false;
   bool _isLoading = false;
   bool _isRestoring = false;
+  bool _needsConnection = false;
   Object? _error;
 
   Future<void>? _restoreInFlight;
@@ -46,6 +51,7 @@ class AuthController extends ChangeNotifier {
     required this.updateUserPreferences,
     required this.lookupUserByEmailUseCase,
     required this.getAdminMe,
+    this.reactivateAccount,
   });
 
   AuthUser? get user => _user;
@@ -61,6 +67,9 @@ class AuthController extends ChangeNotifier {
 
   /// Restaurando la sesión al abrir la app (el router muestra el splash solo en este caso).
   bool get isRestoring => _isRestoring;
+
+  /// Hay sesión pero no se pudo hablar con el API al abrir la app (sin internet o servicio caído).
+  bool get needsConnection => _needsConnection;
   Object? get error => _error;
 
   Future<void> signIn() async {
@@ -102,6 +111,7 @@ class AuthController extends ChangeNotifier {
 
   Future<void> _restoreSessionInternal() async {
     _isRestoring = true;
+    _needsConnection = false;
     try {
       await authRepository.clearSessionIfFreshInstall();
     } catch (_) {
@@ -135,11 +145,32 @@ class AuthController extends ChangeNotifier {
       }
     } catch (e) {
       _error = _formatDioOrRawError(e);
-      _clearSession();
+      if (_isTransient(e)) {
+        // Sesión válida pero sin conexión: no se saca al usuario; se le ofrece reintentar.
+        _needsConnection = true;
+      } else {
+        _clearSession();
+      }
     } finally {
       _isRestoring = false;
       _setLoading(false);
     }
+  }
+
+  /// "Reintentar" en la pantalla sin conexión.
+  Future<void> retryConnection() => restoreSessionIfPossible();
+
+  static bool _isTransient(Object e) {
+    if (e is AuthException) return e.failure == AuthFailure.network;
+    if (e is! DioException) return false;
+    if (e.type == DioExceptionType.connectionError ||
+        e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.sendTimeout ||
+        e.type == DioExceptionType.receiveTimeout) {
+      return true;
+    }
+    final status = e.response?.statusCode;
+    return status != null && status >= 500;
   }
 
   Future<AuthNextStep> _signIn(Future<AuthUser> Function() action) {
@@ -192,6 +223,20 @@ class AuthController extends ChangeNotifier {
           await _safeSignOut();
           throw const _AuthMessage(_migratedMessage);
         }
+      }
+      if (status == 403 && code == 'ACCOUNT_DISABLED') {
+        // Dada de baja dentro del plazo: volver a entrar la reactiva (lo promete el diálogo de baja).
+        final reactivate = reactivateAccount;
+        final reactivated = reactivate != null && await reactivate(token);
+        if (reactivated) {
+          return await _loadPreferences(token);
+        }
+        await _safeSignOut();
+        throw const _AuthMessage(_closedMessage);
+      }
+      if (status == 403 && code == 'ACCOUNT_CLOSED') {
+        await _safeSignOut();
+        throw const _AuthMessage(_closedMessage);
       }
       if (status == 403 && code == 'EMAIL_NOT_VERIFIED') {
         _needsEmailVerification = true;
@@ -417,6 +462,10 @@ class AuthController extends ChangeNotifier {
 
   /// Al volver a la app: si Firebase ya no tiene usuario, la sesión murió mientras estaba en segundo plano.
   Future<void> checkSessionOnResume() async {
+    if (_needsConnection && !_isLoading) {
+      await retryConnection();
+      return;
+    }
     if (_user == null || _isLoading) return;
     try {
       final current = await authRepository.currentUser();
@@ -457,6 +506,9 @@ class AuthController extends ChangeNotifier {
   /// Cierra la sesión porque el API rechazó la cuenta (ACCOUNT_DISABLED / ACCOUNT_CLOSED)
   /// y deja un mensaje en [error] para que la pantalla de login lo muestre.
   Future<void> signOutBecauseAccountBlocked(String code) {
+    // Durante un inicio de sesión o la restauración, el propio flujo maneja la cuenta bloqueada
+    // (y reactiva si corresponde); cerrar sesión aquí competiría con él.
+    if (_isLoading || _isRestoring) return Future.value();
     return _accountBlockedSignOutInFlight ??= _doSignOutBecauseAccountBlocked(code).whenComplete(() {
       _accountBlockedSignOutInFlight = null;
     });
@@ -464,9 +516,7 @@ class AuthController extends ChangeNotifier {
 
   Future<void> _doSignOutBecauseAccountBlocked(String code) async {
     await logout();
-    _error = code == 'ACCOUNT_CLOSED'
-        ? 'Tu cuenta fue cerrada porque pasaron más de 30 días desde su desactivación.'
-        : 'Tu cuenta está desactivada. Vuelve a iniciar sesión para reactivarla.';
+    _error = code == 'ACCOUNT_CLOSED' ? _closedMessage : _disabledMessage;
     notifyListeners();
   }
 
@@ -498,6 +548,7 @@ class AuthController extends ChangeNotifier {
     _isAdmin = false;
     _isRegistered = false;
     _needsEmailVerification = false;
+    _needsConnection = false;
   }
 
   static String? _errorCode(Object e) {
@@ -515,6 +566,10 @@ class AuthController extends ChangeNotifier {
           return 'Ya existe una cuenta de Ones con este correo. Entra con Google.';
         case 'ACCOUNT_MIGRATED':
           return _migratedMessage;
+        case 'ACCOUNT_DISABLED':
+          return _disabledMessage;
+        case 'ACCOUNT_CLOSED':
+          return _closedMessage;
         case 'ACCOUNT_MIGRATION_FAILED':
           return 'No pudimos actualizar tu cuenta en este momento. Inténtalo de nuevo en unos minutos.';
       }
@@ -557,6 +612,8 @@ class AuthController extends ChangeNotifier {
 }
 
 const _migratedMessage = 'Actualizamos tu cuenta. Vuelve a entrar con Google para continuar.';
+const _closedMessage = 'Tu cuenta fue cerrada porque pasaron más de 30 días desde su desactivación.';
+const _disabledMessage = 'Tu cuenta está desactivada. Vuelve a iniciar sesión para reactivarla.';
 
 /// Error con un mensaje ya listo para mostrar.
 class _AuthMessage implements Exception {

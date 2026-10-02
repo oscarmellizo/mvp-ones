@@ -34,7 +34,6 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
 
-  bool _accountNotFound = false;
 
 
 
@@ -51,10 +50,11 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) setState(() => _pending = null);
     }
     if (!mounted) return;
-    setState(() {
-      // Las cuentas de correo sin registro las lleva el router al formulario de registro.
-      _accountNotFound = step == AuthNextStep.needsRegistration && auth.user?.provider != 'password';
-    });
+    // Google/Apple sin cuenta en Ones: directo al formulario de registro (nombre y términos).
+    // Las cuentas de correo sin registro las lleva el router a ese mismo formulario.
+    if (step == AuthNextStep.needsRegistration && auth.user?.provider != 'password') {
+      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RegisterPage()));
+    }
   }
 
 
@@ -175,165 +175,7 @@ class _LoginPageState extends State<LoginPage> {
 
                   const SizedBox(height: 28),
 
-                  if (_accountNotFound) ...[
-
-                    Container(
-
-                      padding: const EdgeInsets.all(14),
-
-                      decoration: BoxDecoration(
-
-                        color: OnesColors.yellowLight.withOpacity(0.6),
-
-                        borderRadius: BorderRadius.zero,
-
-                        border: Border.all(
-
-                          color: OnesColors.purpleMid.withOpacity(0.4),
-
-                        ),
-
-                      ),
-
-                      child: Column(
-
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-
-                        children: [
-
-                          const Text(
-
-                            'No encontramos una cuenta con ese correo.',
-
-                            textAlign: TextAlign.center,
-
-                            style: TextStyle(
-
-                              fontWeight: FontWeight.w700,
-
-                              color: OnesColors.black,
-
-                            ),
-
-                          ),
-
-                          const SizedBox(height: 6),
-
-                          const Text(
-
-                            'Crea tu cuenta primero para poder ingresar.',
-
-                            textAlign: TextAlign.center,
-
-                            style: TextStyle(
-
-                              fontSize: 13,
-
-                              color: OnesColors.black,
-
-                            ),
-
-                          ),
-
-                          const SizedBox(height: 12),
-
-                          FilledButton(
-
-                            style: FilledButton.styleFrom(
-
-                              backgroundColor: OnesColors.purpleMid,
-
-                              foregroundColor: OnesColors.white,
-
-                              padding:
-
-                                  const EdgeInsets.symmetric(vertical: 12),
-
-                              shape: const RoundedRectangleBorder(
-
-                                borderRadius: BorderRadius.zero,
-
-                              ),
-
-                            ),
-
-                            onPressed: auth.isLoading
-
-                                ? null
-
-                                : () {
-
-                                    setState(() {
-
-                                      _accountNotFound = false;
-
-                                    });
-
-                                    Navigator.of(context).push(
-
-                                      MaterialPageRoute(
-
-                                        builder: (_) => const RegisterPage(),
-
-                                      ),
-
-                                    );
-
-                                  },
-
-                            child: const Text(
-
-                              'Crear cuenta',
-
-                              style: TextStyle(fontWeight: FontWeight.w900),
-
-                            ),
-
-                          ),
-
-                          const SizedBox(height: 8),
-
-                          TextButton(
-
-                            onPressed: () {
-
-                              setState(() {
-
-                                _accountNotFound = false;
-
-                              });
-
-                              auth.clearGoogleSession();
-
-                            },
-
-                            child: const Text(
-
-                              'Intentar con otra cuenta',
-
-                              style: TextStyle(
-
-                                color: OnesColors.purpleDeep,
-
-                                fontWeight: FontWeight.w600,
-
-                                fontSize: 13,
-
-                              ),
-
-                            ),
-
-                          ),
-
-                        ],
-
-                      ),
-
-                    ),
-
-                    const SizedBox(height: 16),
-
-                  ] else ...[
+                  ...[
 
                     if (auth.error != null) ...[
 

@@ -104,4 +104,14 @@ void main() {
     await pending;
     expect(resolveAuthRoute(auth), AuthRoute.home);
   });
+
+  test('H1: sin conexión al abrir → pantalla de conexión, no login', () async {
+    repo.current = fakeUser();
+    when(() => getPrefs.execute(any())).thenThrow(DioException(
+      requestOptions: RequestOptions(path: '/v1/users/me'),
+      type: DioExceptionType.connectionError,
+    ));
+    await auth.restoreSessionIfPossible();
+    expect(resolveAuthRoute(auth), AuthRoute.offline);
+  });
 }
