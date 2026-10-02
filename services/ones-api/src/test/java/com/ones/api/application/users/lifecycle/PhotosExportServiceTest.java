@@ -60,6 +60,15 @@ class PhotosExportServiceTest {
         when(storage.open(anyString(), anyString())).thenAnswer(inv -> {
             byte[] data = objects.get(inv.getArgument(0) + "/" + inv.getArgument(1));
             if (data == null) throw new IllegalStateException("no existe");
+            if (data.length == 0) { // objeto que falla a mitad de lectura
+                return new java.io.InputStream() {
+                    int n = 0;
+                    @Override public int read() throws IOException {
+                        if (n++ < 3) return 'x';
+                        throw new IOException("corte de red");
+                    }
+                };
+            }
             return new ByteArrayInputStream(data);
         });
         org.mockito.Mockito.doAnswer(inv -> {
@@ -123,5 +132,20 @@ class PhotosExportServiceTest {
         eventList.add(event("e9", "other", "Otro"));
         assertTrue(service.export("u1").isEmpty());
         assertTrue(uploaded.isEmpty());
+    }
+
+    @Test
+    void export_skipsPhotoWhoseReadFailsMidway_withoutTruncatedEntry() throws Exception {
+        withObject(photo("bad", "e1", "u1"), ""); // vacío = stream que falla tras 3 bytes
+        withObject(photo("good", "e1", "u1"), "bytes-buenos");
+
+        assertEquals(Optional.of("exports/u1/ones-fotos.zip"), service.export("u1"));
+
+        try (ZipInputStream in = new ZipInputStream(new ByteArrayInputStream(uploaded.get("exports/exports/u1/ones-fotos.zip")))) {
+            ZipEntry e = in.getNextEntry();
+            assertEquals("e1/good.jpg", e.getName());
+            assertEquals("bytes-buenos", new String(in.readAllBytes()));
+            assertEquals(null, in.getNextEntry());
+        }
     }
 }

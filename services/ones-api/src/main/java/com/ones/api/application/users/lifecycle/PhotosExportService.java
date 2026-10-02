@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -67,14 +68,22 @@ public class PhotosExportService {
                 // Se escribe a disco (no a memoria): una cuenta puede tener miles de fotos.
                 try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(tmp))) {
                     for (Photo p : byId.values()) {
-                        // El stream se abre antes de putNextEntry: si el objeto no existe no queda entrada vacía.
-                        try (InputStream in = objectStorage.open(photosBucket, p.getS3KeyOriginal())) {
+                        // Se descarga completa a un temporal antes de tocar el ZIP: si la lectura falla
+                        // a mitad, la foto se omite y nunca queda una entrada truncada.
+                        Path photoTmp = null;
+                        try {
+                            photoTmp = Files.createTempFile("ones-export-photo-", ".jpg");
+                            try (InputStream in = objectStorage.open(photosBucket, p.getS3KeyOriginal())) {
+                                Files.copy(in, photoTmp, StandardCopyOption.REPLACE_EXISTING);
+                            }
                             zip.putNextEntry(new ZipEntry(p.getEventId() + "/" + p.getPhotoId() + ".jpg"));
-                            in.transferTo(zip);
+                            Files.copy(photoTmp, zip);
                             zip.closeEntry();
                             written++;
                         } catch (Exception ex) {
                             log.warn("[PhotosExportService] foto omitida photoId={} err={}", p.getPhotoId(), ex.toString());
+                        } finally {
+                            if (photoTmp != null) Files.deleteIfExists(photoTmp);
                         }
                     }
                 }
