@@ -19,13 +19,17 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.ones.api.application.events.ports.EventsRepository;
+import com.ones.api.application.events.ports.ObjectNotFoundException;
 import com.ones.api.application.events.ports.ObjectStorage;
 import com.ones.api.application.photos.ports.PhotosRepository;
 import com.ones.api.application.photos.ports.PhotosRepository.PageResult;
 import com.ones.api.domain.events.Event;
 import com.ones.api.domain.photos.Photo;
 
-/** Genera un ZIP con las fotos de la cuenta (de sus eventos y las que subió a otros) y lo sube al bucket de exportaciones. */
+/**
+ * Genera un ZIP con las fotos de la cuenta (de sus eventos y las que subió a otros) y lo sube en streaming al
+ * bucket de exportaciones. Solo se omiten fotos cuyo original no existe; cualquier otro error se propaga.
+ */
 @Service
 public class PhotosExportService {
 
@@ -61,41 +65,62 @@ public class PhotosExportService {
         }
         collect(byId, next -> photosRepository.listByGuestId(userId, 100, next));
 
+        String key = "exports/" + userId + "/ones-fotos.zip";
+        ObjectStorage.Upload upload = null;
+        ZipOutputStream zip = null;
+        int written = 0;
+        int skipped = 0;
         try {
-            Path tmp = Files.createTempFile("ones-export-", ".zip");
-            try {
-                int written = 0;
-                // Se escribe a disco (no a memoria): una cuenta puede tener miles de fotos.
-                try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(tmp))) {
-                    for (Photo p : byId.values()) {
-                        // Se descarga completa a un temporal antes de tocar el ZIP: si la lectura falla
-                        // a mitad, la foto se omite y nunca queda una entrada truncada.
-                        Path photoTmp = null;
-                        try {
-                            photoTmp = Files.createTempFile("ones-export-photo-", ".jpg");
-                            try (InputStream in = objectStorage.open(photosBucket, p.getS3KeyOriginal())) {
-                                Files.copy(in, photoTmp, StandardCopyOption.REPLACE_EXISTING);
-                            }
-                            zip.putNextEntry(new ZipEntry(p.getEventId() + "/" + p.getPhotoId() + ".jpg"));
-                            Files.copy(photoTmp, zip);
-                            zip.closeEntry();
-                            written++;
-                        } catch (Exception ex) {
-                            log.warn("[PhotosExportService] foto omitida photoId={} err={}", p.getPhotoId(), ex.toString());
-                        } finally {
-                            if (photoTmp != null) Files.deleteIfExists(photoTmp);
-                        }
-                    }
+            for (Photo p : byId.values()) {
+                if (p.getS3KeyOriginal() == null || p.getS3KeyOriginal().isBlank()) {
+                    skipped++;
+                    continue;
                 }
-                if (written == 0) return Optional.empty();
-                String key = "exports/" + userId + "/ones-fotos.zip";
-                objectStorage.putFile(exportsBucket, key, tmp, "application/zip");
-                return Optional.of(key);
-            } finally {
-                Files.deleteIfExists(tmp);
+                // Se descarga completa a un temporal antes de tocar el ZIP: así nunca queda una entrada
+                // truncada, y el ZIP se escribe directo a S3 (multipart) sin ocupar el disco de la tarea.
+                Path photoTmp = Files.createTempFile("ones-export-photo-", ".jpg");
+                try {
+                    try (InputStream in = objectStorage.open(photosBucket, p.getS3KeyOriginal())) {
+                        Files.copy(in, photoTmp, StandardCopyOption.REPLACE_EXISTING);
+                    } catch (ObjectNotFoundException missing) {
+                        // Solo un objeto que de verdad no existe se omite; cualquier otro error aborta la
+                        // exportación y la cuenta se reintenta mañana.
+                        skipped++;
+                        log.warn("[PhotosExportService] foto sin original en S3, se omite photoId={}", p.getPhotoId());
+                        continue;
+                    }
+                    if (zip == null) {
+                        upload = objectStorage.openUpload(exportsBucket, key, "application/zip");
+                        zip = new ZipOutputStream(upload);
+                    }
+                    zip.putNextEntry(new ZipEntry(p.getEventId() + "/" + p.getPhotoId() + ".jpg"));
+                    Files.copy(photoTmp, zip);
+                    zip.closeEntry();
+                    written++;
+                } finally {
+                    Files.deleteIfExists(photoTmp);
+                }
             }
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
+            if (skipped > 0) {
+                log.warn("[PhotosExportService] userId={} fotos omitidas={} exportadas={}", userId, skipped, written);
+            }
+            if (zip == null) return Optional.empty(); // ninguna foto exportable: no se sube nada
+            zip.close(); // completa la subida multipart
+            return Optional.of(key);
+        } catch (IOException | RuntimeException e) {
+            if (upload != null) upload.abort();
+            closeQuietly(zip);
+            if (e instanceof IOException io) throw new UncheckedIOException(io);
+            throw (RuntimeException) e;
+        }
+    }
+
+    private static void closeQuietly(ZipOutputStream zip) {
+        if (zip == null) return;
+        try {
+            zip.close(); // libera el Deflater; la subida ya está abortada, así que no se completa nada
+        } catch (IOException ignore) {
+            // esperado: escribir el cierre del ZIP sobre una subida abortada falla
         }
     }
 

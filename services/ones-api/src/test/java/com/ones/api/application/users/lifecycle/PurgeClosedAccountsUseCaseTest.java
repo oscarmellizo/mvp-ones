@@ -14,7 +14,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.io.InputStream;
-import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -362,7 +361,8 @@ class PurgeClosedAccountsUseCaseTest {
         public void putPng(String b, String k, byte[] png) { }
         public void copy(String sb, String sk, String db, String dk) { }
         public InputStream open(String b, String k) { throw new UnsupportedOperationException(); }
-        public void putFile(String b, String k, Path f, String ct) { }
+        @Override
+        public Upload openUpload(String b, String k, String ct) { throw new UnsupportedOperationException(); }
         public void delete(String bucket, String key) { deleted.add(bucket + "/" + key); }
     }
 }

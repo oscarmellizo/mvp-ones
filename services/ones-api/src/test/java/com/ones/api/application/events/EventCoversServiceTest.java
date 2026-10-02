@@ -334,12 +334,8 @@ class EventCoversServiceTest {
         }
 
         @Override
-        public void putFile(String bucket, String key, java.nio.file.Path file, String contentType) {
-            try {
-                objects.put(bucket + "/" + key, java.nio.file.Files.readAllBytes(file));
-            } catch (java.io.IOException e) {
-                throw new IllegalStateException(e);
-            }
+        public Upload openUpload(String bucket, String key, String contentType) {
+            throw new UnsupportedOperationException();
         }
 
         @Override

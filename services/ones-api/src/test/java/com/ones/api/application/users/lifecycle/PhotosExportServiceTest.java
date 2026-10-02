@@ -1,6 +1,7 @@
 package com.ones.api.application.users.lifecycle;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -11,8 +12,6 @@ import static org.mockito.Mockito.when;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,6 +26,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.ones.api.application.events.ports.EventsRepository;
+import com.ones.api.application.events.ports.ObjectNotFoundException;
 import com.ones.api.application.events.ports.ObjectStorage;
 import com.ones.api.application.photos.ports.PhotosRepository;
 import com.ones.api.application.photos.ports.PhotosRepository.PageResult;
@@ -42,6 +42,46 @@ class PhotosExportServiceTest {
     private final List<Photo> photoList = new ArrayList<>();
     private final Map<String, byte[]> objects = new HashMap<>();
     private final Map<String, byte[]> uploaded = new HashMap<>();
+    private final List<CapturingUpload> uploads = new ArrayList<>();
+    private boolean failZipWrites;
+
+    /** Subida en streaming que guarda los bytes solo al completarse (close) y registra abort(). */
+    private class CapturingUpload extends ObjectStorage.Upload {
+        final String path;
+        final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        boolean aborted;
+        boolean completed;
+
+        CapturingUpload(String path) {
+            this.path = path;
+        }
+
+        @Override
+        public void write(int b) throws IOException {
+            if (aborted || completed) throw new IOException("subida terminada");
+            if (failZipWrites) throw new IOException("disco/red llena");
+            bytes.write(b);
+        }
+
+        @Override
+        public void write(byte[] b, int off, int len) throws IOException {
+            if (aborted || completed) throw new IOException("subida terminada");
+            if (failZipWrites) throw new IOException("disco/red llena");
+            bytes.write(b, off, len);
+        }
+
+        @Override
+        public void close() {
+            if (aborted || completed) return;
+            completed = true;
+            uploaded.put(path, bytes.toByteArray());
+        }
+
+        @Override
+        public void abort() {
+            aborted = true;
+        }
+    }
     private PhotosExportService service;
 
     @BeforeEach
@@ -59,7 +99,8 @@ class PhotosExportServiceTest {
         ObjectStorage storage = mock(ObjectStorage.class);
         when(storage.open(anyString(), anyString())).thenAnswer(inv -> {
             byte[] data = objects.get(inv.getArgument(0) + "/" + inv.getArgument(1));
-            if (data == null) throw new IllegalStateException("no existe");
+            if (data == null) throw new ObjectNotFoundException(inv.getArgument(0), inv.getArgument(1));
+            if (new String(data).equals("DENIED")) throw new IllegalStateException("AccessDenied (403)");
             if (data.length == 0) { // objeto que falla a mitad de lectura
                 return new java.io.InputStream() {
                     int n = 0;
@@ -71,10 +112,11 @@ class PhotosExportServiceTest {
             }
             return new ByteArrayInputStream(data);
         });
-        org.mockito.Mockito.doAnswer(inv -> {
-            uploaded.put(inv.getArgument(0) + "/" + inv.getArgument(1), Files.readAllBytes(inv.<Path>getArgument(2)));
-            return null;
-        }).when(storage).putFile(anyString(), anyString(), any(Path.class), anyString());
+        when(storage.openUpload(anyString(), anyString(), anyString())).thenAnswer(inv -> {
+            CapturingUpload u = new CapturingUpload(inv.getArgument(0) + "/" + inv.getArgument(1));
+            uploads.add(u);
+            return u;
+        });
 
         service = new PhotosExportService(events, photos, storage, "photos", "exports");
     }
@@ -135,8 +177,39 @@ class PhotosExportServiceTest {
     }
 
     @Test
-    void export_skipsPhotoWhoseReadFailsMidway_withoutTruncatedEntry() throws Exception {
+    void export_readFailingMidway_failsWholeExport_andAbortsUpload() {
+        withObject(photo("good", "e1", "u1"), "bytes-buenos");
         withObject(photo("bad", "e1", "u1"), ""); // vacío = stream que falla tras 3 bytes
+
+        assertThrows(RuntimeException.class, () -> service.export("u1"));
+
+        assertTrue(uploaded.isEmpty());
+        assertEquals(1, uploads.size());
+        assertTrue(uploads.get(0).aborted);
+    }
+
+    @Test
+    void export_nonNotFoundReadError_propagates_insteadOfReportingNoPhotos() {
+        withObject(photo("p1", "e1", "u1"), "DENIED");
+
+        assertThrows(IllegalStateException.class, () -> service.export("u1"));
+        assertTrue(uploaded.isEmpty());
+    }
+
+    @Test
+    void export_zipWriteError_propagates_andAbortsUpload() {
+        withObject(photo("p1", "e1", "u1"), "a");
+        failZipWrites = true;
+
+        assertThrows(RuntimeException.class, () -> service.export("u1"));
+
+        assertTrue(uploaded.isEmpty());
+        assertTrue(uploads.get(0).aborted);
+    }
+
+    @Test
+    void export_missingObjectAmongOthers_isSkipped_restIsStreamed() throws Exception {
+        photoList.add(photo("gone", "e1", "u1")); // sin objeto en S3: NoSuchKey
         withObject(photo("good", "e1", "u1"), "bytes-buenos");
 
         assertEquals(Optional.of("exports/u1/ones-fotos.zip"), service.export("u1"));
@@ -147,5 +220,6 @@ class PhotosExportServiceTest {
             assertEquals("bytes-buenos", new String(in.readAllBytes()));
             assertEquals(null, in.getNextEntry());
         }
+        assertTrue(uploads.get(0).completed);
     }
 }

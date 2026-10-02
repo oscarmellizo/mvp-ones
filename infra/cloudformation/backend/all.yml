@@ -1034,6 +1034,11 @@ Resources:
           - Id: ExpireExports
             Status: Enabled
             ExpirationInDays: 9
+          # Subidas multipart del ZIP que quedaron a medias (tarea caída): se descartan.
+          - Id: AbortIncompleteExportUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
 
   EventsCoversTempBucket:
     Type: AWS::S3::Bucket
@@ -2194,6 +2199,13 @@ Resources:
                 Resource:
                   - !Sub ${EventsCoversTempBucket.Arn}/*
                   - !Sub ${EventsAssetsBucket.Arn}/*
+                  - !Sub ${AccountExportsBucket.Arn}/*
+              # El ZIP de exportación se sube en multipart; si falla se aborta la subida.
+              - Sid: AccountExportsMultipartAbort
+                Effect: Allow
+                Action:
+                  - s3:AbortMultipartUpload
+                Resource:
                   - !Sub ${AccountExportsBucket.Arn}/*
               - Sid: EventPhotosObjectAccess
                 Effect: Allow
