@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -76,5 +78,30 @@ void main() {
     notRegistered();
     await auth.signInWithGoogle();
     expect(resolveAuthRoute(auth), AuthRoute.login);
+  });
+
+  test('durante un inicio de sesión interactivo se queda en el login (no splash)', () async {
+    repo.signInGate = Completer<void>();
+    final pending = auth.signInWithEmail('a@b.co', 'mala');
+
+    expect(auth.isLoading, isTrue);
+    expect(resolveAuthRoute(auth), AuthRoute.login);
+
+    repo.signInGate!.complete();
+    await pending;
+  });
+
+  test('al restaurar la sesión muestra el splash', () async {
+    repo.current = fakeUser();
+    final gate = Completer<UserPreferences?>();
+    when(() => getPrefs.execute(any())).thenAnswer((_) => gate.future);
+    final pending = auth.restoreSessionIfPossible();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(resolveAuthRoute(auth), AuthRoute.splash);
+
+    gate.complete(const UserPreferences(preferredName: 'Ana', languagePreference: 'es'));
+    await pending;
+    expect(resolveAuthRoute(auth), AuthRoute.home);
   });
 }

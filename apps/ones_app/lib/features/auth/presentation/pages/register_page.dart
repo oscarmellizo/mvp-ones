@@ -439,7 +439,8 @@ class _RegisterPageState extends State<RegisterPage> {
                                           Navigator.of(context)
                                               .popUntil((r) => r.isFirst);
                                         } else {
-                                          Navigator.of(context).pop(true);
+                                          // Como raíz no hay a dónde volver: el router lleva al Home.
+                                          Navigator.of(context).maybePop(true);
                                         }
                                       } catch (_) {
                                         if (!context.mounted) return;
@@ -454,6 +455,17 @@ class _RegisterPageState extends State<RegisterPage> {
                               ),
                             ),
                           ),
+                          if (!widget.popToRootOnComplete) ...[
+                            const SizedBox(height: 8),
+                            TextButton(
+                              key: const Key('register.logout'),
+                              onPressed: auth.isLoading ? null : () => auth.logout(),
+                              child: const Text(
+                                'Usar otra cuenta',
+                                style: TextStyle(color: OnesColors.purpleDeep, fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ],
                         ],
                       ],
                     ),

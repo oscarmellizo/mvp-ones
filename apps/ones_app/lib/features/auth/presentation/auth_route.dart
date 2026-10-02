@@ -4,7 +4,8 @@ enum AuthRoute { splash, verifyEmail, completeRegistration, login, home }
 
 /// Pantalla raíz según el estado de sesión.
 AuthRoute resolveAuthRoute(AuthController auth) {
-  if (auth.isLoading && !auth.isSignedIn) return AuthRoute.splash;
+  // Solo al restaurar la sesión: en un inicio de sesión interactivo el login conserva su estado.
+  if (auth.isRestoring) return AuthRoute.splash;
   if (auth.needsEmailVerification) return AuthRoute.verifyEmail;
   if (!auth.isRegistered) {
     // Google/Apple completan el registro en la RegisterPage apilada desde el login;

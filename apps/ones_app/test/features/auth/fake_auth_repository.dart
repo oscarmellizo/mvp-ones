@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ones_app/features/auth/domain/auth_failure.dart';
 import 'package:ones_app/features/auth/domain/auth_repository.dart';
 import 'package:ones_app/features/auth/domain/auth_user.dart';
@@ -21,10 +23,16 @@ class FakeAuthRepository implements AuthRepository {
   int signOutCalls = 0;
   int verificationEmails = 0;
   int migrationRetries = 0;
+  int reloadCalls = 0;
+
+  /// Si no es null, los inicios de sesión esperan a que se complete.
+  Completer<void>? signInGate;
+  AuthException? migrationError;
   final List<String> passwordResets = [];
   final List<bool> tokenRequests = [];
 
   Future<AuthUser> _signIn() async {
+    await signInGate?.future;
     final error = signInError;
     if (error != null) throw error;
     current = signInResult;
@@ -54,7 +62,11 @@ class FakeAuthRepository implements AuthRepository {
   Future<void> sendEmailVerification() async => verificationEmails++;
 
   @override
-  Future<AuthUser?> reloadUser() async => current = afterReload ?? current;
+  Future<AuthUser?> reloadUser() async {
+    reloadCalls++;
+    await Future<void>.delayed(Duration.zero);
+    return current = afterReload ?? current;
+  }
 
   @override
   Future<void> sendPasswordReset(String email) async {
@@ -72,6 +84,8 @@ class FakeAuthRepository implements AuthRepository {
   @override
   Future<AuthUser> signInAgainAfterMigration() async {
     migrationRetries++;
+    final error = migrationError;
+    if (error != null) throw error;
     current = afterMigration ?? current;
     return current!;
   }

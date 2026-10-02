@@ -89,11 +89,11 @@ class FirebaseAuthRepository implements AuthRepository {
       _guard(() => _auth.sendPasswordResetEmail(email: email.trim(), actionCodeSettings: _actionCodeSettings()));
 
   @override
-  Future<String?> getIdToken({bool forceRefresh = false}) async {
-    final u = _auth.currentUser;
-    if (u == null) return null;
-    return u.getIdToken(forceRefresh);
-  }
+  Future<String?> getIdToken({bool forceRefresh = false}) => _guard(() async {
+        final u = _auth.currentUser;
+        if (u == null) return null;
+        return u.getIdToken(forceRefresh);
+      });
 
   @override
   Future<AuthUser> signInAgainAfterMigration() => _guard(() async {

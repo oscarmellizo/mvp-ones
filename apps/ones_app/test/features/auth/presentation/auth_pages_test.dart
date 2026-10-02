@@ -198,6 +198,70 @@ void main() {
       expect(find.byKey(const Key('forgot.sent')), findsOneWidget);
     });
   });
+
+  group('RegisterPage como raíz (correo verificado sin registro)', () {
+    late _MockEnsureUser ensureUser;
+    late _MockUpdatePrefs updatePrefs;
+    late AuthController rootAuth;
+
+    setUp(() async {
+      ensureUser = _MockEnsureUser();
+      updatePrefs = _MockUpdatePrefs();
+      final admin = _MockGetAdminMe();
+      final prefs = _MockGetPrefs();
+      final req = RequestOptions(path: '/v1/users/me');
+      when(() => admin.execute(any())).thenAnswer((_) async => false);
+      when(() => prefs.execute(any())).thenThrow(
+          DioException(requestOptions: req, response: Response(requestOptions: req, statusCode: 404)));
+      when(() => ensureUser.execute(any())).thenAnswer((_) async {});
+      when(() => updatePrefs.execute(any(), any(), any(), any())).thenAnswer(
+          (_) async => const UserPreferences(preferredName: 'Ana', languagePreference: 'es', termsAccepted: true));
+      repo.signInResult = fakeUser(provider: 'password');
+      rootAuth = AuthController(
+        authRepository: repo,
+        ensureUser: ensureUser,
+        getUserPreferences: prefs,
+        updateUserPreferences: updatePrefs,
+        lookupUserByEmailUseCase: _MockLookup(),
+        getAdminMe: admin,
+      );
+      await rootAuth.signInWithEmail('ana@example.com', 'secreto123');
+    });
+
+    Future<void> pumpRoot(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(ChangeNotifierProvider<AuthController>.value(
+        value: rootAuth,
+        child: const MaterialApp(home: RegisterPage(popToRootOnComplete: false)),
+      ));
+      await tester.pump();
+    }
+
+    testWidgets('completar el registro no deja la app sin pantalla', (tester) async {
+      await pumpRoot(tester);
+
+      await tester.tap(find.byType(Checkbox));
+      await tester.pump();
+      final submit = find.widgetWithText(FilledButton, 'Crear cuenta');
+      await tester.ensureVisible(submit);
+      await tester.tap(submit);
+      await tester.pumpAndSettle();
+
+      expect(rootAuth.isRegistered, isTrue);
+      expect(find.byType(RegisterPage), findsOneWidget);
+    });
+
+    testWidgets('ofrece "Usar otra cuenta" y cierra la sesión', (tester) async {
+      await pumpRoot(tester);
+
+      await tapKey(tester, 'register.logout');
+
+      expect(repo.signOutCalls, 1);
+      expect(rootAuth.isSignedIn, isFalse);
+    });
+  });
 }
 
 /// Error de credenciales para probar el aviso.

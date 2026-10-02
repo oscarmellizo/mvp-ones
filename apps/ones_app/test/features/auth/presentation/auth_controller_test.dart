@@ -217,6 +217,8 @@ void main() {
 
       expect(auth.needsEmailVerification, isFalse);
       expect(auth.isRegistered, isTrue);
+      // El token en caché aún dice email_verified=false: hay que pedir uno nuevo.
+      expect(repo.tokenRequests, contains(true));
     });
 
     test('refreshIdToken fuerza refresh', () async {
@@ -261,6 +263,76 @@ void main() {
       ]);
 
       expect(repo.signOutCalls, 1);
+    });
+  });
+
+  group('fallas de la revisión final', () {
+    test('EMAIL_CONFLICT al completar el registro cierra la sesión y pide entrar con Google', () async {
+      when(() => getPrefs.execute(any())).thenThrow(apiError(404));
+      await auth.signInWithApple();
+      when(() => ensureUser.execute(any())).thenThrow(apiError(409, 'EMAIL_CONFLICT'));
+
+      await expectLater(auth.completeRegistration('Ana', termsAccepted: true), throwsA(anything));
+
+      expect(repo.signOutCalls, 1);
+      expect(auth.isSignedIn, isFalse);
+      expect(auth.error.toString(), contains('Google'));
+    });
+
+    test('segundo ACCOUNT_MIGRATED cierra la sesión de Firebase y pide entrar con Google', () async {
+      when(() => getPrefs.execute(any())).thenThrow(apiError(409, 'ACCOUNT_MIGRATED'));
+
+      expect(await auth.signInWithGoogle(), AuthNextStep.failed);
+      expect(repo.signOutCalls, 1);
+      expect(auth.error.toString(), contains('Google'));
+      expect(auth.error.toString(), isNot(contains('HTTP')));
+    });
+
+    test('migración sin credencial guardada cierra la sesión y pide entrar con Google', () async {
+      when(() => getPrefs.execute(any())).thenThrow(apiError(409, 'ACCOUNT_MIGRATED'));
+      repo.migrationError = const AuthException(AuthFailure.unknown, 'Sin credencial');
+
+      expect(await auth.signInWithGoogle(), AuthNextStep.failed);
+      expect(repo.signOutCalls, 1);
+      expect(auth.error.toString(), contains('Google'));
+    });
+
+    test('ACCOUNT_MIGRATION_FAILED muestra un mensaje claro', () async {
+      when(() => getPrefs.execute(any())).thenThrow(apiError(503, 'ACCOUNT_MIGRATION_FAILED'));
+
+      expect(await auth.signInWithGoogle(), AuthNextStep.failed);
+      expect(auth.error.toString(), isNot(contains('HTTP')));
+      expect(auth.error.toString(), contains('Inténtalo de nuevo'));
+    });
+
+    test('sin conexión muestra el mensaje de red', () async {
+      when(() => getPrefs.execute(any())).thenThrow(DioException(
+        requestOptions: RequestOptions(path: '/v1/users/me'),
+        type: DioExceptionType.connectionError,
+      ));
+
+      expect(await auth.signInWithGoogle(), AuthNextStep.failed);
+      expect(auth.error, authFailureMessage(AuthFailure.network));
+    });
+
+    test('si el API falla al revisar la verificación, se queda en la pantalla de verificación', () async {
+      repo.signInResult = fakeUser(provider: 'password', verified: false);
+      await auth.registerWithEmail('a@b.co', 'secreto123');
+      repo.afterReload = fakeUser(provider: 'password', verified: true);
+      when(() => getPrefs.execute(any())).thenThrow(apiError(500));
+
+      await auth.refreshEmailVerification();
+
+      expect(auth.needsEmailVerification, isTrue);
+    });
+
+    test('refreshEmailVerification no corre dos veces a la vez', () async {
+      repo.signInResult = fakeUser(provider: 'password', verified: false);
+      await auth.registerWithEmail('a@b.co', 'secreto123');
+
+      await Future.wait([auth.refreshEmailVerification(), auth.refreshEmailVerification()]);
+
+      expect(repo.reloadCalls, 1);
     });
   });
 }

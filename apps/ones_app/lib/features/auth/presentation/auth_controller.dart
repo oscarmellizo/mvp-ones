@@ -32,10 +32,12 @@ class AuthController extends ChangeNotifier {
   bool _isRegistered = false;
   bool _needsEmailVerification = false;
   bool _isLoading = false;
+  bool _isRestoring = false;
   Object? _error;
 
   Future<void>? _restoreInFlight;
   Future<AuthNextStep>? _signInInFlight;
+  Future<void>? _refreshVerificationInFlight;
 
   AuthController({
     required this.authRepository,
@@ -56,6 +58,9 @@ class AuthController extends ChangeNotifier {
   bool get isRegistered => _isRegistered;
   bool get needsEmailVerification => _needsEmailVerification;
   bool get isLoading => _isLoading;
+
+  /// Restaurando la sesión al abrir la app (el router muestra el splash solo en este caso).
+  bool get isRestoring => _isRestoring;
   Object? get error => _error;
 
   Future<void> signIn() async {
@@ -96,15 +101,26 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> _restoreSessionInternal() async {
+    _isRestoring = true;
     var current = await authRepository.currentUser();
-    if (current == null) return;
+    if (current == null) {
+      _isRestoring = false;
+      notifyListeners();
+      return;
+    }
 
     _setLoading(true);
     try {
       _error = null;
       if (current.needsEmailVerification) {
         // Pudo verificar desde el correo mientras la app estaba cerrada.
-        current = await authRepository.reloadUser() ?? current;
+        final reloaded = await authRepository.reloadUser();
+        if (reloaded != null && !reloaded.needsEmailVerification) {
+          current = reloaded;
+          // El token en caché aún dice email_verified=false.
+          _user = reloaded;
+          await _requireToken(forceRefresh: true);
+        }
       }
       _user = current;
       final step = await _loadSession();
@@ -116,6 +132,7 @@ class AuthController extends ChangeNotifier {
       _error = _formatDioOrRawError(e);
       _clearSession();
     } finally {
+      _isRestoring = false;
       _setLoading(false);
     }
   }
@@ -153,8 +170,6 @@ class AuthController extends ChangeNotifier {
       _isRegistered = false;
       return AuthNextStep.needsEmailVerification;
     }
-    _needsEmailVerification = false;
-
     final token = await _requireToken();
     try {
       return await _loadPreferences(token);
@@ -163,9 +178,15 @@ class AuthController extends ChangeNotifier {
       final code = _errorCode(e);
       if (status == 409 && code == 'ACCOUNT_MIGRATED') {
         // El backend reasignó la cuenta al uid legado: se entra de nuevo con la misma credencial.
-        // Un segundo ACCOUNT_MIGRATED se propaga como error (sin bucle).
-        _user = await authRepository.signInAgainAfterMigration();
-        return await _loadPreferences(await _requireToken(forceRefresh: true));
+        // Si no se puede (sin credencial guardada, o un segundo ACCOUNT_MIGRATED), se cierra la
+        // sesión y se pide entrar con Google, sin bucles.
+        try {
+          _user = await authRepository.signInAgainAfterMigration();
+          return await _loadPreferences(await _requireToken(forceRefresh: true));
+        } catch (_) {
+          await _safeSignOut();
+          throw const _AuthMessage(_migratedMessage);
+        }
       }
       if (status == 403 && code == 'EMAIL_NOT_VERIFIED') {
         _needsEmailVerification = true;
@@ -184,9 +205,11 @@ class AuthController extends ChangeNotifier {
       _termsAccepted = prefs?.termsAccepted ?? false;
       _isAdmin = await _safeLoadIsAdmin(token);
       _isRegistered = true;
+      _needsEmailVerification = false;
       return AuthNextStep.signedIn;
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) {
+        _needsEmailVerification = false;
         _preferredName = null;
         _languagePreference = null;
         _termsAccepted = false;
@@ -237,8 +260,13 @@ class AuthController extends ChangeNotifier {
   }
 
   /// Revisión silenciosa al volver a la app: si ya verificó, continúa; si no, no muestra nada.
-  Future<void> refreshEmailVerification() async {
-    if (!_needsEmailVerification || _isLoading) return;
+  Future<void> refreshEmailVerification() {
+    if (!_needsEmailVerification || _isLoading) return Future.value();
+    return _refreshVerificationInFlight ??=
+        _refreshEmailVerificationInternal().whenComplete(() => _refreshVerificationInFlight = null);
+  }
+
+  Future<void> _refreshEmailVerificationInternal() async {
     try {
       final user = await authRepository.reloadUser();
       if (user == null || user.needsEmailVerification) return;
@@ -301,6 +329,11 @@ class AuthController extends ChangeNotifier {
       _isAdmin = await _safeLoadIsAdmin(token);
       _isRegistered = true;
     } catch (e) {
+      if (_errorCode(e) == 'EMAIL_CONFLICT') {
+        // El correo ya es de otra cuenta (p. ej. de Google): se vuelve al login con el aviso.
+        await _safeSignOut();
+        _clearSession();
+      }
       _error = _formatDioOrRawError(e);
       rethrow;
     } finally {
@@ -428,11 +461,26 @@ class AuthController extends ChangeNotifier {
   }
 
   Object _formatDioOrRawError(Object e) {
+    if (e is _AuthMessage) return e.message;
     if (e is DioException) {
-      if (_errorCode(e) == 'EMAIL_CONFLICT') {
-        return 'Ya existe una cuenta de Ones con este correo. Entra con Google.';
-      }
       final status = e.response?.statusCode;
+      switch (_errorCode(e)) {
+        case 'EMAIL_CONFLICT':
+          return 'Ya existe una cuenta de Ones con este correo. Entra con Google.';
+        case 'ACCOUNT_MIGRATED':
+          return _migratedMessage;
+        case 'ACCOUNT_MIGRATION_FAILED':
+          return 'No pudimos actualizar tu cuenta en este momento. Inténtalo de nuevo en unos minutos.';
+      }
+      if (e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        return authFailureMessage(AuthFailure.network);
+      }
+      if (status != null && status >= 500) {
+        return 'El servicio no está disponible en este momento. Inténtalo de nuevo en unos minutos.';
+      }
       final data = e.response?.data;
       if (data is Map) {
         final code = data['code'] ?? data['error'];
@@ -460,4 +508,16 @@ class AuthController extends ChangeNotifier {
     _isLoading = value;
     notifyListeners();
   }
+}
+
+const _migratedMessage = 'Actualizamos tu cuenta. Vuelve a entrar con Google para continuar.';
+
+/// Error con un mensaje ya listo para mostrar.
+class _AuthMessage implements Exception {
+  final String message;
+
+  const _AuthMessage(this.message);
+
+  @override
+  String toString() => message;
 }
