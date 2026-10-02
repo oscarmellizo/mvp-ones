@@ -175,6 +175,20 @@ class PurgeClosedAccountsUseCaseTest {
     }
 
     @Test
+    void tombstoneWrite_isConditionalOnStillClosed() {
+        repo.upsert(closed("u1", NOW.minus(Duration.ofDays(9))));
+        // Otra corrida termina el borrado mientras esta purga: deja su lápida antes que nosotros.
+        doAnswer(i -> {
+            repo.upsert(repo.findById("u1").get().tombstone(NOW.minusSeconds(1)));
+            return null;
+        }).when(firebase).deleteUser("u1");
+
+        assertEquals(0, useCase.execute());
+
+        assertEquals(NOW.minusSeconds(1), repo.findById("u1").get().getUpdatedAt());
+    }
+
+    @Test
     void alreadyDeleted_isIgnored() {
         repo.upsert(closed("u1", NOW.minus(Duration.ofDays(20))).tombstone(NOW));
         assertEquals(0, useCase.execute());

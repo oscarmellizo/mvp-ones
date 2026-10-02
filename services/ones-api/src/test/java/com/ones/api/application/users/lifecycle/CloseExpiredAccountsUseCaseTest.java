@@ -121,6 +121,78 @@ class CloseExpiredAccountsUseCaseTest {
     }
 
     @Test
+    void claimLostToAnotherRun_skipsWithoutExportOrEmail() {
+        User u = disabled("u1", NOW.minus(Duration.ofDays(31)));
+        // Otra corrida (otra tarea) ya la reclamó; esta vio la fila antes del reclamo.
+        InMemoryUsersRepository racing = new InMemoryUsersRepository() {
+            @Override
+            public java.util.List<User> findByStatusIn(java.util.Set<String> statuses) {
+                return java.util.List.of(u);
+            }
+        };
+        racing.upsert(u.withClosing(NOW.minusSeconds(5)));
+        repo = racing;
+        useCase = build("https://api.ones.events");
+
+        assertEquals(0, useCase.execute());
+
+        verifyNoInteractions(exporter, email);
+        assertEquals(User.STATUS_CLOSING, repo.findById("u1").get().getStatus());
+        assertEquals(NOW.minusSeconds(5), repo.findById("u1").get().getClosingAt());
+    }
+
+    @Test
+    void accountIsClaimedAsClosing_beforeExport() {
+        repo.upsert(disabled("u1", NOW.minus(Duration.ofDays(31))));
+        when(exporter.export("u1")).thenAnswer(i -> {
+            User during = repo.findById("u1").get();
+            assertEquals(User.STATUS_CLOSING, during.getStatus());
+            assertEquals(NOW, during.getClosingAt());
+            return Optional.empty();
+        });
+        when(email.sendClosureEmail(any(), any(), any())).thenReturn(true);
+
+        assertEquals(1, useCase.execute());
+        User u = repo.findById("u1").get();
+        assertEquals(User.STATUS_CLOSED, u.getStatus());
+    }
+
+    @Test
+    void staleClosingOlderThan6h_isReclaimedAndClosed() {
+        repo.upsert(disabled("u1", NOW.minus(Duration.ofDays(31))).withClosing(NOW.minus(Duration.ofHours(7))));
+        when(exporter.export("u1")).thenReturn(Optional.empty());
+        when(email.sendClosureEmail(any(), any(), any())).thenReturn(true);
+
+        assertEquals(1, useCase.execute());
+
+        assertEquals(User.STATUS_CLOSED, repo.findById("u1").get().getStatus());
+        verify(exporter).export("u1");
+    }
+
+    @Test
+    void recentClosing_isLeftToTheRunThatOwnsIt() {
+        repo.upsert(disabled("u1", NOW.minus(Duration.ofDays(31))).withClosing(NOW.minus(Duration.ofHours(1))));
+
+        assertEquals(0, useCase.execute());
+
+        verifyNoInteractions(exporter, email);
+        assertEquals(User.STATUS_CLOSING, repo.findById("u1").get().getStatus());
+    }
+
+    @Test
+    void failureAfterClaim_revertsToDisabledWithoutClosingAt() {
+        repo.upsert(disabled("u1", NOW.minus(Duration.ofDays(31))));
+        when(exporter.export("u1")).thenThrow(new RuntimeException("s3 caído"));
+
+        assertEquals(0, useCase.execute());
+
+        User u = repo.findById("u1").get();
+        assertEquals(User.STATUS_DISABLED, u.getStatus());
+        assertNull(u.getClosingAt());
+        assertEquals(NOW.minus(Duration.ofDays(31)), u.getDisabledAt());
+    }
+
+    @Test
     void reactivatedAccount_isIgnored() {
         repo.upsert(active("u1"));
         assertEquals(0, useCase.execute());

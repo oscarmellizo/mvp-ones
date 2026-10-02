@@ -119,12 +119,16 @@ public class PurgeClosedAccountsUseCase {
             if (u.getClosedAt() == null || !now.isAfter(u.getClosedAt().plus(GRACE))) continue;
             try {
                 purge(u);
-                usersRepository.upsert(u.tombstone(now));
+                // Condicional: si otra corrida ya dejó la lápida (o la fila cambió), no se pisa.
+                if (!usersRepository.upsertIfStatus(u.tombstone(now), u.getStatus())) {
+                    log.warn("[PurgeClosedAccounts] userId={} ya no estaba CLOSED al dejar la lápida", u.getUserId());
+                    continue;
+                }
                 accountAccessService.evict(u.getUserId());
                 purged++;
             } catch (Exception e) {
                 // Todo lo anterior es idempotente: la próxima corrida retoma desde el principio.
-                log.warn("[PurgeClosedAccounts] userId={} err={}", u.getUserId(), e.toString());
+                log.warn("[PurgeClosedAccounts] userId={} falló el borrado; se reintenta en la próxima corrida", u.getUserId(), e);
             }
         }
         return purged;
