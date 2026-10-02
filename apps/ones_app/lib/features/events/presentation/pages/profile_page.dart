@@ -128,240 +128,264 @@ class _ProfilePageState extends State<ProfilePage> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (user == null)
-                  OnesCard(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      translationsService
-                          .translate('profile.no_authenticated_user'),
-                      style:
-                          TextStyle(color: OnesColors.black.withOpacity(0.6)),
-                    ),
-                  )
-                else ...[
-                  Center(
-                    child: Container(
-                      width: 88,
-                      height: 88,
-                      decoration: const BoxDecoration(
-                        color: OnesColors.white,
-                        shape: BoxShape.circle,
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (user == null)
+                      OnesCard(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          translationsService
+                              .translate('profile.no_authenticated_user'),
+                          style: TextStyle(
+                              color: OnesColors.black.withOpacity(0.6)),
+                        ),
+                      )
+                    else ...[
+                      Center(
+                        child: Container(
+                          width: 88,
+                          height: 88,
+                          decoration: const BoxDecoration(
+                            color: OnesColors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: ClipOval(
+                            child: (pictureUrl != null && pictureUrl.isNotEmpty)
+                                ? Image.network(
+                                    pictureUrl,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, _, __) =>
+                                        const Center(
+                                      child: Icon(
+                                        Icons.person,
+                                        size: 44,
+                                        color: Colors.black54,
+                                      ),
+                                    ),
+                                  )
+                                : const Center(
+                                    child: Icon(
+                                      Icons.person,
+                                      size: 44,
+                                      color: Colors.black54,
+                                    ),
+                                  ),
+                          ),
+                        ),
                       ),
-                      child: ClipOval(
-                        child: (pictureUrl != null && pictureUrl.isNotEmpty)
-                            ? Image.network(
-                                pictureUrl,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, _, __) => const Center(
-                                  child: Icon(
-                                    Icons.person,
-                                    size: 44,
-                                    color: Colors.black54,
+                      const SizedBox(height: 14),
+                      _Card(
+                        title: translationsService.translate('profile.account'),
+                        // Solo datos que tienen todas las cuentas (Google, Apple y correo):
+                        // nombre y apellido no existen para correo ni, en la práctica, para Apple.
+                        children: [
+                          _ReadOnlyField(
+                              label: translationsService
+                                  .translate('profile.email'),
+                              value: email ?? ''),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      if (subscriptions.subscription?.isFree == true) ...[
+                        const SizedBox(height: 14),
+                        const _UpgradeBanner(),
+                      ],
+                      const SizedBox(height: 14),
+                      _Card(
+                        title: translationsService
+                            .translate('profile.preferences'),
+                        children: [
+                          Text(
+                            translationsService
+                                .translate('profile.preferred_name_question'),
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 8),
+                          OnesTextField(
+                            controller: _preferredNameController,
+                            hintText: translationsService
+                                .translate('profile.preferred_name_label'),
+                            fillColor: OnesColors.yellowLight.withOpacity(0.35),
+                            borderSide: BorderSide.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            translationsService.translate(
+                                'profile.preferred_name_description'),
+                            style: TextStyle(
+                              color: OnesColors.black.withOpacity(0.55),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: OnesColors.purpleMid,
+                                foregroundColor: OnesColors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12),
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.zero,
+                                ),
+                              ),
+                              onPressed: auth.isLoading
+                                  ? null
+                                  : () async {
+                                      final value =
+                                          _preferredNameController.text.trim();
+                                      const selectedLanguage = 'es';
+                                      FocusScope.of(context).unfocus();
+                                      if (value.isEmpty) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                                translationsService.translate(
+                                                    'profile.error_preferred_name_required')),
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      try {
+                                        await translationsService
+                                            .setLanguage(selectedLanguage);
+                                        await translationsService
+                                            .ensurePageTranslations(
+                                          page: 'profile',
+                                          requiredKeys: _profileRequiredKeys,
+                                        );
+                                        await auth.savePreferences(
+                                          preferredName: value,
+                                          languagePreference: selectedLanguage,
+                                        );
+                                        if (!context.mounted) return;
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                                translationsService.translate(
+                                                    'profile.success_preferences_saved')),
+                                          ),
+                                        );
+                                      } catch (_) {
+                                        if (!context.mounted) return;
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                                translationsService.translate(
+                                                    'profile.error_save_failed')),
+                                          ),
+                                        );
+                                      }
+                                    },
+                              child: Text(
+                                translationsService
+                                    .translate('profile.save_preferences'),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w900),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (auth.isAdmin) ...[
+                        const SizedBox(height: 14),
+                        _Card(
+                          title: translationsService.translate('profile.admin'),
+                          children: [
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: OnesColors.purpleMid,
+                                  foregroundColor: OnesColors.white,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                  shape: const RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.zero,
                                   ),
                                 ),
-                              )
-                            : const Center(
-                                child: Icon(
-                                  Icons.person,
-                                  size: 44,
-                                  color: Colors.black54,
+                                onPressed: auth.isLoading
+                                    ? null
+                                    : () {
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const AdminHomePage(),
+                                          ),
+                                        );
+                                      },
+                                child: Text(
+                                  translationsService
+                                      .translate('profile.open_admin'),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w900),
                                 ),
                               ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  _Card(
-                    title: translationsService.translate('profile.account'),
-                    // Solo datos que tienen todas las cuentas (Google, Apple y correo):
-                    // nombre y apellido no existen para correo ni, en la práctica, para Apple.
-                    children: [
-                      _ReadOnlyField(
-                          label: translationsService.translate('profile.email'),
-                          value: email ?? ''),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  if (subscriptions.subscription?.isFree == true) ...[
-                    const SizedBox(height: 14),
-                    const _UpgradeBanner(),
-                  ],
-                  const SizedBox(height: 14),
-                  _Card(
-                    title: translationsService.translate('profile.preferences'),
-                    children: [
-                      Text(
-                        translationsService
-                            .translate('profile.preferred_name_question'),
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      const SizedBox(height: 8),
-                      OnesTextField(
-                        controller: _preferredNameController,
-                        hintText: translationsService
-                            .translate('profile.preferred_name_label'),
-                        fillColor: OnesColors.yellowLight.withOpacity(0.35),
-                        borderSide: BorderSide.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        translationsService
-                            .translate('profile.preferred_name_description'),
-                        style: TextStyle(
-                          color: OnesColors.black.withOpacity(0.55),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: OnesColors.purpleMid,
-                            foregroundColor: OnesColors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.zero,
                             ),
-                          ),
-                          onPressed: auth.isLoading
-                              ? null
-                              : () async {
-                                  final value =
-                                      _preferredNameController.text.trim();
-                                  const selectedLanguage = 'es';
-                                  FocusScope.of(context).unfocus();
-                                  if (value.isEmpty) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                            translationsService.translate(
-                                                'profile.error_preferred_name_required')),
-                                      ),
-                                    );
-                                    return;
-                                  }
-                                  try {
-                                    await translationsService
-                                        .setLanguage(selectedLanguage);
-                                    await translationsService
-                                        .ensurePageTranslations(
-                                      page: 'profile',
-                                      requiredKeys: _profileRequiredKeys,
-                                    );
-                                    await auth.savePreferences(
-                                      preferredName: value,
-                                      languagePreference: selectedLanguage,
-                                    );
-                                    if (!context.mounted) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                            translationsService.translate(
-                                                'profile.success_preferences_saved')),
-                                      ),
-                                    );
-                                  } catch (_) {
-                                    if (!context.mounted) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(translationsService
-                                            .translate('profile.error_save_failed')),
-                                      ),
-                                    );
-                                  }
-                                },
-                          child: Text(
-                            translationsService
-                                .translate('profile.save_preferences'),
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w900),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (auth.isAdmin) ...[
-                    const SizedBox(height: 14),
-                    _Card(
-                      title: translationsService.translate('profile.admin'),
-                      children: [
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: OnesColors.purpleMid,
-                              foregroundColor: OnesColors.white,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 12),
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.zero,
-                              ),
-                            ),
-                            onPressed: auth.isLoading
-                                ? null
-                                : () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => const AdminHomePage(),
-                                      ),
-                                    );
-                                  },
-                            child: Text(
-                              translationsService
-                                  .translate('profile.open_admin'),
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w900),
-                            ),
-                          ),
+                          ],
                         ),
                       ],
-                    ),
+                    ],
                   ],
-                ],
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: OnesColors.purpleMid,
-                      foregroundColor: OnesColors.white,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero,
+                ),
+              ),
+              // Cerrar sesión va al fondo de la pantalla; si el contenido es más alto,
+              // queda al final del scroll con espacio arriba.
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: OnesColors.purpleMid,
+                          foregroundColor: OnesColors.white,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.zero,
+                          ),
+                        ),
+                        onPressed: auth.isLoading
+                            ? null
+                            : () async {
+                                await auth.logout();
+                                if (!context.mounted) return;
+                                Navigator.of(context)
+                                    .popUntil((route) => route.isFirst);
+                              },
+                        child: auth.isLoading
+                            ? Text(
+                                translationsService
+                                    .translate('profile.signing_out'),
+                              )
+                            : Text(
+                                translationsService.translate('profile.logout'),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w900),
+                              ),
                       ),
                     ),
-                    onPressed: auth.isLoading
-                        ? null
-                        : () async {
-                            await auth.logout();
-                            if (!context.mounted) return;
-                            Navigator.of(context)
-                                .popUntil((route) => route.isFirst);
-                          },
-                    child: auth.isLoading
-                        ? Text(
-                            translationsService.translate('profile.signing_out'),
-                          )
-                        : Text(
-                            translationsService.translate('profile.logout'),
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w900),
-                          ),
-                  ),
+                    SizedBox(height: MediaQuery.of(context).padding.bottom),
+                  ],
                 ),
-                SizedBox(height: MediaQuery.of(context).padding.bottom),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -458,18 +482,22 @@ class _Card extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return OnesCard(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
-          ),
-          const SizedBox(height: 10),
-          ...children,
-        ],
+    return SizedBox(
+      // Todas las tarjetas del perfil ocupan el ancho completo, tengan el contenido que tengan.
+      width: double.infinity,
+      child: OnesCard(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+            ),
+            const SizedBox(height: 10),
+            ...children,
+          ],
+        ),
       ),
     );
   }
