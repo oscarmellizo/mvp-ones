@@ -116,6 +116,8 @@ Resources:
                   - s3:GetBucketCors
                   - s3:PutBucketTagging
                   - s3:PutLifecycleConfiguration
+                  - s3:PutEncryptionConfiguration
+                  - s3:GetEncryptionConfiguration
                   - s3:GetLifecycleConfiguration
                   - s3:GetBucketLocation
                   - s3:ListBucket
@@ -417,6 +419,17 @@ Resources:
                   - lambda:GetLayerVersion
                   - lambda:ListLayers
                   - lambda:ListLayerVersions
+                Resource: '*'
+
+              # Tarea diaria de ciclo de vida de cuentas (AWS::Scheduler::Schedule).
+              - Sid: EventBridgeScheduler
+                Effect: Allow
+                Action:
+                  - scheduler:CreateSchedule
+                  - scheduler:UpdateSchedule
+                  - scheduler:DeleteSchedule
+                  - scheduler:GetSchedule
+                  - scheduler:ListSchedules
                 Resource: '*'
 
               - Sid: IAMForEcsTasks
