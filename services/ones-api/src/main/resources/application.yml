@@ -265,6 +265,8 @@ ones:
     app-base-url: ${ONES_APP_BASE_URL:}
     test-payer-email: ${ONES_MERCADOPAGO_TEST_PAYER_EMAIL:}
 
+  account:
+    exports-bucket: ${ONES_ACCOUNT_EXPORTS_BUCKET:}
   photos:
     social-share-ttl-days: ${ONES_PHOTOS_SOCIAL_SHARE_TTL_DAYS:7}
   ws:
