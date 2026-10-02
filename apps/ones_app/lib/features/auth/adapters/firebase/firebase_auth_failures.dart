@@ -12,6 +12,8 @@ AuthFailure authFailureFromCode(String code) => switch (code) {
       'too-many-requests' => AuthFailure.tooManyRequests,
       'popup-blocked' => AuthFailure.popupBlocked,
       'user-token-expired' || 'invalid-user-token' => AuthFailure.sessionExpired,
+      // El dominio no está en la lista de Firebase (p. ej. 127.0.0.1 o la URL de CloudFront).
+      'unauthorized-domain' => AuthFailure.unauthorizedDomain,
       'network-request-failed' => AuthFailure.network,
       'canceled' ||
       'cancelled' ||

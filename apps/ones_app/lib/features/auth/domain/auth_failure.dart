@@ -8,6 +8,7 @@ enum AuthFailure {
   tooManyRequests,
   popupBlocked,
   sessionExpired,
+  unauthorizedDomain,
   cancelled,
   network,
   unsupported,
@@ -38,6 +39,8 @@ String authFailureMessage(AuthFailure failure) => switch (failure) {
       AuthFailure.popupBlocked =>
         'Tu navegador bloqueó la ventana de Google. Permite las ventanas emergentes de este sitio e inténtalo de nuevo.',
       AuthFailure.sessionExpired => 'Tu sesión expiró. Inicia sesión de nuevo.',
+      AuthFailure.unauthorizedDomain =>
+        'No se puede iniciar sesión desde esta dirección. Abre Ones desde su dirección oficial.',
       AuthFailure.cancelled => '',
       AuthFailure.network => 'Sin conexión. Revisa tu internet e inténtalo de nuevo.',
       AuthFailure.unsupported => 'Este método de inicio de sesión no está disponible en este dispositivo.',

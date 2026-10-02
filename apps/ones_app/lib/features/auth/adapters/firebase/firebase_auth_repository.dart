@@ -150,12 +150,21 @@ class FirebaseAuthRepository implements AuthRepository {
     try {
       return await action();
     } on FirebaseAuthException catch (e) {
+      // Solo código y mensaje de Firebase (sin datos del usuario): permite diagnosticar
+      // códigos que aún no se traducen a un AuthFailure.
+      debugPrint('[auth] FirebaseAuthException code=${e.code} message=${e.message}');
       throw AuthException(authFailureFromCode(e.code), e.message);
     } on GoogleSignInException catch (e) {
+      debugPrint('[auth] GoogleSignInException code=${e.code} description=${e.description}');
       throw AuthException(
         e.code == GoogleSignInExceptionCode.canceled ? AuthFailure.cancelled : AuthFailure.unknown,
         e.description,
       );
+    } on AuthException {
+      rethrow;
+    } catch (e) {
+      debugPrint('[auth] error no reconocido ${e.runtimeType}: $e');
+      rethrow;
     }
   }
 

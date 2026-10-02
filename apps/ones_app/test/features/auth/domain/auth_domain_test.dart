@@ -43,6 +43,7 @@ void main() {
       expect(authFailureFromCode('too-many-requests'), AuthFailure.tooManyRequests);
       expect(authFailureFromCode('popup-blocked'), AuthFailure.popupBlocked);
       expect(authFailureFromCode('user-token-expired'), AuthFailure.sessionExpired);
+      expect(authFailureFromCode('unauthorized-domain'), AuthFailure.unauthorizedDomain);
       expect(authFailureFromCode('invalid-user-token'), AuthFailure.sessionExpired);
       expect(authFailureFromCode('network-request-failed'), AuthFailure.network);
       expect(authFailureFromCode('operation-not-allowed'), AuthFailure.unsupported);
