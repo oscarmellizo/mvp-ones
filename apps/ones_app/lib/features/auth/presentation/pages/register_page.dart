@@ -151,6 +151,8 @@ class _RegisterPageState extends State<RegisterPage> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 520),
             child: SingleChildScrollView(
+              // Arrastrar la pantalla oculta el teclado, como en las apps nativas.
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: EdgeInsets.symmetric(
                 horizontal: horizontalPadding,
                 vertical: 28,

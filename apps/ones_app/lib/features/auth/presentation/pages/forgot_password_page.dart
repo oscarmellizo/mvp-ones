@@ -60,6 +60,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 520),
             child: SingleChildScrollView(
+              // Arrastrar la pantalla oculta el teclado, como en las apps nativas.
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
               child: _sentTo != null
                   ? Column(
@@ -122,6 +124,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           key: const Key('forgot.email'),
                           controller: _email,
                           autofocus: true,
+                          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                           keyboardType: TextInputType.emailAddress,
                           autofillHints: const [AutofillHints.email],
                           textInputAction: TextInputAction.send,

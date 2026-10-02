@@ -69,17 +69,59 @@ class _EmailAuthSectionState extends State<EmailAuthSection> {
   static final _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
   final _formKey = GlobalKey<FormState>();
+  final _formAreaKey = GlobalKey();
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _emailFocus = FocusNode();
+  final _passwordFocus = FocusNode();
   bool _expanded = false;
   bool _obscure = true;
+  double _keyboardInset = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailFocus.addListener(_onFocusChange);
+    _passwordFocus.addListener(_onFocusChange);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // El teclado cambia el inset varias veces mientras se abre: se sigue cada cambio.
+    final inset = MediaQuery.viewInsetsOf(context).bottom;
+    if (inset != _keyboardInset) {
+      _keyboardInset = inset;
+      if (_emailFocus.hasFocus || _passwordFocus.hasFocus) _scheduleReveal();
+    }
+  }
 
   @override
   void dispose() {
     _email.dispose();
     _password.dispose();
+    _emailFocus.dispose();
+    _passwordFocus.dispose();
     super.dispose();
   }
+
+  void _onFocusChange() {
+    if (_emailFocus.hasFocus || _passwordFocus.hasFocus) _scheduleReveal();
+  }
+
+  /// Muestra el formulario completo (hasta el botón y el enlace inferior), no solo el campo con foco.
+  void _scheduleReveal() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final target = _formAreaKey.currentContext;
+      if (!mounted || target == null) return;
+      Scrollable.ensureVisible(
+        target,
+        alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+      );
+    });
+  }
+
+  static void _hideKeyboard(PointerDownEvent _) => FocusManager.instance.primaryFocus?.unfocus();
 
   Future<void> _submit() async {
     if (widget.busy || !(_formKey.currentState?.validate() ?? false)) return;
@@ -103,6 +145,9 @@ class _EmailAuthSectionState extends State<EmailAuthSection> {
       duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
       alignment: Alignment.topCenter,
+      onEnd: () {
+        if (_expanded) _scheduleReveal();
+      },
       child: _expanded ? _form() : _toggle(),
     );
   }
@@ -126,6 +171,7 @@ class _EmailAuthSectionState extends State<EmailAuthSection> {
       fontWeight: FontWeight.w600,
     );
     return AutofillGroup(
+      key: _formAreaKey,
       child: Form(
         key: _formKey,
         child: Column(
@@ -134,7 +180,9 @@ class _EmailAuthSectionState extends State<EmailAuthSection> {
             TextFormField(
               key: const Key('auth.email'),
               controller: _email,
+              focusNode: _emailFocus,
               autofocus: true,
+              onTapOutside: _hideKeyboard,
               style: fieldStyle,
               keyboardType: TextInputType.emailAddress,
               autofillHints: const [AutofillHints.email],
@@ -146,6 +194,8 @@ class _EmailAuthSectionState extends State<EmailAuthSection> {
             TextFormField(
               key: const Key('auth.password'),
               controller: _password,
+              focusNode: _passwordFocus,
+              onTapOutside: _hideKeyboard,
               style: fieldStyle,
               obscureText: _obscure,
               autofillHints: [widget.isRegistration ? AutofillHints.newPassword : AutofillHints.password],

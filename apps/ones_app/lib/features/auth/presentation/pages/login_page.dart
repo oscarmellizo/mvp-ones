@@ -78,6 +78,10 @@ class _LoginPageState extends State<LoginPage> {
 
             child: SingleChildScrollView(
 
+              // Arrastrar la pantalla oculta el teclado, como en las apps nativas.
+
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+
               padding: EdgeInsets.symmetric(
 
                 horizontal: horizontalPadding,

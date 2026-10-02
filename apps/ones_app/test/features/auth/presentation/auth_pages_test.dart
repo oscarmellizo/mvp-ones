@@ -262,6 +262,59 @@ void main() {
       expect(rootAuth.isSignedIn, isFalse);
     });
   });
+
+  group('Teclado en iPhone', () {
+    // iPhone de 390x844 pt; el teclado (336 pt) se abre después de tocar, como en el dispositivo.
+    Future<void> pumpPhone(WidgetTester tester, Widget home, {bool keyboard = false}) async {
+      tester.view.physicalSize = const Size(390 * 3, 844 * 3);
+      tester.view.devicePixelRatio = 3.0;
+      if (keyboard) tester.view.viewInsets = const FakeViewPadding(bottom: 336 * 3);
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(ChangeNotifierProvider<AuthController>.value(
+        value: auth,
+        child: MaterialApp(home: home),
+      ));
+      await tester.pump();
+    }
+
+    testWidgets('al desplegar el correo, el formulario completo queda sobre el teclado', (tester) async {
+      await pumpPhone(tester, const LoginPage());
+
+      await tester.tap(find.byKey(const Key('auth.emailToggle')));
+      await tester.pump();
+      tester.view.viewInsets = const FakeViewPadding(bottom: 336 * 3);
+      await tester.pumpAndSettle();
+
+      const visibleBottom = 844.0 - 336.0;
+      final submit = tester.getRect(find.byKey(const Key('auth.submit')));
+      final forgot = tester.getRect(find.byKey(const Key('auth.forgot')));
+      expect(submit.bottom, lessThanOrEqualTo(visibleBottom));
+      expect(forgot.bottom, lessThanOrEqualTo(visibleBottom));
+    });
+
+    testWidgets('tocar fuera de un campo oculta el teclado', (tester) async {
+      await pumpPhone(tester, const LoginPage());
+      await tester.tap(find.byKey(const Key('auth.emailToggle')));
+      await tester.pumpAndSettle();
+      expect(tester.testTextInput.isVisible, isTrue);
+
+      await tester.tapAt(const Offset(195, 60));
+      await tester.pumpAndSettle();
+
+      expect(tester.testTextInput.isVisible, isFalse);
+    });
+
+    testWidgets('tocar fuera también oculta el teclado en "Olvidé mi contraseña"', (tester) async {
+      await pumpPhone(tester, const ForgotPasswordPage(), keyboard: true);
+      await tester.pumpAndSettle();
+      expect(tester.testTextInput.isVisible, isTrue);
+
+      await tester.tapAt(const Offset(195, 400));
+      await tester.pumpAndSettle();
+
+      expect(tester.testTextInput.isVisible, isFalse);
+    });
+  });
 }
 
 /// Error de credenciales para probar el aviso.
