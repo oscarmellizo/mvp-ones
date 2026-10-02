@@ -65,7 +65,7 @@ class EmailAuthSection extends StatefulWidget {
   State<EmailAuthSection> createState() => _EmailAuthSectionState();
 }
 
-class _EmailAuthSectionState extends State<EmailAuthSection> {
+class _EmailAuthSectionState extends State<EmailAuthSection> with WidgetsBindingObserver {
   static final _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
   final _formKey = GlobalKey<FormState>();
@@ -76,28 +76,26 @@ class _EmailAuthSectionState extends State<EmailAuthSection> {
   final _passwordFocus = FocusNode();
   bool _expanded = false;
   bool _obscure = true;
-  double _keyboardInset = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _emailFocus.addListener(_onFocusChange);
     _passwordFocus.addListener(_onFocusChange);
   }
 
+  /// El teclado se abre o cambia de alto. Se escucha aquí y no en MediaQuery: dentro del
+  /// Scaffold el inset del teclado llega en 0 porque el Scaffold ya achicó el cuerpo.
+  /// En iOS el teclado suele subir después de que termina la animación del formulario.
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // El teclado cambia el inset varias veces mientras se abre: se sigue cada cambio.
-    final inset = MediaQuery.viewInsetsOf(context).bottom;
-    if (inset != _keyboardInset) {
-      _keyboardInset = inset;
-      if (_emailFocus.hasFocus || _passwordFocus.hasFocus) _scheduleReveal();
-    }
+  void didChangeMetrics() {
+    if (_emailFocus.hasFocus || _passwordFocus.hasFocus) _scheduleReveal();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _email.dispose();
     _password.dispose();
     _emailFocus.dispose();

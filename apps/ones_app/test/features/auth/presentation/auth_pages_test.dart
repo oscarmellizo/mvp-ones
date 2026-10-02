@@ -281,7 +281,8 @@ void main() {
       await pumpPhone(tester, const LoginPage());
 
       await tester.tap(find.byKey(const Key('auth.emailToggle')));
-      await tester.pump();
+      // En el iPhone el teclado sube después de que termina la animación del formulario.
+      await tester.pumpAndSettle();
       tester.view.viewInsets = const FakeViewPadding(bottom: 336 * 3);
       await tester.pumpAndSettle();
 
