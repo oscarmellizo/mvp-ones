@@ -51,6 +51,28 @@ class AccountEmailServiceTest {
     }
 
     @Test
+    void deactivationEmail_html_includesConfiguredLogo() {
+        SesV2Client ses = mock(SesV2Client.class);
+        var s = new AccountEmailService(ses, new SimpleMeterRegistry(), "donotreply@ones.events",
+                "https://ones.events", "https://cdn.x/logo.png", true);
+
+        s.sendDeactivationEmail(user("ana@example.com"), T0, T0.plusSeconds(86400L * 30));
+
+        String html = captured(ses).content().simple().body().html().data();
+        assertTrue(html.contains("<div style=\"margin-bottom:10px\"><img src=\"https://cdn.x/logo.png\" alt=\"Ones\""));
+    }
+
+    @Test
+    void deactivationEmail_html_fallsBackToBaseUrlLogo() {
+        SesV2Client ses = mock(SesV2Client.class);
+
+        svc(ses).sendDeactivationEmail(user("ana@example.com"), T0, T0.plusSeconds(86400L * 30));
+
+        String html = captured(ses).content().simple().body().html().data();
+        assertTrue(html.contains("<img src=\"https://ones.events/assets/assets/branding/ones-logo.png\""));
+    }
+
+    @Test
     void closureEmail_withPhotos_includesLinkAndExpiry() {
         SesV2Client ses = mock(SesV2Client.class);
 

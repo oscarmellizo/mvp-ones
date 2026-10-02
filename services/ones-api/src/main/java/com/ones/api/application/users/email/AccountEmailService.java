@@ -183,19 +183,8 @@ public class AccountEmailService {
     }
 
     private String renderHtml(User user, Instant disabledAt, Instant scheduledPhotoDeliveryAt) {
-        String resolvedLogoUrl = (logoUrl != null && !logoUrl.isBlank()) ? logoUrl.trim() : null;
-        if (resolvedLogoUrl == null || resolvedLogoUrl.isBlank()) {
-            String base = publicBaseUrl != null ? publicBaseUrl.trim() : "";
-            if (!base.isBlank()) {
-                while (base.endsWith("/")) base = base.substring(0, base.length() - 1);
-                resolvedLogoUrl = base + "/assets/assets/branding/ones-logo.png";
-            }
-        }
         String loginUrl = normalizeBase(publicBaseUrl) + "/login";
-        String logoBlock = (resolvedLogoUrl != null && !resolvedLogoUrl.isBlank())
-                ? ("<div style=\"margin-bottom:10px\"><img src=\"" + escapeHtml(resolvedLogoUrl) +
-                "\" alt=\"Ones\" width=\"48\" height=\"48\" style=\"display:block;border-radius:12px;background:#FFFFFF\"/></div>")
-                : "";
+        String logoBlock = logoBlock();
 
         return "<!doctype html>" +
                 "<html data-ones-template=\"account-deactivation-v1\"><head><meta charset=\"utf-8\"></head>" +
