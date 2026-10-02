@@ -32,6 +32,7 @@ import com.ones.api.application.users.AccountAccessService;
 import com.ones.api.application.users.email.AccountEmailService;
 import com.ones.api.application.users.lifecycle.CloseExpiredAccountsUseCase;
 import com.ones.api.application.users.lifecycle.PhotosExportService;
+import com.ones.api.application.users.lifecycle.PurgeClosedAccountsUseCase;
 import com.ones.api.application.users.ports.PreferredNamesCacheRepository;
 import com.ones.api.application.users.ports.UsersRepository;
 import com.ones.api.application.subscriptions.CheckPlanLimitUseCase;
@@ -177,6 +178,25 @@ public class ApplicationConfig {
                                                            @Value("${ones.api.public-base-url:}") String apiPublicBaseUrl) {
         java.time.Duration window = java.time.Duration.ofDays(Math.max(1, windowDays));
         return new CloseExpiredAccountsUseCase(repository, exportService, emailService, accessService, clock, window, apiPublicBaseUrl);
+    }
+
+    @Bean
+    PurgeClosedAccountsUseCase purgeClosedAccountsUseCase(UsersRepository usersRepository, EventsRepository eventsRepository,
+                                                         com.ones.api.application.photos.ports.PhotosRepository photosRepository,
+                                                         com.ones.api.application.photos.ports.PhotoLikesRepository photoLikesRepository,
+                                                         InvitationsRepository invitationsRepository,
+                                                         PaymentProfilesRepository paymentProfilesRepository,
+                                                         SubscriptionPaymentsRepository subscriptionPaymentsRepository,
+                                                         PreferredNamesCacheRepository preferredNamesCacheRepository,
+                                                         com.ones.api.application.events.ports.ObjectStorage objectStorage,
+                                                         com.ones.api.application.users.ports.FirebaseIdentityAdmin firebaseIdentityAdmin,
+                                                         com.ones.api.application.events.EventPurger eventPurger,
+                                                         AccountAccessService accessService, Clock clock,
+                                                         @Value("${ones.account.exports-bucket:}") String exportsBucket) {
+        return new PurgeClosedAccountsUseCase(usersRepository, eventsRepository, photosRepository, photoLikesRepository,
+                invitationsRepository, paymentProfilesRepository, subscriptionPaymentsRepository,
+                preferredNamesCacheRepository, objectStorage, firebaseIdentityAdmin, eventPurger, accessService,
+                clock, exportsBucket);
     }
 
     @Bean
