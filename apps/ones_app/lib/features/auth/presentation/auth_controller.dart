@@ -440,7 +440,9 @@ class AuthController extends ChangeNotifier {
     try {
       final String? token;
       try {
-        token = await authRepository.getIdToken(forceRefresh: true);
+        // Firebase ya renueva el token antes de que venza. Forzar uno nuevo en cada llamada
+        // cambia el token siempre, y los controladores borran su estado al ver un token distinto.
+        token = await authRepository.getIdToken();
       } on AuthException catch (e) {
         if (_sessionIsOver(e.failure)) await _endSession(authFailureMessage(e.failure));
         return null;
@@ -449,6 +451,7 @@ class AuthController extends ChangeNotifier {
         if (_user != null) await _endSession(authFailureMessage(AuthFailure.sessionExpired));
         return null;
       }
+      if (token == _idToken) return token;
       _idToken = token;
       if (_isRegistered) {
         _isAdmin = await _safeLoadIsAdmin(token);

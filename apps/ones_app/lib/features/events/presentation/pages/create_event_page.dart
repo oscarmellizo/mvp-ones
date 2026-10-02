@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../quick_event_ranges.dart';
 import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/utils/datetime_formatters.dart';
 import '../../../../core/utils/validators.dart';
@@ -517,38 +518,24 @@ class _CreateEventPageState extends State<CreateEventPage> {
     _validateDateTimes();
   }
 
-  void _applyQuickStartDate(DateTime date) {
+  /// Atajos de "Cuándo": fijan inicio y fin. Sin fin propio (Ahora, +30) el fin se recalcula
+  /// con la duración sugerida (2 horas) para que siempre acompañe al nuevo inicio.
+  void _applyQuickRange(QuickEventRange range) {
     setState(() {
-      _startDate = DateTime(date.year, date.month, date.day);
-      _ensureEndDefaults();
+      final start = range.start;
+      _startDate = DateTime(start.year, start.month, start.day);
+      _startTime = TimeOfDay(hour: start.hour, minute: start.minute);
+      final end = range.end;
+      if (end != null) {
+        _endDate = DateTime(end.year, end.month, end.day);
+        _endTime = TimeOfDay(hour: end.hour, minute: end.minute);
+      } else {
+        _endDate = null;
+        _endTime = null;
+        _ensureEndDefaults();
+      }
     });
     _validateDateTimes();
-  }
-
-  void _applyQuickStartTime(TimeOfDay time) {
-    setState(() {
-      _startTime = time;
-      _ensureEndDefaults();
-    });
-    _validateDateTimes();
-  }
-
-  DateTime _nextWeekendStart() {
-    final now = DateTime.now();
-    final weekday = now.weekday; // Mon=1..Sun=7
-    final daysUntilSat = (6 - weekday) % 7;
-    final sat = now.add(Duration(days: daysUntilSat));
-    return DateTime(sat.year, sat.month, sat.day);
-  }
-
-  TimeOfDay _roundedNowTime() {
-    final now = DateTime.now();
-    final minute = now.minute;
-    final rounded = ((minute + 4) / 5).floor() * 5;
-    final carry = rounded >= 60;
-    final h = carry ? (now.hour + 1) % 24 : now.hour;
-    final m = carry ? 0 : rounded;
-    return TimeOfDay(hour: h, minute: m);
   }
 
   Future<void> _addInvitee() async {
@@ -694,7 +681,9 @@ class _CreateEventPageState extends State<CreateEventPage> {
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
     final isKeyboardOpen = bottomInset > 0;
 
-    return Scaffold(
+    return Stack(
+      children: [
+        Scaffold(
       backgroundColor: OnesColors.background,
       appBar: AppBar(
         backgroundColor: OnesColors.background,
@@ -724,13 +713,22 @@ class _CreateEventPageState extends State<CreateEventPage> {
           ),
           TextButton(
             onPressed: controller.loading ? null : () => _submit(context),
-            child: Text(
-              t.translate('create_event.action_create'),
-              style: TextStyle(
-                fontWeight: FontWeight.w900,
-                color: OnesColors.purpleDeep,
-              ),
-            ),
+            child: controller.loading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.4,
+                      color: OnesColors.purpleDeep,
+                    ),
+                  )
+                : Text(
+                    t.translate('create_event.action_create'),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: OnesColors.purpleDeep,
+                    ),
+                  ),
           ),
         ],
       ),
@@ -815,46 +813,37 @@ class _CreateEventPageState extends State<CreateEventPage> {
                           ActionChip(
                             label:
                                 Text(t.translate('create_event.quick_today')),
-                            onPressed: () =>
-                                _applyQuickStartDate(DateTime.now()),
+                            onPressed: () => _applyQuickRange(
+                                QuickEventRanges.today(DateTime.now())),
                           ),
                           ActionChip(
                             label: Text(
                                 t.translate('create_event.quick_tomorrow')),
-                            onPressed: () => _applyQuickStartDate(
-                                DateTime.now().add(const Duration(days: 1))),
+                            onPressed: () => _applyQuickRange(
+                                QuickEventRanges.tomorrow(DateTime.now())),
                           ),
                           ActionChip(
                             label: Text(
                                 t.translate('create_event.quick_this_weekend')),
-                            onPressed: () =>
-                                _applyQuickStartDate(_nextWeekendStart()),
+                            onPressed: () => _applyQuickRange(
+                                QuickEventRanges.thisWeekend(DateTime.now())),
                           ),
                           ActionChip(
                             label: Text(t.translate('create_event.quick_now')),
-                            onPressed: () =>
-                                _applyQuickStartTime(_roundedNowTime()),
+                            onPressed: () => _applyQuickRange(
+                                QuickEventRanges.now(DateTime.now())),
                           ),
                           ActionChip(
                             label: Text(
                                 t.translate('create_event.quick_plus_30m')),
-                            onPressed: () {
-                              final base = _combineLocal(
-                                      _startDate ?? DateTime.now(),
-                                      _startTime ?? _roundedNowTime()) ??
-                                  DateTime.now();
-                              final next =
-                                  base.add(const Duration(minutes: 30));
-                              _applyQuickStartDate(next);
-                              _applyQuickStartTime(
-                                  TimeOfDay.fromDateTime(next));
-                            },
+                            onPressed: () => _applyQuickRange(
+                                QuickEventRanges.plus30(DateTime.now())),
                           ),
                           ActionChip(
                             label:
                                 Text(t.translate('create_event.quick_evening')),
-                            onPressed: () => _applyQuickStartTime(
-                                const TimeOfDay(hour: 19, minute: 0)),
+                            onPressed: () => _applyQuickRange(
+                                QuickEventRanges.evening(DateTime.now())),
                           ),
                         ],
                       ),
@@ -1017,7 +1006,28 @@ class _CreateEventPageState extends State<CreateEventPage> {
                           ? null
                           : () => _submit(context),
                       child: controller.loading
-                          ? Text(t.translate('create_event.creating'))
+                          ? Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.4,
+                                    color: OnesColors.white,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  t.translate('create_event.creating'),
+                                  style: const TextStyle(
+                                    color: OnesColors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            )
                           : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -1041,6 +1051,11 @@ class _CreateEventPageState extends State<CreateEventPage> {
           ),
         ),
       ),
+        ),
+        // Mientras se crea el evento: velo con indicador para que se note que está trabajando.
+        if (controller.loading)
+          _CreatingOverlay(label: t.translate('create_event.creating')),
+      ],
     );
   }
 
@@ -1187,5 +1202,51 @@ class _CreateEventPageState extends State<CreateEventPage> {
         );
       rethrow;
     }
+  }
+}
+
+class _CreatingOverlay extends StatelessWidget {
+  final String label;
+
+  const _CreatingOverlay({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: AbsorbPointer(
+        child: ColoredBox(
+          color: OnesColors.black.withOpacity(0.25),
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 22),
+              color: OnesColors.white,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      color: OnesColors.purpleMid,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: OnesColors.black,
+                      decoration: TextDecoration.none,
+                      fontSize: 15,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

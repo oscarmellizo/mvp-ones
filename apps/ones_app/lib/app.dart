@@ -11,6 +11,7 @@ import 'core/http/ones_api_factory.dart';
 import 'core/i18n/translations_service.dart';
 import 'core/ui/ones_theme.dart';
 import 'core/ui/splash_page.dart';
+import 'core/ui/dismiss_keyboard_on_tap.dart';
 import 'features/auth/adapters/firebase/firebase_auth_repository.dart';
 import 'features/auth/presentation/auth_controller.dart';
 import 'features/admin/adapters/api/admin_api_repository.dart';
@@ -399,6 +400,7 @@ class OnesApp extends StatelessWidget {
               GlobalCupertinoLocalizations.delegate,
             ],
             navigatorKey: onesNavigatorKey,
+            builder: (context, child) => DismissKeyboardOnTap(child: child ?? const SizedBox.shrink()),
             home: const _RootRouter(),
             routes: {
               EventsListPage.routeName: (_) => const EventsListPage(),

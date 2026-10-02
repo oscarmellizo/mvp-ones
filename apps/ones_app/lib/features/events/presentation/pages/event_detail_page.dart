@@ -574,6 +574,22 @@ class _GalleryTabState extends State<_GalleryTab> {
     _uploader ??= context.read<PhotosUploadController>();
   }
 
+  /// Estados vacío y de error de la galería: también se actualizan deslizando hacia abajo.
+  Widget _pullToRefresh(PhotosGalleryController controller, Widget child) {
+    return RefreshIndicator(
+      onRefresh: () => controller.refresh(eventId: widget.eventId, replace: true),
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void didUpdateWidget(covariant _GalleryTab oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -1142,7 +1158,7 @@ class _GalleryTabState extends State<_GalleryTab> {
         controller.error == null &&
         remoteItems.isEmpty &&
         localPathById.isEmpty) {
-      return Center(
+      return _pullToRefresh(controller, Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -1169,11 +1185,11 @@ class _GalleryTabState extends State<_GalleryTab> {
             ],
           ),
         ),
-      );
+      ));
     }
 
     if (controller.error != null && controller.items.isEmpty) {
-      return Center(
+      return _pullToRefresh(controller, Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -1197,7 +1213,7 @@ class _GalleryTabState extends State<_GalleryTab> {
             ],
           ),
         ),
-      );
+      ));
     }
 
     return Stack(
@@ -1510,7 +1526,7 @@ class _GalleryTabState extends State<_GalleryTab> {
             ),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: () => controller.refresh(eventId: widget.eventId),
+                onRefresh: () => controller.refresh(eventId: widget.eventId, replace: true),
                 child: Container(
                   color: OnesColors.background,
                   child: NotificationListener<ScrollNotification>(
@@ -1528,6 +1544,8 @@ class _GalleryTabState extends State<_GalleryTab> {
                     child: GridView.builder(
                       controller: _gridScrollController,
                       primary: false,
+                      // Permite "deslizar para actualizar" aunque haya pocas fotos.
+                      physics: const AlwaysScrollableScrollPhysics(),
                       clipBehavior: Clip.hardEdge,
                       key: ValueKey('grid:${widget.eventId}'),
                       padding: EdgeInsets.zero,
