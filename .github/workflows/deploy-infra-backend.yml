@@ -88,6 +88,13 @@ jobs:
         run: |
           set -euo pipefail
 
+          apiPublicBaseUrl=""
+          if [ "${{ inputs.environment }}" = "dev" ]; then
+            apiPublicBaseUrl="https://apidev.ones.events"
+          elif [ "${{ inputs.environment }}" = "prod" ]; then
+            apiPublicBaseUrl="https://api.ones.events"
+          fi
+
           appBaseUrl="${{ vars.ONES_APP_BASE_URL }}"
           if [ -z "${appBaseUrl}" ]; then
             echo "ERROR: Missing GitHub Environment var ONES_APP_BASE_URL for environment '${{ inputs.environment }}'."
@@ -254,6 +261,7 @@ jobs:
               Environment="${{ inputs.environment }}" \
               GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}${{ vars.GOOGLE_IOS_CLIENT_ID != '' && format(',{0}', vars.GOOGLE_IOS_CLIENT_ID) || '' }}" \
               FirebaseProjectId="${{ vars.FIREBASE_PROJECT_ID }}" \
+              ApiPublicBaseUrl="${apiPublicBaseUrl}" \
               GoogleLegacyAuthEnabled="${{ vars.GOOGLE_LEGACY_AUTH_ENABLED != '' && vars.GOOGLE_LEGACY_AUTH_ENABLED || 'true' }}" \
               AppBaseUrl="${appBaseUrl}" \
               MercadoPagoTestPayerEmail="${{ vars.ONES_MERCADOPAGO_TEST_PAYER_EMAIL }}" \
@@ -371,6 +379,13 @@ jobs:
         continue-on-error: true
         run: |
           stackName="${BACKEND_STACK_NAME_PREFIX}-${{ inputs.environment }}"
+
+          apiPublicBaseUrl=""
+          if [ "${{ inputs.environment }}" = "dev" ]; then
+            apiPublicBaseUrl="https://apidev.ones.events"
+          elif [ "${{ inputs.environment }}" = "prod" ]; then
+            apiPublicBaseUrl="https://api.ones.events"
+          fi
 
           appBaseUrl="${{ vars.ONES_APP_BASE_URL }}"
           if [ -z "${appBaseUrl}" ]; then
@@ -497,6 +512,7 @@ jobs:
               Environment="${{ inputs.environment }}" \
               GoogleClientId="${{ vars.GOOGLE_WEB_CLIENT_ID }}${{ vars.GOOGLE_IOS_CLIENT_ID != '' && format(',{0}', vars.GOOGLE_IOS_CLIENT_ID) || '' }}" \
               FirebaseProjectId="${{ vars.FIREBASE_PROJECT_ID }}" \
+              ApiPublicBaseUrl="${apiPublicBaseUrl}" \
               GoogleLegacyAuthEnabled="${{ vars.GOOGLE_LEGACY_AUTH_ENABLED != '' && vars.GOOGLE_LEGACY_AUTH_ENABLED || 'true' }}" \
               AppBaseUrl="${appBaseUrl}" \
               MercadoPagoTestPayerEmail="${{ vars.ONES_MERCADOPAGO_TEST_PAYER_EMAIL }}" \

@@ -20,6 +20,9 @@ Parameters:
   FirebaseProjectId:
     Type: String
     Default: ''
+  ApiPublicBaseUrl:
+    Type: String
+    Default: ''
   GoogleLegacyAuthEnabled:
     Type: String
     Default: 'true'
@@ -121,6 +124,7 @@ Resources:
         Environment: !Ref Environment
         GoogleClientId: !Ref GoogleClientId
         FirebaseProjectId: !Ref FirebaseProjectId
+        ApiPublicBaseUrl: !Ref ApiPublicBaseUrl
         GoogleLegacyAuthEnabled: !Ref GoogleLegacyAuthEnabled
         AppBaseUrl: !Ref AppBaseUrl
         MercadoPagoTestPayerEmail: !Ref MercadoPagoTestPayerEmail
