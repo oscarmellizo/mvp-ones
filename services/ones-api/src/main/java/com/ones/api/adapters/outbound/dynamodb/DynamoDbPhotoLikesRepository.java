@@ -161,4 +161,31 @@ public class DynamoDbPhotoLikesRepository implements PhotoLikesRepository {
                     photoId, e.toString());
         }
     }
+
+    @Override
+    public void deleteAllByUserId(String userId) {
+        if (userId == null || userId.isBlank()) return;
+        try {
+            QueryEnhancedRequest req = QueryEnhancedRequest.builder()
+                    .queryConditional(QueryConditional.keyEqualTo(
+                            Key.builder().partitionValue("user#" + userId.trim()).build()))
+                    .build();
+            table.index("gsi1").query(req).stream()
+                    .flatMap(page -> page.items().stream())
+                    .forEach(item -> {
+                        try {
+                            table.deleteItem(Key.builder()
+                                    .partitionValue(item.getPhotoId())
+                                    .sortValue(item.getUserId())
+                                    .build());
+                        } catch (Exception e) {
+                            log.warn("[DynamoDbPhotoLikesRepository.deleteAllByUserId] delete item failed photoId={} userId={} err={}",
+                                    item.getPhotoId(), item.getUserId(), e.toString());
+                        }
+                    });
+        } catch (Exception e) {
+            log.warn("[DynamoDbPhotoLikesRepository.deleteAllByUserId] failed userId={} err={}",
+                    userId, e.toString());
+        }
+    }
 }

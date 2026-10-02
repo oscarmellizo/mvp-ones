@@ -97,6 +97,43 @@ public class DynamoDbPhotosRepository implements PhotosRepository {
     }
 
     @Override
+    public PageResult<Photo> listByGuestId(String guestId, int limit, String nextToken) {
+        if (guestId == null || guestId.isBlank()) {
+            return new PageResult<>(List.of(), null);
+        }
+
+        int resolvedLimit = limit <= 0 ? 10 : Math.min(limit, 50);
+
+        DynamoDbIndex<DynamoPhotoItem> index = table.index("byGuestId");
+
+        QueryEnhancedRequest.Builder req = QueryEnhancedRequest.builder()
+                .queryConditional(QueryConditional.keyEqualTo(Key.builder().partitionValue(guestId.trim()).build()))
+                .limit(resolvedLimit)
+                .scanIndexForward(false);
+
+        Map<String, AttributeValue> eks = decodeExclusiveStartKey(nextToken);
+        if (eks != null && !eks.isEmpty()) {
+            req = req.exclusiveStartKey(eks);
+        }
+
+        List<Photo> out = new ArrayList<>();
+        String outNextToken = null;
+
+        for (Page<DynamoPhotoItem> page : index.query(req.build())) {
+            for (DynamoPhotoItem item : page.items()) {
+                out.add(toDomain(item));
+            }
+            Map<String, AttributeValue> lek = page.lastEvaluatedKey();
+            if (lek != null && !lek.isEmpty()) {
+                outNextToken = encodeExclusiveStartKey(lek);
+            }
+            break;
+        }
+
+        return new PageResult<>(out, outNextToken);
+    }
+
+    @Override
     public PageResult<Photo> listAll(int limit, String nextToken) {
         int resolvedLimit = limit <= 0 ? 100 : Math.min(limit, 100);
 

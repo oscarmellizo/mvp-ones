@@ -121,6 +121,40 @@ class FirebaseIdentityToolkitClientTest {
         assertTrue(ex.getMessage().contains("INTERNAL"), ex.getMessage());
     }
 
+    @Test
+    void deleteUser_callsAccountsDelete() {
+        List<String> calls = new ArrayList<>();
+        client(calls, ok("{}"), ok("{}")).deleteUser("uid-1");
+
+        assertEquals(List.of("/v1/projects/ones-a96a7/accounts:delete"), calls);
+    }
+
+    @Test
+    void deleteUser_toleratesUserNotFound() {
+        List<String> calls = new ArrayList<>();
+        client(calls, error(400, "{\"error\":{\"code\":400,\"message\":\"USER_NOT_FOUND\"}}"), ok("{}"))
+                .deleteUser("uid-1");
+
+        assertEquals(List.of("/v1/projects/ones-a96a7/accounts:delete"), calls);
+    }
+
+    @Test
+    void deleteUser_otherHttpError_failsKeepingBody() {
+        FirebaseIdentityToolkitClient c = client(new ArrayList<>(),
+                error(403, "{\"error\":{\"code\":403,\"message\":\"PERMISSION_DENIED\"}}"), ok("{}"));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> c.deleteUser("uid-1"));
+        assertTrue(ex.getMessage().contains("PERMISSION_DENIED"), ex.getMessage());
+    }
+
+    @Test
+    void deleteUser_notConfigured_throws() {
+        FirebaseIdentityToolkitClient unconfigured =
+                new FirebaseIdentityToolkitClient(WebClient.builder(), mock(SecretsProvider.class), "", "");
+
+        assertThrows(IllegalStateException.class, () -> unconfigured.deleteUser("uid-1"));
+    }
+
     private static FirebaseIdentityToolkitClient client(List<String> calls, ClientResponse delete, ClientResponse create) {
         WebClient.Builder builder = WebClient.builder().exchangeFunction(req -> {
             calls.add(req.url().getPath());

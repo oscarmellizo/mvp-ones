@@ -144,6 +144,11 @@ class ListEventsUseCaseTest {
         }
 
         @Override
+        public void delete(String inviteeEmail, String eventId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public void deleteAllByEventId(String eventId) {
         }
     }

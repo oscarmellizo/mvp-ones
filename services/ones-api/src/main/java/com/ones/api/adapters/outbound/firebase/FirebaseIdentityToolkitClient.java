@@ -65,14 +65,7 @@ public class FirebaseIdentityToolkitClient implements FirebaseIdentityAdmin {
 
         // Primero se borra el usuario nuevo: tiene la identidad google.com que el importado necesita.
         // Ambos pasos toleran haber sido aplicados ya (peticiones paralelas o reintentos con el token viejo).
-        try {
-            post("/v1/projects/" + projectId + "/accounts:delete", Map.of("localId", newUid), token);
-        } catch (WebClientResponseException e) {
-            if (!e.getResponseBodyAsString().contains("USER_NOT_FOUND")) {
-                throw new IllegalStateException("Firebase accounts:delete falló para " + newUid
-                        + " (" + e.getStatusCode().value() + "): " + e.getResponseBodyAsString(), e);
-            }
-        }
+        deleteAccount(newUid, token);
 
         JsonNode result;
         try {
@@ -88,6 +81,26 @@ public class FirebaseIdentityToolkitClient implements FirebaseIdentityAdmin {
         if (!errors.isEmpty()) {
             throw new IllegalStateException("Firebase batchCreate falló para " + legacy.userId()
                     + " tras borrar el uid " + newUid + ": " + errors);
+        }
+    }
+
+    @Override
+    public void deleteUser(String uid) {
+        if (!isConfigured()) {
+            throw new IllegalStateException("Firebase admin no configurado");
+        }
+        deleteAccount(uid, accessToken());
+    }
+
+    /** Borra el usuario en Firebase; que ya no exista (USER_NOT_FOUND) se considera éxito. */
+    private void deleteAccount(String uid, String token) {
+        try {
+            post("/v1/projects/" + projectId + "/accounts:delete", Map.of("localId", uid), token);
+        } catch (WebClientResponseException e) {
+            if (!e.getResponseBodyAsString().contains("USER_NOT_FOUND")) {
+                throw new IllegalStateException("Firebase accounts:delete falló para " + uid
+                        + " (" + e.getStatusCode().value() + "): " + e.getResponseBodyAsString(), e);
+            }
         }
     }
 

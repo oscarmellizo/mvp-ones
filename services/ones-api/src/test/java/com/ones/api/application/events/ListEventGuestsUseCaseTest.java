@@ -123,6 +123,11 @@ class ListEventGuestsUseCaseTest {
         }
 
         @Override
+        public void delete(String inviteeEmail, String eventId) {
+            items.removeIf(i -> i.getInviteeEmail().equals(inviteeEmail) && i.getEventId().equals(eventId));
+        }
+
+        @Override
         public void deleteAllByEventId(String eventId) {
             items.removeIf(i -> i.getEventId().equals(eventId));
         }

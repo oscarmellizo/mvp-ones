@@ -176,6 +176,21 @@ public class DynamoDbInvitationsRepository implements InvitationsRepository {
             cacheNames = CacheConfig.INVITATIONS_BY_EVENT_CACHE,
             allEntries = true
     )
+    public void delete(String inviteeEmail, String eventId) {
+        if (inviteeEmail == null || inviteeEmail.isBlank() || eventId == null || eventId.isBlank()) {
+            return;
+        }
+        table.deleteItem(Key.builder()
+                .partitionValue(inviteeEmail.trim().toLowerCase())
+                .sortValue(eventId.trim())
+                .build());
+    }
+
+    @Override
+    @CacheEvict(
+            cacheNames = CacheConfig.INVITATIONS_BY_EVENT_CACHE,
+            allEntries = true
+    )
     public void deleteAllByEventId(String eventId) {
         if (eventId == null || eventId.isBlank()) {
             return;

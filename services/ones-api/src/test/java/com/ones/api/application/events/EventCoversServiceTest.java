@@ -325,6 +325,24 @@ class EventCoversServiceTest {
         }
 
         @Override
+        public java.io.InputStream open(String bucket, String key) {
+            byte[] bytes = objects.get(bucket + "/" + key);
+            if (bytes == null) {
+                throw new IllegalStateException("No existe el objeto " + bucket + "/" + key);
+            }
+            return new java.io.ByteArrayInputStream(bytes);
+        }
+
+        @Override
+        public void putFile(String bucket, String key, java.nio.file.Path file, String contentType) {
+            try {
+                objects.put(bucket + "/" + key, java.nio.file.Files.readAllBytes(file));
+            } catch (java.io.IOException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+
+        @Override
         public void delete(String bucket, String key) {
             objects.remove(bucket + "/" + key);
         }
@@ -412,7 +430,8 @@ class EventCoversServiceTest {
         public void deleteById(String eventId) {
             items.remove(eventId);
         }
-    }
+    }
+
 }
 
 
