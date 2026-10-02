@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -123,7 +124,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         TextField(
                           key: const Key('forgot.email'),
                           controller: _email,
-                          autofocus: true,
+                          // Ver EmailAuthSection: en web el foco automático no llega al navegador.
+                          autofocus: !kIsWeb,
                           onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
                           keyboardType: TextInputType.emailAddress,
                           autofillHints: const [AutofillHints.email],

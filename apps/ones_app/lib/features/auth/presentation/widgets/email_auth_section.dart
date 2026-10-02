@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/ui/ones_colors.dart';
@@ -179,7 +180,9 @@ class _EmailAuthSectionState extends State<EmailAuthSection> with WidgetsBinding
               key: const Key('auth.email'),
               controller: _email,
               focusNode: _emailFocus,
-              autofocus: true,
+              // En web el foco automático muestra el cursor pero el <input> del navegador no lo
+              // recibe y lo escrito se pierde; ahí la persona hace clic en el campo.
+              autofocus: !kIsWeb,
               onTapOutside: _hideKeyboard,
               style: fieldStyle,
               keyboardType: TextInputType.emailAddress,
