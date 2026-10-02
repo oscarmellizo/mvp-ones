@@ -28,6 +28,10 @@ import com.ones.api.application.users.UpdateUserPreferencesUseCase;
 import com.ones.api.application.users.GetAccountUseCase;
 import com.ones.api.application.users.AccountDeactivateUseCase;
 import com.ones.api.application.users.AccountReactivateUseCase;
+import com.ones.api.application.users.AccountAccessService;
+import com.ones.api.application.users.email.AccountEmailService;
+import com.ones.api.application.users.lifecycle.CloseExpiredAccountsUseCase;
+import com.ones.api.application.users.lifecycle.PhotosExportService;
 import com.ones.api.application.users.ports.PreferredNamesCacheRepository;
 import com.ones.api.application.users.ports.UsersRepository;
 import com.ones.api.application.subscriptions.CheckPlanLimitUseCase;
@@ -163,6 +167,16 @@ public class ApplicationConfig {
                                                      @Value("${ones.account.reactivate-window-days:30}") int windowDays) {
         java.time.Duration window = java.time.Duration.ofDays(Math.max(1, windowDays));
         return new AccountReactivateUseCase(repository, clock, window);
+    }
+
+    @Bean
+    CloseExpiredAccountsUseCase closeExpiredAccountsUseCase(UsersRepository repository, PhotosExportService exportService,
+                                                           AccountEmailService emailService, AccountAccessService accessService,
+                                                           Clock clock,
+                                                           @Value("${ones.account.reactivate-window-days:30}") int windowDays,
+                                                           @Value("${ones.api.public-base-url:}") String apiPublicBaseUrl) {
+        java.time.Duration window = java.time.Duration.ofDays(Math.max(1, windowDays));
+        return new CloseExpiredAccountsUseCase(repository, exportService, emailService, accessService, clock, window, apiPublicBaseUrl);
     }
 
     @Bean
