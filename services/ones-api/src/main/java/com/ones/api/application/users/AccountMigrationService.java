@@ -39,7 +39,8 @@ public class AccountMigrationService {
             return Outcome.NONE;
         }
         Optional<User> legacy = usersRepository.findById(googleSub);
-        if (legacy.isEmpty()) {
+        if (legacy.isEmpty() || User.STATUS_DELETED.equalsIgnoreCase(legacy.get().getStatus())) {
+            // Una lápida no es una cuenta migrable: el uid nuevo arranca como cuenta nueva.
             return Outcome.NONE;
         }
         if (!firebaseIdentityAdmin.isConfigured()) {

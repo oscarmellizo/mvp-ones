@@ -2,6 +2,7 @@ package com.ones.api.application.users;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Optional;
 
 import com.ones.api.application.users.ports.UsersRepository;
 import com.ones.api.domain.users.User;
@@ -19,73 +20,72 @@ public class EnsureUserUseCase {
     public User execute(EnsureUserCommand command) {
         Instant now = Instant.now(clock);
 
-        return repository.findById(command.userId())
-                .map(existing -> {
-                    // Preserve account status fields so ensure() doesn't wipe deactivation/reactivation state
-                    User merged = new User(
-                            existing.getUserId(),
-                            coalesce(command.email(), existing.getEmail()),
-                            coalesce(command.name(), existing.getName()),
-                            coalesce(command.givenName(), existing.getGivenName()),
-                            coalesce(command.familyName(), existing.getFamilyName()),
-                            coalesce(command.picture(), existing.getPicture()),
-                            existing.getPreferredName(),
-                            existing.getProvider(),
-                            coalesce(command.languagePreference(), existing.getLanguagePreference()),
-                            existing.isTermsAccepted(),
-                            existing.getCreatedAt(),
-                            now,
-                            existing.getStatus(),
-                            existing.getDisabledAt(),
-                            existing.getReactivatedAt()
-                    );
-                    return repository.upsert(merged);
-                })
-                .orElseGet(() -> {
-                    String normalizedEmail = command.email() != null ? command.email().trim().toLowerCase() : null;
-                    User existingByEmail = normalizedEmail == null || normalizedEmail.isBlank()
-                            ? null
-                            : repository.findByEmail(normalizedEmail).orElse(null);
+        // Dos intentos: la escritura es condicional al estado leído; si otro proceso lo cambió, se relee.
+        for (int attempt = 0; attempt < 2; attempt++) {
+            Optional<User> found = repository.findById(command.userId());
+            if (found.isEmpty()) return create(command, now);
+            User existing = found.get();
+            // Cuenta cerrándose, cerrada o borrada: no se escribe nada (ni datos personales sobre la lápida
+            // ni se pierden closedAt/exportToken/exportKey).
+            if (existing.isClosedOrDeleted()) return existing;
+            User merged = existing.withProfile(
+                    coalesce(command.email(), existing.getEmail()),
+                    coalesce(command.name(), existing.getName()),
+                    coalesce(command.givenName(), existing.getGivenName()),
+                    coalesce(command.familyName(), existing.getFamilyName()),
+                    coalesce(command.picture(), existing.getPicture()),
+                    coalesce(command.languagePreference(), existing.getLanguagePreference()),
+                    now);
+            if (repository.upsertIfStatus(merged, existing.getStatus())) return merged;
+        }
+        // Perdió la carrera dos veces: se devuelve lo guardado sin escribir.
+        return repository.findById(command.userId()).orElseGet(() -> create(command, now));
+    }
 
-                    // Solo se fusionan los usuarios stub creados por invitaciones. Fusionar una cuenta real
-                    // borraría su fila y dejaría huérfanos sus eventos y fotos.
-                    if (existingByEmail != null && !"stub".equals(existingByEmail.getProvider())) {
-                        throw new EmailConflictException();
-                    }
+    private User create(EnsureUserCommand command, Instant now) {
+        String normalizedEmail = command.email() != null ? command.email().trim().toLowerCase() : null;
+        User existingByEmail = normalizedEmail == null || normalizedEmail.isBlank()
+                ? null
+                : repository.findByEmail(normalizedEmail).orElse(null);
 
-                    Instant createdAt = existingByEmail != null ? existingByEmail.getCreatedAt() : now;
-                    String preferredName = existingByEmail != null && existingByEmail.getPreferredName() != null
-                            ? existingByEmail.getPreferredName()
-                            : defaultPreferredName(command.givenName(), command.name());
-                    String languagePref = command.languagePreference() != null ? command.languagePreference() : "es";
-                    String existingLanguagePref = existingByEmail != null ? existingByEmail.getLanguagePreference() : languagePref;
-                    boolean existingTermsAccepted = existingByEmail != null && existingByEmail.isTermsAccepted();
-                    // If we're creating but we already had a user by email, carry over status fields
-                    User created = new User(
-                            command.userId(),
-                            normalizedEmail,
-                            coalesce(command.name(), existingByEmail != null ? existingByEmail.getName() : null),
-                            coalesce(command.givenName(), existingByEmail != null ? existingByEmail.getGivenName() : null),
-                            coalesce(command.familyName(), existingByEmail != null ? existingByEmail.getFamilyName() : null),
-                            coalesce(command.picture(), existingByEmail != null ? existingByEmail.getPicture() : null),
-                            preferredName,
-                            command.provider(),
-                            existingLanguagePref,
-                            existingTermsAccepted,
-                            createdAt,
-                            now,
-                            existingByEmail != null ? existingByEmail.getStatus() : null,
-                            existingByEmail != null ? existingByEmail.getDisabledAt() : null,
-                            existingByEmail != null ? existingByEmail.getReactivatedAt() : null
-                    );
-                    User upserted = repository.upsert(created);
+        // Solo se fusionan los usuarios stub creados por invitaciones. Fusionar una cuenta real
+        // borraría su fila y dejaría huérfanos sus eventos y fotos.
+        if (existingByEmail != null && !"stub".equals(existingByEmail.getProvider())) {
+            throw new EmailConflictException();
+        }
 
-                    if (existingByEmail != null && !existingByEmail.getUserId().equals(command.userId())) {
-                        repository.deleteById(existingByEmail.getUserId());
-                    }
+        Instant createdAt = existingByEmail != null ? existingByEmail.getCreatedAt() : now;
+        String preferredName = existingByEmail != null && existingByEmail.getPreferredName() != null
+                ? existingByEmail.getPreferredName()
+                : defaultPreferredName(command.givenName(), command.name());
+        String languagePref = command.languagePreference() != null ? command.languagePreference() : "es";
+        String existingLanguagePref = existingByEmail != null ? existingByEmail.getLanguagePreference() : languagePref;
+        boolean existingTermsAccepted = existingByEmail != null && existingByEmail.isTermsAccepted();
+        // If we're creating but we already had a user by email, carry over status fields
+        User created = new User(
+                command.userId(),
+                normalizedEmail,
+                coalesce(command.name(), existingByEmail != null ? existingByEmail.getName() : null),
+                coalesce(command.givenName(), existingByEmail != null ? existingByEmail.getGivenName() : null),
+                coalesce(command.familyName(), existingByEmail != null ? existingByEmail.getFamilyName() : null),
+                coalesce(command.picture(), existingByEmail != null ? existingByEmail.getPicture() : null),
+                preferredName,
+                command.provider(),
+                existingLanguagePref,
+                existingTermsAccepted,
+                createdAt,
+                now,
+                existingByEmail != null ? existingByEmail.getStatus() : null,
+                existingByEmail != null ? existingByEmail.getDisabledAt() : null,
+                existingByEmail != null ? existingByEmail.getReactivatedAt() : null
+        );
+        User upserted = repository.upsert(created);
 
-                    return upserted;
-                });
+        if (existingByEmail != null && !existingByEmail.getUserId().equals(command.userId())) {
+            repository.deleteById(existingByEmail.getUserId());
+        }
+
+        return upserted;
     }
 
     private static String coalesce(String a, String b) {

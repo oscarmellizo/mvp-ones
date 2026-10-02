@@ -25,6 +25,7 @@ public class DynamoUserItem {
     private String closedAt;
     private String exportToken;
     private String exportKey;
+    private String closingAt;
 
     @DynamoDbPartitionKey
     @DynamoDbAttribute("userId")
@@ -179,5 +180,14 @@ public class DynamoUserItem {
 
     public void setExportKey(String exportKey) {
         this.exportKey = exportKey;
+    }
+
+    @DynamoDbAttribute("closingAt")
+    public String getClosingAt() {
+        return closingAt;
+    }
+
+    public void setClosingAt(String closingAt) {
+        this.closingAt = closingAt;
     }
 }

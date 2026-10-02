@@ -147,6 +147,9 @@ class DisabledAccountFilterTest {
     }
 
     private static class InMemoryUsersRepository implements UsersRepository {
+
+        @Override public boolean upsertIfStatus(User user, String expectedStatus) { throw new UnsupportedOperationException(); }
+        @Override public boolean upsertIfClosing(User user, java.time.Instant expectedClosingAt) { throw new UnsupportedOperationException(); }
         private final Map<String, User> byId = new HashMap<>();
 
 

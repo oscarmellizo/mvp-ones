@@ -22,20 +22,26 @@ public class AccountDeactivateUseCase {
         this.clock = clock;
     }
 
+    /**
+     * Desactiva una cuenta ACTIVE. Si ya está DISABLED la devuelve tal cual (idempotente).
+     * Devuelve vacío si no existe o si está CLOSING/CLOSED/DELETED: una cuenta cerrada no vuelve a DISABLED.
+     */
     public Optional<User> execute(String userId) {
         if (userId == null || userId.isBlank()) return Optional.empty();
-        Optional<User> existing = usersRepository.findById(userId);
-        if (existing.isEmpty()) return Optional.empty();
-        User u = existing.get();
-        Instant now = Instant.now(clock);
-        User updated = new User(
-                u.getUserId(), u.getEmail(), u.getName(), u.getGivenName(), u.getFamilyName(), u.getPicture(),
-                u.getPreferredName(), u.getProvider(), u.getLanguagePreference(), u.isTermsAccepted(),
-                u.getCreatedAt(), now,
-                "DISABLED", now, u.getReactivatedAt()
-        );
-        usersRepository.upsert(updated);
-        log.info("[AccountDeactivate] userId={} disabledAt={}", userId, now);
-        return Optional.of(updated);
+        for (int attempt = 0; attempt < 2; attempt++) {
+            Optional<User> existing = usersRepository.findById(userId);
+            if (existing.isEmpty()) return Optional.empty();
+            User u = existing.get();
+            if (u.isClosedOrDeleted()) return Optional.empty();
+            if (User.STATUS_DISABLED.equalsIgnoreCase(u.getStatus())) return Optional.of(u);
+            Instant now = Instant.now(clock);
+            User updated = u.withStatus(User.STATUS_DISABLED, now, u.getReactivatedAt(), now);
+            // Condicional al estado leído: si la tarea diaria o un login lo cambió entre medio, se relee.
+            if (usersRepository.upsertIfStatus(updated, u.getStatus())) {
+                log.info("[AccountDeactivate] userId={} disabledAt={}", userId, now);
+                return Optional.of(updated);
+            }
+        }
+        throw new IllegalStateException("No se pudo desactivar userId=" + userId + ": la cuenta cambió en paralelo");
     }
 }

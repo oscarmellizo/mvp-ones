@@ -63,6 +63,15 @@ class AccountMigrationServiceTest {
     }
 
     @Test
+    void deletedLegacyTombstone_isNotMigrated_newUidBecomesFreshAccount() {
+        when(admin.isConfigured()).thenReturn(true);
+        repo.upsert(user("google-sub-1").withLifecycle(User.STATUS_CLOSED, T0, "tok", null).tombstone(T0));
+
+        assertEquals(Outcome.NONE, service.migrateIfLegacy("firebase-uid-9", "google-sub-1"));
+        verify(admin, never()).replaceWithLegacyGoogleUser(anyString(), any());
+    }
+
+    @Test
     void nonGoogleAccount_doesNothing() {
         assertEquals(Outcome.NONE, service.migrateIfLegacy("firebase-uid-9", null));
     }
@@ -78,22 +87,5 @@ class AccountMigrationServiceTest {
 
     private static User user(String id) {
         return new User(id, id + "@example.com", "Ana", null, null, "https://img/a.png", "Ana", "google", "es", true, T0, T0);
-    }
-
-    private static class InMemoryUsersRepository implements UsersRepository {
-        private final Map<String, User> byId = new HashMap<>();
-
-
-        @Override
-        public java.util.List<User> findByStatusIn(java.util.Set<String> statuses) {
-            return byId.values().stream()
-                    .filter(u -> u.getStatus() != null && statuses.contains(u.getStatus().toUpperCase()))
-                    .toList();
-        }
-
-        @Override public Optional<User> findById(String userId) { return Optional.ofNullable(byId.get(userId)); }
-        @Override public Optional<User> findByEmail(String email) { return Optional.empty(); }
-        @Override public User upsert(User user) { byId.put(user.getUserId(), user); return user; }
-        @Override public void deleteById(String userId) { byId.remove(userId); }
     }
 }

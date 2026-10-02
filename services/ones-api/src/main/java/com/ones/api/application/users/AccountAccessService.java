@@ -47,7 +47,7 @@ public class AccountAccessService {
         if (user.isEmpty()) return AccountAccess.ACTIVE;
         User u = user.get();
         String status = u.getStatus() == null ? "" : u.getStatus().toUpperCase();
-        if (User.STATUS_CLOSED.equals(status) || User.STATUS_DELETED.equals(status)) return AccountAccess.CLOSED;
+        if (u.isClosedOrDeleted()) return AccountAccess.CLOSED; // CLOSING cuenta como CLOSED
         if (!User.STATUS_DISABLED.equals(status)) return AccountAccess.ACTIVE;
         Instant disabledAt = u.getDisabledAt();
         if (disabledAt == null) return AccountAccess.DISABLED;

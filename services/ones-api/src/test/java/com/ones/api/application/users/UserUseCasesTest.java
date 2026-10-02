@@ -3,6 +3,7 @@ package com.ones.api.application.users;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Clock;
@@ -34,6 +35,86 @@ class UserUseCasesTest {
         InMemoryUsersRepository repo = new InMemoryUsersRepository();
         repo.upsert(disabledUser("u1", NOW.minus(java.time.Duration.ofDays(2))).withLifecycle("CLOSED", NOW, "t", null));
         assertTrue(new AccountReactivateUseCase(repo, CLOCK, java.time.Duration.ofDays(30)).execute("u1").isEmpty());
+    }
+
+    @Test
+    void reactivate_closingAccount_isRejected() {
+        InMemoryUsersRepository repo = new InMemoryUsersRepository();
+        repo.upsert(disabledUser("u1", NOW.minus(java.time.Duration.ofDays(2))).withClosing(NOW));
+        assertTrue(new AccountReactivateUseCase(repo, CLOCK, java.time.Duration.ofDays(30)).execute("u1").isEmpty());
+        assertEquals(User.STATUS_CLOSING, repo.findById("u1").get().getStatus());
+    }
+
+    @Test
+    void deactivate_closedClosingOrDeleted_returnsEmpty_andWritesNothing() {
+        User base = disabledUser("u1", NOW.minus(java.time.Duration.ofDays(31)));
+        for (User stored : java.util.List.of(
+                base.withLifecycle(User.STATUS_CLOSED, NOW, "tok", "exports/u1/ones-fotos.zip"),
+                base.withClosing(NOW),
+                base.withLifecycle(User.STATUS_CLOSED, NOW, "tok", null).tombstone(NOW))) {
+            InMemoryUsersRepository repo = new InMemoryUsersRepository();
+            repo.upsert(stored);
+            int writes = repo.writes();
+
+            assertTrue(new AccountDeactivateUseCase(repo, CLOCK).execute("u1").isEmpty(), stored.getStatus());
+
+            assertEquals(writes, repo.writes(), stored.getStatus());
+            assertSame(stored, repo.findById("u1").get());
+        }
+    }
+
+    @Test
+    void deactivate_alreadyDisabled_isIdempotent_keepsOriginalDisabledAt() {
+        InMemoryUsersRepository repo = new InMemoryUsersRepository();
+        Instant disabledAt = NOW.minus(java.time.Duration.ofDays(10));
+        repo.upsert(disabledUser("u1", disabledAt));
+
+        Optional<User> out = new AccountDeactivateUseCase(repo, CLOCK).execute("u1");
+
+        assertTrue(out.isPresent());
+        assertEquals(disabledAt, out.get().getDisabledAt());
+        assertEquals(disabledAt, repo.findById("u1").get().getDisabledAt());
+    }
+
+    @Test
+    void deactivate_active_setsDisabled_andKeepsProfile() {
+        InMemoryUsersRepository repo = new InMemoryUsersRepository();
+        Instant created = Instant.parse("2026-01-01T00:00:00Z");
+        repo.upsert(new User("u1", "a@b.com", "Ana", null, null, null, "Pref", "google", "es", true,
+                created, created, User.STATUS_ACTIVE, null, created));
+
+        Optional<User> out = new AccountDeactivateUseCase(repo, CLOCK).execute("u1");
+
+        assertTrue(out.isPresent());
+        User stored = repo.findById("u1").get();
+        assertEquals(User.STATUS_DISABLED, stored.getStatus());
+        assertEquals(NOW, stored.getDisabledAt());
+        assertEquals("Pref", stored.getPreferredName());
+    }
+
+    @Test
+    void updateUserPreferences_keepsStatusAndLifecycleFields() {
+        InMemoryUsersRepository repo = new InMemoryUsersRepository();
+        Instant disabledAt = NOW.minus(java.time.Duration.ofDays(3));
+        repo.upsert(disabledUser("u1", disabledAt));
+
+        new UpdateUserPreferencesUseCase(repo, new InMemoryPreferredNamesCacheRepository(), CLOCK)
+                .execute("u1", "Nuevo", "en", true);
+
+        User stored = repo.findById("u1").get();
+        assertEquals("Nuevo", stored.getPreferredName());
+        assertEquals(User.STATUS_DISABLED, stored.getStatus());
+        assertEquals(disabledAt, stored.getDisabledAt());
+    }
+
+    @Test
+    void reactivate_staleReadWhileJobClaimsAccount_doesNotReopen() {
+        User stale = disabledUser("u1", NOW.minus(java.time.Duration.ofDays(29)));
+        EnsureUserUseCaseTest.StaleOnceRepository repo = new EnsureUserUseCaseTest.StaleOnceRepository(stale);
+        repo.upsert(stale.withClosing(NOW));
+
+        assertTrue(new AccountReactivateUseCase(repo, CLOCK, java.time.Duration.ofDays(30)).execute("u1").isEmpty());
+        assertEquals(User.STATUS_CLOSING, repo.findById("u1").get().getStatus());
     }
 
     @Test

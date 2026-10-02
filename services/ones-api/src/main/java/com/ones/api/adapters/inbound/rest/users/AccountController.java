@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.LinkedHashMap;
 
+import com.ones.api.adapters.inbound.rest.DisabledAccountFilter;
 import com.ones.api.application.users.AccountAccessService;
 import com.ones.api.application.users.AccountDeactivateUseCase;
 import com.ones.api.application.users.AccountReactivateUseCase;
@@ -71,7 +72,10 @@ public class AccountController {
                     } catch (Exception ignore) {}
                     return ResponseEntity.ok(toResponse(u));
                 })
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .orElseGet(() -> getAccount.execute(userId).isPresent()
+                        // Existe pero está cerrándose, cerrada o borrada: no vuelve a DISABLED.
+                        ? ResponseEntity.status(409).body(Map.of("code", DisabledAccountFilter.CODE_CLOSED))
+                        : ResponseEntity.notFound().build());
     }
 
     @PostMapping(path = {"/reactivate", ":reactivate"})

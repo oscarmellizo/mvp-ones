@@ -30,42 +30,34 @@ public class UpdateUserPreferencesUseCase {
     }
 
     public Optional<User> execute(String userId, String preferredName, String languagePreference, Boolean termsAccepted) {
-        return usersRepository.findById(userId)
-                .map(existing -> {
-                    Instant now = Instant.now(clock);
+        for (int attempt = 0; attempt < 2; attempt++) {
+            Optional<User> found = usersRepository.findById(userId);
+            if (found.isEmpty()) return Optional.empty();
+            User existing = found.get();
+            Instant now = Instant.now(clock);
 
-                    String effectiveLanguagePreference = normalizeLanguagePreference(
-                            languagePreference,
-                            existing.getLanguagePreference()
-                    );
-                    boolean effectiveTermsAccepted = termsAccepted != null
-                            ? termsAccepted
-                            : existing.isTermsAccepted();
-                    User updated = new User(
-                            existing.getUserId(),
-                            existing.getEmail(),
-                            existing.getName(),
-                            existing.getGivenName(),
-                            existing.getFamilyName(),
-                            existing.getPicture(),
-                            preferredName,
-                            existing.getProvider(),
-                            effectiveLanguagePreference,
-                            effectiveTermsAccepted,
-                            existing.getCreatedAt(),
-                            now
-                    );
-                    usersRepository.upsert(updated);
+            String effectiveLanguagePreference = normalizeLanguagePreference(
+                    languagePreference,
+                    existing.getLanguagePreference()
+            );
+            boolean effectiveTermsAccepted = termsAccepted != null
+                    ? termsAccepted
+                    : existing.isTermsAccepted();
+            // Copia que conserva estado y ciclo de vida; condicional al estado leído para no deshacer
+            // una desactivación o un cierre hechos en paralelo.
+            User updated = existing.withPreferences(preferredName, effectiveLanguagePreference, effectiveTermsAccepted, now);
+            if (!usersRepository.upsertIfStatus(updated, existing.getStatus())) continue;
 
-                    Instant expiresAt = now.plus(30, ChronoUnit.DAYS);
-                    preferredNamesCacheRepository.put(
-                            updated.getUserId(),
-                            updated.getPreferredName(),
-                            expiresAt,
-                            now
-                    );
-                    return updated;
-                });
+            Instant expiresAt = now.plus(30, ChronoUnit.DAYS);
+            preferredNamesCacheRepository.put(
+                    updated.getUserId(),
+                    updated.getPreferredName(),
+                    expiresAt,
+                    now
+            );
+            return Optional.of(updated);
+        }
+        throw new IllegalStateException("No se pudieron guardar las preferencias de userId=" + userId + ": la cuenta cambió en paralelo");
     }
 
     private String normalizeLanguagePreference(String requested, String existing) {

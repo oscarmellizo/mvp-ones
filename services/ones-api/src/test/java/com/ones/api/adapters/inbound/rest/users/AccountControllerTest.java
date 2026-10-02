@@ -23,6 +23,7 @@ import com.ones.api.application.users.AccountReactivateUseCase;
 import com.ones.api.application.users.GetAccountUseCase;
 import com.ones.api.application.users.email.AccountEmailService;
 import com.ones.api.application.users.ports.UsersRepository;
+import com.ones.api.application.users.InMemoryUsersRepository;
 import com.ones.api.domain.users.User;
 
 class AccountControllerTest {
@@ -53,6 +54,24 @@ class AccountControllerTest {
     }
 
     @Test
+    void deactivate_closedAccount_returns409AccountClosed_andDoesNotReopen() {
+        repo.upsert(user("u1", "DISABLED", NOW.minus(Duration.ofDays(40)))
+                .withLifecycle(User.STATUS_CLOSED, NOW.minus(Duration.ofDays(2)), "tok", "exports/u1/ones-fotos.zip"));
+
+        ResponseEntity<Map<String, Object>> res = controller.deactivate(authAs("u1"));
+
+        assertEquals(409, res.getStatusCode().value());
+        assertEquals("ACCOUNT_CLOSED", res.getBody().get("code"));
+        assertEquals(User.STATUS_CLOSED, repo.findById("u1").get().getStatus());
+        assertEquals("tok", repo.findById("u1").get().getExportToken());
+    }
+
+    @Test
+    void deactivate_unknownUser_returns404() {
+        assertEquals(404, controller.deactivate(authAs("nobody")).getStatusCode().value());
+    }
+
+    @Test
     void reactivate_evictsAccessCacheForUser() {
         repo.upsert(user("u1", "DISABLED", NOW.minus(Duration.ofDays(2))));
 
@@ -73,22 +92,5 @@ class AccountControllerTest {
         Instant created = Instant.parse("2026-01-01T00:00:00Z");
         return new User(id, id + "@example.com", null, null, null, null, null, "google", null, true,
                 created, created, status, disabledAt, null);
-    }
-
-    private static class InMemoryUsersRepository implements UsersRepository {
-        private final Map<String, User> byId = new HashMap<>();
-
-
-        @Override
-        public java.util.List<User> findByStatusIn(java.util.Set<String> statuses) {
-            return byId.values().stream()
-                    .filter(u -> u.getStatus() != null && statuses.contains(u.getStatus().toUpperCase()))
-                    .toList();
-        }
-
-        @Override public Optional<User> findById(String userId) { return Optional.ofNullable(byId.get(userId)); }
-        @Override public Optional<User> findByEmail(String email) { return Optional.empty(); }
-        @Override public User upsert(User user) { byId.put(user.getUserId(), user); return user; }
-        @Override public void deleteById(String userId) { byId.remove(userId); }
     }
 }

@@ -27,41 +27,30 @@ public class AccountReactivateUseCase {
 
     public Optional<User> execute(String userId) {
         if (userId == null || userId.isBlank()) return Optional.empty();
-        Optional<User> existing = usersRepository.findById(userId);
-        if (existing.isEmpty()) return Optional.empty();
-        User u = existing.get();
-        if (User.STATUS_CLOSED.equalsIgnoreCase(u.getStatus()) || User.STATUS_DELETED.equalsIgnoreCase(u.getStatus())) {
-            return Optional.empty(); // cuenta cerrada o borrada: no se puede reactivar
+        for (int attempt = 0; attempt < 2; attempt++) {
+            Optional<User> existing = usersRepository.findById(userId);
+            if (existing.isEmpty()) return Optional.empty();
+            User u = existing.get();
+            if (u.isClosedOrDeleted()) {
+                return Optional.empty(); // cuenta cerrándose, cerrada o borrada: no se puede reactivar
+            }
+            if (!User.STATUS_DISABLED.equalsIgnoreCase(u.getStatus())) {
+                return Optional.of(u); // already active or unknown status
+            }
+            Instant now = Instant.now(clock);
+            Instant disabledAt = u.getDisabledAt();
+            if (disabledAt != null && now.isAfter(disabledAt.plus(reactivationWindow))) {
+                log.info("[AccountReactivate] userId={} beyond window disabledAt={} now={}", userId, disabledAt, now);
+                return Optional.empty();
+            }
+            // disabledAt == null: se permite reactivar de forma defensiva.
+            User updated = u.withStatus(User.STATUS_ACTIVE, null, now, now);
+            // Condicional: si la tarea diaria la reclamó (CLOSING) entre medio, no se reabre.
+            if (usersRepository.upsertIfStatus(updated, u.getStatus())) {
+                log.info("[AccountReactivate] userId={} reactivatedAt={}", userId, now);
+                return Optional.of(updated);
+            }
         }
-        if (!"DISABLED".equalsIgnoreCase(u.getStatus())) {
-            return Optional.of(u); // already active or unknown status
-        }
-        Instant now = Instant.now(clock);
-        Instant disabledAt = u.getDisabledAt();
-        if (disabledAt == null) {
-            // allow reactivation defensively
-            User updated = new User(
-                    u.getUserId(), u.getEmail(), u.getName(), u.getGivenName(), u.getFamilyName(), u.getPicture(),
-                    u.getPreferredName(), u.getProvider(), u.getLanguagePreference(), u.isTermsAccepted(),
-                    u.getCreatedAt(), now,
-                    "ACTIVE", null, now
-            );
-            usersRepository.upsert(updated);
-            log.info("[AccountReactivate] userId={} reactivatedAt={} (no disabledAt)", userId, now);
-            return Optional.of(updated);
-        }
-        if (now.isAfter(disabledAt.plus(reactivationWindow))) {
-            log.info("[AccountReactivate] userId={} beyond window disabledAt={} now={}", userId, disabledAt, now);
-            return Optional.empty();
-        }
-        User updated = new User(
-                u.getUserId(), u.getEmail(), u.getName(), u.getGivenName(), u.getFamilyName(), u.getPicture(),
-                u.getPreferredName(), u.getProvider(), u.getLanguagePreference(), u.isTermsAccepted(),
-                u.getCreatedAt(), now,
-                "ACTIVE", null, now
-        );
-        usersRepository.upsert(updated);
-        log.info("[AccountReactivate] userId={} reactivatedAt={}", userId, now);
-        return Optional.of(updated);
+        return Optional.empty();
     }
 }
