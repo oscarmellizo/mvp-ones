@@ -1,9 +1,36 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:ones_app/features/account/adapters/api/account_api_repository.dart';
 import 'package:ones_app/features/account/presentation/account_controller.dart';
+import 'package:ones_app/features/account/presentation/pages/account_page.dart';
+import 'package:ones_app/features/admin/application/get_admin_me_use_case.dart';
+import 'package:ones_app/features/auth/domain/auth_failure.dart';
+import 'package:ones_app/features/auth/presentation/auth_controller.dart';
+import 'package:ones_app/features/subscriptions/domain/subscriptions_repository.dart';
+import 'package:ones_app/features/subscriptions/presentation/subscriptions_controller.dart';
+import 'package:ones_app/features/users/application/ensure_user_use_case.dart';
+import 'package:ones_app/features/users/domain/users_repository.dart';
+import 'package:provider/provider.dart';
+
+import '../../auth/fake_auth_repository.dart';
 
 class _MockAccountApiRepository extends Mock implements AccountApiRepository {}
+class _MockGetPrefs extends Mock implements GetUserPreferencesUseCase {}
+class _MockGetAdminMe extends Mock implements GetAdminMeUseCase {}
+class _MockEnsureUser extends Mock implements EnsureUserUseCase {}
+class _MockUpdatePrefs extends Mock implements UpdateUserPreferencesUseCase {}
+class _MockLookup extends Mock implements LookupUserByEmailUseCase {}
+class _MockSubscriptionsRepository extends Mock implements SubscriptionsRepository {}
+
+AuthController _authWith(FakeAuthRepository repo) => AuthController(
+      authRepository: repo,
+      ensureUser: _MockEnsureUser(),
+      getUserPreferences: _MockGetPrefs(),
+      updateUserPreferences: _MockUpdatePrefs(),
+      lookupUserByEmailUseCase: _MockLookup(),
+      getAdminMe: _MockGetAdminMe(),
+    );
 
 void main() {
   late _MockAccountApiRepository repo;
@@ -75,5 +102,54 @@ void main() {
 
       verify(() => repo.getStatus(any())).called(2);
     });
+  });
+
+  group('deactivateAndSignOut', () {
+    late FakeAuthRepository authRepo;
+    late AuthController auth;
+
+    setUp(() {
+      authRepo = FakeAuthRepository()..current = fakeUser(provider: 'apple.com');
+      auth = _authWith(authRepo);
+      when(() => repo.deactivate('token')).thenAnswer((_) async {
+        authRepo.calls.add('deactivate');
+        return true;
+      });
+    });
+
+    test('baja con Apple revoca el acceso antes de desactivar', () async {
+      await controller.deactivateAndSignOut(auth);
+      expect(authRepo.calls, ['revokeAppleAccessIfNeeded', 'deactivate', 'signOut']);
+    });
+
+    test('si cancela el diálogo de Apple no se desactiva la cuenta', () async {
+      authRepo.revokeError = const AuthException(AuthFailure.cancelled);
+      final ok = await controller.deactivateAndSignOut(auth);
+      expect(ok, isFalse);
+      expect(authRepo.calls, ['revokeAppleAccessIfNeeded']);
+    });
+
+    test('otro error de revocación no bloquea la baja', () async {
+      authRepo.revokeError = const AuthException(AuthFailure.unknown);
+      final ok = await controller.deactivateAndSignOut(auth);
+      expect(ok, isTrue);
+      expect(authRepo.calls, ['revokeAppleAccessIfNeeded', 'deactivate', 'signOut']);
+    });
+  });
+
+  testWidgets('el texto de baja menciona el enlace de 8 días', (tester) async {
+    final authRepo = FakeAuthRepository();
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<SubscriptionsController>(
+              create: (_) => SubscriptionsController(_MockSubscriptionsRepository())),
+          ChangeNotifierProvider<AuthController>(create: (_) => _authWith(authRepo)),
+          ChangeNotifierProvider<AccountController>.value(value: controller),
+        ],
+        child: const MaterialApp(home: AccountPage()),
+      ),
+    );
+    expect(find.textContaining('el enlace dura 8 días'), findsOneWidget);
   });
 }

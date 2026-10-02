@@ -25,6 +25,10 @@ class FakeAuthRepository implements AuthRepository {
   int migrationRetries = 0;
   int reloadCalls = 0;
 
+  /// Bitácora opcional de llamadas (para comprobar el orden con otros fakes).
+  final List<String> calls = [];
+  AuthException? revokeError;
+
   /// Si no es null, los inicios de sesión esperan a que se complete.
   Completer<void>? signInGate;
   AuthException? migrationError;
@@ -106,7 +110,15 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> revokeAppleAccessIfNeeded() async {
+    calls.add('revokeAppleAccessIfNeeded');
+    final error = revokeError;
+    if (error != null) throw error;
+  }
+
+  @override
   Future<void> signOut() async {
+    calls.add('signOut');
     signOutCalls++;
     current = null;
   }

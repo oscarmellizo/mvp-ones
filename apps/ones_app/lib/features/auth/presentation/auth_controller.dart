@@ -520,6 +520,9 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Revoca el acceso de Sign in with Apple (no-op en otros proveedores). Lo usa la baja de cuenta.
+  Future<void> revokeAppleAccessIfNeeded() => authRepository.revokeAppleAccessIfNeeded();
+
   Future<void> logout() async {
     _setLoading(true);
     try {

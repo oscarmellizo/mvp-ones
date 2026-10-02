@@ -30,5 +30,10 @@ abstract interface class AuthRepository {
   /// Tras 409 ACCOUNT_MIGRATED: vuelve a iniciar sesión con la última credencial de Google.
   Future<AuthUser> signInAgainAfterMigration();
 
+  /// En usuarios `apple.com` reautentica con Apple y revoca el acceso de la app (requisito de
+  /// Apple al eliminar cuentas); en otros proveedores no hace nada.
+  /// Cancelar el diálogo de Apple lanza AuthException(AuthFailure.cancelled).
+  Future<void> revokeAppleAccessIfNeeded();
+
   Future<void> signOut();
 }

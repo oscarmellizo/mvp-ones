@@ -71,6 +71,16 @@ class FirebaseAuthRepository implements AuthRepository {
       });
 
   @override
+  Future<void> revokeAppleAccessIfNeeded() => _guard(() async {
+        final user = _auth.currentUser;
+        if (user == null || !user.providerData.any((p) => p.providerId == 'apple.com')) return;
+        final cred = await user.reauthenticateWithProvider(AppleAuthProvider());
+        final code = cred.additionalUserInfo?.authorizationCode;
+        if (code == null) return; // sin código no se puede revocar; la baja sigue
+        await _auth.revokeTokenWithAuthorizationCode(code);
+      });
+
+  @override
   Future<AuthUser> signInWithEmail(String email, String password) => _guard(() async {
         final result = await _auth.signInWithEmailAndPassword(email: email.trim(), password: password);
         return _toAuthUser(result.user!);

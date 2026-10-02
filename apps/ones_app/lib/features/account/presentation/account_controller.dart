@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../core/http/ones_api_factory.dart';
+import '../../auth/domain/auth_failure.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../adapters/api/account_api_repository.dart';
 
@@ -48,6 +49,14 @@ class AccountController extends ChangeNotifier {
     _setLoading(true);
     try {
       _error = null;
+      try {
+        await auth.revokeAppleAccessIfNeeded();
+      } on AuthException catch (e) {
+        if (e.failure == AuthFailure.cancelled) return false;
+        debugPrint('[account] no se pudo revocar el acceso de Apple: $e');
+      } catch (e) {
+        debugPrint('[account] no se pudo revocar el acceso de Apple: $e');
+      }
       final ok = await repository.deactivate(token);
       if (!ok) return false;
       await auth.logout();
