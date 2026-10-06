@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:app_links/app_links.dart';
@@ -69,6 +71,31 @@ import 'features/subscriptions/presentation/pages/subscription_plans_page.dart';
 import 'features/subscriptions/presentation/pages/plans_result_web_page.dart';
 
 final GlobalKey<NavigatorState> onesNavigatorKey = GlobalKey<NavigatorState>();
+
+String? invitationRouteForLink(Uri? link, {bool allowDevHost = false}) {
+  if (link == null ||
+      link.scheme != 'https' ||
+      (link.host != 'app.ones.events' &&
+          !(allowDevHost && link.host == 'appdev.ones.events')) ||
+      link.hasPort ||
+      link.path != InvitationLinkPage.routeName) {
+    return null;
+  }
+  final tokens = link.queryParametersAll['token'];
+  final actions = link.queryParametersAll['action'];
+  if (tokens == null || tokens.length != 1 || tokens.single.trim().isEmpty ||
+      (actions != null && (actions.length != 1 ||
+          !const {'accept', 'reject'}.contains(actions.single)))) {
+    return null;
+  }
+  return Uri(
+    path: InvitationLinkPage.routeName,
+    queryParameters: {
+      'token': tokens.single,
+      if (actions != null) 'action': actions.single,
+    },
+  ).toString();
+}
 
 class OnesApp extends StatelessWidget {
   final AppConfig config;
@@ -381,10 +408,11 @@ class OnesApp extends StatelessWidget {
           },
         ),
       ],
-      child: Builder(
-        builder: (context) {
-          final lang = context.watch<TranslationsService>().getCurrentLanguage();
-          return MaterialApp(
+      child: AppLinkHandler(
+        child: Builder(
+          builder: (context) {
+            final lang = context.watch<TranslationsService>().getCurrentLanguage();
+            return MaterialApp(
             title: 'Ones',
             theme: OnesTheme.light(),
             locale: Locale(lang),
@@ -424,6 +452,7 @@ class OnesApp extends StatelessWidget {
                 }
                 final action = uri.queryParameters['action'];
                 return MaterialPageRoute(
+                  settings: settings,
                   builder: (_) => InvitationLinkPage(
                     token: token,
                     action: action,
@@ -455,6 +484,7 @@ class OnesApp extends StatelessWidget {
 
                 final initialPhotoId = uri.queryParameters['photoId'];
                 return MaterialPageRoute(
+                  settings: settings,
                   builder: (_) => EventDetailPage(
                     eventId: eventId,
                     initialPhotoId: initialPhotoId,
@@ -464,10 +494,105 @@ class OnesApp extends StatelessWidget {
               return null;
             },
             debugShowCheckedModeBanner: false,
-          );
-        },
+            );
+          },
+        ),
       ),
     );
+  }
+}
+
+class AppLinkHandler extends StatefulWidget {
+  final Widget child;
+  final AppLinks? appLinks;
+
+  const AppLinkHandler({super.key, required this.child, this.appLinks});
+
+  @override
+  State<AppLinkHandler> createState() => _AppLinkHandlerState();
+}
+
+class _AppLinkHandlerState extends State<AppLinkHandler> {
+  late final AppLinks _appLinks = widget.appLinks ?? AppLinks();
+  StreamSubscription<Uri>? _subscription;
+  String? _pendingInvitationRoute;
+  String? _lastOpenedRoute;
+  DateTime? _lastOpenedAt;
+  bool _openScheduled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (kIsWeb) return;
+    unawaited(() async {
+      try {
+        _handleLink(await _appLinks.getInitialLink());
+      } catch (_) {}
+    }());
+    _subscription = _appLinks.uriLinkStream.listen(
+      _handleLink,
+      onError: (Object error) {
+        if (kDebugMode) debugPrint('app links error: ${error.runtimeType}');
+      },
+    );
+  }
+
+  void _handleLink(Uri? link) {
+    if (!mounted || link == null) return;
+    final invitationRoute = invitationRouteForLink(
+      link,
+      allowDevHost: context.read<AppConfig>().env == 'dev',
+    );
+    if (invitationRoute != null) {
+      final recentlyOpened = _lastOpenedRoute == invitationRoute &&
+          _lastOpenedAt != null &&
+          DateTime.now().difference(_lastOpenedAt!) < const Duration(seconds: 2);
+      if (recentlyOpened || _pendingInvitationRoute == invitationRoute) return;
+      setState(() => _pendingInvitationRoute = invitationRoute);
+      return;
+    }
+    if ((link.scheme != 'ones' && link.scheme != 'onesdev') ||
+        link.host != 'plans' ||
+        link.pathSegments.length != 1 ||
+        !const {'success', 'pending', 'failure'}
+            .contains(link.pathSegments.first)) {
+      return;
+    }
+    final result = link.pathSegments.first;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      onesNavigatorKey.currentState?.pushNamed(
+        SubscriptionPlansPage.routeName,
+        arguments: result,
+      );
+    });
+    WidgetsBinding.instance.scheduleFrame();
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final registered = context.watch<AuthController>().isRegistered;
+    if (registered && _pendingInvitationRoute != null && !_openScheduled) {
+      _openScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _openScheduled = false;
+        if (!mounted || !context.read<AuthController>().isRegistered) return;
+        final navigator = onesNavigatorKey.currentState;
+        final route = _pendingInvitationRoute;
+        if (navigator == null || route == null) return;
+        _pendingInvitationRoute = null;
+        _lastOpenedRoute = route;
+        _lastOpenedAt = DateTime.now();
+        navigator.pushNamed(route);
+      });
+    }
+    return widget.child;
   }
 }
 
@@ -479,32 +604,11 @@ class _RootRouter extends StatefulWidget {
 }
 
 class _RootRouterState extends State<_RootRouter> with WidgetsBindingObserver {
-  final AppLinks _appLinks = AppLinks();
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _appLinks.getInitialLink().then(_handlePaymentLink);
-    _appLinks.uriLinkStream.listen(_handlePaymentLink);
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkPendingNotif());
-  }
-
-  void _handlePaymentLink(Uri? uri) {
-    if (uri == null ||
-        (uri.scheme != 'ones' && uri.scheme != 'onesdev') ||
-        uri.host != 'plans' ||
-        uri.pathSegments.length != 1 ||
-        !const {'success', 'pending', 'failure'}.contains(uri.pathSegments.first)) {
-      return;
-    }
-    final result = uri.pathSegments.first;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      onesNavigatorKey.currentState?.pushNamed(
-        SubscriptionPlansPage.routeName,
-        arguments: result,
-      );
-    });
   }
 
   @override

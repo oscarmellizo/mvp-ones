@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ones_api_client/ones_api_client.dart' as api;
@@ -30,6 +31,27 @@ class _InvitationLinkPageState extends State<InvitationLinkPage> {
   bool _loading = true;
   Object? _error;
 
+  void _openEvent(String eventId) {
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      '${EventDetailPage.routeName}?eventId=${Uri.encodeComponent(eventId)}&invitationStatus=accepted',
+      (_) => false,
+    );
+  }
+
+  String get _errorMessage {
+    final error = _error;
+    if (error is DioException) {
+      if (error.response?.statusCode == 400 ||
+          error.response?.statusCode == 410) {
+        return 'Este enlace de invitación ya no está disponible. Abre el evento desde la app o solicita una nueva invitación.';
+      }
+      if (error.response?.statusCode == 403) {
+        return 'Esta invitación pertenece a otra cuenta. Ingresa con el correo invitado.';
+      }
+    }
+    return 'No se pudo abrir la invitación. Intenta de nuevo más tarde.';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -49,9 +71,7 @@ class _InvitationLinkPageState extends State<InvitationLinkPage> {
       if (action == 'accept') {
         await invitations.accept(inv.eventId);
         if (!mounted) return;
-        Navigator.of(context).pushReplacementNamed(
-          '${EventDetailPage.routeName}?eventId=${Uri.encodeComponent(inv.eventId)}&invitationStatus=accepted',
-        );
+        _openEvent(inv.eventId);
         return;
       }
 
@@ -110,9 +130,7 @@ class _InvitationLinkPageState extends State<InvitationLinkPage> {
       await context.read<InvitationsController>().accept(inv.eventId);
       if (!mounted) return;
       Navigator.of(context).pop();
-      Navigator.of(context).pushReplacementNamed(
-        '${EventDetailPage.routeName}?eventId=${Uri.encodeComponent(inv.eventId)}&invitationStatus=accepted',
-      );
+      _openEvent(inv.eventId);
     }
 
     Future<void> reject() async {
@@ -254,7 +272,18 @@ class _InvitationLinkPageState extends State<InvitationLinkPage> {
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Text('Error: $_error'),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(_errorMessage, textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                FilledButton.tonal(
+                  onPressed: () => Navigator.of(context)
+                      .pushNamedAndRemoveUntil('/', (_) => false),
+                  child: const Text('Ir al inicio'),
+                ),
+              ],
+            ),
           ),
         ),
       );
