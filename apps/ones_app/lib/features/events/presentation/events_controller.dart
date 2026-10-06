@@ -20,8 +20,14 @@ class EventsController extends ChangeNotifier {
   bool _notifyScheduled = false;
 
   String? _idToken;
+  String? _sessionUserId;
+  int _sessionEpoch = 0;
+  int _selectionEpoch = 0;
+  int _listEpoch = 0;
+  int _activeLoads = 0;
   bool _loading = false;
   Object? _error;
+  Object? _selectedError;
 
   List<Event> _events = const [];
   Event? _selected;
@@ -36,6 +42,7 @@ class EventsController extends ChangeNotifier {
 
   bool get loading => _loading;
   Object? get error => _error;
+  Object? get selectedError => _selectedError;
   List<Event> get events => _events;
   Event? get selected => _selected;
 
@@ -48,31 +55,48 @@ class EventsController extends ChangeNotifier {
     });
   }
 
-  void setIdToken(String? token) {
-    if (_idToken == token) {
-      return;
-    }
-    _idToken = token;
+  void setIdToken(String? token, {String? userId}) {
+    if (_idToken == token && _sessionUserId == userId) return;
 
+    final sameUser = token != null &&
+        token.isNotEmpty &&
+        userId != null &&
+        userId.isNotEmpty &&
+        userId == _sessionUserId;
+    _idToken = token;
+    _sessionUserId = userId;
+    if (sameUser) return;
+
+    _sessionEpoch++;
+    _selectionEpoch++;
+    _listEpoch++;
+    _activeLoads = 0;
     _loading = false;
     _error = null;
+    _selectedError = null;
     _events = const [];
     _selected = null;
     _safeNotify();
   }
 
   Future<void> refresh() async {
+    final session = _sessionEpoch;
+    final request = ++_listEpoch;
+    _activeLoads++;
     _setLoading(true);
     try {
       _error = null;
-      _events = await listEvents.execute();
+      final events = await listEvents.execute();
+      if (session != _sessionEpoch || request != _listEpoch) return;
+      _events = events;
       _updateLiveNotification();
     } catch (e) {
-      _error = e;
-      _events = const [];
-      _selected = null;
+      if (session == _sessionEpoch && request == _listEpoch) _error = e;
     } finally {
-      _setLoading(false);
+      if (session == _sessionEpoch) {
+        _activeLoads--;
+        _setLoading(_activeLoads > 0);
+      }
     }
   }
 
@@ -93,6 +117,8 @@ class EventsController extends ChangeNotifier {
     required List<String> frameIds,
     String? coverReservationId,
   }) async {
+    final session = _sessionEpoch;
+    _activeLoads++;
     _setLoading(true);
     try {
       _error = null;
@@ -108,6 +134,7 @@ class EventsController extends ChangeNotifier {
         coverReservationId: coverReservationId,
       );
 
+      if (session != _sessionEpoch) return;
       final list = [..._events];
       final idx = list.indexWhere((e) => e.id == updated.id);
       if (idx >= 0) {
@@ -118,23 +145,37 @@ class EventsController extends ChangeNotifier {
         _selected = updated;
       }
     } catch (e) {
-      _error = e;
+      if (session == _sessionEpoch) _error = e;
       rethrow;
     } finally {
-      _setLoading(false);
+      if (session == _sessionEpoch) {
+        _activeLoads--;
+        _setLoading(_activeLoads > 0);
+      }
     }
   }
 
   Future<void> select(String id) async {
+    final session = _sessionEpoch;
+    final request = ++_selectionEpoch;
+    _activeLoads++;
     _setLoading(true);
     try {
       _error = null;
-      _selected = await getEvent.execute(id);
+      _selectedError = null;
+      final event = await getEvent.execute(id);
+      if (session != _sessionEpoch || request != _selectionEpoch) return;
+      _selected = event;
     } catch (e) {
-      _error = e;
-      _selected = null;
+      if (session == _sessionEpoch && request == _selectionEpoch) {
+        _error = e;
+        _selectedError = e;
+      }
     } finally {
-      _setLoading(false);
+      if (session == _sessionEpoch) {
+        _activeLoads--;
+        _setLoading(_activeLoads > 0);
+      }
     }
   }
 
@@ -149,6 +190,8 @@ class EventsController extends ChangeNotifier {
     bool allowGuestInvites,
     List<String> frameIds,
   ) async {
+    final session = _sessionEpoch;
+    _activeLoads++;
     _setLoading(true);
     try {
       _error = null;
@@ -163,26 +206,31 @@ class EventsController extends ChangeNotifier {
         allowGuestInvites,
         frameIds,
       );
-      _events = [created, ..._events];
+      if (session == _sessionEpoch) _events = [created, ..._events];
     } catch (e) {
-      _error = e;
+      if (session == _sessionEpoch) _error = e;
       rethrow;
     } finally {
-      _setLoading(false);
+      if (session == _sessionEpoch) {
+        _activeLoads--;
+        _setLoading(_activeLoads > 0);
+      }
     }
   }
 
   Future<void> deleteEvent(String eventId) async {
+    final session = _sessionEpoch;
     try {
       _error = null;
       await eventsRepository.deleteEvent(eventId);
+      if (session != _sessionEpoch) return;
       _events = _events.where((e) => e.id != eventId).toList(growable: false);
       if (_selected?.id == eventId) {
         _selected = null;
       }
       _safeNotify();
     } catch (e) {
-      _error = e;
+      if (session == _sessionEpoch) _error = e;
       rethrow;
     }
   }
