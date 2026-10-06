@@ -243,8 +243,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
       value: galleryController,
       child: Consumer<PhotosGalleryController>(
         builder: (context, photos, _) {
-          final eventReady =
-              !controller.loading && controller.selected?.id == widget.eventId;
+          final eventReady = event != null;
           final photosReady =
               photos.currentEventId == widget.eventId && photos.loadedOnce;
 
@@ -314,15 +313,35 @@ class _EventDetailPageState extends State<EventDetailPage> {
               ),
             ),
             body: SafeArea(
-              child: !eventReady || !photosReady
-                  ? const Center(child: CircularProgressIndicator())
-                  : event == null
-                      ? Padding(
-                          padding: EdgeInsets.all(horizontalPadding),
-                          child: Text(
-                            '${t.translate('event_detail.no_event', fallback: 'No event')} (error: ${controller.error})',
+              child: event == null
+                  ? controller.selectedError == null
+                      ? const Center(child: CircularProgressIndicator())
+                      : Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(horizontalPadding),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '${t.translate('event_detail.no_event', fallback: 'No event')} (error: ${controller.selectedError})',
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 12),
+                                FilledButton.tonal(
+                                  onPressed: () => controller.select(widget.eventId),
+                                  child: Text(
+                                    t.translate(
+                                      'event_detail.action_retry',
+                                      fallback: 'Reintentar',
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         )
+                  : !photosReady
+                      ? const Center(child: CircularProgressIndicator())
                       : Column(
                           children: [
                             ColoredBox(

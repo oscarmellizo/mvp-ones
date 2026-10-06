@@ -218,7 +218,7 @@ class OnesApp extends StatelessWidget {
                   eventsRepository: eventsRepository,
                 );
             eventsRepository.setIdToken(auth.idToken);
-            controller.setIdToken(auth.idToken);
+            controller.setIdToken(auth.idToken, userId: auth.user?.userId);
             return controller;
           },
         ),
