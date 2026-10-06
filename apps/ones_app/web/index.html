@@ -17,6 +17,7 @@
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
+  <meta name="referrer" content="no-referrer">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Una plataforma donde tus fotos y videos de eventos están siempre accesibles, organizados y compartidos sin esfuerzo.">
 
@@ -70,6 +71,18 @@
     });
   </script>
 
-  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    const hasInvitation = new URLSearchParams(window.location.search).get('token')?.trim();
+    if (window.location.hostname === 'app.ones.events' &&
+        window.location.pathname === '/invitation' && isAndroid && hasInvitation) {
+      window.location.replace('https://play.google.com/store/apps/details?id=com.ones.events&hl=en');
+    } else {
+      const flutterBootstrap = document.createElement('script');
+      flutterBootstrap.src = 'flutter_bootstrap.js';
+      flutterBootstrap.async = true;
+      document.body.appendChild(flutterBootstrap);
+    }
+  </script>
 </body>
 </html>

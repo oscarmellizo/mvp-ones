@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.ones.events",
+      "sha256_cert_fingerprints": [
+        "73:FB:5E:44:88:AB:CF:7C:8E:47:A6:F9:EC:39:CB:7F:77:12:DA:99:68:C5:AB:F8:52:E9:03:7B:86:80:E0:58"
+      ]
+    }
+  }
+]

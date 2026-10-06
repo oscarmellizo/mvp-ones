@@ -151,7 +151,15 @@ jobs:
 
       - name: Upload to S3
         run: |
-          aws s3 sync apps/ones_app/build/web "s3://${{ steps.web.outputs.bucket }}" --delete
+          if [ "${{ inputs.environment }}" = "prod" ] && [ ! -f apps/ones_app/web/.well-known/assetlinks.json ]; then
+            echo "ERROR: Play App Signing SHA-256 must be configured in assetlinks.json before production deployment."
+            exit 1
+          fi
+          aws s3 sync apps/ones_app/build/web "s3://${{ steps.web.outputs.bucket }}" --delete --exclude ".well-known/*"
+          aws s3 cp apps/ones_app/web/.well-known/apple-app-site-association "s3://${{ steps.web.outputs.bucket }}/.well-known/apple-app-site-association" --content-type application/json --cache-control "public, max-age=3600"
+          if [ "${{ inputs.environment }}" = "prod" ]; then
+            aws s3 cp apps/ones_app/web/.well-known/assetlinks.json "s3://${{ steps.web.outputs.bucket }}/.well-known/assetlinks.json" --content-type application/json --cache-control "public, max-age=3600"
+          fi
 
       - name: Invalidate CloudFront
         run: |

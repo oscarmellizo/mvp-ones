@@ -7,6 +7,7 @@ import 'package:ones_app/features/admin/application/get_admin_me_use_case.dart';
 import 'package:ones_app/features/auth/presentation/auth_controller.dart';
 import 'package:ones_app/features/events/presentation/pages/profile_page.dart';
 import 'package:ones_app/features/subscriptions/presentation/subscriptions_controller.dart';
+import 'package:ones_app/features/subscriptions/domain/user_subscription.dart';
 import 'package:ones_app/features/users/application/ensure_user_use_case.dart';
 import 'package:ones_app/features/users/domain/users_repository.dart';
 import 'package:provider/provider.dart';
@@ -30,6 +31,7 @@ void main() {
     expect(find.text('uid-1@example.com'), findsOneWidget);
     expect(find.text('profile.first_name'), findsNothing);
     expect(find.text('profile.last_name'), findsNothing);
+    expect(find.text('Hazte Ones Plus'), findsNothing);
   });
 
 
@@ -57,7 +59,9 @@ Future<void> pumpProfile(WidgetTester tester) async {
       )).thenAnswer((_) async {});
   final subscriptions = _MockSubscriptions();
   when(() => subscriptions.loadAll()).thenAnswer((_) async {});
-  when(() => subscriptions.subscription).thenReturn(null);
+  when(() => subscriptions.subscription).thenReturn(
+    const UserSubscription(userId: 'uid-1', planId: 'free', status: 'free'),
+  );
 
   final getPrefs = _MockGetPrefs();
   when(() => getPrefs.execute(any()))

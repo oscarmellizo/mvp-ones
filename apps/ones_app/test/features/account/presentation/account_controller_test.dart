@@ -152,6 +152,9 @@ void main() {
       ),
     );
     expect(find.textContaining('el enlace dura 8 días'), findsOneWidget);
+    expect(find.text('Plan actual'), findsNothing);
+    expect(find.text('Ver planes'), findsNothing);
+    expect(find.text('Borrar cuenta'), findsOneWidget);
   });
 
   group('AccountPage: baja', () {

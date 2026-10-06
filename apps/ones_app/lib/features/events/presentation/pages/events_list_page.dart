@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/config/app_config.dart';
 import '../../../../core/utils/datetime_formatters.dart';
 import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/ui/ones_colors.dart';
@@ -58,7 +59,9 @@ class _EventsListPageState extends State<EventsListPage> {
           );
       context.read<EventsController>().refresh();
       context.read<InvitationsController>().refresh();
-      context.read<SubscriptionsController>().loadAll();
+      if (AppConfig.showPaymentEntryPoints) {
+        context.read<SubscriptionsController>().loadAll();
+      }
     });
   }
 
@@ -326,11 +329,11 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final invitations = context.watch<InvitationsController>();
     final unread = invitations.unreadCount;
-    final subscriptions = context.watch<SubscriptionsController>();
-    final subscriptionStatus = subscriptions.subscription?.status.toLowerCase();
-    final subscriptionPlanId = subscriptions.subscription?.planId.toLowerCase();
-    final isPlusActive = (subscriptionStatus == 'active') &&
-        (subscriptionPlanId != null && subscriptionPlanId != 'free');
+    final subscription = AppConfig.showPaymentEntryPoints
+        ? context.watch<SubscriptionsController>().subscription
+        : null;
+    final isPlusActive = subscription?.status.toLowerCase() == 'active' &&
+        subscription?.planId.toLowerCase() != 'free';
 
     return SizedBox(
       height: 56,
@@ -348,7 +351,7 @@ class _Header extends StatelessWidget {
                     icon: const Icon(Icons.menu),
                     onPressed: () => Scaffold.of(context).openDrawer(),
                   ),
-                  if (!isPlusActive)
+                  if (AppConfig.showPaymentEntryPoints && !isPlusActive)
                     IconButton(
                       tooltip: 'Plus',
                       icon: const Icon(

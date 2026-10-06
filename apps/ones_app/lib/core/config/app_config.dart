@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 
 class AppConfig {
+  static const showPaymentEntryPoints = false;
+
   final String env;
   final String apiBaseUrl;
   final String? googleWebClientId;

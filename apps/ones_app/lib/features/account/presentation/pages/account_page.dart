@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/config/app_config.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/widgets/ones_card.dart';
 import '../../../auth/presentation/auth_controller.dart';
@@ -15,7 +16,9 @@ class AccountPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final subs = context.watch<SubscriptionsController>();
+    final subs = AppConfig.showPaymentEntryPoints
+        ? context.watch<SubscriptionsController>()
+        : null;
     final auth = context.watch<AuthController>();
     final account = context.watch<AccountController>();
 
@@ -35,8 +38,10 @@ class AccountPage extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: ListView(
             children: [
-              _PlanCard(subscriptions: subs),
-              const SizedBox(height: 16),
+              if (AppConfig.showPaymentEntryPoints) ...[
+                _PlanCard(subscriptions: subs!),
+                const SizedBox(height: 16),
+              ],
               OnesCard(
                 padding: const EdgeInsets.all(14),
                 child: Column(

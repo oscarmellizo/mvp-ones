@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/config/app_config.dart';
 import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/widgets/ones_card.dart';
@@ -53,7 +54,9 @@ class _ProfilePageState extends State<ProfilePage> {
             page: 'profile',
             requiredKeys: _profileRequiredKeys,
           );
-      context.read<SubscriptionsController>().loadAll();
+      if (AppConfig.showPaymentEntryPoints) {
+        context.read<SubscriptionsController>().loadAll();
+      }
     });
   }
 
@@ -103,7 +106,9 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
     final translationsService = context.watch<TranslationsService>();
-    final subscriptions = context.watch<SubscriptionsController>();
+    final subscription = AppConfig.showPaymentEntryPoints
+        ? context.watch<SubscriptionsController>().subscription
+        : null;
 
     final lang = translationsService.getCurrentLanguage();
     if (_lastLanguage != lang) {
@@ -189,8 +194,8 @@ class _ProfilePageState extends State<ProfilePage> {
                               value: email ?? ''),
                         ],
                       ),
-                      const SizedBox(height: 14),
-                      if (subscriptions.subscription?.isFree == true) ...[
+                      if (AppConfig.showPaymentEntryPoints &&
+                          subscription?.isFree == true) ...[
                         const SizedBox(height: 14),
                         const _UpgradeBanner(),
                       ],

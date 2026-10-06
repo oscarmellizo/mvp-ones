@@ -217,6 +217,23 @@ Resources:
             Cookies:
               Forward: none
         CacheBehaviors:
+          - PathPattern: invitation
+            TargetOriginId: s3origin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            CachedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            Compress: true
+            ResponseHeadersPolicyId: !Ref WebResponseHeadersPolicy
+            ForwardedValues:
+              QueryString: false
+              Cookies:
+                Forward: none
           - PathPattern: api/*
             TargetOriginId: apiorigin
             ViewerProtocolPolicy: redirect-to-https
