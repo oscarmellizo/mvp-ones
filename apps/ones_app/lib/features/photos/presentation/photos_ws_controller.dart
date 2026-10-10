@@ -52,7 +52,7 @@ class PhotosWsController extends ChangeNotifier {
     try {
       final uri = _normalizeWsUri(wsUrl, token);
       if (kDebugMode) {
-        debugPrint('photos_ws: connect url=$wsUrl normalized=$uri');
+        debugPrint('photos_ws: connect host=${uri.host} path=${uri.path}');
         if ((uri.pathSegments.isEmpty ||
             (uri.pathSegments.length == 1 && uri.pathSegments.first.trim().isEmpty))) {
           debugPrint('photos_ws: hint: missing stage (e.g., /dev or /prod) in ONES_PHOTOS_WS_URL');

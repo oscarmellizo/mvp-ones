@@ -258,6 +258,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                 children: [
                   // Upload/import photos FAB (top)
                   FloatingActionButton(
+                    heroTag: 'event-photo-import',
                     backgroundColor: OnesColors.purpleMid,
                     foregroundColor: OnesColors.white,
                     onPressed: event == null || !eventReady || !photosReady
@@ -284,6 +285,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                   const SizedBox(height: 12),
                   // Camera capture FAB (bottom)
                   FloatingActionButton(
+                    heroTag: 'event-photo-camera',
                     backgroundColor: OnesColors.purpleMid,
                     foregroundColor: OnesColors.white,
                     onPressed: event == null || !eventReady || !photosReady
@@ -655,7 +657,7 @@ class _GalleryTabState extends State<_GalleryTab> {
 
     // Limpiar fotos locales del evento
     final storage = _photoStorage;
-    if (storage != null) {
+    if (!kIsWeb && storage != null) {
       final uploader = _uploader;
       if (uploader != null) {
         unawaited(() async {
