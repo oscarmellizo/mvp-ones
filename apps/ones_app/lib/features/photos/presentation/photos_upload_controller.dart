@@ -14,6 +14,7 @@ class PhotosUploadController extends ChangeNotifier {
   final EventPhotosApi api;
   final PhotoUploadDb db;
   final PhotoStorage storage;
+  final bool useLocalQueue;
 
   String? _idToken;
   bool _running = false;
@@ -34,9 +35,12 @@ class PhotosUploadController extends ChangeNotifier {
     required this.api,
     required this.db,
     required this.storage,
-  }) {
-    _connectivitySub =
-        Connectivity().onConnectivityChanged.listen((_) => trigger());
+    bool? useLocalQueue,
+  }) : useLocalQueue = useLocalQueue ?? !kIsWeb {
+    if (this.useLocalQueue) {
+      _connectivitySub =
+          Connectivity().onConnectivityChanged.listen((_) => trigger());
+    }
   }
 
   void _safeNotify() {
@@ -65,7 +69,7 @@ class PhotosUploadController extends ChangeNotifier {
     required String eventId,
     required String photoId,
   }) async {
-    if (eventId.isEmpty || photoId.isEmpty) return;
+    if (!useLocalQueue || eventId.isEmpty || photoId.isEmpty) return;
     try {
       final file = await storage.getFile(eventId: eventId, photoId: photoId);
       if (await file.exists()) {
@@ -81,6 +85,7 @@ class PhotosUploadController extends ChangeNotifier {
   }
 
   Future<void> rehydrateActive() async {
+    if (!useLocalQueue) return;
     await db.purgeStale(olderThan: const Duration(minutes: 10));
     final items = await db.listActive();
     final next = <String, List<PhotoUploadItem>>{};
@@ -106,6 +111,11 @@ class PhotosUploadController extends ChangeNotifier {
     api.setIdToken(token);
 
     _lastError = null;
+    if (!useLocalQueue) {
+      _activeByEvent.clear();
+      _safeNotify();
+      return;
+    }
 
     final hasToken = token != null && token.isNotEmpty;
     if (!hasToken) {
@@ -131,6 +141,7 @@ class PhotosUploadController extends ChangeNotifier {
     String? orientation,
     String? cameraType,
   }) async {
+    if (!useLocalQueue) throw UnsupportedError('Local uploads are unavailable on web');
     final created = createdAt.toUtc().toIso8601String();
     final saved = await storage.saveJpeg(
       eventId: eventId,
@@ -172,6 +183,7 @@ class PhotosUploadController extends ChangeNotifier {
   }
 
   Future<void> trigger() async {
+    if (!useLocalQueue) return;
     if (_running) {
       _triggerAgain = true;
       return;

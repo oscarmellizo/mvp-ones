@@ -203,181 +203,201 @@ class _PhotoCaptureWebPageState extends State<PhotoCaptureWebPage>
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: _initializing
-                ? const Center(child: CircularProgressIndicator())
-                : (_error != null)
-                    ? _ErrorView(error: _error, onRetry: _init)
-                    : (controller == null || !controller.value.isInitialized)
-                        ? _ErrorView(
-                            error: t.translate('photo_capture.error_web_not_supported', fallback: 'Camera not ready'),
-                            onRetry: _init,
-                          )
-                        : LayoutBuilder(
-                            builder: (context, constraints) {
-                              final viewportAspect = constraints.maxWidth / constraints.maxHeight;
-                              final orientation = resolveCaptureOrientation(
-                                viewportAspect: viewportAspect,
-                                deviceOrientation: controller.value.deviceOrientation,
-                                forcedOrientation: _orientationOverride,
-                              );
-                              final effectiveAspect = orientation == CaptureOrientation.portrait
-                                  ? (1.0 / controller.value.aspectRatio)
-                                  : controller.value.aspectRatio;
-                              final screenAspect = constraints.maxWidth / constraints.maxHeight;
-                              final rawScale = effectiveAspect / screenAspect;
-                              final scale = rawScale < 1 ? 1 / rawScale : rawScale;
-                              final isFront = _cameras.isNotEmpty ? _cameras[_cameraIndex].lensDirection == CameraLensDirection.front : false;
+      body: _initializing
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? _ErrorView(error: _error, onRetry: _init)
+              : controller == null || !controller.value.isInitialized
+                  ? _ErrorView(
+                      error: t.translate(
+                        'photo_capture.error_web_not_supported',
+                        fallback: 'Camera not ready',
+                      ),
+                      onRetry: _init,
+                    )
+                  : _buildCameraPreview(controller, t),
+    );
+  }
 
-                              return ClipRect(
-                                child: Transform.scale(
-                                  scale: scale,
-                                  child: Center(
-                                    child: AspectRatio(
-                                      aspectRatio: effectiveAspect,
-                                      child: Transform(
-                                        alignment: Alignment.center,
-                                        transform: Matrix4.identity()..scale(isFront ? -1.0 : 1.0, 1.0),
-                                        child: CameraPreview(controller),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-          ),
-          if (_framePairs.isNotEmpty && _framesEnabled)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: Builder(
-                  builder: (context) {
-                    final controller = _controller;
-                    if (controller == null || !controller.value.isInitialized) return const SizedBox.shrink();
-                    final size = MediaQuery.sizeOf(context);
-                    final orientation = resolveCaptureOrientation(
-                      viewportAspect: size.width / size.height,
-                      deviceOrientation: controller.value.deviceOrientation,
-                      forcedOrientation: _orientationOverride,
-                    );
-                    final frame = _framePairs[_currentFrameIndex % _framePairs.length];
-                    final url = orientation == CaptureOrientation.portrait ? frame.verticalUrl : frame.horizontalUrl;
-                    if (url == null || url.isEmpty) return const SizedBox.shrink();
-                    return Image.network(url, fit: BoxFit.fill, errorBuilder: (_, __, ___) => const SizedBox.shrink());
-                  },
-                ),
+  Widget _buildCameraPreview(
+    CameraController controller,
+    TranslationsService translations,
+  ) {
+    return ValueListenableBuilder<CameraValue>(
+      valueListenable: controller,
+      builder: (context, _, __) => CameraPreview(
+        controller,
+        child: _buildPreviewOverlay(context, translations, controller),
+      ),
+    );
+  }
+
+  Widget _buildPreviewOverlay(
+    BuildContext context,
+    TranslationsService translations,
+    CameraController controller,
+  ) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (_framePairs.isNotEmpty && _framesEnabled)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Builder(
+                builder: (context) {
+                  final size = MediaQuery.sizeOf(context);
+                  final orientation = resolveCaptureOrientation(
+                    viewportAspect: size.width / size.height,
+                    deviceOrientation: controller.value.deviceOrientation,
+                    forcedOrientation: _orientationOverride,
+                    prioritizeDeviceOrientation: true,
+                  );
+                  final frame = _framePairs[_currentFrameIndex % _framePairs.length];
+                  final url = orientation == CaptureOrientation.portrait
+                      ? frame.verticalUrl
+                      : frame.horizontalUrl;
+                  if (url == null || url.isEmpty) return const SizedBox.shrink();
+                  return Image.network(
+                    url,
+                    fit: BoxFit.fill,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  );
+                },
               ),
             ),
+          ),
+        Positioned(
+          left: 12,
+          top: 12 + MediaQuery.paddingOf(context).top,
+          child: IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.close, color: Colors.white),
+          ),
+        ),
+        Positioned(
+          right: 12,
+          top: 12 + MediaQuery.paddingOf(context).top,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: _orientationOverride == null
+                    ? 'Orientación automática'
+                    : _orientationOverride == CaptureOrientation.landscape
+                        ? 'Orientación horizontal'
+                        : 'Orientación vertical',
+                onPressed: () => setState(() {
+                  _orientationOverride = switch (_orientationOverride) {
+                    null => CaptureOrientation.landscape,
+                    CaptureOrientation.landscape => CaptureOrientation.portrait,
+                    CaptureOrientation.portrait => null,
+                  };
+                }),
+                icon: const Icon(Icons.screen_rotation, color: Colors.white),
+              ),
+              IconButton(
+                onPressed: _initializing || _switchingCamera || _capturing
+                    ? null
+                    : _switchCamera,
+                icon: const Icon(Icons.cameraswitch, color: Colors.white),
+              ),
+            ],
+          ),
+        ),
+        if (_loadingFrames || _framesError != null)
           Positioned(
+            top: 70 + MediaQuery.paddingOf(context).top,
             left: 12,
-            top: 12 + MediaQuery.paddingOf(context).top,
-            child: IconButton(
-              onPressed: () => Navigator.of(context).pop(),
-              icon: const Icon(Icons.close, color: Colors.white),
+            right: 12,
+            child: Center(
+              child: Text(
+                _loadingFrames
+                    ? translations.translate(
+                        'photo_capture.frames_loading',
+                        fallback: 'Cargando marcos…',
+                      )
+                    : '${translations.translate(
+                        'photo_capture.frames_error',
+                        fallback: 'Error cargando marcos',
+                      )}: $_framesError',
+                style: const TextStyle(color: Colors.white),
+              ),
             ),
           ),
+        if (_framePairs.isNotEmpty)
           Positioned(
+            left: 12,
             right: 12,
-            top: 12 + MediaQuery.paddingOf(context).top,
+            bottom: 110 + MediaQuery.paddingOf(context).bottom,
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 IconButton(
-                  tooltip: _orientationOverride == null
-                      ? 'Orientación automática'
-                      : _orientationOverride == CaptureOrientation.landscape
-                          ? 'Orientación horizontal'
-                          : 'Orientación vertical',
                   onPressed: () => setState(() {
-                    _orientationOverride = switch (_orientationOverride) {
-                      null => CaptureOrientation.landscape,
-                      CaptureOrientation.landscape => CaptureOrientation.portrait,
-                      CaptureOrientation.portrait => null,
-                    };
+                    _framesEnabled = !_framesEnabled;
                   }),
-                  icon: const Icon(Icons.screen_rotation, color: Colors.white),
+                  icon: Icon(
+                    _framesEnabled
+                        ? Icons.filter_frames
+                        : Icons.filter_frames_outlined,
+                    color: Colors.white,
+                  ),
                 ),
-                IconButton(
-                  onPressed: _initializing || _switchingCamera || _capturing
-                      ? null
-                      : _switchCamera,
-                  icon: const Icon(Icons.cameraswitch, color: Colors.white),
-                ),
+                const SizedBox(width: 16),
+                if (_framePairs.length > 1) ...[
+                  IconButton(
+                    onPressed: () => setState(() {
+                      final len = _framePairs.length;
+                      _currentFrameIndex = (_currentFrameIndex - 1 + len) % len;
+                    }),
+                    icon: const Icon(Icons.chevron_left, color: Colors.white),
+                  ),
+                  Text(
+                    '${_currentFrameIndex + 1}/${_framePairs.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => setState(() {
+                      final len = _framePairs.length;
+                      _currentFrameIndex = (_currentFrameIndex + 1) % len;
+                    }),
+                    icon: const Icon(Icons.chevron_right, color: Colors.white),
+                  ),
+                ],
               ],
             ),
           ),
-          if (_loadingFrames || _framesError != null)
-            Positioned(
-              top: 70 + MediaQuery.paddingOf(context).top,
-              left: 12,
-              right: 12,
-              child: Center(
-                child: Text(
-                  _loadingFrames
-                      ? t.translate('photo_capture.frames_loading', fallback: 'Cargando marcos…')
-                      : '${t.translate('photo_capture.frames_error', fallback: 'Error cargando marcos')}: $_framesError',
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ),
-            ),
-          if (_framePairs.isNotEmpty)
-            Positioned(
-              left: 12,
-              right: 12,
-              bottom: 110 + MediaQuery.paddingOf(context).bottom,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    onPressed: () { setState(() { _framesEnabled = !_framesEnabled; }); },
-                    icon: Icon(_framesEnabled ? Icons.filter_frames : Icons.filter_frames_outlined, color: Colors.white),
-                  ),
-                  const SizedBox(width: 16),
-                  if (_framePairs.length > 1) ...[
-                    IconButton(
-                      onPressed: () { setState(() { final len = _framePairs.length; _currentFrameIndex = (_currentFrameIndex - 1 + len) % len; }); },
-                      icon: const Icon(Icons.chevron_left, color: Colors.white),
-                    ),
-                    Text(
-                      '${_currentFrameIndex + 1}/${_framePairs.length}',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
-                    ),
-                    IconButton(
-                      onPressed: () { setState(() { final len = _framePairs.length; _currentFrameIndex = (_currentFrameIndex + 1) % len; }); },
-                      icon: const Icon(Icons.chevron_right, color: Colors.white),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 24 + MediaQuery.paddingOf(context).bottom,
-            child: Center(
-              child: IconButton(
-                onPressed: _initializing || _switchingCamera || _capturing ||
-                        _error != null || controller?.value.isInitialized != true
-                    ? null
-                    : () => _captureAndUpload(context),
-                iconSize: 72,
-                icon: const Icon(Icons.radio_button_checked, color: Colors.white),
-              ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 24 + MediaQuery.paddingOf(context).bottom,
+          child: Center(
+            child: IconButton(
+              onPressed: _initializing ||
+                      _switchingCamera ||
+                      _capturing ||
+                      _error != null ||
+                      !controller.value.isInitialized
+                  ? null
+                  : () => _captureAndUpload(context),
+              iconSize: 72,
+              icon: const Icon(Icons.radio_button_checked, color: Colors.white),
             ),
           ),
-          if (_capturing)
-            const Positioned(
-              top: 80,
-              left: 0,
-              right: 0,
-              child: Center(child: CircularProgressIndicator()),
-            ),
-          // Shutter overlay animation
-          CameraShutterOverlay(animation: _shutterOpacityAnimation),
-        ],
-      ),
+        ),
+        if (_capturing)
+          const Positioned(
+            top: 80,
+            left: 0,
+            right: 0,
+            child: Center(child: CircularProgressIndicator()),
+          ),
+        // Shutter overlay animation
+        CameraShutterOverlay(animation: _shutterOpacityAnimation),
+      ],
     );
   }
 
@@ -441,6 +461,7 @@ class _PhotoCaptureWebPageState extends State<PhotoCaptureWebPage>
         orientation: orientationOverride,
         viewportAspect: size.width / size.height,
         deviceOrientation: deviceOrientation,
+        prioritizeDeviceOrientation: true,
         maxDimension: 2560,
       );
       Uint8List bytes = normalized.bytes;

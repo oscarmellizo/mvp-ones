@@ -32,7 +32,7 @@ void main() {
     });
   }
 
-  test('orientación física precede al viewport y override manual', () {
+  test('web prioriza orientación física y conserva la regla nativa', () {
     expect(
       resolveCaptureOrientation(
         viewportAspect: 0.6,
@@ -45,6 +45,30 @@ void main() {
     expect(
       resolveCaptureOrientation(
         viewportAspect: 0.6,
+        imageWidth: 120,
+        imageHeight: 80,
+      ),
+      CaptureOrientation.portrait,
+    );
+    expect(
+      resolveCaptureOrientation(
+        viewportAspect: 2.0,
+        deviceOrientation: DeviceOrientation.portraitUp,
+        prioritizeDeviceOrientation: true,
+      ),
+      CaptureOrientation.portrait,
+    );
+    expect(
+      resolveCaptureOrientation(
+        viewportAspect: 2.0,
+        deviceOrientation: DeviceOrientation.portraitUp,
+      ),
+      CaptureOrientation.landscape,
+    );
+    expect(
+      resolveCaptureOrientation(
+        viewportAspect: 1.0,
+        deviceOrientation: DeviceOrientation.portraitUp,
         imageWidth: 120,
         imageHeight: 80,
       ),

@@ -40,11 +40,17 @@ CaptureOrientation resolveCaptureOrientation({
   int? imageWidth,
   int? imageHeight,
   CaptureOrientation? forcedOrientation,
+  bool prioritizeDeviceOrientation = false,
 }) {
   if (forcedOrientation != null) return forcedOrientation;
   if (deviceOrientation == DeviceOrientation.landscapeLeft ||
       deviceOrientation == DeviceOrientation.landscapeRight) {
     return CaptureOrientation.landscape;
+  }
+  if (prioritizeDeviceOrientation &&
+      (deviceOrientation == DeviceOrientation.portraitUp ||
+          deviceOrientation == DeviceOrientation.portraitDown)) {
+    return CaptureOrientation.portrait;
   }
   if (viewportAspect > 1.05) return CaptureOrientation.landscape;
   if (deviceOrientation == DeviceOrientation.portraitUp ||
@@ -68,6 +74,7 @@ NormalizedCapture normalizeCapturedJpeg({
   double viewportAspect = 0,
   DeviceOrientation? deviceOrientation,
   bool invertLandscapeRotation = false,
+  bool prioritizeDeviceOrientation = false,
   int maxDimension = 0,
 }) {
   final image = img.decodeImage(bytes);
@@ -76,6 +83,7 @@ NormalizedCapture normalizeCapturedJpeg({
   final chosenOrientation = orientation ?? resolveCaptureOrientation(
     viewportAspect: viewportAspect,
     deviceOrientation: deviceOrientation,
+    prioritizeDeviceOrientation: prioritizeDeviceOrientation,
     imageWidth: normalized.width,
     imageHeight: normalized.height,
   );

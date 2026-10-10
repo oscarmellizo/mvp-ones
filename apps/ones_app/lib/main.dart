@@ -29,7 +29,9 @@ Future<void> main() async {
   // Móvil lee google-services.json / GoogleService-Info.plist; web necesita las opciones explícitas.
   await Firebase.initializeApp(options: kIsWeb ? FirebaseWebConfig.options : null);
   // La app solo se usa en vertical (en horizontal se rompían pantallas en iOS).
-  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  if (!kIsWeb) {
+    await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  }
 
   if (!kIsWeb) {
     final notifService = LiveEventNotificationService();

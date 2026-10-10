@@ -72,6 +72,16 @@ import 'features/subscriptions/presentation/pages/plans_result_web_page.dart';
 
 final GlobalKey<NavigatorState> onesNavigatorKey = GlobalKey<NavigatorState>();
 
+String? eventIdForRoute(String name, Uri baseUri) {
+  final route = Uri.tryParse(name);
+  if (route?.path != EventDetailPage.routeName) return null;
+  final routeEventId = route?.queryParameters['eventId'];
+  if (routeEventId != null && routeEventId.isNotEmpty) return routeEventId;
+  if (baseUri.path != EventDetailPage.routeName) return null;
+  final baseEventId = baseUri.queryParameters['eventId'];
+  return baseEventId != null && baseEventId.isNotEmpty ? baseEventId : null;
+}
+
 String? invitationRouteForLink(Uri? link, {bool allowDevHost = false}) {
   if (link == null ||
       link.scheme != 'https' ||
@@ -476,7 +486,7 @@ class OnesApp extends StatelessWidget {
                 );
               }
               if (uri.path == EventDetailPage.routeName) {
-                final eventId = uri.queryParameters['eventId'] ??
+                final eventId = eventIdForRoute(name, Uri.base) ??
                     (settings.arguments as String?);
                 if (eventId == null || eventId.isEmpty) {
                   return null;

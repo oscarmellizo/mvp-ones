@@ -69,7 +69,7 @@ class UsersApiRepository implements UsersRepository {
     }
 
     // ignore: avoid_print
-    print('[UsersApiRepository] getPreferences response status=${res.statusCode} url=${res.requestOptions.uri} body=${res.data}');
+    print('[UsersApiRepository] getPreferences response status=${res.statusCode}');
 
     if (res.statusCode == 404) {
       throw DioException(
