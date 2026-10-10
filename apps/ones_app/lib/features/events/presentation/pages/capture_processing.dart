@@ -1,5 +1,113 @@
-import 'dart:typed_data';
+import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
+
+enum CaptureOrientation { portrait, landscape }
+
+class NormalizedCapture {
+  final Uint8List bytes;
+  final int width;
+  final int height;
+  final CaptureOrientation orientation;
+
+  const NormalizedCapture(this.bytes, this.width, this.height, this.orientation);
+}
+
+class CaptureProcessingInput {
+  final Uint8List bytes;
+  final CaptureOrientation orientation;
+  final DeviceOrientation? deviceOrientation;
+  final bool invertLandscapeRotation;
+
+  const CaptureProcessingInput(
+    this.bytes,
+    this.orientation,
+    this.deviceOrientation,
+    this.invertLandscapeRotation,
+  );
+}
+
+NormalizedCapture normalizeNativeCapture(CaptureProcessingInput input) =>
+    normalizeCapturedJpeg(
+      bytes: input.bytes,
+      orientation: input.orientation,
+      deviceOrientation: input.deviceOrientation,
+      invertLandscapeRotation: input.invertLandscapeRotation,
+    );
+
+CaptureOrientation resolveCaptureOrientation({
+  required double viewportAspect,
+  DeviceOrientation? deviceOrientation,
+  int? imageWidth,
+  int? imageHeight,
+  CaptureOrientation? forcedOrientation,
+}) {
+  if (forcedOrientation != null) return forcedOrientation;
+  if (deviceOrientation == DeviceOrientation.landscapeLeft ||
+      deviceOrientation == DeviceOrientation.landscapeRight) {
+    return CaptureOrientation.landscape;
+  }
+  if (viewportAspect > 1.05) return CaptureOrientation.landscape;
+  if (deviceOrientation == DeviceOrientation.portraitUp ||
+      deviceOrientation == DeviceOrientation.portraitDown) {
+    return CaptureOrientation.portrait;
+  }
+  if (viewportAspect > 0 && viewportAspect < 0.95) {
+    return CaptureOrientation.portrait;
+  }
+  if (imageWidth != null && imageHeight != null) {
+    return imageWidth > imageHeight
+        ? CaptureOrientation.landscape
+        : CaptureOrientation.portrait;
+  }
+  return CaptureOrientation.portrait;
+}
+
+NormalizedCapture normalizeCapturedJpeg({
+  required Uint8List bytes,
+  CaptureOrientation? orientation,
+  double viewportAspect = 0,
+  DeviceOrientation? deviceOrientation,
+  bool invertLandscapeRotation = false,
+  int maxDimension = 0,
+}) {
+  final image = img.decodeImage(bytes);
+  if (image == null) throw StateError('Failed to decode captured photo');
+  var normalized = img.bakeOrientation(image);
+  final chosenOrientation = orientation ?? resolveCaptureOrientation(
+    viewportAspect: viewportAspect,
+    deviceOrientation: deviceOrientation,
+    imageWidth: normalized.width,
+    imageHeight: normalized.height,
+  );
+  final shouldBeLandscape = chosenOrientation == CaptureOrientation.landscape;
+  if ((normalized.width > normalized.height) != shouldBeLandscape) {
+    final angle = switch (deviceOrientation) {
+      DeviceOrientation.landscapeLeft => invertLandscapeRotation ? 90 : 270,
+      DeviceOrientation.landscapeRight => invertLandscapeRotation ? 270 : 90,
+      _ => 90,
+    };
+    normalized = img.copyRotate(normalized, angle: angle);
+  }
+  if (maxDimension > 0 &&
+      (normalized.width > maxDimension || normalized.height > maxDimension)) {
+    final ratio = maxDimension /
+        (normalized.width > normalized.height
+            ? normalized.width
+            : normalized.height);
+    normalized = img.copyResize(
+      normalized,
+      width: (normalized.width * ratio).round(),
+      height: (normalized.height * ratio).round(),
+      interpolation: img.Interpolation.average,
+    );
+  }
+  return NormalizedCapture(
+    Uint8List.fromList(img.encodeJpg(normalized, quality: 92)),
+    normalized.width,
+    normalized.height,
+    chosenOrientation,
+  );
+}
 
 /// Compose a JPEG photo with a PNG overlay, applying optional mirror and aspect crop.
 Uint8List composeJpegWithOverlayBytes({

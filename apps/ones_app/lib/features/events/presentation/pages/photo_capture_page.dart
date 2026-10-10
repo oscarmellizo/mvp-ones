@@ -15,6 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/i18n/translations_service.dart';
 import '../../../photos/presentation/photos_upload_controller.dart';
 import '../../adapters/api/event_templates_api_repository.dart';
+import 'capture_processing.dart';
 
 class CameraSettingsSheet extends StatelessWidget {
   const CameraSettingsSheet({
@@ -169,6 +170,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
   int _controllerEpoch = 0;
   bool _switchingCamera = false;
   bool _capturing = false;
+  CaptureOrientation? _orientationOverride;
 
   String? _lastLanguage;
 
@@ -239,7 +241,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
           );
     });
 
-    _init();
+    unawaited(_prepareCamera());
     _loadFrames();
     _loadShutterPreferences();
     _loadCameraPreferences();
@@ -254,6 +256,23 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
         curve: Curves.easeInOut,
       ),
     );
+  }
+
+  Future<void> _prepareCamera() async {
+    try {
+      if (!kIsWeb) {
+        await SystemChrome.setPreferredOrientations([
+          DeviceOrientation.portraitUp,
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ]);
+      }
+      if (mounted && !_disposed) await _init();
+    } catch (e) {
+      if (mounted && !_disposed) {
+        setState(() { _initializing = false; _error = e; });
+      }
+    }
   }
 
   Future<void> _init() async {
@@ -515,7 +534,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
     return bytes;
   }
 
-  Future<File> _composeJpegWithOverlay({
+  Future<Uint8List> _composeJpegWithOverlay({
     required File photo,
     required String overlayUrl,
     required bool mirrorHorizontally,
@@ -555,11 +574,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
 
     img.compositeImage(composed, resized, dstX: 0, dstY: 0);
 
-    final outBytes = img.encodeJpg(composed, quality: 92);
-    final dir = await Directory.systemTemp.createTemp('ones_composed_');
-    final out = File('${dir.path}/${const Uuid().v4()}.jpg');
-    await out.writeAsBytes(outBytes, flush: true);
-    return out;
+    return Uint8List.fromList(img.encodeJpg(composed, quality: 92));
   }
 
   static img.Image _rotateToMatchAspect(
@@ -667,7 +682,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
 
   Future<void> _switchCamera() async {
     if (kIsWeb) return;
-    if (_initializing || _switchingCamera) return;
+    if (_initializing || _switchingCamera || _capturing) return;
     if (_cameras.isEmpty) return;
 
     try {
@@ -717,7 +732,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
       }
       unawaited(controller?.dispose());
     } else if (state == AppLifecycleState.resumed) {
-      _init();
+      unawaited(_prepareCamera());
     }
   }
 
@@ -729,6 +744,9 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
     final controller = _controller;
     _controller = null;
     controller?.dispose();
+    if (!kIsWeb) {
+      unawaited(SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]));
+    }
     _shutterAnimationController.dispose();
     super.dispose();
   }
@@ -920,17 +938,19 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
               child: IgnorePointer(
                 child: Builder(
                   builder: (context) {
-                    final orientation = MediaQuery.orientationOf(context) ==
-                            Orientation.portrait
-                        ? Orientation.portrait
-                        : Orientation.landscape;
                     final controller = _controller;
                     if (controller == null || !controller.value.isInitialized) {
                       return const SizedBox.shrink();
                     }
+                    final size = MediaQuery.sizeOf(context);
+                    final orientation = resolveCaptureOrientation(
+                      viewportAspect: size.width / size.height,
+                      deviceOrientation: controller.value.deviceOrientation,
+                      forcedOrientation: _orientationOverride,
+                    );
                     final frame =
                         _framePairs[_currentFrameIndex % _framePairs.length];
-                    final url = orientation == Orientation.portrait
+                    final url = orientation == CaptureOrientation.portrait
                         ? frame.verticalUrl
                         : frame.horizontalUrl;
                     if (url == null || url.isEmpty) {
@@ -961,6 +981,21 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                IconButton(
+                  tooltip: _orientationOverride == null
+                      ? 'Orientación automática'
+                      : _orientationOverride == CaptureOrientation.landscape
+                          ? 'Orientación horizontal'
+                          : 'Orientación vertical',
+                  onPressed: () => setState(() {
+                    _orientationOverride = switch (_orientationOverride) {
+                      null => CaptureOrientation.landscape,
+                      CaptureOrientation.landscape => CaptureOrientation.portrait,
+                      CaptureOrientation.portrait => null,
+                    };
+                  }),
+                  icon: const Icon(Icons.screen_rotation, color: Colors.white),
+                ),
                 IconButton(
                   onPressed: _showShutterSettings,
                   icon: const Icon(Icons.settings, color: Colors.white),
@@ -1161,16 +1196,13 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
   Future<void> _captureAndEnqueue(BuildContext context) async {
     if (kIsWeb) return;
 
-    final isPortrait =
-        MediaQuery.orientationOf(context) == Orientation.portrait;
     final size = MediaQuery.sizeOf(context);
-    final targetAspectRatio = size.width / size.height;
-
+    final viewportAspect = size.width / size.height;
     final cam = _controller;
-    if (cam == null || !cam.value.isInitialized) return;
+    if (_capturing || cam == null || !cam.value.isInitialized) return;
 
     final uploader = context.read<PhotosUploadController>();
-
+    Directory? scratchDir;
     setState(() {
       _capturing = true;
     });
@@ -1183,36 +1215,56 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
         SystemSound.play(SystemSoundType.click);
       }
       final deviceOrientation = cam.value.deviceOrientation;
+      final orientationOverride = _orientationOverride;
+      final frame = _framesEnabled && _framePairs.isNotEmpty
+          ? _framePairs[_currentFrameIndex % _framePairs.length]
+          : null;
       final file = await cam.takePicture();
       await _shutterAnimationController.forward();
       await _shutterAnimationController.reverse();
       final photoId = const Uuid().v4();
 
-      final lensDirection =
-          _cameras.isNotEmpty ? _cameras[_cameraIndex].lensDirection : null;
-      final isFront = lensDirection == CameraLensDirection.front;
+      final isFront = cam.description.lensDirection == CameraLensDirection.front;
 
-      File captured = File(file.path);
+      final orientation = resolveCaptureOrientation(
+        viewportAspect: viewportAspect,
+        deviceOrientation: deviceOrientation,
+        forcedOrientation: orientationOverride,
+      );
+      final normalized = await compute(
+        normalizeNativeCapture,
+        CaptureProcessingInput(
+          await file.readAsBytes(),
+          orientation,
+          deviceOrientation,
+          isFront,
+        ),
+      );
+      scratchDir = await Directory.systemTemp.createTemp('ones_capture_');
+      final captured = File('${scratchDir.path}/$photoId.jpg');
+      await captured.writeAsBytes(normalized.bytes, flush: true);
       String? usedFrameId;
 
-      if (_framesEnabled && _framePairs.isNotEmpty) {
-        final frame = _framePairs[_currentFrameIndex % _framePairs.length];
-        final url = isPortrait ? frame.verticalUrl : frame.horizontalUrl;
+      if (frame != null) {
+        final url = orientation == CaptureOrientation.portrait
+            ? frame.verticalUrl
+            : frame.horizontalUrl;
         if (url != null && url.isNotEmpty) {
           usedFrameId = frame.frameId;
-          captured = await _composeJpegWithOverlay(
+          final framedBytes = await _composeJpegWithOverlay(
             photo: captured,
             overlayUrl: url,
             mirrorHorizontally: isFront,
-            targetAspectRatio: targetAspectRatio,
+            targetAspectRatio: normalized.width / normalized.height,
             deviceOrientation: deviceOrientation,
           );
+          await captured.writeAsBytes(framedBytes, flush: true);
         }
       }
 
       if (kDebugMode) {
         debugPrint(
-          'photo_capture: eventId=$widget.eventId photoId=$photoId frameId=${usedFrameId ?? '-'} orientation=${isPortrait ? 'portrait' : 'landscape'} deviceOrientation=$deviceOrientation sensorOrientation=${cam.description.sensorOrientation} camera=${isFront ? 'front' : 'back'}',
+          'photo_capture: eventId=$widget.eventId photoId=$photoId frameId=${usedFrameId ?? '-'} orientation=${orientation.name} deviceOrientation=$deviceOrientation sensorOrientation=${cam.description.sensorOrientation} camera=${isFront ? 'front' : 'back'}',
         );
       }
 
@@ -1222,7 +1274,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
         capturedFile: captured,
         createdAt: DateTime.now(),
         frameId: usedFrameId,
-        orientation: isPortrait ? 'portrait' : 'landscape',
+        orientation: orientation.name,
         cameraType: isFront ? 'front' : 'back',
       );
     } catch (e) {
@@ -1239,6 +1291,11 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
         ),
       );
     } finally {
+      if (scratchDir != null) {
+        try {
+          await scratchDir.delete(recursive: true);
+        } catch (_) {}
+      }
       if (mounted) {
         setState(() {
           _capturing = false;

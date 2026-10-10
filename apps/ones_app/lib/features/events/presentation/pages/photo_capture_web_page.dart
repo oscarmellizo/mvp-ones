@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../../core/i18n/translations_service.dart';
 import '../../../photos/adapters/api/event_photos_api.dart';
@@ -22,13 +22,19 @@ class PhotoCaptureWebPage extends StatefulWidget {
   State<PhotoCaptureWebPage> createState() => _PhotoCaptureWebPageState();
 }
 
-class _PhotoCaptureWebPageState extends State<PhotoCaptureWebPage> with SingleTickerProviderStateMixin {
+class _PhotoCaptureWebPageState extends State<PhotoCaptureWebPage>
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   CameraController? _controller;
   List<CameraDescription> _cameras = const [];
   int _cameraIndex = 0;
   bool _initializing = true;
   Object? _error;
   bool _disposed = false;
+  int _controllerEpoch = 0;
+  bool _switchingCamera = false;
+  bool _capturing = false;
+  bool _uploading = false;
+  CaptureOrientation? _orientationOverride;
 
   bool _framesEnabled = false;
   List<TemplateFrame> _framePairs = const [];
@@ -52,6 +58,7 @@ class _PhotoCaptureWebPageState extends State<PhotoCaptureWebPage> with SingleTi
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _shutterAnimationController = AnimationController(
       duration: const Duration(milliseconds: 180),
       vsync: this,
@@ -74,22 +81,22 @@ class _PhotoCaptureWebPageState extends State<PhotoCaptureWebPage> with SingleTi
   }
 
   Future<void> _init() async {
-    if (!kIsWeb) {
-      setState(() { _initializing = false; });
-      return;
-    }
-    setState(() { _initializing = true; _error = null; });
+    if (!kIsWeb || _disposed) return;
+    final epoch = ++_controllerEpoch;
+    setState(() { _initializing = true; _switchingCamera = false; _error = null; });
     try {
-      _cameras = await availableCameras();
-      if (_cameras.isEmpty) {
-        throw StateError('No cameras available');
-      }
-      _cameraIndex = _pickDefaultCameraIndex(_cameras);
-      await _startController(_cameras[_cameraIndex]);
+      final cameras = await availableCameras();
+      if (!mounted || _disposed || epoch != _controllerEpoch) return;
+      if (cameras.isEmpty) throw StateError('No cameras available');
+      _cameras = cameras;
+      _cameraIndex = _pickDefaultCameraIndex(cameras);
+      await _startController(cameras[_cameraIndex], epoch);
     } catch (e) {
-      _error = e;
+      if (mounted && !_disposed && epoch == _controllerEpoch) {
+        _error = e;
+      }
     } finally {
-      if (mounted && !_disposed) {
+      if (mounted && !_disposed && epoch == _controllerEpoch) {
         setState(() { _initializing = false; });
       }
     }
@@ -100,20 +107,27 @@ class _PhotoCaptureWebPageState extends State<PhotoCaptureWebPage> with SingleTi
     return back >= 0 ? back : 0;
   }
 
-  Future<void> _startController(CameraDescription description) async {
-    if (_disposed) return;
+  Future<void> _startController(CameraDescription description, int epoch) async {
+    if (_disposed || epoch != _controllerEpoch) return;
     final old = _controller;
+    final preset = MediaQuery.sizeOf(context).shortestSide < 600
+        ? ResolutionPreset.medium
+        : ResolutionPreset.high;
     _controller = null;
-    if (mounted && !_disposed) setState(() {});
+    if (mounted) setState(() {});
     await old?.dispose();
+    if (_disposed || epoch != _controllerEpoch) return;
 
-    final next = CameraController(description, ResolutionPreset.high, enableAudio: false);
-    _controller = next;
+    final next = CameraController(description, preset, enableAudio: false);
     try {
       await next.initialize();
-      if (mounted && !_disposed) setState(() {});
+      if (_disposed || epoch != _controllerEpoch) {
+        await next.dispose();
+        return;
+      }
+      _controller = next;
+      if (mounted) setState(() {});
     } catch (e) {
-      _controller = null;
       await next.dispose();
       rethrow;
     }
@@ -150,11 +164,34 @@ class _PhotoCaptureWebPageState extends State<PhotoCaptureWebPage> with SingleTi
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _controllerEpoch++;
+      final previous = _controller;
+      _controller = null;
+      if (mounted) {
+        setState(() {
+          _initializing = true;
+          _switchingCamera = false;
+          if (!_uploading) _capturing = false;
+        });
+      }
+      unawaited(previous?.dispose());
+    } else if (state == AppLifecycleState.resumed && !_disposed) {
+      unawaited(_init());
+    }
+  }
+
+  @override
   void dispose() {
     _disposed = true;
+    _controllerEpoch++;
+    WidgetsBinding.instance.removeObserver(this);
     final c = _controller;
     _controller = null;
-    c?.dispose();
+    unawaited(c?.dispose());
     _shutterAnimationController.dispose();
     super.dispose();
   }
@@ -180,8 +217,15 @@ class _PhotoCaptureWebPageState extends State<PhotoCaptureWebPage> with SingleTi
                           )
                         : LayoutBuilder(
                             builder: (context, constraints) {
-                              final isPortrait = MediaQuery.orientationOf(context) == Orientation.portrait;
-                              final effectiveAspect = isPortrait ? (1.0 / controller.value.aspectRatio) : controller.value.aspectRatio;
+                              final viewportAspect = constraints.maxWidth / constraints.maxHeight;
+                              final orientation = resolveCaptureOrientation(
+                                viewportAspect: viewportAspect,
+                                deviceOrientation: controller.value.deviceOrientation,
+                                forcedOrientation: _orientationOverride,
+                              );
+                              final effectiveAspect = orientation == CaptureOrientation.portrait
+                                  ? (1.0 / controller.value.aspectRatio)
+                                  : controller.value.aspectRatio;
                               final screenAspect = constraints.maxWidth / constraints.maxHeight;
                               final rawScale = effectiveAspect / screenAspect;
                               final scale = rawScale < 1 ? 1 / rawScale : rawScale;
@@ -210,11 +254,16 @@ class _PhotoCaptureWebPageState extends State<PhotoCaptureWebPage> with SingleTi
               child: IgnorePointer(
                 child: Builder(
                   builder: (context) {
-                    final orientation = MediaQuery.orientationOf(context) == Orientation.portrait ? Orientation.portrait : Orientation.landscape;
                     final controller = _controller;
                     if (controller == null || !controller.value.isInitialized) return const SizedBox.shrink();
+                    final size = MediaQuery.sizeOf(context);
+                    final orientation = resolveCaptureOrientation(
+                      viewportAspect: size.width / size.height,
+                      deviceOrientation: controller.value.deviceOrientation,
+                      forcedOrientation: _orientationOverride,
+                    );
                     final frame = _framePairs[_currentFrameIndex % _framePairs.length];
-                    final url = orientation == Orientation.portrait ? frame.verticalUrl : frame.horizontalUrl;
+                    final url = orientation == CaptureOrientation.portrait ? frame.verticalUrl : frame.horizontalUrl;
                     if (url == null || url.isEmpty) return const SizedBox.shrink();
                     return Image.network(url, fit: BoxFit.fill, errorBuilder: (_, __, ___) => const SizedBox.shrink());
                   },
@@ -236,12 +285,43 @@ class _PhotoCaptureWebPageState extends State<PhotoCaptureWebPage> with SingleTi
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  onPressed: _initializing ? null : _switchCamera,
+                  tooltip: _orientationOverride == null
+                      ? 'Orientación automática'
+                      : _orientationOverride == CaptureOrientation.landscape
+                          ? 'Orientación horizontal'
+                          : 'Orientación vertical',
+                  onPressed: () => setState(() {
+                    _orientationOverride = switch (_orientationOverride) {
+                      null => CaptureOrientation.landscape,
+                      CaptureOrientation.landscape => CaptureOrientation.portrait,
+                      CaptureOrientation.portrait => null,
+                    };
+                  }),
+                  icon: const Icon(Icons.screen_rotation, color: Colors.white),
+                ),
+                IconButton(
+                  onPressed: _initializing || _switchingCamera || _capturing
+                      ? null
+                      : _switchCamera,
                   icon: const Icon(Icons.cameraswitch, color: Colors.white),
                 ),
               ],
             ),
           ),
+          if (_loadingFrames || _framesError != null)
+            Positioned(
+              top: 70 + MediaQuery.paddingOf(context).top,
+              left: 12,
+              right: 12,
+              child: Center(
+                child: Text(
+                  _loadingFrames
+                      ? t.translate('photo_capture.frames_loading', fallback: 'Cargando marcos…')
+                      : '${t.translate('photo_capture.frames_error', fallback: 'Error cargando marcos')}: $_framesError',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            ),
           if (_framePairs.isNotEmpty)
             Positioned(
               left: 12,
@@ -278,38 +358,49 @@ class _PhotoCaptureWebPageState extends State<PhotoCaptureWebPage> with SingleTi
             bottom: 24 + MediaQuery.paddingOf(context).bottom,
             child: Center(
               child: IconButton(
-                onPressed: _initializing || _error != null ? null : () => _captureAndUpload(context),
+                onPressed: _initializing || _switchingCamera || _capturing ||
+                        _error != null || controller?.value.isInitialized != true
+                    ? null
+                    : () => _captureAndUpload(context),
                 iconSize: 72,
                 icon: const Icon(Icons.radio_button_checked, color: Colors.white),
               ),
             ),
           ),
+          if (_capturing)
+            const Positioned(
+              top: 80,
+              left: 0,
+              right: 0,
+              child: Center(child: CircularProgressIndicator()),
+            ),
           // Shutter overlay animation
-          AnimatedBuilder(
-            animation: _shutterAnimationController,
-            builder: (context, child) {
-              return Opacity(
-                opacity: _shutterOpacityAnimation.value,
-                child: Container(color: Colors.black),
-              );
-            },
-          ),
+          CameraShutterOverlay(animation: _shutterOpacityAnimation),
         ],
       ),
     );
   }
 
   Future<void> _switchCamera() async {
-    if (_initializing) return;
-    if (_cameras.isEmpty) return;
+    if (_initializing || _switchingCamera || _capturing || _cameras.isEmpty) {
+      return;
+    }
+    final epoch = ++_controllerEpoch;
+    setState(() { _switchingCamera = true; _initializing = true; _error = null; });
     try {
       final current = _cameras[_cameraIndex];
-      final preferred = current.lensDirection == CameraLensDirection.back ? CameraLensDirection.front : CameraLensDirection.back;
+      final preferred = current.lensDirection == CameraLensDirection.back
+          ? CameraLensDirection.front
+          : CameraLensDirection.back;
       final nextIndex = _cameras.indexWhere((c) => c.lensDirection == preferred);
       _cameraIndex = nextIndex >= 0 ? nextIndex : (_cameraIndex + 1) % _cameras.length;
-      await _startController(_cameras[_cameraIndex]);
+      await _startController(_cameras[_cameraIndex], epoch);
     } catch (e) {
-      setState(() { _error = e; });
+      if (mounted && epoch == _controllerEpoch) _error = e;
+    } finally {
+      if (mounted && epoch == _controllerEpoch) {
+        setState(() { _switchingCamera = false; _initializing = false; });
+      }
     }
   }
 
@@ -324,53 +415,62 @@ class _PhotoCaptureWebPageState extends State<PhotoCaptureWebPage> with SingleTi
 
   Future<void> _captureAndUpload(BuildContext context) async {
     final cam = _controller;
-    if (cam == null || !cam.value.isInitialized) return;
+    if (_capturing || _switchingCamera || _initializing ||
+        cam == null || !cam.value.isInitialized) {
+      return;
+    }
+    final epoch = _controllerEpoch;
+    final size = MediaQuery.sizeOf(context);
+    final orientationOverride = _orientationOverride;
+    final deviceOrientation = cam.value.deviceOrientation;
+    final frame = _framesEnabled && _framePairs.isNotEmpty
+        ? _framePairs[_currentFrameIndex % _framePairs.length]
+        : null;
+    final isFront = cam.description.lensDirection == CameraLensDirection.front;
+    final api = context.read<EventPhotosApi>();
+    setState(() { _capturing = true; });
 
     try {
       final file = await cam.takePicture();
+      if (!mounted || epoch != _controllerEpoch) return;
       await _shutterAnimationController.forward();
       await _shutterAnimationController.reverse();
-      Uint8List bytes = await file.readAsBytes();
-
-      String? usedFrameId;
-      final isPortrait = MediaQuery.orientationOf(context) == Orientation.portrait;
-      final size = MediaQuery.sizeOf(context);
-      final targetAspect = size.width / size.height;
-
-      final lensDirection = _cameras.isNotEmpty ? _cameras[_cameraIndex].lensDirection : null;
-      final isFront = lensDirection == CameraLensDirection.front;
-
-      if (_framesEnabled && _framePairs.isNotEmpty) {
-        final frame = _framePairs[_currentFrameIndex % _framePairs.length];
-        final url = isPortrait ? frame.verticalUrl : frame.horizontalUrl;
-        if (url != null && url.isNotEmpty) {
-          usedFrameId = frame.frameId;
-          final overlay = await _downloadOverlay(url);
-          bytes = composeJpegWithOverlayBytes(
-            baseJpegBytes: bytes,
-            overlayImageBytes: overlay,
-            mirrorHorizontally: isFront,
-            targetAspectRatio: targetAspect,
-          );
-        }
+      if (!mounted || epoch != _controllerEpoch) return;
+      final normalized = normalizeCapturedJpeg(
+        bytes: await file.readAsBytes(),
+        orientation: orientationOverride,
+        viewportAspect: size.width / size.height,
+        deviceOrientation: deviceOrientation,
+        maxDimension: 2560,
+      );
+      Uint8List bytes = normalized.bytes;
+      final url = normalized.orientation == CaptureOrientation.portrait
+          ? frame?.verticalUrl
+          : frame?.horizontalUrl;
+      if (url != null && url.isNotEmpty) {
+        final overlay = await _downloadOverlay(url);
+        bytes = composeJpegWithOverlayBytes(
+          baseJpegBytes: bytes,
+          overlayImageBytes: overlay,
+          mirrorHorizontally: isFront,
+          targetAspectRatio: normalized.width / normalized.height,
+        );
       }
+      if (!context.mounted) return;
 
-      final photoId = DateTime.now().microsecondsSinceEpoch.toString();
+      final photoId = const Uuid().v4();
       final createdAt = DateTime.now().toUtc().toIso8601String();
-
-      final api = context.read<EventPhotosApi>();
+      setState(() { _uploading = true; });
       final presign = await api.presignPut(
         eventId: widget.eventId,
         photoId: photoId,
         contentType: 'image/jpeg',
       );
-
       await api.uploadBytesToPresignedUrl(
         putUrl: presign.putUrl,
         bytes: bytes,
         contentType: 'image/jpeg',
       );
-
       await api.complete(
         eventId: widget.eventId,
         photoId: photoId,
@@ -378,18 +478,38 @@ class _PhotoCaptureWebPageState extends State<PhotoCaptureWebPage> with SingleTi
         createdAt: createdAt,
       );
 
-      if (!mounted) return;
-      Navigator.of(context).pop();
+      if (context.mounted) Navigator.of(context).pop();
     } catch (e) {
-      if (!mounted) return;
+      if (!context.mounted) return;
       final t = context.read<TranslationsService>();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${t.translate('photo_capture.error_capture_failed', fallback: 'Error capturando foto')}: $e'),
         ),
       );
+    } finally {
+      if (mounted && (epoch == _controllerEpoch || _uploading)) {
+        setState(() { _capturing = false; _uploading = false; });
+      }
     }
   }
+}
+
+class CameraShutterOverlay extends StatelessWidget {
+  final Animation<double> animation;
+
+  const CameraShutterOverlay({super.key, required this.animation});
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+        child: AnimatedBuilder(
+          animation: animation,
+          builder: (context, _) => Opacity(
+            opacity: animation.value,
+            child: const ColoredBox(color: Colors.black),
+          ),
+        ),
+      );
 }
 
 class _ErrorView extends StatelessWidget {
