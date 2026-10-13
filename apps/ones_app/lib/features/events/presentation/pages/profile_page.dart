@@ -8,8 +8,6 @@ import '../../../../core/ui/widgets/ones_card.dart';
 import '../../../../core/ui/widgets/ones_text_field.dart';
 import '../../../auth/presentation/auth_controller.dart';
 import '../../../admin/presentation/pages/admin_home_page.dart';
-import '../../../subscriptions/presentation/subscriptions_controller.dart';
-import '../../../subscriptions/presentation/pages/subscription_plans_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -54,9 +52,6 @@ class _ProfilePageState extends State<ProfilePage> {
             page: 'profile',
             requiredKeys: _profileRequiredKeys,
           );
-      if (AppConfig.showPaymentEntryPoints) {
-        context.read<SubscriptionsController>().loadAll();
-      }
     });
   }
 
@@ -106,9 +101,6 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
     final translationsService = context.watch<TranslationsService>();
-    final subscription = AppConfig.showPaymentEntryPoints
-        ? context.watch<SubscriptionsController>().subscription
-        : null;
 
     final lang = translationsService.getCurrentLanguage();
     if (_lastLanguage != lang) {
@@ -194,11 +186,6 @@ class _ProfilePageState extends State<ProfilePage> {
                               value: email ?? ''),
                         ],
                       ),
-                      if (AppConfig.showPaymentEntryPoints &&
-                          subscription?.isFree == true) ...[
-                        const SizedBox(height: 14),
-                        const _UpgradeBanner(),
-                      ],
                       const SizedBox(height: 14),
                       _Card(
                         title: translationsService
@@ -407,77 +394,6 @@ class _ProfilePageState extends State<ProfilePage> {
   return (parts.first, parts.sublist(1).join(' '));
 }
 
-// Se removió la sección de Plan actual de Perfil; ahora vive en Cuenta.
-
-class _UpgradeBanner extends StatelessWidget {
-  const _UpgradeBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => const SubscriptionPlansPage(),
-          ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: OnesColors.purpleMid.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: OnesColors.purpleMid.withOpacity(0.3)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: const BoxDecoration(
-                color: OnesColors.purpleMid,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.star,
-                color: OnesColors.white,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 14),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Hazte Ones Plus',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 15,
-                      color: OnesColors.purpleMid,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Eventos ilimitados, más fotos y más funciones.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: OnesColors.black,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: OnesColors.purpleMid,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _Card extends StatelessWidget {
   final String title;
