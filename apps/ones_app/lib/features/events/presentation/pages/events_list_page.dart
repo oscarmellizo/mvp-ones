@@ -12,8 +12,6 @@ import '../events_controller.dart';
 import 'event_detail_page.dart';
 import '../../../invitations/presentation/widgets/invitations_sheet.dart';
 import '../../../invitations/presentation/invitations_controller.dart';
-import '../../../subscriptions/presentation/subscriptions_controller.dart';
-import '../../../subscriptions/presentation/pages/subscription_plans_page.dart';
 import '../../../tutorial/presentation/tutorial_controller.dart';
 import '../../../tutorial/presentation/tutorial_keys.dart';
 
@@ -59,9 +57,6 @@ class _EventsListPageState extends State<EventsListPage> {
           );
       context.read<EventsController>().refresh();
       context.read<InvitationsController>().refresh();
-      if (AppConfig.showPaymentEntryPoints) {
-        context.read<SubscriptionsController>().loadAll();
-      }
     });
   }
 
@@ -329,11 +324,6 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final invitations = context.watch<InvitationsController>();
     final unread = invitations.unreadCount;
-    final subscription = AppConfig.showPaymentEntryPoints
-        ? context.watch<SubscriptionsController>().subscription
-        : null;
-    final isPlusActive = subscription?.status.toLowerCase() == 'active' &&
-        subscription?.planId.toLowerCase() != 'free';
 
     return SizedBox(
       height: 56,
@@ -351,21 +341,6 @@ class _Header extends StatelessWidget {
                     icon: const Icon(Icons.menu),
                     onPressed: () => Scaffold.of(context).openDrawer(),
                   ),
-                  if (AppConfig.showPaymentEntryPoints && !isPlusActive)
-                    IconButton(
-                      tooltip: 'Plus',
-                      icon: const Icon(
-                        Icons.star,
-                        color: OnesColors.purpleMid,
-                      ),
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const SubscriptionPlansPage(),
-                          ),
-                        );
-                      },
-                    ),
                 ],
               ),
             ),

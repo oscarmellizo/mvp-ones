@@ -49,9 +49,6 @@ import 'features/photos/presentation/photos_ws_controller.dart';
 import 'features/users/adapters/api/users_api_repository.dart';
 import 'features/users/application/ensure_user_use_case.dart';
 import 'features/account/presentation/account_controller.dart';
-import 'features/subscriptions/adapters/api/subscriptions_api_repository.dart';
-import 'features/subscriptions/domain/subscriptions_repository.dart';
-import 'features/subscriptions/presentation/subscriptions_controller.dart';
 import 'core/services/live_event_notification_service.dart';
 import 'core/widgets/live_events_selector.dart';
 import 'features/auth/presentation/pages/login_page.dart';
@@ -67,8 +64,6 @@ import 'features/events/presentation/pages/create_event_page.dart';
 import 'features/events/presentation/pages/photo_capture_page.dart';
 import 'features/invitations/presentation/pages/invitation_link_page.dart';
 import 'features/events/presentation/pages/event_invite_link_page.dart';
-import 'features/subscriptions/presentation/pages/subscription_plans_page.dart';
-import 'features/subscriptions/presentation/pages/plans_result_web_page.dart';
 
 final GlobalKey<NavigatorState> onesNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -150,7 +145,6 @@ class OnesApp extends StatelessWidget {
 
     final eventPhotosApi = EventPhotosApi(apiFactory);
     final eventPhotosGalleryApi = EventPhotosApi(apiFactory);
-    final subscriptionsRepository = SubscriptionsApiRepository(apiFactory);
     // NOTE: PhotosGalleryController is NOT registered here as a global singleton.
     // Each EventDetailPage creates its own instance to guarantee per-event isolation.
     final photoUploadDb = PhotoUploadDb();
@@ -408,15 +402,6 @@ class OnesApp extends StatelessWidget {
             return controller;
           },
         ),
-        ChangeNotifierProxyProvider<AuthController, SubscriptionsController>(
-          create: (_) => SubscriptionsController(subscriptionsRepository),
-          update: (_, auth, ctrl) {
-            apiFactory.setTokenRefresher(auth.refreshIdToken);
-            subscriptionsRepository.setIdToken(auth.idToken);
-            final controller = ctrl ?? SubscriptionsController(subscriptionsRepository);
-            return controller;
-          },
-        ),
       ],
       child: AppLinkHandler(
         child: Builder(
@@ -447,14 +432,6 @@ class OnesApp extends StatelessWidget {
               if (name == null || name.isEmpty) return null;
 
               final uri = Uri.parse(name);
-              if (uri.path == '/plans/success' || uri.path == '/plans/pending' || uri.path == '/plans/failure') {
-                return MaterialPageRoute(
-                  builder: (_) => PlansResultWebPage(result: uri.pathSegments.last),
-                );
-              }
-              if (uri.path == SubscriptionPlansPage.routeName) {
-                return MaterialPageRoute(builder: (_) => const SubscriptionPlansPage());
-              }
               if (uri.path == InvitationLinkPage.routeName) {
                 final token = uri.queryParameters['token'];
                 if (token == null || token.trim().isEmpty) {
@@ -561,22 +538,6 @@ class _AppLinkHandlerState extends State<AppLinkHandler> {
       setState(() => _pendingInvitationRoute = invitationRoute);
       return;
     }
-    if ((link.scheme != 'ones' && link.scheme != 'onesdev') ||
-        link.host != 'plans' ||
-        link.pathSegments.length != 1 ||
-        !const {'success', 'pending', 'failure'}
-            .contains(link.pathSegments.first)) {
-      return;
-    }
-    final result = link.pathSegments.first;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      onesNavigatorKey.currentState?.pushNamed(
-        SubscriptionPlansPage.routeName,
-        arguments: result,
-      );
-    });
-    WidgetsBinding.instance.scheduleFrame();
   }
 
   @override

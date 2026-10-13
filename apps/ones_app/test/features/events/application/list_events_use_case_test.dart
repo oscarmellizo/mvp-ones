@@ -9,6 +9,21 @@ class _FakeEventsRepository implements EventsRepository {
   _FakeEventsRepository(this.events);
 
   @override
+  Future<EventQrInfo> ensureEventQr(String eventId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<EventQrInfo> getEventQr(String eventId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Event> joinEventByCode(String code) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<Event> createEvent(
     String title,
     String objective,

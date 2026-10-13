@@ -7,8 +7,6 @@ import 'package:ones_app/features/account/presentation/pages/account_page.dart';
 import 'package:ones_app/features/admin/application/get_admin_me_use_case.dart';
 import 'package:ones_app/features/auth/domain/auth_failure.dart';
 import 'package:ones_app/features/auth/presentation/auth_controller.dart';
-import 'package:ones_app/features/subscriptions/domain/subscriptions_repository.dart';
-import 'package:ones_app/features/subscriptions/presentation/subscriptions_controller.dart';
 import 'package:ones_app/features/users/application/ensure_user_use_case.dart';
 import 'package:ones_app/features/users/domain/users_repository.dart';
 import 'package:provider/provider.dart';
@@ -21,7 +19,6 @@ class _MockGetAdminMe extends Mock implements GetAdminMeUseCase {}
 class _MockEnsureUser extends Mock implements EnsureUserUseCase {}
 class _MockUpdatePrefs extends Mock implements UpdateUserPreferencesUseCase {}
 class _MockLookup extends Mock implements LookupUserByEmailUseCase {}
-class _MockSubscriptionsRepository extends Mock implements SubscriptionsRepository {}
 
 AuthController _authWith(FakeAuthRepository repo) => AuthController(
       authRepository: repo,
@@ -143,8 +140,6 @@ void main() {
     await tester.pumpWidget(
       MultiProvider(
         providers: [
-          ChangeNotifierProvider<SubscriptionsController>(
-              create: (_) => SubscriptionsController(_MockSubscriptionsRepository())),
           ChangeNotifierProvider<AuthController>(create: (_) => _authWith(authRepo)),
           ChangeNotifierProvider<AccountController>.value(value: controller),
         ],
@@ -152,8 +147,6 @@ void main() {
       ),
     );
     expect(find.textContaining('el enlace dura 8 días'), findsOneWidget);
-    expect(find.text('Plan actual'), findsNothing);
-    expect(find.text('Ver planes'), findsNothing);
     expect(find.text('Borrar cuenta'), findsOneWidget);
   });
 
@@ -162,8 +155,6 @@ void main() {
       await tester.pumpWidget(
         MultiProvider(
           providers: [
-            ChangeNotifierProvider<SubscriptionsController>(
-                create: (_) => SubscriptionsController(_MockSubscriptionsRepository())),
             ChangeNotifierProvider<AuthController>(create: (_) => _authWith(authRepo)),
             ChangeNotifierProvider<AccountController>.value(value: controller),
           ],

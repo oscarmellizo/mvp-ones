@@ -7,7 +7,7 @@ import '../../../../core/ui/ones_colors.dart';
 import '../../../auth/presentation/auth_controller.dart';
 import '../../../auth/presentation/pages/register_page.dart';
 import '../../domain/events_repository.dart';
-import '../event_detail_page.dart';
+import 'event_detail_page.dart';
 
 class EventJoinCodePage extends StatefulWidget {
   const EventJoinCodePage({super.key});
