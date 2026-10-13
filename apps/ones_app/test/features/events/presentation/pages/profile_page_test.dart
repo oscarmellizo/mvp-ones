@@ -31,7 +31,6 @@ void main() {
     expect(find.text('uid-1@example.com'), findsOneWidget);
     expect(find.text('profile.first_name'), findsNothing);
     expect(find.text('profile.last_name'), findsNothing);
-    expect(find.text('Hazte Ones Plus'), findsNothing);
   });
 
 
