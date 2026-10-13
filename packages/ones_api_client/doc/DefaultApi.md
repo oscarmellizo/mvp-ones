@@ -21,6 +21,7 @@ Method | HTTP request | Description
 [**getTranslation**](DefaultApi.md#gettranslation) | **GET** /v1/admin/translations/{translationKey}/{languageCode} | Get a specific translation (admin only)
 [**health**](DefaultApi.md#health) | **GET** /health | Health check
 [**inviteEventGuests**](DefaultApi.md#inviteeventguests) | **POST** /v1/events/{id}/invitees | Invite new guests to an existing event (owner only)
+[**joinEventByCode**](DefaultApi.md#joineventbycode) | **POST** /v1/events/join-by-code | Join an event by its short numeric code
 [**listEventGuests**](DefaultApi.md#listeventguests) | **GET** /v1/events/{id}/guests | List guests for an event (owner + invitees with invitation status)
 [**listEventGuestsV2**](DefaultApi.md#listeventguestsv2) | **GET** /v1/events/{id}/guests/v2 | List guests for an event including userId (when available)
 [**listEventPhotos**](DefaultApi.md#listeventphotos) | **GET** /v1/events/{eventId}/photos | List event photos (paginated) with optional server-side filtering
@@ -514,6 +515,47 @@ Name | Type | Description  | Notes
 ### Return type
 
 [**BuiltList&lt;Guest&gt;**](Guest.md)
+
+### Authorization
+
+[bearerAuth](../README.md#bearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **joinEventByCode**
+> Event joinEventByCode(joinEventByCodeRequest)
+
+Join an event by its short numeric code
+
+### Example
+```dart
+import 'package:ones_api_client/api.dart';
+
+final api = OnesApiClient().getDefaultApi();
+final JoinEventByCodeRequest joinEventByCodeRequest = ; // JoinEventByCodeRequest | 
+
+try {
+    final response = api.joinEventByCode(joinEventByCodeRequest);
+    print(response);
+} catch on DioException (e) {
+    print('Exception when calling DefaultApi->joinEventByCode: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **joinEventByCodeRequest** | [**JoinEventByCodeRequest**](JoinEventByCodeRequest.md)|  | 
+
+### Return type
+
+[**Event**](Event.md)
 
 ### Authorization
 

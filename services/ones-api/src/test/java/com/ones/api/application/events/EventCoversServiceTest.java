@@ -254,7 +254,8 @@ class EventCoversServiceTest {
                 null,
                 true,
                 true,
-                java.util.List.<String>of()
+                java.util.List.<String>of(),
+                null
         ));
 
         EventCoversService svc = new EventCoversService(
@@ -398,6 +399,13 @@ class EventCoversServiceTest {
         @Override
         public Optional<Event> findById(String eventId) {
             return Optional.ofNullable(items.get(eventId));
+        }
+
+        @Override
+        public Optional<Event> findByEventCode(String eventCode) {
+            return items.values().stream()
+                    .filter(e -> eventCode != null && eventCode.equals(e.getEventCode()))
+                    .findFirst();
         }
 
         @Override

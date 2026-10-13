@@ -9,6 +9,7 @@ import '../../../auth/presentation/auth_controller.dart';
 import '../../../auth/presentation/pages/register_page.dart';
 import '../../domain/events_repository.dart';
 import '../event_detail_page.dart';
+import 'event_invite_link_page.dart';
 
 class EventJoinScanPage extends StatefulWidget {
   const EventJoinScanPage({super.key});

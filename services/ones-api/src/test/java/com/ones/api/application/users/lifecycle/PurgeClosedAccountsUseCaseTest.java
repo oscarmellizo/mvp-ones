@@ -96,7 +96,7 @@ class PurgeClosedAccountsUseCaseTest {
     }
 
     private static Event event(String id, String owner) {
-        return new Event(id, owner, NOW, "T", "O", "L", NOW, NOW, null, false, false, List.of());
+        return new Event(id, owner, NOW, "T", "O", "L", NOW, NOW, null, false, false, List.of(), null);
     }
 
     private static Photo photo(String id, String eventId, String guest) {
@@ -308,6 +308,9 @@ class PurgeClosedAccountsUseCaseTest {
         final List<Event> ghosts = new ArrayList<>();
         public Event save(Event e) { store.put(e.getEventId(), e); return e; }
         public Optional<Event> findById(String id) { return Optional.ofNullable(store.get(id)); }
+        public Optional<Event> findByEventCode(String code) {
+            return store.values().stream().filter(e -> code != null && code.equals(e.getEventCode())).findFirst();
+        }
         public List<Event> findByIds(List<String> ids) { return ids.stream().map(store::get).filter(x -> x != null).toList(); }
         public List<Event> listByOwnerId(String owner, int limit) {
             List<Event> all = new ArrayList<>(store.values());

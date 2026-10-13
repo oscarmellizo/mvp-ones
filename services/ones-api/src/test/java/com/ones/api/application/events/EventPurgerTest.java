@@ -48,7 +48,7 @@ class EventPurgerTest {
     }
 
     private static Event event(String id, String owner, String coverKey) {
-        return new Event(id, owner, NOW, "t", "o", "l", NOW, NOW.plusSeconds(60), coverKey, true, true, List.of());
+        return new Event(id, owner, NOW, "t", "o", "l", NOW, NOW.plusSeconds(60), coverKey, true, true, List.of(), null);
     }
 
     private static Photo photo(String id, String eventId, String guest) {

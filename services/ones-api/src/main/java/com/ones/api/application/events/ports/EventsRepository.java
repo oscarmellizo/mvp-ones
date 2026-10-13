@@ -11,6 +11,8 @@ public interface EventsRepository {
 
     Optional<Event> findById(String eventId);
 
+    Optional<Event> findByEventCode(String eventCode);
+
     List<Event> findByIds(List<String> eventIds);
 
     List<Event> listByOwnerId(String ownerId, int limit);

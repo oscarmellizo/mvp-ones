@@ -15,6 +15,7 @@ public record EventResponse(
         String coverKey,
         boolean allowGuestInvites,
         boolean inviteLinkEnabled,
-        List<String> frameIds
+        List<String> frameIds,
+        String eventCode
 ) {
 }

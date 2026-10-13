@@ -2,8 +2,10 @@ package com.ones.api.application.events;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,6 +92,8 @@ public class CreateEventUseCase {
         String eventId = UUID.randomUUID().toString();
         Instant createdAt = Instant.now(clock);
 
+        String eventCode = generateUniqueEventCode();
+
         String coverKey = null;
         if (coverReservationId != null && !coverReservationId.isBlank()) {
             if (coversService == null) {
@@ -98,7 +102,7 @@ public class CreateEventUseCase {
             coverKey = coversService.consumeReservationAndCopyToEvent(ownerId, coverReservationId.trim(), eventId);
         }
 
-        Event event = new Event(eventId, ownerId, createdAt, title, objective, location, startAt, endAt, coverKey, allowGuestInvites, true, frameIds);
+        Event event = new Event(eventId, ownerId, createdAt, title, objective, location, startAt, endAt, coverKey, allowGuestInvites, true, frameIds, eventCode);
         Event saved = repository.save(event);
 
         if (inviteeEmails != null && !inviteeEmails.isEmpty()) {
@@ -140,6 +144,17 @@ public class CreateEventUseCase {
         }
 
         return saved;
+    }
+
+    private String generateUniqueEventCode() {
+        for (int attempt = 0; attempt < 5; attempt++) {
+            int n = ThreadLocalRandom.current().nextInt(100_000, 1_000_000);
+            String code = String.format("%06d", n);
+            if (repository.findByEventCode(code).isEmpty()) {
+                return code;
+            }
+        }
+        throw new IllegalStateException("Unable to generate unique event code after several attempts");
     }
 
     private void ensureStubUser(String email, Instant now) {

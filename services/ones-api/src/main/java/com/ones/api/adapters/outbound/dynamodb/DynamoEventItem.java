@@ -26,6 +26,8 @@ public class DynamoEventItem {
 
     private java.util.List<String> frameIds;
 
+    private String eventCode;
+
     private String gsi1pk;
     private String gsi1sk;
 
@@ -136,6 +138,16 @@ public class DynamoEventItem {
 
     public void setFrameIds(java.util.List<String> frameIds) {
         this.frameIds = frameIds;
+    }
+
+    @DynamoDbSecondaryPartitionKey(indexNames = "byEventCode")
+    @DynamoDbAttribute("eventCode")
+    public String getEventCode() {
+        return eventCode;
+    }
+
+    public void setEventCode(String eventCode) {
+        this.eventCode = eventCode;
     }
 
     @DynamoDbSecondaryPartitionKey(indexNames = "gsi1")

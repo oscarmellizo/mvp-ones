@@ -59,6 +59,11 @@ class CreateEventUseCaseTest {
         }
 
         @Override
+        public Optional<Event> findByEventCode(String eventCode) {
+            return Optional.empty();
+        }
+
+        @Override
         public List<Event> findByIds(List<String> eventIds) {
             if (eventIds == null || eventIds.isEmpty() || last == null) {
                 return List.of();

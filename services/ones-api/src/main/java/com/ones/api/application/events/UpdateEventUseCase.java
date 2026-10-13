@@ -71,7 +71,8 @@ public class UpdateEventUseCase {
                 nextCoverKey,
                 nextAllowGuestInvites,
                 existing.isInviteLinkEnabled(),
-                nextFrameIds
+                nextFrameIds,
+                existing.getEventCode()
         );
 
         log.info("Updating event eventId={}, ownerId={}, coverChanged={}, frameCount={}",

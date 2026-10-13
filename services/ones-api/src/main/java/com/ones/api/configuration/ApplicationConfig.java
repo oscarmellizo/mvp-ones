@@ -20,6 +20,7 @@ import com.ones.api.application.events.EventQrService;
 import com.ones.api.application.events.invitelink.AcceptEventInviteLinkUseCase;
 import com.ones.api.application.events.invitelink.PreviewEventInviteLinkUseCase;
 import com.ones.api.application.events.invitelink.SetEventInviteLinkEnabledUseCase;
+import com.ones.api.application.events.invitelink.JoinEventByCodeUseCase;
 import com.ones.api.application.events.ports.EventsRepository;
 import com.ones.api.application.users.EnsureUserUseCase;
 import com.ones.api.application.users.GetUserByIdUseCase;
@@ -111,6 +112,15 @@ public class ApplicationConfig {
     @Bean
     SetEventInviteLinkEnabledUseCase setEventInviteLinkEnabledUseCase(EventsRepository repository) {
         return new SetEventInviteLinkEnabledUseCase(repository);
+    }
+
+    @Bean
+    JoinEventByCodeUseCase joinEventByCodeUseCase(
+            EventsRepository repository,
+            AcceptEventInviteLinkUseCase acceptUseCase,
+            Clock clock
+    ) {
+        return new JoinEventByCodeUseCase(repository, acceptUseCase, clock);
     }
 
     @Bean

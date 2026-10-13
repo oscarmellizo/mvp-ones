@@ -54,6 +54,22 @@ public class DynamoDbEventsRepository implements EventsRepository {
     }
 
     @Override
+    public Optional<Event> findByEventCode(String eventCode) {
+        if (eventCode == null || eventCode.isBlank()) {
+            return Optional.empty();
+        }
+        DynamoDbIndex<DynamoEventItem> index = table.index("byEventCode");
+        QueryEnhancedRequest request = QueryEnhancedRequest.builder()
+                .queryConditional(QueryConditional.keyEqualTo(
+                        Key.builder().partitionValue(eventCode.trim()).build()))
+                .limit(1)
+                .build();
+        PageIterable<DynamoEventItem> pages = PageIterable.create(index.query(request));
+        DynamoEventItem item = pages.items().stream().findFirst().orElse(null);
+        return Optional.ofNullable(item).map(DynamoDbEventsRepository::toDomain);
+    }
+
+    @Override
     public List<Event> findByIds(List<String> eventIds) {
         if (eventIds == null || eventIds.isEmpty()) {
             return List.of();
@@ -173,7 +189,8 @@ public class DynamoDbEventsRepository implements EventsRepository {
                 coverKey,
                 allowGuestInvites,
                 inviteLinkEnabled,
-                frameIds
+                frameIds,
+                item.getEventCode()
         );
     }
 }
