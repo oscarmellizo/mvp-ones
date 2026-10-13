@@ -84,6 +84,17 @@ class PhotosUploadController extends ChangeNotifier {
     _safeNotify();
   }
 
+  Future<void> retryFailedByPhotoId({
+    required String eventId,
+    required String photoId,
+  }) async {
+    if (!useLocalQueue || eventId.isEmpty || photoId.isEmpty) return;
+    await db.retryFailedByPhotoId(photoId);
+    await _refreshActiveForEvent(eventId);
+    _safeNotify();
+    unawaited(trigger());
+  }
+
   Future<void> rehydrateActive() async {
     if (!useLocalQueue) return;
     await db.purgeStale(olderThan: const Duration(minutes: 10));
@@ -212,15 +223,25 @@ class PhotosUploadController extends ChangeNotifier {
           break;
         }
 
-        final connectivity = await Connectivity().checkConnectivity();
-        if (connectivity.contains(ConnectivityResult.none)) {
-          break;
-        }
-
         final next = await db.listPending(limit: 1);
         if (next.isEmpty) break;
 
         final item = next.first;
+
+        final connectivity = await Connectivity().checkConnectivity();
+        if (connectivity.contains(ConnectivityResult.none)) {
+          if (kDebugMode) {
+            debugPrint(
+              'photo_upload: offline eventId=${item.eventId} photoId=${item.photoId}',
+            );
+          }
+          await db.markFailed(item.id, error: 'offline');
+          _uploadProgressByPhotoId.remove(item.photoId);
+          await _refreshActiveForEvent(item.eventId);
+          _safeNotify();
+          await Future<void>.delayed(const Duration(seconds: 2));
+          continue;
+        }
 
         final local = File(item.localPath);
         final localExists = await local.exists();
