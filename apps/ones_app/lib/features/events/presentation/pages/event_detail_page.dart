@@ -2559,8 +2559,7 @@ class _DetailsTabState extends State<_DetailsTab> {
 
     final start = widget.startAt.toLocal();
     final end = widget.endAt.toLocal();
-    final canInvite = (widget.isOwner || widget.allowGuestInvites) &&
-        DateTime.now().toUtc().isBefore(widget.endAt.toUtc());
+    final canInvite = (widget.isOwner || widget.allowGuestInvites);
     final location = widget.location.trim().isEmpty ? '-' : widget.location;
     final description =
         widget.eventType.trim().isEmpty ? '-' : widget.eventType;
