@@ -20,6 +20,8 @@ abstract interface class EventsRepository {
   Future<List<EventGuest>> inviteEventGuests(
       String eventId, List<String> inviteeEmails);
 
+  Future<Event> joinEventByCode(String code);
+
   Future<Event> createEvent(
     String title,
     String objective,

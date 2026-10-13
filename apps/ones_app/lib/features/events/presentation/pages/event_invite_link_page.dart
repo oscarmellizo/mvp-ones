@@ -59,13 +59,29 @@ class _EventInviteLinkPageState extends State<EventInviteLinkPage> {
                     }
 
                     if (snapshot.hasError || snapshot.data == null) {
+                      String title = 'Invite link is not available.';
+                      String message = 'This link may be invalid, disabled, or expired.';
+                      final error = snapshot.error;
+                      if (error is DioException) {
+                        final status = error.response?.statusCode;
+                        final data = error.response?.data;
+                        String code = '';
+                        if (data is Map) {
+                          final c = data['code'] ?? data['error'];
+                          if (c is String) code = c;
+                        }
+                        if (status == 410 || code == 'invite_link_expired') {
+                          title = 'Invite link expired.';
+                          message = 'Este enlace de invitación ha expirado; era válido hasta una semana después del evento.';
+                        }
+                      }
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const SizedBox(height: 20),
-                          const Text(
-                            'Invite link is not available.',
-                            style: TextStyle(
+                          Text(
+                            title,
+                            style: const TextStyle(
                               fontWeight: FontWeight.w900,
                               fontSize: 18,
                               color: OnesColors.black,
@@ -73,7 +89,7 @@ class _EventInviteLinkPageState extends State<EventInviteLinkPage> {
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            'This link may be invalid, disabled, or expired.',
+                            message,
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 13,
