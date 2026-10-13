@@ -21,6 +21,7 @@ import 'package:ones_api_client/src/model/guest_v2.dart';
 import 'package:ones_api_client/src/model/health_response.dart';
 import 'package:ones_api_client/src/model/invitation.dart';
 import 'package:ones_api_client/src/model/invite_event_guests_request.dart';
+import 'package:ones_api_client/src/model/join_event_by_code_request.dart';
 import 'package:ones_api_client/src/model/presign_event_cover_upload_request.dart';
 import 'package:ones_api_client/src/model/presign_event_cover_upload_response.dart';
 import 'package:ones_api_client/src/model/presigned_url_response.dart';
@@ -977,6 +978,107 @@ class DefaultApi {
     }
 
     return Response<BuiltList<Guest>>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
+
+  /// Join an event by its short numeric code
+  /// 
+  ///
+  /// Parameters:
+  /// * [joinEventByCodeRequest] 
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [Event] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<Event>> joinEventByCode({ 
+    required JoinEventByCodeRequest joinEventByCodeRequest,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/v1/events/join-by-code';
+    final _options = Options(
+      method: r'POST',
+      headers: <String, dynamic>{
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[
+          {
+            'type': 'http',
+            'scheme': 'bearer',
+            'name': 'bearerAuth',
+          },
+        ],
+        ...?extra,
+      },
+      contentType: 'application/json',
+      validateStatus: validateStatus,
+    );
+
+    dynamic _bodyData;
+
+    try {
+      const _type = FullType(JoinEventByCodeRequest);
+      _bodyData = _serializers.serialize(joinEventByCodeRequest, specifiedType: _type);
+
+    } catch(error, stackTrace) {
+      throw DioException(
+         requestOptions: _options.compose(
+          _dio.options,
+          _path,
+        ),
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    final _response = await _dio.request<Object>(
+      _path,
+      data: _bodyData,
+      options: _options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    Event? _responseData;
+
+    try {
+      final rawResponse = _response.data;
+      _responseData = rawResponse == null ? null : _serializers.deserialize(
+        rawResponse,
+        specifiedType: const FullType(Event),
+      ) as Event;
+
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<Event>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,

@@ -3,6 +3,7 @@
 //
 
 // ignore_for_file: unused_element
+import 'package:built_collection/built_collection.dart';
 import 'package:built_value/built_value.dart';
 import 'package:built_value/serializer.dart';
 
@@ -21,6 +22,9 @@ part 'event.g.dart';
 /// * [endAt] 
 /// * [coverKey] - S3 object key for the event cover (optional)
 /// * [allowGuestInvites] - Whether accepted guests (non-owner) are allowed to invite other guests.
+/// * [inviteLinkEnabled] - Whether the public invite link is currently enabled.
+/// * [frameIds] 
+/// * [eventCode] - Six-digit numeric code guests can use to join the event.
 @BuiltValue()
 abstract class Event implements Built<Event, EventBuilder> {
   @BuiltValueField(wireName: r'id')
@@ -54,6 +58,17 @@ abstract class Event implements Built<Event, EventBuilder> {
   /// Whether accepted guests (non-owner) are allowed to invite other guests.
   @BuiltValueField(wireName: r'allowGuestInvites')
   bool? get allowGuestInvites;
+
+  /// Whether the public invite link is currently enabled.
+  @BuiltValueField(wireName: r'inviteLinkEnabled')
+  bool? get inviteLinkEnabled;
+
+  @BuiltValueField(wireName: r'frameIds')
+  BuiltList<String>? get frameIds;
+
+  /// Six-digit numeric code guests can use to join the event.
+  @BuiltValueField(wireName: r'eventCode')
+  String? get eventCode;
 
   Event._();
 
@@ -131,6 +146,27 @@ class _$EventSerializer implements PrimitiveSerializer<Event> {
       yield serializers.serialize(
         object.allowGuestInvites,
         specifiedType: const FullType(bool),
+      );
+    }
+    if (object.inviteLinkEnabled != null) {
+      yield r'inviteLinkEnabled';
+      yield serializers.serialize(
+        object.inviteLinkEnabled,
+        specifiedType: const FullType(bool),
+      );
+    }
+    if (object.frameIds != null) {
+      yield r'frameIds';
+      yield serializers.serialize(
+        object.frameIds,
+        specifiedType: const FullType(BuiltList, [FullType(String)]),
+      );
+    }
+    if (object.eventCode != null) {
+      yield r'eventCode';
+      yield serializers.serialize(
+        object.eventCode,
+        specifiedType: const FullType.nullable(String),
       );
     }
   }
@@ -226,6 +262,28 @@ class _$EventSerializer implements PrimitiveSerializer<Event> {
             specifiedType: const FullType(bool),
           ) as bool;
           result.allowGuestInvites = valueDes;
+          break;
+        case r'inviteLinkEnabled':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(bool),
+          ) as bool;
+          result.inviteLinkEnabled = valueDes;
+          break;
+        case r'frameIds':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType(BuiltList, [FullType(String)]),
+          ) as BuiltList<String>;
+          result.frameIds.replace(valueDes);
+          break;
+        case r'eventCode':
+          final valueDes = serializers.deserialize(
+            value,
+            specifiedType: const FullType.nullable(String),
+          ) as String?;
+          if (valueDes == null) continue;
+          result.eventCode = valueDes;
           break;
         default:
           unhandled.add(key);

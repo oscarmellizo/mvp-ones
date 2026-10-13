@@ -296,6 +296,37 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /v1/events/join-by-code:
+    post:
+      operationId: joinEventByCode
+      summary: Join an event by its short numeric code
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JoinEventByCodeRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          description: Gone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /v1/events/{id}:
     get:
       operationId: getEvent
@@ -713,6 +744,14 @@ components:
           type: string
           format: date-time
           example: '2026-02-19T03:00:00Z'
+    JoinEventByCodeRequest:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          minLength: 6
+          maxLength: 6
     SetEventCoverRequest:
       type: object
       required: [source]
@@ -843,6 +882,17 @@ components:
           type: boolean
           description: Whether accepted guests (non-owner) are allowed to invite other guests.
           default: true
+        inviteLinkEnabled:
+          type: boolean
+          description: Whether the public invite link is currently enabled.
+        frameIds:
+          type: array
+          items:
+            type: string
+        eventCode:
+          type: string
+          nullable: true
+          description: Six-digit numeric code guests can use to join the event.
     ErrorResponse:
       type: object
       required: [error, message]

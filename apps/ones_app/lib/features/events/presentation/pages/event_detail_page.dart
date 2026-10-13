@@ -425,6 +425,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                                               event.allowGuestInvites,
                                           inviteLinkEnabled:
                                               event.inviteLinkEnabled,
+                                          eventCode: event.eventCode,
                                         ),
                                       ),
                               ),
@@ -2348,6 +2349,7 @@ class _DetailsTab extends StatefulWidget {
   final bool isOwner;
   final bool allowGuestInvites;
   final bool inviteLinkEnabled;
+  final String? eventCode;
 
   const _DetailsTab({
     required this.eventId,
@@ -2361,6 +2363,7 @@ class _DetailsTab extends StatefulWidget {
     required this.isOwner,
     required this.allowGuestInvites,
     required this.inviteLinkEnabled,
+    this.eventCode,
   });
 
   @override
@@ -3143,6 +3146,23 @@ class _DetailsTabState extends State<_DetailsTab> {
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
+                                          Text(
+                                            widget.title,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                          ),
+                                          if (widget.eventCode != null && widget.eventCode!.isNotEmpty) ...[
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Código: ${widget.eventCode!}',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                color: OnesColors.black.withOpacity(0.75),
+                                              ),
+                                            ),
+                                          ],
+                                          const SizedBox(height: 8),
                                           Text(
                                             t.translate('event_detail.scan_to_join', fallback: 'Escanéame para unirme'),
                                             style: TextStyle(

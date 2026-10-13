@@ -27,6 +27,7 @@ import 'package:ones_api_client/src/model/guest_v2.dart';
 import 'package:ones_api_client/src/model/health_response.dart';
 import 'package:ones_api_client/src/model/invitation.dart';
 import 'package:ones_api_client/src/model/invite_event_guests_request.dart';
+import 'package:ones_api_client/src/model/join_event_by_code_request.dart';
 import 'package:ones_api_client/src/model/presign_event_cover_upload_request.dart';
 import 'package:ones_api_client/src/model/presign_event_cover_upload_response.dart';
 import 'package:ones_api_client/src/model/presigned_url_response.dart';
@@ -51,6 +52,7 @@ part 'serializers.g.dart';
   HealthResponse,
   Invitation,
   InviteEventGuestsRequest,
+  JoinEventByCodeRequest,
   PresignEventCoverUploadRequest,
   PresignEventCoverUploadResponse,
   PresignedUrlResponse,

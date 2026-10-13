@@ -26,6 +26,7 @@ import com.ones.api.application.events.InviteEventGuestsUseCase;
 import com.ones.api.application.events.ListEventGuestsUseCase;
 import com.ones.api.application.events.ListEventsUseCase;
 import com.ones.api.application.events.UpdateEventUseCase;
+import com.ones.api.application.events.invitelink.JoinEventByCodeUseCase;
 import com.ones.api.application.invitations.ports.InvitationsRepository;
 import com.ones.api.application.users.ports.UsersRepository;
 import com.ones.api.domain.events.Event;
@@ -46,6 +47,7 @@ public class EventsController {
     private final ListEventGuestsUseCase listEventGuestsUseCase;
     private final UpdateEventUseCase updateEventUseCase;
     private final DeleteEventUseCase deleteEventUseCase;
+    private final JoinEventByCodeUseCase joinEventByCodeUseCase;
 
     public EventsController(
             CreateEventUseCase createEventUseCase,
@@ -57,7 +59,8 @@ public class EventsController {
             InviteEventGuestsUseCase inviteEventGuestsUseCase,
             ListEventGuestsUseCase listEventGuestsUseCase,
             UpdateEventUseCase updateEventUseCase,
-            DeleteEventUseCase deleteEventUseCase
+            DeleteEventUseCase deleteEventUseCase,
+            JoinEventByCodeUseCase joinEventByCodeUseCase
     ) {
         this.createEventUseCase = createEventUseCase;
         this.listEventsUseCase = listEventsUseCase;
@@ -69,6 +72,7 @@ public class EventsController {
         this.listEventGuestsUseCase = listEventGuestsUseCase;
         this.updateEventUseCase = updateEventUseCase;
         this.deleteEventUseCase = deleteEventUseCase;
+        this.joinEventByCodeUseCase = joinEventByCodeUseCase;
     }
 
     @GetMapping
@@ -214,6 +218,17 @@ public class EventsController {
     public record GuestV2Response(String userId, String email, String displayName, String role, String status) {
     }
 
+    public record JoinByCodeRequest(String code) {
+    }
+
+    @PostMapping("/join-by-code")
+    public EventResponse joinByCode(Authentication authentication, @Valid @RequestBody JoinByCodeRequest request) {
+        String requesterUserId = authentication.getName();
+        String email = resolveEmail(authentication);
+        Event event = joinEventByCodeUseCase.execute(requesterUserId, email, request.code());
+        return toResponse(event);
+    }
+
     private String resolveEmail(Authentication authentication) {
         String userId = authentication != null ? authentication.getName() : null;
 
@@ -281,7 +296,8 @@ public class EventsController {
                 e.getCoverKey(),
                 e.isAllowGuestInvites(),
                 e.isInviteLinkEnabled(),
-                e.getFrameIds()
+                e.getFrameIds(),
+                e.getEventCode()
         );
     }
 }

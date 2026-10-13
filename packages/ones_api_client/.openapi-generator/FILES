@@ -15,6 +15,7 @@ doc/GuestV2.md
 doc/HealthResponse.md
 doc/Invitation.md
 doc/InviteEventGuestsRequest.md
+doc/JoinEventByCodeRequest.md
 doc/PresignEventCoverUploadRequest.md
 doc/PresignEventCoverUploadResponse.md
 doc/PresignedUrlResponse.md
@@ -46,6 +47,7 @@ lib/src/model/guest_v2.dart
 lib/src/model/health_response.dart
 lib/src/model/invitation.dart
 lib/src/model/invite_event_guests_request.dart
+lib/src/model/join_event_by_code_request.dart
 lib/src/model/presign_event_cover_upload_request.dart
 lib/src/model/presign_event_cover_upload_response.dart
 lib/src/model/presigned_url_response.dart
@@ -55,7 +57,4 @@ lib/src/model/translation.dart
 lib/src/model/upsert_translation_request.dart
 lib/src/serializers.dart
 pubspec.yaml
-test/presign_event_cover_upload_request_test.dart
-test/presign_event_cover_upload_response_test.dart
-test/refresh_translations_cache_response_test.dart
-test/set_event_cover_request_test.dart
+test/join_event_by_code_request_test.dart

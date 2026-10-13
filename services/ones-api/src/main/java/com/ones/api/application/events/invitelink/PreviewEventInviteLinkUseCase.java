@@ -30,8 +30,12 @@ public class PreviewEventInviteLinkUseCase {
         }
 
         Instant now = Instant.now(clock);
-        if (event.getEndAt() == null || !now.isBefore(event.getEndAt())) {
-            throw new EventInviteLinkClosedException("Invite link expired");
+        if (event.getEndAt() != null) {
+            java.time.Instant endAt = event.getEndAt();
+            java.time.Instant expiry = endAt.plus(java.time.Duration.ofDays(7));
+            if (now.isAfter(expiry)) {
+                throw new EventInviteLinkClosedException("Invite link expired");
+            }
         }
 
         return event;

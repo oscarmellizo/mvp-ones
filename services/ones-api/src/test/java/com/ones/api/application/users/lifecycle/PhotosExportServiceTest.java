@@ -122,7 +122,7 @@ class PhotosExportServiceTest {
     }
 
     private static Event event(String id, String owner, String title) {
-        return new Event(id, owner, NOW, title, "o", "l", NOW, NOW.plusSeconds(60), null, true, true, List.of());
+        return new Event(id, owner, NOW, title, "o", "l", NOW, NOW.plusSeconds(60), null, true, true, List.of(), null);
     }
 
     private static Photo photo(String id, String eventId, String guest) {

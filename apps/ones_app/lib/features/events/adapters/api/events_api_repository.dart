@@ -364,6 +364,31 @@ class EventsApiRepository implements EventsRepository {
   }
 
   @override
+  Future<Event> joinEventByCode(String code) async {
+    final dio = _apiFactory.create(idToken: _idToken).dio;
+    final res = await dio.post(
+      '/v1/events/join-by-code',
+      data: <String, dynamic>{'code': code},
+      options: Options(
+        extra: {
+          'secure': [
+            {
+              'type': 'http',
+              'scheme': 'bearer',
+              'name': 'bearerAuth',
+            }
+          ],
+        },
+      ),
+    );
+    final data = res.data;
+    if (data is! Map<String, dynamic>) {
+      throw StateError('Invalid join-by-code response');
+    }
+    return _mapEventJson(data);
+  }
+
+  @override
   Future<Event> createEvent(
     String title,
     String objective,
@@ -408,23 +433,7 @@ class EventsApiRepository implements EventsRepository {
       throw StateError('Invalid create event response');
     }
 
-    return Event(
-      id: data['id'] as String,
-      ownerId: data['ownerId'] as String,
-      createdAt: DateTime.parse(data['createdAt'] as String),
-      title: data['title'] as String,
-      objective: data['objective'] as String,
-      location: data['location'] as String,
-      startAt: DateTime.parse(data['startAt'] as String),
-      endAt: DateTime.parse(data['endAt'] as String),
-      coverKey: data['coverKey'] as String?,
-      allowGuestInvites: (data['allowGuestInvites'] as bool?) ?? true,
-      inviteLinkEnabled: (data['inviteLinkEnabled'] as bool?) ?? true,
-      frameIds: (data['frameIds'] as List?)
-              ?.map((e) => e.toString())
-              .toList(growable: false) ??
-          const <String>[],
-    );
+    return _mapEventJson(data);
   }
 
   @override
@@ -521,6 +530,7 @@ class EventsApiRepository implements EventsRepository {
               ?.map((e) => e.toString())
               .toList(growable: false) ??
           const <String>[],
+      eventCode: data['eventCode'] as String?,
     );
   }
 
@@ -538,6 +548,7 @@ class EventsApiRepository implements EventsRepository {
       allowGuestInvites: e.allowGuestInvites ?? true,
       inviteLinkEnabled: true,
       frameIds: const <String>[],
+      eventCode: null,
     );
   }
 }

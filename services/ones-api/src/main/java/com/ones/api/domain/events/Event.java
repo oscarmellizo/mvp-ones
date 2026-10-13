@@ -18,6 +18,7 @@ public class Event {
     private final boolean allowGuestInvites;
     private final boolean inviteLinkEnabled;
     private final List<String> frameIds;
+    private final String eventCode;
 
     public Event(
             String eventId,
@@ -31,7 +32,8 @@ public class Event {
             String coverKey,
             boolean allowGuestInvites,
             boolean inviteLinkEnabled,
-            List<String> frameIds
+            List<String> frameIds,
+            String eventCode
     ) {
         this.eventId = Objects.requireNonNull(eventId);
         this.ownerId = Objects.requireNonNull(ownerId);
@@ -45,6 +47,11 @@ public class Event {
         this.allowGuestInvites = allowGuestInvites;
         this.inviteLinkEnabled = inviteLinkEnabled;
         this.frameIds = frameIds == null ? List.of() : List.copyOf(frameIds);
+        this.eventCode = eventCode;
+    }
+
+    public String getEventCode() {
+        return eventCode;
     }
 
     public String getEventId() {

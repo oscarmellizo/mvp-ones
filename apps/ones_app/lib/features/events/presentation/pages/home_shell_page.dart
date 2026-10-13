@@ -10,6 +10,8 @@ import 'create_event_page.dart';
 import 'events_list_page.dart';
 import 'galleries_page.dart';
 import 'profile_page.dart';
+import 'event_join_scan_page.dart';
+import 'event_join_code_page.dart';
 import '../../../account/presentation/pages/account_page.dart';
 import '../../../account/presentation/pages/about_page.dart';
 
@@ -146,8 +148,55 @@ class _HomeShellPageState extends State<HomeShellPage> {
       body: _pages[_index],
       floatingActionButton: FloatingActionButton(
         key: TutorialKeys.homeFabCreate,
-        onPressed: () =>
-            Navigator.of(context).pushNamed(CreateEventPage.routeName),
+        onPressed: () {
+          showModalBottomSheet<void>(
+            context: context,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.zero,
+            ),
+            builder: (ctx) {
+              return SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.event),
+                        title: Text(translationsService.translate('home.action_create_event') ?? 'Crear evento'),
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          Navigator.of(context).pushNamed(CreateEventPage.routeName);
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.qr_code_scanner),
+                        title: Text(translationsService.translate('home.action_scan_event_qr') ?? 'Escanear QR de evento'),
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const EventJoinScanPage()),
+                          );
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.dialpad),
+                        title: Text(translationsService.translate('home.action_enter_event_code') ?? 'Ingresar código de evento'),
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const EventJoinCodePage()),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
         child: const Icon(Icons.add),
       ),
       bottomNavigationBar: NavigationBarTheme(

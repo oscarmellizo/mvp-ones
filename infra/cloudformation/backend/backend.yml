@@ -53,6 +53,8 @@ Resources:
           AttributeType: S
         - AttributeName: gsi1sk
           AttributeType: S
+        - AttributeName: eventCode
+          AttributeType: S
       KeySchema:
         - AttributeName: eventId
           KeyType: HASH
@@ -65,6 +67,12 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
+        - IndexName: byEventCode
+          KeySchema:
+            - AttributeName: eventCode
+              KeyType: HASH
+          Projection:
+            ProjectionType: KEYS_ONLY
 
   UsersTable:
     Type: AWS::DynamoDB::Table

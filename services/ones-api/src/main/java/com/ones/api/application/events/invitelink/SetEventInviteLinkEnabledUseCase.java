@@ -40,7 +40,8 @@ public class SetEventInviteLinkEnabledUseCase {
                 existing.getCoverKey(),
                 existing.isAllowGuestInvites(),
                 enabled,
-                existing.getFrameIds()
+                existing.getFrameIds(),
+                existing.getEventCode()
         );
 
         return repository.save(updated);

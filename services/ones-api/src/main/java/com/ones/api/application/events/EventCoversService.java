@@ -291,7 +291,8 @@ public class EventCoversService {
                 destKey,
                 event.isAllowGuestInvites(),
                 event.isInviteLinkEnabled(),
-                event.getFrameIds()
+                event.getFrameIds(),
+                event.getEventCode()
         );
 
         eventsRepository.save(updated);
@@ -352,7 +353,8 @@ public class EventCoversService {
                 destKey,
                 event.isAllowGuestInvites(),
                 event.isInviteLinkEnabled(),
-                event.getFrameIds()
+                event.getFrameIds(),
+                event.getEventCode()
         );
         eventsRepository.save(updated);
         return destKey;

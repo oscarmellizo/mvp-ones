@@ -11,6 +11,7 @@ class Event {
   final bool allowGuestInvites;
   final bool inviteLinkEnabled;
   final List<String> frameIds;
+  final String? eventCode;
 
   const Event({
     required this.id,
@@ -25,5 +26,6 @@ class Event {
     required this.allowGuestInvites,
     this.inviteLinkEnabled = true,
     this.frameIds = const [],
+    this.eventCode,
   });
 }
