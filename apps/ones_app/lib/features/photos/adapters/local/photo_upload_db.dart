@@ -8,6 +8,7 @@ class PhotoUploadDb {
   static const _dbName = 'ones_photos.db';
   static const _dbVersion = 2;
   static const _table = 'photo_upload_queue';
+  static const int _maxAttempts = 5;
 
   Database? _db;
 
@@ -101,7 +102,7 @@ CREATE TABLE $_table (
     final db = await _open();
     final rows = await db.query(
       _table,
-      where: "status IN ('pending','failed')",
+      where: "status = 'pending'",
       orderBy: 'updatedAt ASC',
       limit: limit,
     );
@@ -216,6 +217,21 @@ CREATE TABLE $_table (
     );
   }
 
+  Future<void> retryFailedByPhotoId(String photoId) async {
+    if (photoId.isEmpty) return;
+    final db = await _open();
+    await db.update(
+      _table,
+      {
+        'status': 'pending',
+        'lastError': null,
+        'updatedAt': DateTime.now().toUtc().toIso8601String(),
+      },
+      where: 'photoId = ?',
+      whereArgs: [photoId],
+    );
+  }
+
   Future<void> markFailed(int id, {required String error}) async {
     final db = await _open();
 
@@ -229,12 +245,14 @@ CREATE TABLE $_table (
 
     final attempts =
         (current.isNotEmpty ? (current.first['attempts'] as int?) : null) ?? 0;
+    final nextAttempts = attempts + 1;
+    final newStatus = nextAttempts >= _maxAttempts ? 'failed' : 'pending';
 
     await db.update(
       _table,
       {
-        'status': 'pending',
-        'attempts': attempts + 1,
+        'status': newStatus,
+        'attempts': nextAttempts,
         'lastError': error,
         'updatedAt': DateTime.now().toUtc().toIso8601String(),
       },

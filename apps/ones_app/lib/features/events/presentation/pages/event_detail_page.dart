@@ -1791,6 +1791,35 @@ class _GalleryTabState extends State<_GalleryTab> {
                                       final localStatus = (local?.status ?? '')
                                           .trim()
                                           .toLowerCase();
+                                      final isFailed = localStatus == 'failed';
+                                      if (isFailed) {
+                                        return GestureDetector(
+                                          onTap: () {
+                                            uploader.retryFailedByPhotoId(
+                                              eventId: widget.eventId,
+                                              photoId: photoId,
+                                            );
+                                          },
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: const [
+                                              Icon(
+                                                Icons.error_outline,
+                                                color: Colors.white,
+                                              ),
+                                              SizedBox(height: 6),
+                                              Text(
+                                                'Error',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w900,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }
                                       final progress = uploader
                                           .uploadProgressByPhotoId(photoId);
                                       final isUploading =
