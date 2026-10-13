@@ -6,8 +6,6 @@ import 'package:ones_app/core/ui/widgets/ones_card.dart';
 import 'package:ones_app/features/admin/application/get_admin_me_use_case.dart';
 import 'package:ones_app/features/auth/presentation/auth_controller.dart';
 import 'package:ones_app/features/events/presentation/pages/profile_page.dart';
-import 'package:ones_app/features/subscriptions/presentation/subscriptions_controller.dart';
-import 'package:ones_app/features/subscriptions/domain/user_subscription.dart';
 import 'package:ones_app/features/users/application/ensure_user_use_case.dart';
 import 'package:ones_app/features/users/domain/users_repository.dart';
 import 'package:provider/provider.dart';
@@ -15,7 +13,6 @@ import 'package:provider/provider.dart';
 import '../../../auth/fake_auth_repository.dart';
 
 class _MockTranslations extends Mock implements TranslationsService {}
-class _MockSubscriptions extends Mock implements SubscriptionsController {}
 class _MockGetPrefs extends Mock implements GetUserPreferencesUseCase {}
 class _MockGetAdminMe extends Mock implements GetAdminMeUseCase {}
 class _MockEnsureUser extends Mock implements EnsureUserUseCase {}
@@ -56,11 +53,6 @@ Future<void> pumpProfile(WidgetTester tester) async {
         page: any(named: 'page'),
         requiredKeys: any(named: 'requiredKeys'),
       )).thenAnswer((_) async {});
-  final subscriptions = _MockSubscriptions();
-  when(() => subscriptions.loadAll()).thenAnswer((_) async {});
-  when(() => subscriptions.subscription).thenReturn(
-    const UserSubscription(userId: 'uid-1', planId: 'free', status: 'free'),
-  );
 
   final getPrefs = _MockGetPrefs();
   when(() => getPrefs.execute(any()))
@@ -85,7 +77,6 @@ Future<void> pumpProfile(WidgetTester tester) async {
     providers: [
       ChangeNotifierProvider<AuthController>.value(value: auth),
       ChangeNotifierProvider<TranslationsService>.value(value: translations),
-      ChangeNotifierProvider<SubscriptionsController>.value(value: subscriptions),
     ],
     child: const MaterialApp(home: ProfilePage()),
   ));

@@ -27,6 +27,12 @@ class _$Event extends Event {
   final String? coverKey;
   @override
   final bool? allowGuestInvites;
+  @override
+  final bool? inviteLinkEnabled;
+  @override
+  final BuiltList<String>? frameIds;
+  @override
+  final String? eventCode;
 
   factory _$Event([void Function(EventBuilder)? updates]) =>
       (new EventBuilder()..update(updates))._build();
@@ -41,7 +47,10 @@ class _$Event extends Event {
       required this.startAt,
       required this.endAt,
       this.coverKey,
-      this.allowGuestInvites})
+      this.allowGuestInvites,
+      this.inviteLinkEnabled,
+      this.frameIds,
+      this.eventCode})
       : super._() {
     BuiltValueNullFieldError.checkNotNull(id, r'Event', 'id');
     BuiltValueNullFieldError.checkNotNull(ownerId, r'Event', 'ownerId');
@@ -73,7 +82,10 @@ class _$Event extends Event {
         startAt == other.startAt &&
         endAt == other.endAt &&
         coverKey == other.coverKey &&
-        allowGuestInvites == other.allowGuestInvites;
+        allowGuestInvites == other.allowGuestInvites &&
+        inviteLinkEnabled == other.inviteLinkEnabled &&
+        frameIds == other.frameIds &&
+        eventCode == other.eventCode;
   }
 
   @override
@@ -89,6 +101,9 @@ class _$Event extends Event {
     _$hash = $jc(_$hash, endAt.hashCode);
     _$hash = $jc(_$hash, coverKey.hashCode);
     _$hash = $jc(_$hash, allowGuestInvites.hashCode);
+    _$hash = $jc(_$hash, inviteLinkEnabled.hashCode);
+    _$hash = $jc(_$hash, frameIds.hashCode);
+    _$hash = $jc(_$hash, eventCode.hashCode);
     _$hash = $jf(_$hash);
     return _$hash;
   }
@@ -105,7 +120,10 @@ class _$Event extends Event {
           ..add('startAt', startAt)
           ..add('endAt', endAt)
           ..add('coverKey', coverKey)
-          ..add('allowGuestInvites', allowGuestInvites))
+          ..add('allowGuestInvites', allowGuestInvites)
+          ..add('inviteLinkEnabled', inviteLinkEnabled)
+          ..add('frameIds', frameIds)
+          ..add('eventCode', eventCode))
         .toString();
   }
 }
@@ -154,6 +172,20 @@ class EventBuilder implements Builder<Event, EventBuilder> {
   set allowGuestInvites(bool? allowGuestInvites) =>
       _$this._allowGuestInvites = allowGuestInvites;
 
+  bool? _inviteLinkEnabled;
+  bool? get inviteLinkEnabled => _$this._inviteLinkEnabled;
+  set inviteLinkEnabled(bool? inviteLinkEnabled) =>
+      _$this._inviteLinkEnabled = inviteLinkEnabled;
+
+  ListBuilder<String>? _frameIds;
+  ListBuilder<String> get frameIds =>
+      _$this._frameIds ??= new ListBuilder<String>();
+  set frameIds(ListBuilder<String>? frameIds) => _$this._frameIds = frameIds;
+
+  String? _eventCode;
+  String? get eventCode => _$this._eventCode;
+  set eventCode(String? eventCode) => _$this._eventCode = eventCode;
+
   EventBuilder() {
     Event._defaults(this);
   }
@@ -171,6 +203,9 @@ class EventBuilder implements Builder<Event, EventBuilder> {
       _endAt = $v.endAt;
       _coverKey = $v.coverKey;
       _allowGuestInvites = $v.allowGuestInvites;
+      _inviteLinkEnabled = $v.inviteLinkEnabled;
+      _frameIds = $v.frameIds?.toBuilder();
+      _eventCode = $v.eventCode;
       _$v = null;
     }
     return this;
@@ -191,25 +226,41 @@ class EventBuilder implements Builder<Event, EventBuilder> {
   Event build() => _build();
 
   _$Event _build() {
-    final _$result = _$v ??
-        new _$Event._(
-            id: BuiltValueNullFieldError.checkNotNull(id, r'Event', 'id'),
-            ownerId: BuiltValueNullFieldError.checkNotNull(
-                ownerId, r'Event', 'ownerId'),
-            createdAt: BuiltValueNullFieldError.checkNotNull(
-                createdAt, r'Event', 'createdAt'),
-            title:
-                BuiltValueNullFieldError.checkNotNull(title, r'Event', 'title'),
-            objective: BuiltValueNullFieldError.checkNotNull(
-                objective, r'Event', 'objective'),
-            location: BuiltValueNullFieldError.checkNotNull(
-                location, r'Event', 'location'),
-            startAt: BuiltValueNullFieldError.checkNotNull(
-                startAt, r'Event', 'startAt'),
-            endAt:
-                BuiltValueNullFieldError.checkNotNull(endAt, r'Event', 'endAt'),
-            coverKey: coverKey,
-            allowGuestInvites: allowGuestInvites);
+    _$Event _$result;
+    try {
+      _$result = _$v ??
+          new _$Event._(
+              id: BuiltValueNullFieldError.checkNotNull(id, r'Event', 'id'),
+              ownerId: BuiltValueNullFieldError.checkNotNull(
+                  ownerId, r'Event', 'ownerId'),
+              createdAt: BuiltValueNullFieldError.checkNotNull(
+                  createdAt, r'Event', 'createdAt'),
+              title: BuiltValueNullFieldError.checkNotNull(
+                  title, r'Event', 'title'),
+              objective: BuiltValueNullFieldError.checkNotNull(
+                  objective, r'Event', 'objective'),
+              location: BuiltValueNullFieldError.checkNotNull(
+                  location, r'Event', 'location'),
+              startAt: BuiltValueNullFieldError.checkNotNull(
+                  startAt, r'Event', 'startAt'),
+              endAt: BuiltValueNullFieldError.checkNotNull(
+                  endAt, r'Event', 'endAt'),
+              coverKey: coverKey,
+              allowGuestInvites: allowGuestInvites,
+              inviteLinkEnabled: inviteLinkEnabled,
+              frameIds: _frameIds?.build(),
+              eventCode: eventCode);
+    } catch (_) {
+      late String _$failedField;
+      try {
+        _$failedField = 'frameIds';
+        _frameIds?.build();
+      } catch (e) {
+        throw new BuiltValueNestedFieldError(
+            r'Event', _$failedField, e.toString());
+      }
+      rethrow;
+    }
     replace(_$result);
     return _$result;
   }

@@ -120,10 +120,13 @@ void main() {
       '/events/detail?eventId=event-1', (_) => false,
     );
     await tester.pumpAndSettle();
+
+    // En la versión sin pagos, enlaces "plans" se ignoran y no deben cambiar la ruta actual.
     stream.add(Uri.parse('ones://plans/success'));
     await tester.pump();
     await tester.pumpAndSettle();
-    expect(find.text('/subscription-plans'), findsOneWidget);
+    expect(find.text('/events/detail?eventId=event-1'), findsOneWidget);
+
     stream.add(Uri.parse(
       'https://app.ones.events/invitation?token=second-token',
     ));
