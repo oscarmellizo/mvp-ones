@@ -281,7 +281,9 @@ class PhotosGalleryController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> refresh({required String eventId}) async {
+  /// [replace]: deslizar para actualizar. La primera página reemplaza la lista para que
+  /// desaparezcan las fotos borradas en el servidor (las páginas siguientes se cargan al bajar).
+  Future<void> refresh({required String eventId, bool replace = false}) async {
     final trimmedEventId = eventId.trim();
     if (trimmedEventId.isEmpty) return;
 
@@ -388,7 +390,8 @@ class PhotosGalleryController extends ChangeNotifier {
       // Merge: incoming page-1 takes precedence; keep existing items not in
       // page-1 (they are from deeper pages already loaded).
       final merged = <String, EventPhoto>{
-        for (final it in _items) it.photoId: it,
+        if (!replace)
+          for (final it in _items) it.photoId: it,
         ...incoming,
       };
 

@@ -231,11 +231,25 @@ void main() {
       expect(repo.tokenRequests, contains(true));
     });
 
-    test('refreshIdToken fuerza refresh', () async {
+    test('refreshIdToken usa el token vigente de Firebase (no fuerza uno nuevo)', () async {
       repo.current = fakeUser();
 
       expect(await auth.refreshIdToken(), 'token-1');
-      expect(repo.tokenRequests.last, isTrue);
+      // Forzar emite un token distinto en cada llamada y los controladores borran
+      // su estado al cambiar el token (lista de eventos vacía, detalle cargando).
+      expect(repo.tokenRequests.last, isFalse);
+    });
+
+    test('refreshIdToken no notifica si el token no cambió', () async {
+      repo.current = fakeUser();
+      await auth.refreshIdToken();
+      var notifications = 0;
+      auth.addListener(() => notifications++);
+
+      await auth.refreshIdToken();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(notifications, 0);
     });
 
     test('logout limpia todo, incluido idioma y términos', () async {
