@@ -155,9 +155,7 @@ public class SecurityConfig {
                                 "/i/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/v1/payments/mercadopago/webhook",
-                                "/v1/webhooks/mercadopago"
+                                "/swagger-ui.html"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/events/*/invite-link/preview").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/translations/page", "/v1/translations/key").permitAll()

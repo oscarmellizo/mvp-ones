@@ -45,10 +45,10 @@
 			</array>
 		</dict>
 	</array>
-	<key>FlutterDeepLinkingEnabled</key>
-	<false/>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
 	<key>GIDClientID</key>
 	<string>403122779240-7e0p9b2rau3mkctg7s08ku1uql1ah0ii.apps.googleusercontent.com</string>
 	<key>LSRequiresIPhoneOS</key>

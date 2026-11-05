@@ -287,65 +287,15 @@ Queda prohibido copiar, reproducir, distribuir o explotar estos elementos sin au
 
 ---
 
-## **29\. Planes de suscripción**
+## **29\. Acceso gratuito**
 
-ONES podrá ofrecer diferentes planes de suscripción, incluyendo modalidades mensual, semestral y anual.
+La versión actual de ONES es gratuita en iOS, Android y web. Crear eventos, participar y compartir fotografías no requiere compras ni suscripciones.
 
-Cada plan podrá incluir:
-
-* Diferentes niveles de acceso  
-* Funcionalidades específicas  
-* Limitaciones según el tipo de suscripción
-
-La disponibilidad y características de cada plan podrán ser modificadas en cualquier momento.
+No se ofrecen compras dentro de la aplicación ni pagos externos para desbloquear funcionalidades. El acceso no depende de un plan adquirido previamente.
 
 ---
 
-## **30\. Facturación y renovación automática**
-
-Al adquirir una suscripción, el usuario acepta expresamente que:
-
-* El cobro se realizará de forma anticipada al inicio de cada período seleccionado  
-* La suscripción se renovará automáticamente al finalizar cada período  
-* ONES podrá realizar cargos automáticos al método de pago registrado
-
-El usuario reconoce que:
-
-* El pago corresponde al acceso a la plataforma, no al uso efectivo  
-* La falta de uso no exime del pago  
-* Es su responsabilidad cancelar la suscripción si no desea continuar
-
-En caso de fallos en el pago, ONES podrá:
-
-* Suspender el acceso  
-* Intentar nuevos cobros  
-* Cancelar la suscripción
-
-ONES podrá modificar precios notificando previamente al usuario antes de la siguiente renovación.
-
----
-
-## **31\. Cancelación de la suscripción**
-
-El usuario podrá cancelar su suscripción en cualquier momento.
-
-La cancelación:
-
-* Evitará cobros futuros  
-* No afectará el acceso durante el período ya pagado  
-* No generará reembolsos por el tiempo restante
-
----
-
-## **32\. Reembolsos**
-
-ONES no está obligado a realizar reembolsos por pagos ya efectuados, salvo en los casos exigidos por la legislación aplicable.
-
-El usuario acepta que el no uso del servicio o el olvido de cancelación no constituye motivo de reembolso.
-
----
-
-## **33\. Modificaciones del servicio**
+## **30\. Modificaciones del servicio**
 
 ONES podrá modificar, actualizar o eliminar funcionalidades de la plataforma en cualquier momento.
 
@@ -359,20 +309,7 @@ El usuario acepta que el servicio puede evolucionar sin previo aviso.
 
 ---
 
-## **34\. Uso comercial y monetización**
-
-ONES podrá integrar modelos de monetización dentro de la plataforma, incluyendo:
-
-* Publicidad  
-* Contenido patrocinado  
-* Funciones premium  
-* Integración de marcas o eventos comerciales
-
-El usuario acepta que la plataforma puede incluir contenido comercial como parte de su funcionamiento.
-
----
-
-## **35\. Protección de datos**
+## **31\. Protección de datos**
 
 ONES podrá recopilar, almacenar y procesar datos personales del usuario en relación con el uso de la plataforma.
 
@@ -380,7 +317,7 @@ El tratamiento de dichos datos se realizará conforme a la Política de Privacid
 
 El usuario acepta el tratamiento de sus datos al utilizar la plataforma.
 
-## **36\. Cesión de derechos**
+## **32\. Cesión de derechos**
 
 ONES podrá ceder, transferir o delegar, total o parcialmente, sus derechos y obligaciones derivados de estos Términos y Condiciones a terceros, sin necesidad de autorización previa del usuario.
 
@@ -395,7 +332,7 @@ El usuario acepta que sus derechos y obligaciones continuarán vigentes frente a
 
 ---
 
-## **37\. Terminación de cuentas**
+## **33\. Terminación de cuentas**
 
 ONES se reserva el derecho de suspender, restringir o eliminar cuentas de usuarios en cualquier momento, sin necesidad de notificación previa, cuando considere que:
 
@@ -408,7 +345,7 @@ La terminación de la cuenta implicará la pérdida de acceso a la plataforma y 
 
 ---
 
-## **38\. Acuerdo completo**
+## **34\. Acuerdo completo**
 
 Los presentes Términos y Condiciones constituyen el acuerdo completo entre el usuario y ONES en relación con el uso de la plataforma.
 
@@ -416,7 +353,7 @@ Estos términos reemplazan cualquier acuerdo, comunicación o entendimiento prev
 
 ---
 
-## **39\. Divisibilidad**
+## **35\. Divisibilidad**
 
 En caso de que alguna disposición de estos Términos y Condiciones sea declarada inválida, ilegal o inaplicable por una autoridad competente, dicha disposición se considerará separable del resto del documento.
 
@@ -424,7 +361,7 @@ Las demás disposiciones continuarán en plena vigencia y efecto.
 
 ---
 
-## **40\. Idioma**
+## **36\. Idioma**
 
 Estos Términos y Condiciones están redactados en idioma español.
 
@@ -432,7 +369,7 @@ En caso de que se realicen traducciones a otros idiomas, prevalecerá la versió
 
 ---
 
-## **41\. Contacto**
+## **37\. Contacto**
 
 El usuario podrá comunicarse con ONES para consultas, solicitudes o asuntos relacionados con estos Términos y Condiciones a través de los canales oficiales que la plataforma disponga.
 
@@ -440,7 +377,7 @@ ONES no garantiza respuesta inmediata, pero podrá atender las solicitudes confo
 
 ---
 
-## **42\. Legislación aplicable**
+## **38\. Legislación aplicable**
 
 Los presentes Términos y Condiciones se regirán e interpretarán de conformidad con las leyes de la República de Colombia.
 
@@ -524,13 +461,9 @@ ONES podrá recopilar datos personales de forma directa y automática.
 * Navegación  
 * Comportamiento dentro de la plataforma
 
-  ### **f) Datos de pago**
+  ### **f) Registros históricos de facturación**
 
-* Estado de suscripción  
-* Historial de transacciones  
-* Identificadores de pago
-
-ONES no almacena directamente información sensible de tarjetas cuando se utilizan proveedores externos.
+La versión actual no solicita datos de pago ni permite contratar suscripciones. Los registros de transacciones anteriores que puedan existir se conservan únicamente para la gestión de esas transacciones y su eliminación conforme a esta política; no otorgan acceso a funciones adicionales.
 
 ---
 
@@ -541,7 +474,6 @@ ONES no almacena directamente información sensible de tarjetas cuando se utiliz
 * Operar la plataforma  
 * Gestionar cuentas y eventos  
 * Mostrar contenido  
-* Procesar pagos  
 * Garantizar seguridad  
 * Prevenir fraude
 
@@ -608,7 +540,6 @@ ONES no valida ni se hace responsable por el uso indebido de estos elementos.
 ONES podrá compartir datos personales en los siguientes casos:
 
 * Proveedores tecnológicos  
-* Servicios de pago  
 * Herramientas de analítica  
 * Autoridades competentes
 
@@ -728,7 +659,7 @@ No se tomarán decisiones automatizadas que afecten significativamente los derec
 
 ## **22\. Comunicaciones**
 
-ONES podrá enviar comunicaciones relacionadas con la cuenta, pagos y funcionamiento del servicio.
+ONES podrá enviar comunicaciones relacionadas con la cuenta y el funcionamiento del servicio.
 
 Las comunicaciones comerciales podrán ser opcionales.
 

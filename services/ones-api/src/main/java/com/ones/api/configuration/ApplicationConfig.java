@@ -36,16 +36,9 @@ import com.ones.api.application.users.lifecycle.PhotosExportService;
 import com.ones.api.application.users.lifecycle.PurgeClosedAccountsUseCase;
 import com.ones.api.application.users.ports.PreferredNamesCacheRepository;
 import com.ones.api.application.users.ports.UsersRepository;
-import com.ones.api.application.subscriptions.CheckPlanLimitUseCase;
-import com.ones.api.application.subscriptions.CreateMercadoPagoSubscriptionUseCase;
-import com.ones.api.application.subscriptions.GetOrCreateUserSubscriptionUseCase;
-import com.ones.api.application.subscriptions.GetSubscriptionPlansUseCase;
-import com.ones.api.application.subscriptions.ProcessMercadoPagoWebhookUseCase;
 import com.ones.api.application.subscriptions.ports.MercadoPagoGateway;
 import com.ones.api.application.subscriptions.ports.PaymentProfilesRepository;
-import com.ones.api.application.subscriptions.ports.CheckoutAttemptsRepository;
 import com.ones.api.application.subscriptions.ports.SubscriptionPaymentsRepository;
-import com.ones.api.application.subscriptions.ports.SubscriptionPlansRepository;
 import com.ones.api.application.subscriptions.ports.UserSubscriptionsRepository;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -66,7 +59,6 @@ public class ApplicationConfig {
             Clock clock,
             EventCoversService coversService,
             InvitationEmailService invitationEmailService,
-            CheckPlanLimitUseCase checkPlanLimitUseCase,
             EventQrService eventQrService
     ) {
         return new CreateEventUseCase(
@@ -76,7 +68,6 @@ public class ApplicationConfig {
                 clock,
                 coversService,
                 invitationEmailService,
-                checkPlanLimitUseCase,
                 eventQrService
         );
     }
@@ -230,60 +221,4 @@ public class ApplicationConfig {
         return new InvitationsService(invitationsRepository, clock, tokenService);
     }
 
-    @Bean
-    GetSubscriptionPlansUseCase getSubscriptionPlansUseCase(SubscriptionPlansRepository plansRepository) {
-        return new GetSubscriptionPlansUseCase(plansRepository);
-    }
-
-    @Bean
-    GetOrCreateUserSubscriptionUseCase getOrCreateUserSubscriptionUseCase(
-            UserSubscriptionsRepository subscriptionsRepository,
-            Clock clock
-    ) {
-        return new GetOrCreateUserSubscriptionUseCase(subscriptionsRepository, clock);
-    }
-
-    @Bean
-    CheckPlanLimitUseCase checkPlanLimitUseCase(
-            UserSubscriptionsRepository subscriptionsRepository,
-            SubscriptionPlansRepository plansRepository
-    ) {
-        return new CheckPlanLimitUseCase(subscriptionsRepository, plansRepository);
-    }
-
-    @Bean
-    CreateMercadoPagoSubscriptionUseCase createMercadoPagoSubscriptionUseCase(
-            UserSubscriptionsRepository subscriptionsRepository,
-            SubscriptionPlansRepository plansRepository,
-            UsersRepository usersRepository,
-            PaymentProfilesRepository paymentProfilesRepository,
-            CheckoutAttemptsRepository checkoutAttemptsRepository,
-            MercadoPagoGateway mercadoPagoGateway,
-            Clock clock,
-            @Value("${ones.mercadopago.app-base-url:}") String appBaseUrl,
-            @Value("${ones.mercadopago.test-payer-email:}") String testPayerEmail
-    ) {
-        return new CreateMercadoPagoSubscriptionUseCase(
-                subscriptionsRepository, plansRepository, usersRepository,
-                paymentProfilesRepository, checkoutAttemptsRepository,
-                mercadoPagoGateway, clock, appBaseUrl, testPayerEmail
-        );
-    }
-
-    @Bean
-    ProcessMercadoPagoWebhookUseCase processMercadoPagoWebhookUseCase(
-            UserSubscriptionsRepository subscriptionsRepository,
-            MercadoPagoGateway mercadoPagoGateway,
-            UsersRepository usersRepository,
-            CheckoutAttemptsRepository checkoutAttemptsRepository,
-            SubscriptionPaymentsRepository subscriptionPaymentsRepository,
-            Clock clock,
-            @Value("${ones.mercadopago.test-payer-email:}") String testPayerEmail
-    ) {
-        return new ProcessMercadoPagoWebhookUseCase(
-                subscriptionsRepository, mercadoPagoGateway, usersRepository,
-                checkoutAttemptsRepository, subscriptionPaymentsRepository,
-                clock, testPayerEmail
-        );
-    }
 }

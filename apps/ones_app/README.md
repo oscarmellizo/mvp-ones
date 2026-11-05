@@ -39,3 +39,17 @@ No se commitean archivos sensibles:
 
 - `google-services.json`
 - `GoogleService-Info.plist`
+
+## Acceso gratuito
+
+La versión actual es gratuita en iOS, Android y web. No hay compras, planes
+ni límites de eventos o fotos asociados a suscripciones. El backend no expone
+rutas de compra, perfiles de pago ni webhooks de MercadoPago.
+
+Solo se conserva el soporte para cancelar suscripciones antiguas al cerrar
+una cuenta y eliminar sus registros históricos. No habilita funcionalidades.
+Si existen suscripciones recurrentes previas en MercadoPago, deben cancelarse
+allí: desplegar esta versión no detiene por sí solo esos cobros externos.
+
+Antes de reenviar a App Review, desplegar también el backend y la web de esta
+versión; un IPA nuevo seguirá utilizando el servidor que esté en producción.

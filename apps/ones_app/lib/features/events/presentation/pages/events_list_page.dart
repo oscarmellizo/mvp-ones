@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/config/app_config.dart';
 import '../../../../core/utils/datetime_formatters.dart';
 import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/ui/ones_colors.dart';
