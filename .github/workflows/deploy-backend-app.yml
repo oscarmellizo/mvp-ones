@@ -128,8 +128,12 @@ jobs:
       - name: Verify running backend image
         run: |
           repoUri="${{ steps.cfn.outputs.repoUri }}"
-          expectedDigest=$(aws ecr describe-images --repository-name "${repoUri##*/}" \
-            --image-ids imageTag=latest --query 'imageDetails[0].imageDigest' --output text)
+          expectedDigest=$(docker image inspect "${repoUri}:latest" --format '{{index .RepoDigests 0}}')
+          expectedDigest="${expectedDigest##*@}"
+          if [[ "${expectedDigest}" != sha256:* ]]; then
+            echo "ERROR: Could not resolve the pushed Docker image digest."
+            exit 1
+          fi
           taskArns=$(aws ecs list-tasks --cluster "${{ steps.cfn.outputs.clusterName }}" \
             --service-name "${{ steps.cfn.outputs.serviceName }}" --desired-status RUNNING \
             --query 'taskArns' --output text)
