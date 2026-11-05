@@ -112,14 +112,44 @@ jobs:
       - name: Force new ECS deployment
         run: |
           if [ -z "${{ steps.cfn.outputs.clusterName }}" ] || [ "${{ steps.cfn.outputs.clusterName }}" = "None" ] || [ -z "${{ steps.cfn.outputs.serviceName }}" ] || [ "${{ steps.cfn.outputs.serviceName }}" = "None" ]; then
-            echo "Skipping ECS update-service because ClusterName/ServiceName outputs are not available yet."
-            exit 0
+            echo "ERROR: ClusterName/ServiceName outputs are required to deploy the backend."
+            exit 1
           fi
 
           aws ecs update-service \
             --cluster "${{ steps.cfn.outputs.clusterName }}" \
             --service "${{ steps.cfn.outputs.serviceName }}" \
             --force-new-deployment
+
+          aws ecs wait services-stable \
+            --cluster "${{ steps.cfn.outputs.clusterName }}" \
+            --services "${{ steps.cfn.outputs.serviceName }}"
+
+      - name: Verify running backend image
+        run: |
+          repoUri="${{ steps.cfn.outputs.repoUri }}"
+          expectedDigest=$(aws ecr describe-images --repository-name "${repoUri##*/}" \
+            --image-ids imageTag=latest --query 'imageDetails[0].imageDigest' --output text)
+          taskArns=$(aws ecs list-tasks --cluster "${{ steps.cfn.outputs.clusterName }}" \
+            --service-name "${{ steps.cfn.outputs.serviceName }}" --desired-status RUNNING \
+            --query 'taskArns' --output text)
+          if [ -z "${taskArns}" ] || [ "${taskArns}" = "None" ]; then
+            echo "ERROR: No running backend tasks found."
+            exit 1
+          fi
+          digests=$(aws ecs describe-tasks --cluster "${{ steps.cfn.outputs.clusterName }}" \
+            --tasks ${taskArns} --query "tasks[].containers[?name=='ones-api'].imageDigest[]" --output text)
+          if [ -z "${digests}" ]; then
+            echo "ERROR: No backend image digest found."
+            exit 1
+          fi
+          for digest in ${digests}; do
+            if [ "${digest}" != "${expectedDigest}" ]; then
+              echo "ERROR: Running backend image differs from the deployed image."
+              exit 1
+            fi
+          done
+          echo "Verified running backend image: ${expectedDigest}"
 
       - name: Show ALB URL
         run: |
