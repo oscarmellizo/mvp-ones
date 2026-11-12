@@ -50,7 +50,7 @@ class TutorialSteps {
       routeName: homeRoute,
       targetKey: () => TutorialKeys.homeFabCreate,
       titleKey: 'Crear evento',
-      bodyKey: 'Toca aquí para crear tu primer evento.',
+      bodyKey: 'Toca aquí y elige «Crear evento» para crear tu primer evento.',
       align: ContentAlign.top,
     ),
     TutorialStep(
