@@ -67,6 +67,7 @@ class _MainDrawer extends StatelessWidget {
 class _HomeShellPageState extends State<HomeShellPage> {
   int _index = 0;
   String? _lastLanguage;
+  bool _isFabMenuExpanded = false;
 
   static const Set<String> _homeRequiredKeys = {
     'nav.home',
@@ -145,59 +146,88 @@ class _HomeShellPageState extends State<HomeShellPage> {
           }
         },
       ),
-      body: _pages[_index],
-      floatingActionButton: FloatingActionButton(
-        key: TutorialKeys.homeFabCreate,
-        onPressed: () {
-          showModalBottomSheet<void>(
-            context: context,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.zero,
-            ),
-            builder: (ctx) {
-              return SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.event),
-                        title: Text(translationsService.translate('home.action_create_event') ?? 'Crear evento'),
-                        onTap: () {
-                          Navigator.of(ctx).pop();
-                          Navigator.of(context).pushNamed(CreateEventPage.routeName);
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.qr_code_scanner),
-                        title: Text(translationsService.translate('home.action_scan_event_qr') ?? 'Escanear QR de evento'),
-                        onTap: () {
-                          Navigator.of(ctx).pop();
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const EventJoinScanPage()),
-                          );
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.dialpad),
-                        title: Text(translationsService.translate('home.action_enter_event_code') ?? 'Ingresar código de evento'),
-                        onTap: () {
-                          Navigator.of(ctx).pop();
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const EventJoinCodePage()),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
+      body: Stack(
+        children: [
+          _pages[_index],
+          if (_isFabMenuExpanded)
+            Positioned.fill(
+              child: Semantics(
+                excludeSemantics: true,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => setState(() => _isFabMenuExpanded = false),
+                  child: const SizedBox.expand(),
                 ),
-              );
-            },
-          );
-        },
-        child: const Icon(Icons.add),
+              ),
+            ),
+        ],
+      ),
+      floatingActionButton: AnimatedSize(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        alignment: Alignment.bottomRight,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (_isFabMenuExpanded) ...[
+              _buildFabMenuAction(
+                icon: Icons.event,
+                label: translationsService.translate(
+                  'home.action_create_event',
+                  fallback: 'Crear evento',
+                ),
+                onTap: () {
+                  setState(() => _isFabMenuExpanded = false);
+                  Navigator.of(context).pushNamed(CreateEventPage.routeName);
+                },
+              ),
+              _buildFabMenuAction(
+                icon: Icons.qr_code_scanner,
+                label: translationsService.translate(
+                  'home.action_scan_event_qr',
+                  fallback: 'Escanear QR de evento',
+                ),
+                onTap: () {
+                  setState(() => _isFabMenuExpanded = false);
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const EventJoinScanPage(),
+                    ),
+                  );
+                },
+              ),
+              _buildFabMenuAction(
+                icon: Icons.dialpad,
+                label: translationsService.translate(
+                  'home.action_enter_event_code',
+                  fallback: 'Ingresar código de evento',
+                ),
+                onTap: () {
+                  setState(() => _isFabMenuExpanded = false);
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const EventJoinCodePage(),
+                    ),
+                  );
+                },
+              ),
+            ],
+            FloatingActionButton(
+              key: TutorialKeys.homeFabCreate,
+              onPressed: () => setState(
+                () => _isFabMenuExpanded = !_isFabMenuExpanded,
+              ),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                child: Icon(
+                  _isFabMenuExpanded ? Icons.close : Icons.add,
+                  key: ValueKey(_isFabMenuExpanded),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: NavigationBarTheme(
         data: NavigationBarThemeData(
@@ -220,7 +250,10 @@ class _HomeShellPageState extends State<HomeShellPage> {
         ),
         child: NavigationBar(
           selectedIndex: _index,
-          onDestinationSelected: (i) => setState(() => _index = i),
+          onDestinationSelected: (i) => setState(() {
+            _index = i;
+            _isFabMenuExpanded = false;
+          }),
           destinations: [
             NavigationDestination(
               key: TutorialKeys.homeTabHome,
@@ -235,6 +268,48 @@ class _HomeShellPageState extends State<HomeShellPage> {
               label: translationsService.translate('nav.galleries'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFabMenuAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    final borderRadius = BorderRadius.circular(28);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: ConstrainedBox(
+        constraints:
+            BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width - 32),
+        child: Material(
+          color: Theme.of(context).colorScheme.surface,
+          elevation: 6,
+          borderRadius: borderRadius,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: borderRadius,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, color: OnesColors.purpleMid),
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
