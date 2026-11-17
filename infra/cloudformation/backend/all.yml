@@ -181,6 +181,8 @@ Resources:
           AttributeType: S
         - AttributeName: gsi1sk
           AttributeType: S
+        - AttributeName: eventCode
+          AttributeType: S
       KeySchema:
         - AttributeName: eventId
           KeyType: HASH
@@ -193,6 +195,24 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
+        - IndexName: byEventCode
+          KeySchema:
+            - AttributeName: eventCode
+              KeyType: HASH
+          Projection:
+            ProjectionType: INCLUDE
+            NonKeyAttributes:
+              - ownerId
+              - createdAt
+              - title
+              - objective
+              - location
+              - startAt
+              - endAt
+              - coverKey
+              - allowGuestInvites
+              - inviteLinkEnabled
+              - frameIds
 
   UsersTable:
     Type: AWS::DynamoDB::Table
