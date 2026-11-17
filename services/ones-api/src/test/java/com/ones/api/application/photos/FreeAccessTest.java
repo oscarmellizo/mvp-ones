@@ -1,6 +1,7 @@
 package com.ones.api.application.photos;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -36,12 +37,15 @@ class FreeAccessTest {
         when(event.getEventId()).thenReturn("event");
         when(access.execute("guest", "guest@example.com", "event")).thenReturn(event);
         when(photos.upsert(any())).thenAnswer(call -> call.getArgument(0));
-        var service = new PhotosService(photos, null, access, null, null, null,
+        when(photos.completeUpload(any())).thenAnswer(call -> call.getArgument(0));
+        var service = new PhotosService(photos, null, mock(
+                com.ones.api.application.photos.ports.PhotoProcessingQueue.class), access, null, null, null,
                 mock(com.ones.api.application.users.ports.PreferredNamesCacheRepository.class),
                 null, null, null, null, clock, "photos", 15, false);
         Photo photo = service.complete("guest", "guest@example.com", "event", "photo",
-                Instant.now(), "events/event/guests/guest/photo.jpg");
+                Instant.now(), "eventos/event/guests/guest/private/photo.jpg");
         assertEquals("photo", photo.getPhotoId());
+        assertTrue(photo.isShared());
         verify(photos, never()).countByEventId(any());
     }
 }

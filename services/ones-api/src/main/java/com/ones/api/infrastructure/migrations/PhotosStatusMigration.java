@@ -53,7 +53,12 @@ public class PhotosStatusMigration implements CommandLineRunner {
                             photo.getS3KeySmall(),
                             photo.getOwnerName(),
                             photo.getSharedByUserId(),
-                            photo.getSharedByName()
+                            photo.getSharedByName(),
+                            photo.isShared(),
+                            photo.getProcessingAttempts(),
+                            photo.getProcessingErrorCode(),
+                            photo.getProcessingLeaseUntilEpoch(),
+                            photo.getProcessingRetryAtEpoch()
                         );
                         photosRepository.upsert(updated);
                         count++;

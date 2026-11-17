@@ -34,6 +34,7 @@ class PhotosGalleryController extends ChangeNotifier {
   String? _currentQueryKey;
 
   String? _pendingRefreshEventId;
+  final Map<String, int> _processingRetryRequestedAtAttempts = {};
 
   PhotosGalleryController({required this.api});
 
@@ -59,6 +60,9 @@ class PhotosGalleryController extends ChangeNotifier {
   String? get currentEventId => _currentEventId;
 
   List<EventPhoto> get items => _items;
+
+  bool isProcessingRetryPending(String photoId) =>
+      _processingRetryRequestedAtAttempts.containsKey(photoId);
 
   PhotosGalleryFilter get filter => _filter;
   Set<String> get guestIds => _guestIds;
@@ -163,6 +167,9 @@ class PhotosGalleryController extends ChangeNotifier {
       sharedByUserId: before.sharedByUserId,
       sharedByName: before.sharedByName,
       likedByMe: liked,
+      processingAttempts: before.processingAttempts,
+      processingErrorCode: before.processingErrorCode,
+      processingRetryable: before.processingRetryable,
     );
 
     final list = [..._items];
@@ -240,6 +247,36 @@ class PhotosGalleryController extends ChangeNotifier {
     }
   }
 
+  Future<void> retryProcessing({
+    required String eventId,
+    required EventPhoto photo,
+  }) async {
+    final token = _idToken;
+    if (token == null || token.isEmpty) {
+      _error = StateError('Missing idToken');
+      notifyListeners();
+      return;
+    }
+    if (!photo.processingRetryable || photo.status.toLowerCase() != 'failed') {
+      return;
+    }
+    if (_processingRetryRequestedAtAttempts.containsKey(photo.photoId)) return;
+
+    _processingRetryRequestedAtAttempts[photo.photoId] =
+        photo.processingAttempts;
+    notifyListeners();
+    try {
+      _error = null;
+      await api.retryProcessing(eventId: eventId, photoId: photo.photoId);
+      await refresh(eventId: eventId);
+    } catch (e) {
+      _processingRetryRequestedAtAttempts.remove(photo.photoId);
+      _error = e;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   Future<void> deletePhotos({
     required String eventId,
     required List<String> photoIds,
@@ -299,6 +336,9 @@ class PhotosGalleryController extends ChangeNotifier {
       _loadedOnce = false;
       _nextToken = null;
       _hasMore = true;
+      if (eventChanged) {
+        _processingRetryRequestedAtAttempts.clear();
+      }
     }
 
     final epoch = ++_requestEpoch;
@@ -393,6 +433,13 @@ class PhotosGalleryController extends ChangeNotifier {
       };
 
       final list = merged.values.toList(growable: false);
+      _processingRetryRequestedAtAttempts
+          .removeWhere((photoId, previousAttempts) {
+        final updated = merged[photoId];
+        if (updated == null) return true;
+        return updated.status.toLowerCase() != 'failed' ||
+            updated.processingAttempts > previousAttempts;
+      });
       list.sort((a, b) {
         final ad = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
         final bd = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -402,7 +449,8 @@ class PhotosGalleryController extends ChangeNotifier {
       if (kDebugMode && list.isNotEmpty) {
         final sample = list
             .take(5)
-            .map((p) => 'photoId=${p.photoId} createdAt=${p.createdAt?.toIso8601String() ?? '-'} uploadedAt=${p.uploadedAt?.toIso8601String() ?? '-'}')
+            .map((p) =>
+                'photoId=${p.photoId} createdAt=${p.createdAt?.toIso8601String() ?? '-'} uploadedAt=${p.uploadedAt?.toIso8601String() ?? '-'}')
             .join(' | ');
         debugPrint('gallery_sorted_top: $sample');
       }
@@ -498,7 +546,8 @@ class PhotosGalleryController extends ChangeNotifier {
       if (kDebugMode && list.isNotEmpty) {
         final sample = list
             .take(5)
-            .map((p) => 'photoId=${p.photoId} createdAt=${p.createdAt?.toIso8601String() ?? '-'} uploadedAt=${p.uploadedAt?.toIso8601String() ?? '-'}')
+            .map((p) =>
+                'photoId=${p.photoId} createdAt=${p.createdAt?.toIso8601String() ?? '-'} uploadedAt=${p.uploadedAt?.toIso8601String() ?? '-'}')
             .join(' | ');
         debugPrint('gallery_sorted_top_more: $sample');
       }
@@ -575,6 +624,9 @@ class PhotosGalleryController extends ChangeNotifier {
         sharedByUserId: it.sharedByUserId,
         sharedByName: it.sharedByName,
         likedByMe: it.likedByMe,
+        processingAttempts: it.processingAttempts,
+        processingErrorCode: it.processingErrorCode,
+        processingRetryable: it.processingRetryable,
       );
     }
 

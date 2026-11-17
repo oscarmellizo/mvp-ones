@@ -9,6 +9,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Optional;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +23,7 @@ import com.ones.api.application.events.ports.ObjectStorage;
 import com.ones.api.application.events.ports.ObjectStoragePresigner;
 import com.ones.api.application.photos.ports.PhotosRepository;
 import com.ones.api.application.photos.ports.PhotoLikesRepository;
+import com.ones.api.application.photos.ports.PhotoProcessingQueue;
 import com.ones.api.application.users.ports.PreferredNamesCacheRepository;
 import com.ones.api.application.users.GetUserByIdUseCase;
 import com.ones.api.domain.events.Event;
@@ -35,6 +38,7 @@ public class PhotosService {
 
     private final PhotosRepository photosRepository;
     private final PhotoLikesRepository photoLikesRepository;
+    private final PhotoProcessingQueue photoProcessingQueue;
     private final GetEventUseCase getEventUseCase;
     private final EventsRepository eventsRepository;
     private final com.ones.api.application.invitations.ports.InvitationsRepository invitationsRepository;
@@ -53,6 +57,7 @@ public class PhotosService {
     public PhotosService(
             PhotosRepository photosRepository,
             PhotoLikesRepository photoLikesRepository,
+            PhotoProcessingQueue photoProcessingQueue,
             GetEventUseCase getEventUseCase,
             EventsRepository eventsRepository,
             com.ones.api.application.invitations.ports.InvitationsRepository invitationsRepository,
@@ -69,6 +74,7 @@ public class PhotosService {
     ) {
         this.photosRepository = photosRepository;
         this.photoLikesRepository = photoLikesRepository;
+        this.photoProcessingQueue = photoProcessingQueue;
         this.getEventUseCase = getEventUseCase;
         this.eventsRepository = eventsRepository;
         this.invitationsRepository = invitationsRepository;
@@ -124,6 +130,10 @@ public class PhotosService {
         require(s3KeyOriginal, "s3KeyOriginal");
 
         Event event = getEventUseCase.execute(requesterUserId, requesterEmail, eventId);
+        String expectedKey = originalKey(event.getEventId(), requesterUserId, photoId);
+        if (!expectedKey.equals(s3KeyOriginal.trim())) {
+            throw new IllegalArgumentException("Invalid photo upload key");
+        }
 
         Instant now = Instant.now(clock);
         Instant resolvedCreatedAt = createdAt != null ? createdAt : now;
@@ -141,11 +151,31 @@ public class PhotosService {
                 null,
                 null,
                 ownerName,
-                null,
-                null
+                requesterUserId,
+                ownerName,
+                true
         );
 
-        return photosRepository.upsert(photo);
+        Photo completed = photosRepository.completeUpload(photo);
+        if ("uploaded".equalsIgnoreCase(completed.getStatus())) {
+            try {
+                photoProcessingQueue.enqueue(new PhotoProcessingQueue.Job(
+                        completed.getEventId(),
+                        completed.getPhotoId(),
+                        completed.getS3KeyOriginal(),
+                        false,
+                        UUID.randomUUID().toString()
+                ));
+            } catch (RuntimeException e) {
+                log.warn(
+                        "photo_processing_enqueue_failed eventId={} photoId={} error={}",
+                        completed.getEventId(),
+                        completed.getPhotoId(),
+                        e.getClass().getSimpleName()
+                );
+            }
+        }
+        return completed;
     }
 
     public ListPage list(
@@ -316,7 +346,11 @@ public class PhotosService {
                             ownerName,
                             p.getSharedByUserId(),
                             sharedByName,
-                            likedByMe.contains(p.getPhotoId() != null ? p.getPhotoId().trim() : "")
+                            likedByMe.contains(p.getPhotoId() != null ? p.getPhotoId().trim() : ""),
+                            p.getProcessingAttempts(),
+                            p.getProcessingErrorCode(),
+                            "failed".equalsIgnoreCase(p.getStatus())
+                                    && isProcessingErrorRetryable(p.getProcessingErrorCode())
                     ));
                 }
             }
@@ -483,7 +517,11 @@ public class PhotosService {
                             ownerName,
                             p.getSharedByUserId(),
                             sharedByName,
-                            likedByMe.contains(p.getPhotoId() != null ? p.getPhotoId().trim() : "")
+                            likedByMe.contains(p.getPhotoId() != null ? p.getPhotoId().trim() : ""),
+                            p.getProcessingAttempts(),
+                            p.getProcessingErrorCode(),
+                            "failed".equalsIgnoreCase(p.getStatus())
+                                    && isProcessingErrorRetryable(p.getProcessingErrorCode())
                     ));
                 }
             }
@@ -631,7 +669,12 @@ public class PhotosService {
                         existing.getS3KeySmall(),
                         ownerName,
                         nextSharedByUserId,
-                        nextSharedByName
+                        nextSharedByName,
+                        existing.isShared(),
+                        existing.getProcessingAttempts(),
+                        existing.getProcessingErrorCode(),
+                        existing.getProcessingLeaseUntilEpoch(),
+                        existing.getProcessingRetryAtEpoch()
                 );
 
                 updated.add(photosRepository.upsert(next));
@@ -674,7 +717,12 @@ public class PhotosService {
                     nextSmall,
                     ownerName,
                     requesterUserId,
-                    sharedByName
+                    sharedByName,
+                    true,
+                    existing.getProcessingAttempts(),
+                    existing.getProcessingErrorCode(),
+                    existing.getProcessingLeaseUntilEpoch(),
+                    existing.getProcessingRetryAtEpoch()
             );
 
             updated.add(photosRepository.upsert(next));
@@ -737,12 +785,43 @@ public class PhotosService {
                             existing.getS3KeySmall(),
                             existing.getOwnerName(),
                             null,
-                            null
+                            null,
+                            false,
+                            existing.getProcessingAttempts(),
+                            existing.getProcessingErrorCode(),
+                            existing.getProcessingLeaseUntilEpoch(),
+                            existing.getProcessingRetryAtEpoch()
                     );
                     updated.add(photosRepository.upsert(next));
                 } else {
                     updated.add(existing);
                 }
+                continue;
+            }
+
+            if (!isSharedKey(existing.getS3KeyOriginal())
+                    && !isSharedKey(existing.getS3KeyMedium())
+                    && !isSharedKey(existing.getS3KeySmall())) {
+                Photo next = new Photo(
+                        existing.getPhotoId(),
+                        existing.getEventId(),
+                        existing.getGuestId(),
+                        existing.getCreatedAt(),
+                        existing.getUploadedAt(),
+                        existing.getStatus(),
+                        existing.getS3KeyOriginal(),
+                        existing.getS3KeyMedium(),
+                        existing.getS3KeySmall(),
+                        existing.getOwnerName(),
+                        null,
+                        null,
+                        false,
+                        existing.getProcessingAttempts(),
+                        existing.getProcessingErrorCode(),
+                        existing.getProcessingLeaseUntilEpoch(),
+                        existing.getProcessingRetryAtEpoch()
+                );
+                updated.add(photosRepository.upsert(next));
                 continue;
             }
 
@@ -790,7 +869,12 @@ public class PhotosService {
                     destSmall,
                     ownerName,
                     null,
-                    null
+                    null,
+                    false,
+                    existing.getProcessingAttempts(),
+                    existing.getProcessingErrorCode(),
+                    existing.getProcessingLeaseUntilEpoch(),
+                    existing.getProcessingRetryAtEpoch()
             );
 
             updated.add(photosRepository.upsert(next));
@@ -828,7 +912,8 @@ public class PhotosService {
                     s3KeySmall,
                     ownerName,
                     null,
-                    null
+                    null,
+                    false
             );
             return photosRepository.upsert(created);
         }
@@ -850,7 +935,12 @@ public class PhotosService {
                 s3KeySmall != null && !s3KeySmall.isBlank() ? s3KeySmall.trim() : existing.getS3KeySmall(),
                 ownerName,
                 existing.getSharedByUserId(),
-                existing.getSharedByName()
+                existing.getSharedByName(),
+                existing.isShared(),
+                existing.getProcessingAttempts(),
+                null,
+                null,
+                null
         );
 
         return photosRepository.upsert(updated);
@@ -906,61 +996,197 @@ public class PhotosService {
         return new SocialShareLink(res.url(), res.expiresAt());
     }
 
-    public Photo markReadyInternal(String eventId, String photoId, String s3KeyMedium, String s3KeySmall) {
+    public Photo markReadyInternal(
+            String eventId,
+            String photoId,
+            String s3KeyOriginal,
+            String s3KeyMedium,
+            String s3KeySmall
+    ) {
         require(eventId, "eventId");
         require(photoId, "photoId");
+        require(s3KeyOriginal, "s3KeyOriginal");
+        if (!matchesOriginalKey(eventId, photoId, s3KeyOriginal)) {
+            throw new IllegalArgumentException("Invalid photo upload key");
+        }
 
         Event event = eventsRepository.findById(eventId.trim()).orElse(null);
         if (event == null) {
             throw new IllegalArgumentException("Missing event");
         }
 
-        Photo existing = photosRepository.findById(photoId).orElse(null);
         Instant now = Instant.now(clock);
+        return photosRepository.markReadyInternal(
+                event.getEventId(),
+                photoId,
+                s3KeyOriginal.trim(),
+                s3KeyMedium,
+                s3KeySmall,
+                now
+        );
+    }
 
-        if (existing != null && !eventId.trim().equals(existing.getEventId())) {
-            throw new IllegalArgumentException("Photo does not belong to event");
-        }
+    public PhotosRepository.ProcessingClaim claimProcessingInternal(
+            String eventId,
+            String photoId,
+            String s3KeyOriginal,
+            boolean manualRetry
+    ) {
+        require(eventId, "eventId");
+        require(photoId, "photoId");
+        require(s3KeyOriginal, "s3KeyOriginal");
 
-        if (existing == null) {
-            Photo created = new Photo(
-                    photoId,
-                    event.getEventId(),
-                    "internal",
-                    now,
-                    now,
-                    "ready",
-                    null,
-                    s3KeyMedium,
-                    s3KeySmall,
-                    null,
-                    null,
+        if (!matchesOriginalKey(eventId, photoId, s3KeyOriginal)) {
+            return new PhotosRepository.ProcessingClaim(
+                    PhotosRepository.ProcessingClaimStatus.CONFLICT,
                     null
             );
-            return photosRepository.upsert(created);
+        }
+        if (eventsRepository.findById(eventId.trim()).isEmpty()) {
+            return new PhotosRepository.ProcessingClaim(
+                    PhotosRepository.ProcessingClaimStatus.NOT_FOUND,
+                    null
+            );
         }
 
-        String ownerName = existing.getOwnerName();
-        if (ownerName == null || ownerName.isBlank()) {
-            ownerName = resolvePreferredName(existing.getGuestId(), null);
-        }
-
-        Photo updated = new Photo(
-                existing.getPhotoId(),
-                existing.getEventId(),
-                existing.getGuestId(),
-                existing.getCreatedAt(),
-                existing.getUploadedAt(),
-                "ready",
-                existing.getS3KeyOriginal(),
-                s3KeyMedium != null && !s3KeyMedium.isBlank() ? s3KeyMedium.trim() : existing.getS3KeyMedium(),
-                s3KeySmall != null && !s3KeySmall.isBlank() ? s3KeySmall.trim() : existing.getS3KeySmall(),
-                ownerName,
-                existing.getSharedByUserId(),
-                existing.getSharedByName()
+        Instant now = Instant.now(clock);
+        return photosRepository.claimProcessing(
+                eventId.trim(),
+                photoId.trim(),
+                s3KeyOriginal.trim(),
+                manualRetry,
+                now,
+                now.plus(Duration.ofMinutes(3))
         );
+    }
 
-        return photosRepository.upsert(updated);
+    public Optional<Photo> markProcessingRetryingInternal(
+            String eventId,
+            String photoId,
+            String s3KeyOriginal,
+            String errorCode,
+            Instant retryAt
+    ) {
+        require(eventId, "eventId");
+        require(photoId, "photoId");
+        require(s3KeyOriginal, "s3KeyOriginal");
+        if (!matchesOriginalKey(eventId, photoId, s3KeyOriginal)) {
+            return Optional.empty();
+        }
+        Optional<Photo> updated = photosRepository.markProcessingRetrying(
+                eventId.trim(),
+                photoId.trim(),
+                s3KeyOriginal.trim(),
+                safeProcessingErrorCode(errorCode),
+                retryAt != null ? retryAt : Instant.now(clock)
+        );
+        updated.filter(photo -> "retrying".equalsIgnoreCase(photo.getStatus()))
+                .ifPresent(photo -> log.warn(
+                        "photo_processing_retry eventId={} photoId={} attempt={} errorCode={}",
+                        eventId,
+                        photoId,
+                        photo.getProcessingAttempts(),
+                        photo.getProcessingErrorCode()
+                ));
+        return updated;
+    }
+
+    public Optional<Photo> markProcessingFailedInternal(
+            String eventId,
+            String photoId,
+            String s3KeyOriginal,
+            String errorCode
+    ) {
+        require(eventId, "eventId");
+        require(photoId, "photoId");
+        require(s3KeyOriginal, "s3KeyOriginal");
+        if (!matchesOriginalKey(eventId, photoId, s3KeyOriginal)) {
+            return Optional.empty();
+        }
+        Optional<Photo> updated = photosRepository.markProcessingFailed(
+                eventId.trim(),
+                photoId.trim(),
+                s3KeyOriginal.trim(),
+                safeProcessingErrorCode(errorCode)
+        );
+        updated.filter(photo -> "failed".equalsIgnoreCase(photo.getStatus()))
+                .ifPresent(photo -> log.warn(
+                        "photo_processing_failed eventId={} photoId={} attempt={} errorCode={}",
+                        eventId,
+                        photoId,
+                        photo.getProcessingAttempts(),
+                        photo.getProcessingErrorCode()
+                ));
+        return updated;
+    }
+
+    public RetryProcessingResult retryFailedProcessing(
+            String requesterUserId,
+            String requesterEmail,
+            String eventId,
+            String photoId
+    ) {
+        require(eventId, "eventId");
+        require(photoId, "photoId");
+        getEventUseCase.execute(requesterUserId, requesterEmail, eventId);
+
+        Photo photo = photosRepository.findById(photoId.trim())
+                .orElseThrow(() -> new PhotoNotFoundException(photoId));
+        if (!eventId.equals(photo.getEventId())) {
+            throw new PhotoNotFoundException(photoId);
+        }
+        if (!requesterUserId.equals(photo.getGuestId())) {
+            throw new PhotoNotOwnedException(photoId);
+        }
+        if (!"failed".equalsIgnoreCase(photo.getStatus())
+                || !isProcessingErrorRetryable(photo.getProcessingErrorCode())) {
+            throw new IllegalArgumentException("Photo processing is not retryable");
+        }
+        require(photo.getS3KeyOriginal(), "s3KeyOriginal");
+
+        photoProcessingQueue.enqueue(new PhotoProcessingQueue.Job(
+                eventId,
+                photo.getPhotoId(),
+                photo.getS3KeyOriginal(),
+                true,
+                UUID.randomUUID().toString()
+        ));
+        photosRepository.markRetryRequested(eventId, photo.getPhotoId());
+        return new RetryProcessingResult(photo.getPhotoId(), "retrying");
+    }
+
+    private static boolean matchesOriginalKey(String eventId, String photoId, String key) {
+        if (key == null || key.isBlank()) return false;
+        String[] parts = key.trim().split("/");
+        return parts.length == 6
+                && "eventos".equals(parts[0])
+                && eventId.trim().equals(parts[1])
+                && "guests".equals(parts[2])
+                && !parts[3].isBlank()
+                && "private".equals(parts[4])
+                && (photoId.trim() + ".jpg").equals(parts[5]);
+    }
+
+    private static String safeProcessingErrorCode(String raw) {
+        if (raw == null || raw.isBlank()) return "processing_failed";
+        String code = raw.trim().toLowerCase();
+        return Set.of(
+                "invalid_image",
+                "source_missing",
+                "invalid_key",
+                "s3_unavailable",
+                "backend_unavailable",
+                "throttled",
+                "processing_timeout",
+                "retry_exhausted",
+                "processing_failed"
+        ).contains(code) ? code : "processing_failed";
+    }
+
+    private static boolean isProcessingErrorRetryable(String errorCode) {
+        return !"invalid_image".equals(errorCode)
+                && !"source_missing".equals(errorCode)
+                && !"invalid_key".equals(errorCode);
     }
 
     public void deletePhotos(
@@ -1042,6 +1268,9 @@ public class PhotosService {
     public record SocialShareLink(String url, Instant expiresAt) {
     }
 
+    public record RetryProcessingResult(String photoId, String status) {
+    }
+
     private static String originalKey(String eventId, String guestId, String photoId) {
         return "eventos/" + eventId + "/guests/" + guestId + "/private/" + photoId + ".jpg";
     }
@@ -1054,7 +1283,10 @@ public class PhotosService {
         if (p == null) {
             return false;
         }
-        return isSharedKey(p.getS3KeyOriginal()) || isSharedKey(p.getS3KeyMedium()) || isSharedKey(p.getS3KeySmall());
+        return p.isShared()
+                || isSharedKey(p.getS3KeyOriginal())
+                || isSharedKey(p.getS3KeyMedium())
+                || isSharedKey(p.getS3KeySmall());
     }
 
     private static boolean isSharedKey(String key) {
@@ -1184,7 +1416,10 @@ public class PhotosService {
             String ownerName,
             String sharedByUserId,
             String sharedByName,
-            boolean likedByMe
+            boolean likedByMe,
+            int processingAttempts,
+            String processingErrorCode,
+            boolean processingRetryable
     ) {
     }
 }

@@ -21,6 +21,7 @@ import '../../../../core/ui/widgets/ones_text_field.dart';
 import '../../../auth/presentation/auth_controller.dart';
 import '../../../photos/presentation/pages/photo_viewer_page.dart';
 import '../../../photos/adapters/api/event_photos_api.dart';
+import '../../../photos/presentation/photo_processing_failure_overlay.dart';
 import '../../../photos/presentation/photos_gallery_controller.dart';
 import '../../../photos/presentation/photos_upload_controller.dart';
 import '../../../photos/presentation/photos_ws_controller.dart';
@@ -89,6 +90,11 @@ class _EventDetailPageState extends State<EventDetailPage> {
     'event_detail.action_apply',
     'event_detail.photo_processing',
     'event_detail.processing',
+    'event_detail.processing_failed',
+    'event_detail.processing_retry',
+    'event_detail.processing_retry_queued',
+    'event_detail.processing_retrying',
+    'event_detail.processing_upload_again',
     'event_detail.shared',
     'event_detail.guest',
     'event_detail.action_cancel',
@@ -228,7 +234,8 @@ class _EventDetailPageState extends State<EventDetailPage> {
       });
     }
     final selected = controller.selected;
-    final event = selected != null && selected.id == widget.eventId ? selected : null;
+    final event =
+        selected != null && selected.id == widget.eventId ? selected : null;
     final currentUserId = auth.user?.userId;
 
     final deepLinkPhotoId = widget.initialPhotoId;
@@ -251,8 +258,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
             backgroundColor: OnesColors.background,
             floatingActionButton: AnimatedPadding(
               duration: const Duration(milliseconds: 200),
-              padding: EdgeInsets.only(
-                  bottom: _gallerySelecting ? 68.0 : 0.0),
+              padding: EdgeInsets.only(bottom: _gallerySelecting ? 68.0 : 0.0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -330,7 +336,8 @@ class _EventDetailPageState extends State<EventDetailPage> {
                                 ),
                                 const SizedBox(height: 12),
                                 FilledButton.tonal(
-                                  onPressed: () => controller.select(widget.eventId),
+                                  onPressed: () =>
+                                      controller.select(widget.eventId),
                                   child: Text(
                                     t.translate(
                                       'event_detail.action_retry',
@@ -385,8 +392,8 @@ class _EventDetailPageState extends State<EventDetailPage> {
                               child: ClipRect(
                                 child: _tabIndex == 0
                                     ? _GalleryTab(
-                                        key:
-                                            ValueKey('gallery:${widget.eventId}'),
+                                        key: ValueKey(
+                                            'gallery:${widget.eventId}'),
                                         eventId: widget.eventId,
                                         currentUserId: currentUserId,
                                         isOwner:
@@ -401,7 +408,8 @@ class _EventDetailPageState extends State<EventDetailPage> {
                                           });
                                         },
                                         onSelectionChanged: (selecting) {
-                                          if (_gallerySelecting == selecting) return;
+                                          if (_gallerySelecting == selecting)
+                                            return;
                                           setState(() {
                                             _gallerySelecting = selecting;
                                           });
@@ -483,7 +491,6 @@ class _GalleryTabState extends State<_GalleryTab> {
 
   int _autoFillLoadMoreAttempts = 0;
   String? _autoFillEventId;
-
 
   Future<List<EventGuest>>? _guestsFuture;
 
@@ -704,10 +711,12 @@ class _GalleryTabState extends State<_GalleryTab> {
     // Skip refresh if the photo is already in the gallery with thumbnails ready.
     final gallery = context.read<PhotosGalleryController>();
     if (gallery.currentEventId == widget.eventId) {
-      final existing = gallery.items.where((p) => p.photoId == photoId).firstOrNull;
+      final existing =
+          gallery.items.where((p) => p.photoId == photoId).firstOrNull;
       if (existing != null) {
         final status = existing.status.trim().toLowerCase();
-        final hasThumb = existing.smallUrl != null && existing.smallUrl!.trim().isNotEmpty;
+        final hasThumb =
+            existing.smallUrl != null && existing.smallUrl!.trim().isNotEmpty;
         if (status == 'ready' || hasThumb) return;
       }
     }
@@ -718,7 +727,6 @@ class _GalleryTabState extends State<_GalleryTab> {
       context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
     });
   }
-
 
   void _exitSelectionMode() {
     if (!_selecting && _selectedIds.isEmpty) return;
@@ -866,8 +874,7 @@ class _GalleryTabState extends State<_GalleryTab> {
         const SizedBox(width: 8),
         Expanded(
           child: FilledButton.tonal(
-            onPressed: (controller.loading ||
-                    _selectedIds.length != 1)
+            onPressed: (controller.loading || _selectedIds.length != 1)
                 ? null
                 : () async {
                     final messenger = ScaffoldMessenger.of(context);
@@ -1002,6 +1009,35 @@ class _GalleryTabState extends State<_GalleryTab> {
     return photoOwnerId == me;
   }
 
+  Future<void> _retryPhotoProcessing(
+    PhotosGalleryController gallery,
+    EventPhoto photo,
+    TranslationsService t,
+  ) async {
+    try {
+      await gallery.retryProcessing(eventId: widget.eventId, photo: photo);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(t.translate(
+            'event_detail.processing_retry_queued',
+            fallback: 'Reintento en cola',
+          )),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(t.translate(
+            'event_detail.error_update_failed',
+            fallback: 'No se pudo solicitar el reintento',
+          )),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<PhotosGalleryController>();
@@ -1009,7 +1045,8 @@ class _GalleryTabState extends State<_GalleryTab> {
     final t = context.watch<TranslationsService>();
 
     final isCurrentEvent = controller.currentEventId == widget.eventId;
-    final remoteItems = isCurrentEvent ? controller.items : const <EventPhoto>[];
+    final remoteItems =
+        isCurrentEvent ? controller.items : const <EventPhoto>[];
 
     final deepLinkPhotoId = widget.initialPhotoId;
     if (!widget.openedInitialPhoto &&
@@ -1026,7 +1063,8 @@ class _GalleryTabState extends State<_GalleryTab> {
           final gallery = context.read<PhotosGalleryController>();
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => ChangeNotifierProvider<PhotosGalleryController>.value(
+              builder: (_) =>
+                  ChangeNotifierProvider<PhotosGalleryController>.value(
                 value: gallery,
                 child: PhotoViewerPage(
                   eventId: widget.eventId,
@@ -1088,7 +1126,6 @@ class _GalleryTabState extends State<_GalleryTab> {
       });
     }
 
-
     final allPhotoIds = <String>{
       ...remoteById.keys,
       ...localPathById.keys,
@@ -1115,7 +1152,8 @@ class _GalleryTabState extends State<_GalleryTab> {
       final hasProcessing = remoteItems.any((p) {
         final s = p.status.trim().toLowerCase();
         final noThumb = p.smallUrl == null || p.smallUrl!.trim().isEmpty;
-        return noThumb && (s == 'processing' || s == 'uploaded');
+        return noThumb &&
+            (s == 'processing' || s == 'uploaded' || s == 'retrying');
       });
       if (hasProcessing && _processingRecheckTimer == null) {
         _processingRecheckTimer = Timer(const Duration(seconds: 8), () {
@@ -1238,296 +1276,323 @@ class _GalleryTabState extends State<_GalleryTab> {
                           color: OnesColors.white,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: _buildTopSelectionActionsBar(
-                            context, controller),
+                        child:
+                            _buildTopSelectionActionsBar(context, controller),
                       )
                     : Row(
-                  children: [
-                    Expanded(
-                      child: SegmentedButton<PhotosGalleryFilter>(
-                        segments: <ButtonSegment<PhotosGalleryFilter>>[
-                          ButtonSegment(
-                            value: PhotosGalleryFilter.all,
-                            label: KeyedSubtree(
-                              key: TutorialKeys.eventFilterAll,
-                              child: Tooltip(
-                                message: t.translate(
-                                  'event_detail.filter_all',
-                                  fallback: 'Todas',
-                                ),
-                                child: Semantics(
-                                  label: t.translate(
-                                    'event_detail.filter_all',
-                                    fallback: 'Todas',
-                                  ),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.photo_library_outlined),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        t.translate('event_detail.filter_all', fallback: 'Todas'),
-                                        style: const TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w800,
-                                          height: 1.1,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        textAlign: TextAlign.center,
+                        children: [
+                          Expanded(
+                            child: SegmentedButton<PhotosGalleryFilter>(
+                              segments: <ButtonSegment<PhotosGalleryFilter>>[
+                                ButtonSegment(
+                                  value: PhotosGalleryFilter.all,
+                                  label: KeyedSubtree(
+                                    key: TutorialKeys.eventFilterAll,
+                                    child: Tooltip(
+                                      message: t.translate(
+                                        'event_detail.filter_all',
+                                        fallback: 'Todas',
                                       ),
-                                    ],
+                                      child: Semantics(
+                                        label: t.translate(
+                                          'event_detail.filter_all',
+                                          fallback: 'Todas',
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                                Icons.photo_library_outlined),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              t.translate(
+                                                  'event_detail.filter_all',
+                                                  fallback: 'Todas'),
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w800,
+                                                height: 1.1,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
+                                ButtonSegment(
+                                  value: PhotosGalleryFilter.sharedByMe,
+                                  label: KeyedSubtree(
+                                    key: TutorialKeys.eventFilterShared,
+                                    child: Tooltip(
+                                      message: t.translate(
+                                        'event_detail.filter_shared',
+                                        fallback: 'Compartidas',
+                                      ),
+                                      child: Semantics(
+                                        label: t.translate(
+                                          'event_detail.filter_shared',
+                                          fallback: 'Compartidas',
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                                Icons.ios_share_outlined),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              t.translate(
+                                                  'event_detail.filter_shared',
+                                                  fallback: 'Compartidas'),
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w800,
+                                                height: 1.1,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                ButtonSegment(
+                                  value: PhotosGalleryFilter.mine,
+                                  label: KeyedSubtree(
+                                    key: TutorialKeys.eventFilterMine,
+                                    child: Tooltip(
+                                      message: t.translate(
+                                        'event_detail.filter_mine',
+                                        fallback: 'M├¡as',
+                                      ),
+                                      child: Semantics(
+                                        label: t.translate(
+                                          'event_detail.filter_mine',
+                                          fallback: 'M├¡as',
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(Icons.person_outline),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              t.translate(
+                                                  'event_detail.filter_mine',
+                                                  fallback: 'M├¡as'),
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w800,
+                                                height: 1.1,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              selected: <PhotosGalleryFilter>{
+                                controller.filter
+                              },
+                              showSelectedIcon: false,
+                              onSelectionChanged: (value) async {
+                                final next = value.isEmpty
+                                    ? PhotosGalleryFilter.all
+                                    : value.first;
+                                controller.setFilter(next);
+                                controller.setGuestIds(<String>{});
+                                await controller.refresh(
+                                    eventId: widget.eventId);
+                              },
                             ),
                           ),
-                          ButtonSegment(
-                            value: PhotosGalleryFilter.sharedByMe,
-                            label: KeyedSubtree(
-                              key: TutorialKeys.eventFilterShared,
-                              child: Tooltip(
-                                message: t.translate(
-                                  'event_detail.filter_shared',
-                                  fallback: 'Compartidas',
-                                ),
-                                child: Semantics(
-                                  label: t.translate(
-                                    'event_detail.filter_shared',
-                                    fallback: 'Compartidas',
-                                  ),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.ios_share_outlined),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        t.translate('event_detail.filter_shared', fallback: 'Compartidas'),
-                                        style: const TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w800,
-                                          height: 1.1,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                          const SizedBox(width: 10),
+                          FilledButton.tonal(
+                            key: TutorialKeys.eventFilterGuests,
+                            onPressed: controller.filter !=
+                                    PhotosGalleryFilter.all
+                                ? null
+                                : () async {
+                                    final guests = await _guestsFuture;
+                                    if (!context.mounted) return;
+                                    if (guests == null || guests.isEmpty)
+                                      return;
+
+                                    final initial = controller.guestIds;
+                                    final selected =
+                                        await showModalBottomSheet<Set<String>>(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      builder: (ctx) {
+                                        final tmp = <String>{...initial};
+                                        return StatefulBuilder(
+                                          builder: (ctx, setModalState) {
+                                            return SafeArea(
+                                              child: Padding(
+                                                padding:
+                                                    const EdgeInsets.fromLTRB(
+                                                        16, 12, 16, 12),
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Text(
+                                                      t.translate(
+                                                        'event_detail.guests_title',
+                                                        fallback: 'Invitados',
+                                                      ),
+                                                      style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.w900,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    Flexible(
+                                                      child: ListView.builder(
+                                                        shrinkWrap: true,
+                                                        itemCount:
+                                                            guests.length,
+                                                        itemBuilder: (ctx, i) {
+                                                          final g = guests[i];
+                                                          final title = (g.displayName !=
+                                                                      null &&
+                                                                  g.displayName!
+                                                                      .trim()
+                                                                      .isNotEmpty)
+                                                              ? g.displayName!
+                                                                  .trim()
+                                                              : (g.email ??
+                                                                  '-');
+
+                                                          final gid =
+                                                              g.userId ?? '';
+                                                          final enabled =
+                                                              gid.isNotEmpty;
+                                                          final checked =
+                                                              tmp.contains(gid);
+
+                                                          return CheckboxListTile(
+                                                            value: checked,
+                                                            onChanged: !enabled
+                                                                ? null
+                                                                : (v) {
+                                                                    setModalState(
+                                                                        () {
+                                                                      if (v ==
+                                                                          true) {
+                                                                        tmp.add(
+                                                                            gid);
+                                                                      } else {
+                                                                        tmp.remove(
+                                                                            gid);
+                                                                      }
+                                                                    });
+                                                                  },
+                                                            title: Text(title),
+                                                            subtitle: g.email !=
+                                                                    null
+                                                                ? Text(g.email!)
+                                                                : null,
+                                                          );
+                                                        },
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    Row(
+                                                      children: [
+                                                        TextButton(
+                                                          onPressed: () {
+                                                            Navigator.of(ctx)
+                                                                .pop(
+                                                                    <String>{});
+                                                          },
+                                                          child: Text(
+                                                            t.translate(
+                                                              'event_detail.action_clear',
+                                                              fallback: 'Clear',
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        const Spacer(),
+                                                        FilledButton(
+                                                          onPressed: () {
+                                                            Navigator.of(ctx)
+                                                                .pop(tmp);
+                                                          },
+                                                          child: Text(
+                                                            t.translate(
+                                                              'event_detail.action_apply',
+                                                              fallback: 'Apply',
+                                                            ),
+                                                          ),
+                                                        )
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        );
+                                      },
+                                    );
+
+                                    if (selected == null) return;
+                                    controller.setGuestIds(selected);
+                                    await controller.refresh(
+                                        eventId: widget.eventId);
+                                  },
+                            style: FilledButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
                               ),
+                              minimumSize: const Size(48, 44),
                             ),
-                          ),
-                          ButtonSegment(
-                            value: PhotosGalleryFilter.mine,
-                            label: KeyedSubtree(
-                              key: TutorialKeys.eventFilterMine,
-                              child: Tooltip(
-                                message: t.translate(
-                                  'event_detail.filter_mine',
-                                  fallback: 'M├¡as',
+                            child: Tooltip(
+                              message: t.translate(
+                                'event_detail.guests',
+                                fallback: 'Invitados',
+                              ),
+                              child: Semantics(
+                                label: t.translate(
+                                  'event_detail.guests',
+                                  fallback: 'Invitados',
                                 ),
-                                child: Semantics(
-                                  label: t.translate(
-                                    'event_detail.filter_mine',
-                                    fallback: 'M├¡as',
-                                  ),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.person_outline),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        t.translate('event_detail.filter_mine', fallback: 'M├¡as'),
-                                        style: const TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w800,
-                                          height: 1.1,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        textAlign: TextAlign.center,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.groups_outlined),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      t.translate('event_detail.guests',
+                                          fallback: 'Invitados'),
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        height: 1.1,
                                       ),
-                                    ],
-                                  ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
                           ),
                         ],
-                        selected: <PhotosGalleryFilter>{controller.filter},
-                        showSelectedIcon: false,
-                        onSelectionChanged: (value) async {
-                          final next = value.isEmpty
-                              ? PhotosGalleryFilter.all
-                              : value.first;
-                          controller.setFilter(next);
-                          controller.setGuestIds(<String>{});
-                          await controller.refresh(eventId: widget.eventId);
-                        },
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    FilledButton.tonal(
-                      key: TutorialKeys.eventFilterGuests,
-                      onPressed: controller.filter != PhotosGalleryFilter.all
-                          ? null
-                          : () async {
-                              final guests = await _guestsFuture;
-                              if (!context.mounted) return;
-                              if (guests == null || guests.isEmpty) return;
-
-                              final initial = controller.guestIds;
-                              final selected =
-                                  await showModalBottomSheet<Set<String>>(
-                                context: context,
-                                isScrollControlled: true,
-                                builder: (ctx) {
-                                  final tmp = <String>{...initial};
-                                  return StatefulBuilder(
-                                    builder: (ctx, setModalState) {
-                                      return SafeArea(
-                                        child: Padding(
-                                          padding: const EdgeInsets.fromLTRB(
-                                              16, 12, 16, 12),
-                                          child: Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Text(
-                                                t.translate(
-                                                  'event_detail.guests_title',
-                                                  fallback: 'Invitados',
-                                                ),
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.w900,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              Flexible(
-                                                child: ListView.builder(
-                                                  shrinkWrap: true,
-                                                  itemCount: guests.length,
-                                                  itemBuilder: (ctx, i) {
-                                                    final g = guests[i];
-                                                    final title = (g.displayName !=
-                                                                null &&
-                                                            g.displayName!
-                                                                .trim()
-                                                                .isNotEmpty)
-                                                        ? g.displayName!.trim()
-                                                        : (g.email ?? '-');
-
-                                                    final gid = g.userId ?? '';
-                                                    final enabled =
-                                                        gid.isNotEmpty;
-                                                    final checked =
-                                                        tmp.contains(gid);
-
-                                                    return CheckboxListTile(
-                                                      value: checked,
-                                                      onChanged: !enabled
-                                                          ? null
-                                                          : (v) {
-                                                              setModalState(() {
-                                                                if (v == true) {
-                                                                  tmp.add(gid);
-                                                                } else {
-                                                                  tmp.remove(gid);
-                                                                }
-                                                              });
-                                                            },
-                                                      title: Text(title),
-                                                      subtitle: g.email != null
-                                                          ? Text(g.email!)
-                                                          : null,
-                                                    );
-                                                  },
-                                                ),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              Row(
-                                                children: [
-                                                  TextButton(
-                                                    onPressed: () {
-                                                      Navigator.of(ctx)
-                                                          .pop(<String>{});
-                                                    },
-                                                    child: Text(
-                                                      t.translate(
-                                                        'event_detail.action_clear',
-                                                        fallback: 'Clear',
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  const Spacer(),
-                                                  FilledButton(
-                                                    onPressed: () {
-                                                      Navigator.of(ctx)
-                                                          .pop(tmp);
-                                                    },
-                                                    child: Text(
-                                                      t.translate(
-                                                        'event_detail.action_apply',
-                                                        fallback: 'Apply',
-                                                      ),
-                                                    ),
-                                                  )
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  );
-                                },
-                              );
-
-                              if (selected == null) return;
-                              controller.setGuestIds(selected);
-                              await controller.refresh(
-                                  eventId: widget.eventId);
-                            },
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
-                        minimumSize: const Size(48, 44),
-                      ),
-                      child: Tooltip(
-                        message: t.translate(
-                          'event_detail.guests',
-                          fallback: 'Invitados',
-                        ),
-                        child: Semantics(
-                          label: t.translate(
-                            'event_detail.guests',
-                            fallback: 'Invitados',
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.groups_outlined),
-                              const SizedBox(height: 2),
-                              Text(
-                                t.translate('event_detail.guests', fallback: 'Invitados'),
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  height: 1.1,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ),
             Expanded(
@@ -1585,6 +1650,13 @@ class _GalleryTabState extends State<_GalleryTab> {
                         final remote = remoteById[photoId];
                         final remoteStatus =
                             (remote?.status ?? '').trim().toLowerCase();
+                        final processingFailed = remoteStatus == 'failed';
+                        final processingRetryPending =
+                            controller.isProcessingRetryPending(photoId);
+                        final canRetryProcessing = processingFailed &&
+                            remote?.processingRetryable == true &&
+                            widget.currentUserId != null &&
+                            remote?.guestId == widget.currentUserId;
                         final isRemoteReady =
                             remote != null && remoteStatus == 'ready';
 
@@ -1597,17 +1669,15 @@ class _GalleryTabState extends State<_GalleryTab> {
 
                         final small = item?.smallUrl;
                         final medium = item?.mediumUrl;
-                        final rawThumbUrl = (small != null && small.isNotEmpty)
-                            ? small
-                            : null;
+                        final rawThumbUrl =
+                            (small != null && small.isNotEmpty) ? small : null;
                         final rawViewerUrl =
                             (medium != null && medium.isNotEmpty)
                                 ? medium
                                 : null;
 
                         final thumbUrl = (rawThumbUrl != null &&
-                                _urlBelongsToEvent(
-                                    rawThumbUrl, widget.eventId))
+                                _urlBelongsToEvent(rawThumbUrl, widget.eventId))
                             ? rawThumbUrl
                             : null;
                         final viewerUrl = (rawViewerUrl != null &&
@@ -1650,14 +1720,16 @@ class _GalleryTabState extends State<_GalleryTab> {
                               _selectedIds.add(photoId);
                             }
                             if (!wasSelecting && _selecting) {
-                              WidgetsBinding.instance.addPostFrameCallback((_) async {
+                              WidgetsBinding.instance
+                                  .addPostFrameCallback((_) async {
                                 widget.onSelectionChanged?.call(true);
                                 // Autodisparo tutorial de selección la primera vez
                                 if (!_selectionTutorialShown) {
                                   _selectionTutorialShown = true;
                                   if (!mounted) return;
                                   final store = TutorialStore();
-                                  final selectionSeenRoute = '${EventDetailPage.routeName}#selection';
+                                  final selectionSeenRoute =
+                                      '${EventDetailPage.routeName}#selection';
                                   final show = await store.shouldShow(
                                     routeName: selectionSeenRoute,
                                   );
@@ -1677,7 +1749,8 @@ class _GalleryTabState extends State<_GalleryTab> {
                               });
                             } else if (wasSelecting && !_selecting) {
                               WidgetsBinding.instance.addPostFrameCallback(
-                                  (_) => widget.onSelectionChanged?.call(false));
+                                  (_) =>
+                                      widget.onSelectionChanged?.call(false));
                             }
                           });
                         }
@@ -1692,6 +1765,9 @@ class _GalleryTabState extends State<_GalleryTab> {
                             }
 
                             if (isLocalPending) {
+                              return;
+                            }
+                            if (processingFailed) {
                               return;
                             }
                             if (viewerUrl == null || viewerUrl.isEmpty) {
@@ -1717,8 +1793,8 @@ class _GalleryTabState extends State<_GalleryTab> {
 
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) =>
-                                    ChangeNotifierProvider<PhotosGalleryController>.value(
+                                builder: (_) => ChangeNotifierProvider<
+                                    PhotosGalleryController>.value(
                                   value:
                                       context.read<PhotosGalleryController>(),
                                   child: PhotoViewerPage(
@@ -1748,8 +1824,13 @@ class _GalleryTabState extends State<_GalleryTab> {
                                         ? Center(
                                             child: Text(
                                               t.translate(
-                                                'event_detail.processing',
-                                                fallback: 'Procesando',
+                                                remoteStatus == 'retrying'
+                                                    ? 'event_detail.processing_retrying'
+                                                    : 'event_detail.processing',
+                                                fallback:
+                                                    remoteStatus == 'retrying'
+                                                        ? 'Reintentando...'
+                                                        : 'Procesando',
                                               ),
                                               style: const TextStyle(
                                                 color: Colors.white,
@@ -1792,6 +1873,20 @@ class _GalleryTabState extends State<_GalleryTab> {
                                       final localStatus = (local?.status ?? '')
                                           .trim()
                                           .toLowerCase();
+                                      if (remoteStatus == 'retrying') {
+                                        return Text(
+                                          t.translate(
+                                            'event_detail.processing_retrying',
+                                            fallback: 'Reintentando...',
+                                          ),
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        );
+                                      }
                                       final isFailed = localStatus == 'failed';
                                       if (isFailed) {
                                         return GestureDetector(
@@ -1863,6 +1958,33 @@ class _GalleryTabState extends State<_GalleryTab> {
                                         ],
                                       );
                                     }(),
+                                  ),
+                                ),
+                              if (processingFailed && remote != null)
+                                PhotoProcessingFailureOverlay(
+                                  message: t.translate(
+                                    canRetryProcessing
+                                        ? 'event_detail.processing_failed'
+                                        : 'event_detail.processing_upload_again',
+                                    fallback: canRetryProcessing
+                                        ? 'No se pudieron generar las miniaturas'
+                                        : 'Vuelve a subir la foto',
+                                  ),
+                                  canRetry: canRetryProcessing,
+                                  retryPending: processingRetryPending ||
+                                      controller.loading,
+                                  retryLabel: t.translate(
+                                    'event_detail.processing_retry',
+                                    fallback: 'Reintentar',
+                                  ),
+                                  retryingLabel: t.translate(
+                                    'event_detail.processing_retry_queued',
+                                    fallback: 'En cola',
+                                  ),
+                                  onRetry: () => _retryPhotoProcessing(
+                                    controller,
+                                    remote,
+                                    t,
                                   ),
                                 ),
                               if (_selecting)
@@ -2023,7 +2145,8 @@ class _GalleryTabState extends State<_GalleryTab> {
                                 const Icon(Icons.close),
                                 const SizedBox(height: 2),
                                 Text(
-                                  t.translate('event_detail.action_cancel', fallback: 'Cancelar'),
+                                  t.translate('event_detail.action_cancel',
+                                      fallback: 'Cancelar'),
                                   style: const TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w800,
@@ -2056,82 +2179,81 @@ class _GalleryTabState extends State<_GalleryTab> {
                               backgroundColor: OnesColors.purpleMid,
                               foregroundColor: OnesColors.white,
                             ),
-                            onPressed:
-                                (controller.loading || _selectedIds.isEmpty)
-                                    ? null
-                                    : () async {
-                                        final messenger =
-                                            ScaffoldMessenger.of(context);
-                                        final ids = _selectedIds
-                                            .toList(growable: false);
+                            onPressed: (controller.loading ||
+                                    _selectedIds.isEmpty)
+                                ? null
+                                : () async {
+                                    final messenger =
+                                        ScaffoldMessenger.of(context);
+                                    final ids =
+                                        _selectedIds.toList(growable: false);
 
-                                        if (anyShared && anyNotShared) {
-                                          messenger.showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                t.translate(
-                                                  'event_detail.error_mix_shared_private',
-                                                  fallback:
-                                                      'No puedes mezclar fotos compartidas y privadas.',
-                                                ),
+                                    if (anyShared && anyNotShared) {
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            t.translate(
+                                              'event_detail.error_mix_shared_private',
+                                              fallback:
+                                                  'No puedes mezclar fotos compartidas y privadas.',
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+                                    try {
+                                      if (anyShared) {
+                                        await context
+                                            .read<PhotosGalleryController>()
+                                            .unsharePhotos(
+                                              eventId: widget.eventId,
+                                              photoIds: ids,
+                                            );
+                                        if (!mounted) return;
+                                        messenger.showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              t.translate(
+                                                'event_detail.photos_unshared',
+                                                fallback:
+                                                    'Fotos descompartidas.',
                                               ),
                                             ),
-                                          );
-                                          return;
-                                        }
-
-                                        try {
-                                          if (anyShared) {
-                                            await context
-                                                .read<PhotosGalleryController>()
-                                                .unsharePhotos(
-                                                  eventId: widget.eventId,
-                                                  photoIds: ids,
-                                                );
-                                            if (!mounted) return;
-                                            messenger.showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  t.translate(
-                                                    'event_detail.photos_unshared',
-                                                    fallback:
-                                                        'Fotos descompartidas.',
-                                                  ),
-                                                ),
-                                              ),
+                                          ),
+                                        );
+                                      } else {
+                                        await context
+                                            .read<PhotosGalleryController>()
+                                            .sharePhotos(
+                                              eventId: widget.eventId,
+                                              photoIds: ids,
                                             );
-                                          } else {
-                                            await context
-                                                .read<PhotosGalleryController>()
-                                                .sharePhotos(
-                                                  eventId: widget.eventId,
-                                                  photoIds: ids,
-                                                );
-                                            if (!mounted) return;
-                                            messenger.showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  t.translate(
-                                                    'event_detail.photos_shared',
-                                                    fallback:
-                                                        'Fotos compartidas.',
-                                                  ),
-                                                ),
-                                              ),
-                                            );
-                                          }
-                                          _exitSelectionMode();
-                                        } catch (e) {
-                                          if (!mounted) return;
-                                          messenger.showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                '${t.translate('event_detail.error_update_failed', fallback: 'No se pudo actualizar')}: $e',
+                                        if (!mounted) return;
+                                        messenger.showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              t.translate(
+                                                'event_detail.photos_shared',
+                                                fallback: 'Fotos compartidas.',
                                               ),
                                             ),
-                                          );
-                                        }
-                                      },
+                                          ),
+                                        );
+                                      }
+                                      _exitSelectionMode();
+                                    } catch (e) {
+                                      if (!mounted) return;
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            '${t.translate('event_detail.error_update_failed', fallback: 'No se pudo actualizar')}: $e',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -2141,8 +2263,11 @@ class _GalleryTabState extends State<_GalleryTab> {
                                 const SizedBox(height: 2),
                                 Text(
                                   anyShared && !anyNotShared
-                                      ? t.translate('event_detail.action_unshare', fallback: 'Quitar')
-                                      : t.translate('event_detail.action_share', fallback: 'Compartir'),
+                                      ? t.translate(
+                                          'event_detail.action_unshare',
+                                          fallback: 'Quitar')
+                                      : t.translate('event_detail.action_share',
+                                          fallback: 'Compartir'),
                                   style: const TextStyle(
                                     color: OnesColors.white,
                                     fontSize: 10,
@@ -2161,40 +2286,60 @@ class _GalleryTabState extends State<_GalleryTab> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Tooltip(
-                          message: t.translate('event_detail.action_use_as_cover', fallback: 'Usar como cover'),
+                          message: t.translate(
+                              'event_detail.action_use_as_cover',
+                              fallback: 'Usar como cover'),
                           child: FilledButton.tonal(
-                            onPressed: (controller.loading || _selectedIds.length != 1)
-                                ? null
-                                : () async {
-                                    final messenger = ScaffoldMessenger.of(context);
-                                    final pid = _selectedIds.first;
-                                    try {
-                                      final covers = context.read<EventCoversApiRepository>();
-                                      final authc = context.read<AuthController>();
-                                      covers.setIdToken(authc.idToken);
-                                      await covers.setFromPhoto(eventId: widget.eventId, photoId: pid);
-                                      if (!mounted) return;
-                                      context.read<EventCoverUrlsController>().invalidate(widget.eventId);
-                                      await context.read<EventsController>().select(widget.eventId);
-                                      if (!mounted) return;
-                                      _exitSelectionMode();
-                                      messenger.showSnackBar(
-                                        SnackBar(content: Text(t.translate('event_detail.cover_updated', fallback: 'Cover actualizado'))),
-                                      );
-                                    } catch (e) {
-                                      if (!mounted) return;
-                                      messenger.showSnackBar(
-                                        SnackBar(content: Text('${t.translate('common.error', fallback: 'Error')}: $e')),
-                                      );
-                                    }
-                                  },
+                            onPressed:
+                                (controller.loading || _selectedIds.length != 1)
+                                    ? null
+                                    : () async {
+                                        final messenger =
+                                            ScaffoldMessenger.of(context);
+                                        final pid = _selectedIds.first;
+                                        try {
+                                          final covers = context
+                                              .read<EventCoversApiRepository>();
+                                          final authc =
+                                              context.read<AuthController>();
+                                          covers.setIdToken(authc.idToken);
+                                          await covers.setFromPhoto(
+                                              eventId: widget.eventId,
+                                              photoId: pid);
+                                          if (!mounted) return;
+                                          context
+                                              .read<EventCoverUrlsController>()
+                                              .invalidate(widget.eventId);
+                                          await context
+                                              .read<EventsController>()
+                                              .select(widget.eventId);
+                                          if (!mounted) return;
+                                          _exitSelectionMode();
+                                          messenger.showSnackBar(
+                                            SnackBar(
+                                                content: Text(t.translate(
+                                                    'event_detail.cover_updated',
+                                                    fallback:
+                                                        'Cover actualizado'))),
+                                          );
+                                        } catch (e) {
+                                          if (!mounted) return;
+                                          messenger.showSnackBar(
+                                            SnackBar(
+                                                content: Text(
+                                                    '${t.translate('common.error', fallback: 'Error')}: $e')),
+                                          );
+                                        }
+                                      },
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 const Icon(Icons.wallpaper_outlined),
                                 const SizedBox(height: 2),
                                 Text(
-                                  t.translate('event_detail.action_use_as_cover', fallback: 'Usar como cover'),
+                                  t.translate(
+                                      'event_detail.action_use_as_cover',
+                                      fallback: 'Usar como cover'),
                                   style: const TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w800,
@@ -2227,8 +2372,8 @@ class _GalleryTabState extends State<_GalleryTab> {
                                 : () async {
                                     final messenger =
                                         ScaffoldMessenger.of(context);
-                                    final ids = _selectedIds
-                                        .toList(growable: false);
+                                    final ids =
+                                        _selectedIds.toList(growable: false);
                                     final confirmed = await showDialog<bool>(
                                       context: context,
                                       builder: (ctx) => AlertDialog(
@@ -2310,7 +2455,8 @@ class _GalleryTabState extends State<_GalleryTab> {
                                 const Icon(Icons.delete_outline),
                                 const SizedBox(height: 2),
                                 Text(
-                                  t.translate('event_detail.action_delete', fallback: 'Eliminar'),
+                                  t.translate('event_detail.action_delete',
+                                      fallback: 'Eliminar'),
                                   style: const TextStyle(
                                     color: OnesColors.white,
                                     fontSize: 10,
@@ -2608,11 +2754,19 @@ class _DetailsTabState extends State<_DetailsTab> {
                 if (status != 'accepted') continue;
                 final uid = g.userId?.trim();
                 final mail = g.email?.trim().toLowerCase();
-                if (uid != null && uid.isNotEmpty && meId != null && meId.isNotEmpty && uid == meId) {
+                if (uid != null &&
+                    uid.isNotEmpty &&
+                    meId != null &&
+                    meId.isNotEmpty &&
+                    uid == meId) {
                   accepted = true;
                   break;
                 }
-                if (mail != null && mail.isNotEmpty && meEmail != null && meEmail.isNotEmpty && mail == meEmail) {
+                if (mail != null &&
+                    mail.isNotEmpty &&
+                    meEmail != null &&
+                    meEmail.isNotEmpty &&
+                    mail == meEmail) {
                   accepted = true;
                   break;
                 }
@@ -2634,8 +2788,10 @@ class _DetailsTabState extends State<_DetailsTab> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            t.translate('event_detail.action_change_cover', fallback: 'Cambiar cover'),
-                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                            t.translate('event_detail.action_change_cover',
+                                fallback: 'Cambiar cover'),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w900, fontSize: 16),
                           ),
                           const SizedBox(height: 12),
                           FilledButton.icon(
@@ -2652,8 +2808,10 @@ class _DetailsTabState extends State<_DetailsTab> {
                               String name = f.name;
                               String ext = '';
                               final idx = name.lastIndexOf('.');
-                              if (idx >= 0) ext = name.substring(idx + 1).toLowerCase();
-                              String contentType = (ext == 'png') ? 'image/png' : 'image/jpeg';
+                              if (idx >= 0)
+                                ext = name.substring(idx + 1).toLowerCase();
+                              String contentType =
+                                  (ext == 'png') ? 'image/png' : 'image/jpeg';
                               Uint8List? bytes = f.bytes;
                               if (bytes == null && (f.path ?? '').isNotEmpty) {
                                 try {
@@ -2663,7 +2821,8 @@ class _DetailsTabState extends State<_DetailsTab> {
                               }
                               if (bytes == null || bytes.isEmpty) return;
 
-                              final covers = context.read<EventCoversApiRepository>();
+                              final covers =
+                                  context.read<EventCoversApiRepository>();
                               final authc = context.read<AuthController>();
                               covers.setIdToken(authc.idToken);
 
@@ -2673,7 +2832,8 @@ class _DetailsTabState extends State<_DetailsTab> {
                                   contentType: contentType,
                                 );
 
-                                final photosApi = context.read<EventPhotosApi>();
+                                final photosApi =
+                                    context.read<EventPhotosApi>();
                                 await photosApi.uploadBytesToPresignedUrl(
                                   putUrl: p.uploadUrl,
                                   bytes: bytes,
@@ -2687,26 +2847,37 @@ class _DetailsTabState extends State<_DetailsTab> {
 
                                 if (!mounted) return;
                                 coverUrls.invalidate(widget.eventId);
-                                await context.read<EventsController>().select(widget.eventId);
+                                await context
+                                    .read<EventsController>()
+                                    .select(widget.eventId);
                                 if (!mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(t.translate('event_detail.cover_updated', fallback: 'Cover actualizado'))),
+                                  SnackBar(
+                                      content: Text(t.translate(
+                                          'event_detail.cover_updated',
+                                          fallback: 'Cover actualizado'))),
                                 );
                               } catch (e) {
                                 if (!mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('${t.translate('common.error', fallback: 'Error')}: $e')),
+                                  SnackBar(
+                                      content: Text(
+                                          '${t.translate('common.error', fallback: 'Error')}: $e')),
                                 );
                               }
                             },
                             icon: const Icon(Icons.upload_file),
-                            label: Text(t.translate('event_detail.action_upload_image', fallback: 'Subir imagen')),
+                            label: Text(t.translate(
+                                'event_detail.action_upload_image',
+                                fallback: 'Subir imagen')),
                           ),
                           const SizedBox(height: 10),
                           OutlinedButton.icon(
                             onPressed: null,
                             icon: const Icon(Icons.image_outlined),
-                            label: Text(t.translate('event_detail.action_use_event_photo', fallback: 'Usar foto del evento (pronto)')),
+                            label: Text(t.translate(
+                                'event_detail.action_use_event_photo',
+                                fallback: 'Usar foto del evento (pronto)')),
                           ),
                         ],
                       ),
@@ -2723,7 +2894,8 @@ class _DetailsTabState extends State<_DetailsTab> {
                 child: OutlinedButton.icon(
                   onPressed: onChangeCover,
                   icon: const Icon(Icons.wallpaper_outlined),
-                  label: Text(t.translate('event_detail.action_change_cover', fallback: 'Cambiar cover')),
+                  label: Text(t.translate('event_detail.action_change_cover',
+                      fallback: 'Cambiar cover')),
                 ),
               ),
             );
@@ -2953,9 +3125,8 @@ class _DetailsTabState extends State<_DetailsTab> {
                       setState(() {
                         _qrFuture = Future.value(qr);
                       });
-                      final qrUrl = qr.urlLarge.isNotEmpty
-                          ? qr.urlLarge
-                          : qr.urlLatest;
+                      final qrUrl =
+                          qr.urlLarge.isNotEmpty ? qr.urlLarge : qr.urlLatest;
                       final file = await _downloadQrToXFile(qrUrl);
                       await Share.shareXFiles([file]);
                     } catch (error, stackTrace) {
@@ -2964,7 +3135,8 @@ class _DetailsTabState extends State<_DetailsTab> {
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('No se pudo compartir el QR. Intenta nuevamente.'),
+                          content: Text(
+                              'No se pudo compartir el QR. Intenta nuevamente.'),
                         ),
                       );
                     } finally {
@@ -3106,11 +3278,14 @@ class _DetailsTabState extends State<_DetailsTab> {
                         FutureBuilder<EventQrInfo>(
                           future: _qrFuture,
                           builder: (context, snapQr) {
-                            if (snapQr.connectionState == ConnectionState.waiting) {
+                            if (snapQr.connectionState ==
+                                ConnectionState.waiting) {
                               return const SizedBox.shrink();
                             }
                             final qr = snapQr.data;
-                            if (snapQr.hasError || qr == null || qr.urlLatest.isEmpty) {
+                            if (snapQr.hasError ||
+                                qr == null ||
+                                qr.urlLatest.isEmpty) {
                               return const SizedBox.shrink();
                             }
                             final previewUrl = qr.urlSmall ?? qr.urlLatest;
@@ -3119,11 +3294,14 @@ class _DetailsTabState extends State<_DetailsTab> {
                               children: [
                                 Row(
                                   children: [
-                                    const Icon(Icons.qr_code_2_outlined, size: 20),
+                                    const Icon(Icons.qr_code_2_outlined,
+                                        size: 20),
                                     const SizedBox(width: 8),
                                     Text(
-                                      t.translate('event_detail.event_qr', fallback: 'QR del evento'),
-                                      style: const TextStyle(fontWeight: FontWeight.w900),
+                                      t.translate('event_detail.event_qr',
+                                          fallback: 'QR del evento'),
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w900),
                                     ),
                                   ],
                                 ),
@@ -3138,13 +3316,16 @@ class _DetailsTabState extends State<_DetailsTab> {
                                         width: 160,
                                         height: 160,
                                         fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => const SizedBox(width: 160, height: 160),
+                                        errorBuilder: (_, __, ___) =>
+                                            const SizedBox(
+                                                width: 160, height: 160),
                                       ),
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             widget.title,
@@ -3152,21 +3333,27 @@ class _DetailsTabState extends State<_DetailsTab> {
                                               fontWeight: FontWeight.w900,
                                             ),
                                           ),
-                                          if (widget.eventCode != null && widget.eventCode!.isNotEmpty) ...[
+                                          if (widget.eventCode != null &&
+                                              widget.eventCode!.isNotEmpty) ...[
                                             const SizedBox(height: 4),
                                             Text(
                                               'Código: ${widget.eventCode!}',
                                               style: TextStyle(
                                                 fontWeight: FontWeight.w800,
-                                                color: OnesColors.black.withOpacity(0.75),
+                                                color: OnesColors.black
+                                                    .withOpacity(0.75),
                                               ),
                                             ),
                                           ],
                                           const SizedBox(height: 8),
                                           Text(
-                                            t.translate('event_detail.scan_to_join', fallback: 'Escanéame para unirme'),
+                                            t.translate(
+                                                'event_detail.scan_to_join',
+                                                fallback:
+                                                    'Escanéame para unirme'),
                                             style: TextStyle(
-                                              color: OnesColors.black.withOpacity(0.65),
+                                              color: OnesColors.black
+                                                  .withOpacity(0.65),
                                               fontWeight: FontWeight.w700,
                                             ),
                                           ),
@@ -3181,20 +3368,31 @@ class _DetailsTabState extends State<_DetailsTab> {
                                                     context: context,
                                                     builder: (_) => Dialog(
                                                       child: InteractiveViewer(
-                                                        child: Image.network(qr.urlLarge.isNotEmpty ? qr.urlLarge : qr.urlLatest,
+                                                        child: Image.network(
+                                                            qr.urlLarge
+                                                                    .isNotEmpty
+                                                                ? qr.urlLarge
+                                                                : qr.urlLatest,
                                                             fit: BoxFit.contain,
-                                                            errorBuilder: (_, __, ___) => const SizedBox()),
+                                                            errorBuilder: (_,
+                                                                    __, ___) =>
+                                                                const SizedBox()),
                                                       ),
                                                     ),
                                                   );
                                                 },
-                                                child: Text(t.translate('event_detail.view_full', fallback: 'Ver tamaño completo')),
+                                                child: Text(t.translate(
+                                                    'event_detail.view_full',
+                                                    fallback:
+                                                        'Ver tamaño completo')),
                                               ),
                                               OutlinedButton(
                                                 onPressed: _sharingQr
                                                     ? null
                                                     : onShareQr,
-                                                child: Text(t.translate('event_detail.share_qr', fallback: 'Compartir QR')),
+                                                child: Text(t.translate(
+                                                    'event_detail.share_qr',
+                                                    fallback: 'Compartir QR')),
                                               ),
                                             ],
                                           ),

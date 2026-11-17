@@ -266,6 +266,26 @@ class EventPhotosApi {
     );
   }
 
+  Future<void> retryProcessing({
+    required String eventId,
+    required String photoId,
+  }) async {
+    await _dioFactory(_idToken).post(
+      '/v1/events/$eventId/photos/$photoId/processing-retry',
+      options: Options(
+        extra: {
+          'secure': [
+            {
+              'type': 'http',
+              'scheme': 'bearer',
+              'name': 'bearerAuth',
+            }
+          ],
+        },
+      ),
+    );
+  }
+
   Future<void> uploadToPresignedUrl({
     required String putUrl,
     required File file,
@@ -409,6 +429,9 @@ class EventPhotosApi {
       sharedByUserId: row['sharedByUserId'] as String?,
       sharedByName: row['sharedByName'] as String?,
       likedByMe: (row['likedByMe'] as bool?) ?? false,
+      processingAttempts: (row['processingAttempts'] as num?)?.toInt() ?? 0,
+      processingErrorCode: row['processingErrorCode'] as String?,
+      processingRetryable: (row['processingRetryable'] as bool?) ?? false,
     );
   }
 }

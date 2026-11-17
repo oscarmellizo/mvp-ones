@@ -8,10 +8,12 @@ import urllib.parse
 import urllib.request
 
 import boto3
+from botocore.exceptions import BotoCoreError, ClientError
 from boto3.dynamodb.conditions import Key
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 s3 = boto3.client('s3')
+sqs = boto3.client('sqs')
 secrets = boto3.client('secretsmanager')
 ddb = boto3.resource('dynamodb')
 
@@ -23,25 +25,18 @@ S_QUALITY = int(os.environ.get('S_QUALITY', '70'))
 
 def _load_internal_basic_auth():
     arn = os.environ.get('INTERNAL_SECRET_ARN', '')
-    print(f"INTERNAL_SECRET_ARN: {arn}")
     if not arn:
-        print("ERROR: INTERNAL_SECRET_ARN not set")
         return None
     try:
         v = secrets.get_secret_value(SecretId=arn).get('SecretString', '{}')
-        print(f"Secret value retrieved successfully")
         data = json.loads(v)
-        print(f"Secret data parsed: username={data.get('username')}")
-    except Exception as e:
-        print(f"ERROR: Failed to load secret: {e}")
+    except Exception:
         data = {}
     u = (data.get('username') or '').strip()
     p = (data.get('password') or '').strip()
     if not u or not p:
-        print(f"ERROR: username or password missing from secret")
         return None
     token = base64.b64encode((u + ':' + p).encode('utf-8')).decode('utf-8')
-    print(f"Basic auth token generated successfully")
     return 'Basic ' + token
 
 
@@ -58,51 +53,67 @@ def _internal_basic_auth_cached():
     return _INTERNAL_BASIC_AUTH
 
 
-def _call_backend_ready(event_id, photo_id, key_m, key_s):
+class ProcessingError(Exception):
+    def __init__(self, code: str, retryable: bool, retry_after_seconds=None):
+        super().__init__(code)
+        self.code = code
+        self.retryable = retryable
+        self.retry_after_seconds = retry_after_seconds
+
+
+def _call_backend(event_id, photo_id, action, body):
     base = os.environ.get('BACKEND_BASE_URL', '').rstrip('/')
     if not base:
-        print("ERROR: BACKEND_BASE_URL not set")
-        return False
-    url = f"{base}/internal/events/{urllib.parse.quote(event_id)}/photos/{urllib.parse.quote(photo_id)}/ready"
-
+        raise ProcessingError("backend_unavailable", True)
     auth = _internal_basic_auth_cached()
+    if not auth:
+        raise ProcessingError("backend_unavailable", True)
 
-    body = json.dumps({"s3KeyMedium": key_m, "s3KeySmall": key_s}).encode('utf-8')
+    url = (
+        f"{base}/internal/events/{urllib.parse.quote(event_id)}"
+        f"/photos/{urllib.parse.quote(photo_id)}/{action}"
+    )
+    payload = json.dumps(body).encode('utf-8')
+
     for attempt in range(1, 4):
-        req = urllib.request.Request(url, data=body, method='POST')
+        req = urllib.request.Request(url, data=payload, method='POST')
         req.add_header('Content-Type', 'application/json')
         req.add_header('User-Agent', 'ones-photo-thumbnails/1.0')
-        if auth:
-            req.add_header('Authorization', auth)
+        req.add_header('Authorization', auth)
         try:
             with urllib.request.urlopen(req, timeout=10) as resp:
-                resp.read()
-                status = getattr(resp, 'status', None) or resp.getcode()
+                raw = resp.read()
+            if not raw:
+                return {}
+            result = json.loads(raw.decode('utf-8'))
+            return result if isinstance(result, dict) else {}
+        except urllib.error.HTTPError as exc:
+            if exc.code == 429 or exc.code >= 500:
+                print(f"backend_retry eventId={event_id} photoId={photo_id} status={exc.code} attempt={attempt}")
+            else:
+                raise ProcessingError("backend_rejected", False)
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
             print(
-                f"backend_ready_ok status={status} eventId={event_id} photoId={photo_id} attempt={attempt}/3"
+                f"backend_retry eventId={event_id} photoId={photo_id} "
+                f"attempt={attempt} error={type(exc).__name__}"
             )
-            return True
-        except urllib.error.HTTPError as e:
-            body_text = ''
-            try:
-                body_text = e.read().decode('utf-8', errors='replace')
-            except Exception:
-                body_text = ''
-            code = getattr(e, 'code', None)
-            print(
-                f"backend_ready_http_error status={code} eventId={event_id} photoId={photo_id} attempt={attempt}/3 body={body_text[:600]}"
-            )
-            if code is not None and (400 <= int(code) < 500) and int(code) != 429:
-                return False
-        except Exception as e:
-            print(
-                f"backend_ready_error eventId={event_id} photoId={photo_id} attempt={attempt}/3 err={e}"
-            )
+        if attempt < 3:
+            time.sleep(min(2, 0.25 * (2 ** (attempt - 1))))
 
-        time.sleep(min(4, 0.6 * (2 ** (attempt - 1))))
+    raise ProcessingError("backend_unavailable", True)
 
-    print(f"ERROR: backend_ready_failed eventId={event_id} photoId={photo_id}")
-    return False
+
+def _call_backend_ready(event_id, photo_id, key_original, key_m, key_s):
+    return _call_backend(
+        event_id,
+        photo_id,
+        "ready",
+        {
+            "s3KeyOriginal": key_original,
+            "s3KeyMedium": key_m,
+            "s3KeySmall": key_s,
+        },
+    )
 
 
 def _ws_subscriptions_table():
@@ -170,13 +181,13 @@ def _publish_photo_ready(event_id: str, photo_id: str):
 def _parse_key(key: str):
     # expected: eventos/<eventId>/guests/<guestId>/private/<photoId>.jpg
     parts = key.split('/')
-    if len(parts) < 6:
+    if len(parts) != 6:
         return None, None
-    if parts[0] != 'eventos':
+    if parts[0] != 'eventos' or parts[2] != 'guests' or parts[4] != 'private':
         return None, None
     event_id = parts[1]
     filename = parts[-1]
-    if not filename.endswith('.jpg'):
+    if not parts[3] or not filename.endswith('.jpg'):
         return None, None
     photo_id = filename[:-4]
     return event_id, photo_id
@@ -221,7 +232,206 @@ def _put_jpeg(bucket: str, key: str, data: bytes):
     )
 
 
-def handler(event, context):
+def _jobs_from_body(body):
+    if not isinstance(body, dict):
+        return []
+    if isinstance(body.get('Records'), list):
+        jobs = []
+        for record in body['Records']:
+            s3info = record.get('s3') or {}
+            bucket_info = s3info.get('bucket') or {}
+            obj = s3info.get('object') or {}
+            key = obj.get('key')
+            if not key or not bucket_info.get('name'):
+                continue
+            key = urllib.parse.unquote_plus(key)
+            if key.endswith(('_m.jpg', '_s.jpg')):
+                continue
+            event_id, photo_id = _parse_key(key)
+            if event_id and photo_id:
+                jobs.append({
+                    "eventId": event_id,
+                    "photoId": photo_id,
+                    "s3KeyOriginal": key,
+                    "manualRetry": False,
+                })
+        return jobs
+    if all(body.get(field) for field in ("eventId", "photoId", "s3KeyOriginal")):
+        return [body]
+    return []
+
+
+def _retry_delay(receive_count):
+    initial = max(1, int(os.environ.get('PROCESSING_INITIAL_RETRY_DELAY_SECONDS', '5')))
+    maximum = max(initial, min(900, int(os.environ.get('PROCESSING_MAX_RETRY_DELAY_SECONDS', '300'))))
+    return min(maximum, initial * (2 ** max(0, receive_count - 1)))
+
+
+def _call_backend_claim(job):
+    return _call_backend(
+        job["eventId"],
+        job["photoId"],
+        "processing",
+        {
+            "s3KeyOriginal": job["s3KeyOriginal"],
+            "manualRetry": bool(job.get("manualRetry")),
+        },
+    )
+
+
+def _call_backend_retrying(job, error_code, retry_at_epoch):
+    return _call_backend(
+        job["eventId"],
+        job["photoId"],
+        "processing-retrying",
+        {
+            "s3KeyOriginal": job["s3KeyOriginal"],
+            "errorCode": error_code,
+            "retryAtEpoch": retry_at_epoch,
+        },
+    )
+
+
+def _call_backend_failed(job, error_code):
+    return _call_backend(
+        job["eventId"],
+        job["photoId"],
+        "processing-failed",
+        {
+            "s3KeyOriginal": job["s3KeyOriginal"],
+            "errorCode": error_code,
+        },
+    )
+
+
+def _mark_retrying(job, error_code, receive_count):
+    delay = _retry_delay(receive_count)
+    print(
+        f"photo_processing_retry eventId={job['eventId']} photoId={job['photoId']} "
+        f"attempt={receive_count} errorCode={error_code}"
+    )
+    return _call_backend_retrying(job, error_code, int(time.time() * 1000) + delay * 1000)
+
+
+def _mark_failed(job, error_code):
+    print(
+        f"photo_processing_failed eventId={job['eventId']} photoId={job['photoId']} "
+        f"errorCode={error_code}"
+    )
+    return _call_backend_failed(job, error_code)
+
+
+def _process_photo(job, receive_count):
+    event_id = str(job["eventId"]).strip()
+    photo_id = str(job["photoId"]).strip()
+    key = str(job["s3KeyOriginal"]).strip()
+    parsed_event, parsed_photo = _parse_key(key)
+    if parsed_event != event_id or parsed_photo != photo_id:
+        raise ProcessingError("invalid_key", False)
+
+    claim = _call_backend_claim(job)
+    claim_status = str(claim.get('status') or '').lower()
+    if claim_status == 'claimed':
+        print(
+            f"photo_processing_started eventId={event_id} photoId={photo_id} "
+            f"attempt={claim.get('attempts', receive_count)}"
+        )
+    if claim_status in ('ready', 'failed'):
+        return
+    if claim_status == 'busy':
+        lease_until = claim.get('leaseUntilEpoch')
+        remaining = max(1, int((int(lease_until) - time.time() * 1000 + 999) // 1000)) \
+            if lease_until is not None else _retry_delay(receive_count)
+        raise ProcessingError("processing_busy", True, remaining)
+    if claim_status == 'not_found':
+        print(f"photo_processing_waiting_for_complete eventId={event_id} photoId={photo_id}")
+        raise ProcessingError("photo_not_completed", True)
+    if claim_status != 'claimed':
+        raise ProcessingError("invalid_key", False)
+
+    key_m = key[:-4] + '_m.jpg'
+    key_s = key[:-4] + '_s.jpg'
+    try:
+        img = _load_jpeg(os.environ['BUCKET'], key)
+        data_m = _save_jpeg_bytes(_resize_to_width(img, M_WIDTH), M_QUALITY)
+        _put_jpeg(os.environ['BUCKET'], key_m, data_m)
+        data_s = _save_jpeg_bytes(_resize_to_width(img, S_WIDTH), S_QUALITY)
+        _put_jpeg(os.environ['BUCKET'], key_s, data_s)
+        ready = _call_backend_ready(event_id, photo_id, key, key_m, key_s)
+        if str(ready.get('status') or '').lower() != 'ready':
+            raise ProcessingError("backend_unavailable", True)
+    except ProcessingError as exc:
+        if exc.retryable:
+            update = _mark_retrying(job, exc.code, receive_count)
+            if update.get("updated") is False:
+                return
+            raise
+        _mark_failed(job, exc.code)
+        return
+    except ClientError as exc:
+        code = str((exc.response.get('Error') or {}).get('Code') or '')
+        if code in ('NoSuchKey', 'NotFound', '404'):
+            _mark_failed(job, "source_missing")
+            return
+        update = _mark_retrying(job, "s3_unavailable", receive_count)
+        if update.get("updated") is False:
+            return
+        raise ProcessingError("s3_unavailable", True)
+    except (UnidentifiedImageError, Image.DecompressionBombError, OSError):
+        _mark_failed(job, "invalid_image")
+        return
+    except BotoCoreError:
+        update = _mark_retrying(job, "s3_unavailable", receive_count)
+        if update.get("updated") is False:
+            return
+        raise ProcessingError("s3_unavailable", True)
+    except Exception as exc:
+        update = _mark_retrying(job, "processing_failed", receive_count)
+        if update.get("updated") is False:
+            return
+        raise ProcessingError("processing_failed", True) from exc
+
+    try:
+        _publish_photo_ready(event_id, photo_id)
+    except Exception as exc:
+        print(f"photo_ready_publish_failed eventId={event_id} photoId={photo_id} error={type(exc).__name__}")
+    print(f"photo_processing_ready eventId={event_id} photoId={photo_id}")
+
+
+def _record_jobs(message, receive_count):
+    try:
+        body = json.loads(message.get('body') or '{}')
+    except (TypeError, json.JSONDecodeError):
+        return
+    for job in _jobs_from_body(body):
+        _process_photo(job, receive_count)
+
+
+def _record_dlq_jobs(message):
+    try:
+        body = json.loads(message.get('body') or '{}')
+    except (TypeError, json.JSONDecodeError):
+        return
+    for job in _jobs_from_body(body):
+        _mark_failed(job, "retry_exhausted")
+
+
+def _change_message_visibility(record, delay_seconds):
+    receipt_handle = record.get('receiptHandle')
+    queue_url = os.environ.get('PROCESSING_QUEUE_URL', '').strip()
+    if not receipt_handle or not queue_url:
+        return
+    try:
+        sqs.change_message_visibility(
+            QueueUrl=queue_url,
+            ReceiptHandle=receipt_handle,
+            VisibilityTimeout=max(1, min(900, int(delay_seconds))),
+        )
+    except Exception as exc:
+        print(f"visibility_update_failed messageId={record.get('messageId')} error={type(exc).__name__}")
+
+
+def _legacy_handler(event, context):
     bucket = os.environ.get('BUCKET')
     if not bucket:
         print("ERROR: BUCKET environment variable not set")
@@ -275,10 +485,64 @@ def handler(event, context):
             continue
 
         print(f"Calling backend ready endpoint")
-        ok = _call_backend_ready(event_id, photo_id, key_m, key_s)
+        ok = _call_backend_ready(event_id, photo_id, key, key_m, key_s)
         if ok:
             print(f"Publishing photo.ready event to WebSocket")
             _publish_photo_ready(event_id, photo_id)
             print(f"Photo processing completed successfully")
         else:
             print(f"Skipping photo.ready WS publish because backend ready failed")
+
+
+def handler(event, context):
+    if not os.environ.get('BUCKET'):
+        raise RuntimeError("BUCKET environment variable not set")
+
+    records = event.get('Records') or []
+    failed = []
+    for record in records:
+        if record.get('eventSource') != 'aws:sqs':
+            try:
+                _record_jobs({"body": json.dumps({"Records": [record]})}, 1)
+            except ProcessingError as exc:
+                if exc.retryable:
+                    raise
+                for job in _jobs_from_body({"Records": [record]}):
+                    _mark_failed(job, exc.code)
+            continue
+
+        is_dlq = record.get('eventSourceARN') == os.environ.get('PROCESSING_DLQ_ARN')
+        try:
+            if is_dlq:
+                _record_dlq_jobs(record)
+            else:
+                receive_count = int(
+                    (record.get('attributes') or {}).get('ApproximateReceiveCount') or 1
+                )
+                _record_jobs(record, receive_count)
+        except ProcessingError as exc:
+            if is_dlq:
+                failed.append({"itemIdentifier": record.get('messageId')})
+                continue
+            if exc.retryable:
+                receive_count = int(
+                    (record.get('attributes') or {}).get('ApproximateReceiveCount') or 1
+                )
+                _change_message_visibility(
+                    record,
+                    exc.retry_after_seconds or _retry_delay(receive_count),
+                )
+                failed.append({"itemIdentifier": record.get('messageId')})
+                continue
+            try:
+                body = json.loads(record.get('body') or '{}')
+                for job in _jobs_from_body(body):
+                    _mark_failed(job, exc.code)
+            except Exception as mark_error:
+                print(
+                    f"photo_failure_update_failed messageId={record.get('messageId')} "
+                    f"error={type(mark_error).__name__}"
+                )
+                failed.append({"itemIdentifier": record.get('messageId')})
+
+    return {"batchItemFailures": failed}

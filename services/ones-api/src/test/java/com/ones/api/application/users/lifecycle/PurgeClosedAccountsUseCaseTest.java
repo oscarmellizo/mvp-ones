@@ -328,6 +328,111 @@ class PurgeClosedAccountsUseCaseTest {
         final Map<String, Photo> store = new LinkedHashMap<>();
         public Optional<Photo> findById(String id) { return Optional.ofNullable(store.get(id)); }
         public Photo upsert(Photo p) { store.put(p.getPhotoId(), p); return p; }
+        public Photo completeUpload(Photo p) { return upsert(p); }
+        public ProcessingClaim claimProcessing(
+                String eventId,
+                String photoId,
+                String s3KeyOriginal,
+                boolean manualRetry,
+                Instant now,
+                Instant leaseUntil
+        ) {
+            Photo existing = store.get(photoId);
+            if (existing == null) return new ProcessingClaim(ProcessingClaimStatus.NOT_FOUND, null);
+            if (!eventId.equals(existing.getEventId()) || !s3KeyOriginal.equals(existing.getS3KeyOriginal())) {
+                return new ProcessingClaim(ProcessingClaimStatus.CONFLICT, existing);
+            }
+            if ("ready".equalsIgnoreCase(existing.getStatus())) {
+                return new ProcessingClaim(ProcessingClaimStatus.READY, existing);
+            }
+            if ("failed".equalsIgnoreCase(existing.getStatus()) && !manualRetry) {
+                return new ProcessingClaim(ProcessingClaimStatus.FAILED, existing);
+            }
+            if ("processing".equalsIgnoreCase(existing.getStatus())
+                    && existing.getProcessingLeaseUntilEpoch() != null
+                    && existing.getProcessingLeaseUntilEpoch() > now.toEpochMilli()) {
+                return new ProcessingClaim(ProcessingClaimStatus.BUSY, existing);
+            }
+            Photo processing = new Photo(
+                    existing.getPhotoId(), existing.getEventId(), existing.getGuestId(),
+                    existing.getCreatedAt(), existing.getUploadedAt(), "processing",
+                    existing.getS3KeyOriginal(), existing.getS3KeyMedium(), existing.getS3KeySmall(),
+                    existing.getOwnerName(), existing.getSharedByUserId(), existing.getSharedByName(),
+                    existing.isShared(), existing.getProcessingAttempts() + 1, null,
+                    leaseUntil.toEpochMilli(), null
+            );
+            store.put(photoId, processing);
+            return new ProcessingClaim(ProcessingClaimStatus.CLAIMED, processing);
+        }
+        public Optional<Photo> markProcessingRetrying(
+                String eventId, String photoId, String s3KeyOriginal, String errorCode, Instant retryAt
+        ) {
+            Photo existing = store.get(photoId);
+            if (existing == null || !eventId.equals(existing.getEventId())
+                    || !s3KeyOriginal.equals(existing.getS3KeyOriginal())) return Optional.empty();
+            Photo retrying = new Photo(
+                    existing.getPhotoId(), existing.getEventId(), existing.getGuestId(),
+                    existing.getCreatedAt(), existing.getUploadedAt(), "retrying",
+                    existing.getS3KeyOriginal(), existing.getS3KeyMedium(), existing.getS3KeySmall(),
+                    existing.getOwnerName(), existing.getSharedByUserId(), existing.getSharedByName(),
+                    existing.isShared(), existing.getProcessingAttempts(), errorCode, null, retryAt.toEpochMilli()
+            );
+            store.put(photoId, retrying);
+            return Optional.of(retrying);
+        }
+        public Optional<Photo> markProcessingFailed(
+                String eventId, String photoId, String s3KeyOriginal, String errorCode
+        ) {
+            Photo existing = store.get(photoId);
+            if (existing == null || !eventId.equals(existing.getEventId())
+                    || !s3KeyOriginal.equals(existing.getS3KeyOriginal())) return Optional.empty();
+            if ("ready".equalsIgnoreCase(existing.getStatus())) return Optional.of(existing);
+            Photo failed = new Photo(
+                    existing.getPhotoId(), existing.getEventId(), existing.getGuestId(),
+                    existing.getCreatedAt(), existing.getUploadedAt(), "failed",
+                    existing.getS3KeyOriginal(), existing.getS3KeyMedium(), existing.getS3KeySmall(),
+                    existing.getOwnerName(), existing.getSharedByUserId(), existing.getSharedByName(),
+                    existing.isShared(), existing.getProcessingAttempts(), errorCode, null, null
+            );
+            store.put(photoId, failed);
+            return Optional.of(failed);
+        }
+        public Optional<Photo> markRetryRequested(String eventId, String photoId) {
+            Photo existing = store.get(photoId);
+            if (existing == null || !eventId.equals(existing.getEventId())) return Optional.empty();
+            Photo retrying = new Photo(
+                    existing.getPhotoId(), existing.getEventId(), existing.getGuestId(),
+                    existing.getCreatedAt(), existing.getUploadedAt(), "retrying",
+                    existing.getS3KeyOriginal(), existing.getS3KeyMedium(), existing.getS3KeySmall(),
+                    existing.getOwnerName(), existing.getSharedByUserId(), existing.getSharedByName(),
+                    existing.isShared(), existing.getProcessingAttempts(), null, null, null
+            );
+            store.put(photoId, retrying);
+            return Optional.of(retrying);
+        }
+        public Photo markReadyInternal(
+                String eventId,
+                String photoId,
+                String original,
+                String medium,
+                String small,
+                Instant now
+        ) {
+            Photo existing = store.get(photoId);
+            if (existing == null || !eventId.equals(existing.getEventId())
+                    || !original.equals(existing.getS3KeyOriginal())) {
+                throw new IllegalArgumentException("Photo does not exist");
+            }
+            Photo ready = new Photo(
+                    existing.getPhotoId(), existing.getEventId(), existing.getGuestId(),
+                    existing.getCreatedAt(), existing.getUploadedAt(), "ready",
+                    existing.getS3KeyOriginal(), medium, small, existing.getOwnerName(),
+                    existing.getSharedByUserId(), existing.getSharedByName(), existing.isShared(),
+                    existing.getProcessingAttempts(), null, null, null
+            );
+            store.put(photoId, ready);
+            return ready;
+        }
         public PageResult<Photo> listByEventId(String eventId, int limit, String next) {
             return new PageResult<>(store.values().stream().filter(p -> p.getEventId().equals(eventId)).toList(), null);
         }
