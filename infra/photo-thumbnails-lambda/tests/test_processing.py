@@ -39,6 +39,29 @@ def s3_event(key):
 
 
 class ThumbnailWorkerTests(unittest.TestCase):
+    def test_internal_basic_auth_is_cached_for_each_deployed_handler(self):
+        for handler in HANDLERS:
+            with self.subTest(handler=handler.__name__):
+                with (
+                    patch.object(handler, "_INTERNAL_BASIC_AUTH", None),
+                    patch.object(handler, "_INTERNAL_BASIC_AUTH_LOADED", False),
+                    patch.object(
+                        handler,
+                        "_load_internal_basic_auth",
+                        return_value="Basic dXNlcjpwYXNz",
+                    ) as load_auth,
+                ):
+                    self.assertEqual(
+                        handler._internal_basic_auth_cached(),
+                        "Basic dXNlcjpwYXNz",
+                    )
+                    self.assertEqual(
+                        handler._internal_basic_auth_cached(),
+                        "Basic dXNlcjpwYXNz",
+                    )
+
+                load_auth.assert_called_once_with()
+
     def test_s3_event_parser_skips_generated_variants(self):
         for handler in HANDLERS:
             with self.subTest(handler=handler.__name__):
