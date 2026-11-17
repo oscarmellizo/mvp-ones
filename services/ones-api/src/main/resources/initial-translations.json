@@ -764,6 +764,31 @@
     "en": "Processing...",
     "pt": "Processando..."
   },
+  "event_detail.processing_failed": {
+    "es": "No se pudieron generar las miniaturas",
+    "en": "Thumbnails could not be generated",
+    "pt": "Não foi possível gerar as miniaturas"
+  },
+  "event_detail.processing_retry": {
+    "es": "Reintentar procesamiento",
+    "en": "Retry processing",
+    "pt": "Tentar processar novamente"
+  },
+  "event_detail.processing_retry_queued": {
+    "es": "Reintento en cola",
+    "en": "Retry queued",
+    "pt": "Nova tentativa na fila"
+  },
+  "event_detail.processing_retrying": {
+    "es": "Reintentando...",
+    "en": "Retrying...",
+    "pt": "Tentando novamente..."
+  },
+  "event_detail.processing_upload_again": {
+    "es": "La imagen no se puede procesar. Vuelve a subirla.",
+    "en": "This image cannot be processed. Upload it again.",
+    "pt": "Não foi possível processar esta imagem. Envie-a novamente."
+  },
   "event_detail.shared": {
     "es": "Compartida",
     "en": "Shared",

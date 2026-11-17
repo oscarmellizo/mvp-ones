@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:ones_app/features/events/application/create_event_use_case.dart';
@@ -12,8 +13,10 @@ import 'package:ones_app/features/events/presentation/events_controller.dart';
 import 'package:ones_app/features/photos/adapters/api/event_photos_api.dart';
 import 'package:ones_app/features/photos/domain/event_photo.dart';
 import 'package:ones_app/features/photos/presentation/photos_gallery_controller.dart';
+import 'package:ones_app/features/photos/presentation/photo_processing_failure_overlay.dart';
 
 class _EventsRepository extends Mock implements EventsRepository {}
+
 class _PhotosApi extends Mock implements EventPhotosApi {}
 
 Event _event(String id) => Event(
@@ -43,13 +46,15 @@ void main() {
       eventsRepository: repository,
     );
     when(() => repository.getEvent(any())).thenAnswer(
-      (invocation) async => _event(invocation.positionalArguments.first as String),
+      (invocation) async =>
+          _event(invocation.positionalArguments.first as String),
     );
   });
 
   tearDown(() => controller.dispose());
 
-  test('renovar token de la misma cuenta conserva el evento seleccionado', () async {
+  test('renovar token de la misma cuenta conserva el evento seleccionado',
+      () async {
     controller.setIdToken('token-1', userId: 'user-1');
     await controller.select('event-1');
 
@@ -84,7 +89,8 @@ void main() {
     expect(controller.selected?.id, 'event-1');
   });
 
-  test('logout y cambio de usuario limpian eventos de la cuenta anterior', () async {
+  test('logout y cambio de usuario limpian eventos de la cuenta anterior',
+      () async {
     controller.setIdToken('token-1', userId: 'user-1');
     await controller.select('event-1');
 
@@ -97,9 +103,11 @@ void main() {
     expect(controller.selected, isNull);
   });
 
-  test('respuesta anterior a un cambio de usuario no repone evento viejo', () async {
+  test('respuesta anterior a un cambio de usuario no repone evento viejo',
+      () async {
     final pending = Completer<Event>();
-    when(() => repository.getEvent('event-1')).thenAnswer((_) => pending.future);
+    when(() => repository.getEvent('event-1'))
+        .thenAnswer((_) => pending.future);
     controller.setIdToken('token-1', userId: 'user-1');
     final oldRequest = controller.select('event-1');
 
@@ -119,9 +127,11 @@ void main() {
     expect(controller.selected, isNull);
   });
 
-  test('respuesta anterior a otra selección no reemplaza el evento actual', () async {
+  test('respuesta anterior a otra selección no reemplaza el evento actual',
+      () async {
     final pending = Completer<Event>();
-    when(() => repository.getEvent('event-1')).thenAnswer((_) => pending.future);
+    when(() => repository.getEvent('event-1'))
+        .thenAnswer((_) => pending.future);
     controller.setIdToken('token-1', userId: 'user-1');
     final oldRequest = controller.select('event-1');
     await controller.select('event-2');
@@ -146,7 +156,8 @@ void main() {
     await controller.refresh();
     expect(controller.selectedError, isNotNull);
 
-    when(() => repository.getEvent('event-1')).thenAnswer((_) async => _event('event-1'));
+    when(() => repository.getEvent('event-1'))
+        .thenAnswer((_) async => _event('event-1'));
     await controller.select('event-1');
     expect(controller.selected?.id, 'event-1');
     expect(controller.error, isNull);
@@ -166,27 +177,30 @@ void main() {
     expect(controller.loading, isFalse);
   });
 
-  test('refrescar fotos del mismo evento mantiene fotos durante la espera', () async {
+  test('refrescar fotos del mismo evento mantiene fotos durante la espera',
+      () async {
     final api = _PhotosApi();
     final pending = Completer<ListPhotosPage>();
     when(() => api.setIdToken(any())).thenReturn(null);
     when(() => api.list(eventId: 'event-1', limit: 24, filter: 'all'))
         .thenAnswer((_) async => const ListPhotosPage(
-              items: [EventPhoto(
-                photoId: 'photo-1',
-                guestId: 'user-1',
-                createdAt: null,
-                uploadedAt: null,
-                status: 'ready',
-                originalUrl: null,
-                mediumUrl: null,
-                smallUrl: null,
-                shared: false,
-                ownerName: null,
-                sharedByUserId: null,
-                sharedByName: null,
-                likedByMe: false,
-              )],
+              items: [
+                EventPhoto(
+                  photoId: 'photo-1',
+                  guestId: 'user-1',
+                  createdAt: null,
+                  uploadedAt: null,
+                  status: 'ready',
+                  originalUrl: null,
+                  mediumUrl: null,
+                  smallUrl: null,
+                  shared: false,
+                  ownerName: null,
+                  sharedByUserId: null,
+                  sharedByName: null,
+                  likedByMe: false,
+                )
+              ],
               nextToken: null,
             ));
     final gallery = PhotosGalleryController(api: api)
@@ -211,8 +225,10 @@ void main() {
     final api = _PhotosApi();
     when(() => api.setIdToken(any())).thenReturn(null);
     when(() => api.list(eventId: 'event-1', limit: 24, filter: 'all'))
-        .thenAnswer((_) async => const ListPhotosPage(items: [], nextToken: null));
-    final gallery = PhotosGalleryController(api: api)..prepare(eventId: 'event-1');
+        .thenAnswer(
+            (_) async => const ListPhotosPage(items: [], nextToken: null));
+    final gallery = PhotosGalleryController(api: api)
+      ..prepare(eventId: 'event-1');
     addTearDown(gallery.dispose);
     await gallery.refresh(eventId: 'event-1');
     expect(gallery.loadedOnce, isFalse);
@@ -225,6 +241,105 @@ void main() {
     await loaded.future.timeout(const Duration(seconds: 3));
     expect(gallery.loadedOnce, isTrue);
     expect(gallery.loading, isFalse);
-    verify(() => api.list(eventId: 'event-1', limit: 24, filter: 'all')).called(2);
+    verify(() => api.list(eventId: 'event-1', limit: 24, filter: 'all'))
+        .called(2);
+  });
+
+  test('reintento de miniaturas usa el original y refresca el estado',
+      () async {
+    final api = _PhotosApi();
+    var listCount = 0;
+    when(() => api.setIdToken(any())).thenReturn(null);
+    when(() => api.retryProcessing(eventId: 'event-1', photoId: 'photo-1'))
+        .thenAnswer((_) async {});
+    when(() => api.list(eventId: 'event-1', limit: 24, filter: 'all'))
+        .thenAnswer((_) async {
+      listCount++;
+      final status = listCount == 1 ? 'failed' : 'retrying';
+      return ListPhotosPage(
+        items: [
+          EventPhoto(
+            photoId: 'photo-1',
+            guestId: 'user-1',
+            createdAt: null,
+            uploadedAt: null,
+            status: status,
+            originalUrl: null,
+            mediumUrl: null,
+            smallUrl: null,
+            shared: true,
+            ownerName: null,
+            sharedByUserId: 'user-1',
+            sharedByName: null,
+            likedByMe: false,
+            processingAttempts: status == 'failed' ? 5 : 6,
+            processingErrorCode: status == 'failed' ? 'retry_exhausted' : null,
+            processingRetryable: status == 'failed',
+          ),
+        ],
+        nextToken: null,
+      );
+    });
+
+    final gallery = PhotosGalleryController(api: api)
+      ..setIdToken('token-1')
+      ..prepare(eventId: 'event-1');
+    addTearDown(gallery.dispose);
+
+    await gallery.refresh(eventId: 'event-1');
+    expect(gallery.items.single.status, 'failed');
+    expect(gallery.items.single.processingRetryable, isTrue);
+
+    await gallery.retryProcessing(
+      eventId: 'event-1',
+      photo: gallery.items.single,
+    );
+
+    verify(() => api.retryProcessing(
+          eventId: 'event-1',
+          photoId: 'photo-1',
+        )).called(1);
+    expect(gallery.items.single.status, 'retrying');
+    expect(gallery.isProcessingRetryPending('photo-1'), isFalse);
+  });
+
+  testWidgets(
+      'el overlay solo expone reintento cuando el uploader puede reintentar',
+      (tester) async {
+    var retryCount = 0;
+
+    Future<void> showOverlay({
+      required bool canRetry,
+      required bool retryPending,
+    }) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Stack(
+            children: [
+              PhotoProcessingFailureOverlay(
+                message: 'No se pudieron generar las miniaturas',
+                canRetry: canRetry,
+                retryPending: retryPending,
+                retryLabel: 'Reintentar',
+                retryingLabel: 'En cola',
+                onRetry: () => retryCount++,
+              ),
+            ],
+          ),
+        ),
+      ));
+    }
+
+    await showOverlay(canRetry: false, retryPending: false);
+    expect(find.text('Reintentar'), findsNothing);
+
+    await showOverlay(canRetry: true, retryPending: true);
+    expect(find.text('En cola'), findsOneWidget);
+    await tester.tap(find.text('En cola'));
+    expect(retryCount, 0);
+
+    await showOverlay(canRetry: true, retryPending: false);
+    await tester.tap(find.text('Reintentar'));
+    expect(retryCount, 1);
   });
 }

@@ -29,6 +29,11 @@ public class DynamoPhotoItem {
 
     private String sharedByUserId;
     private String sharedByName;
+    private Boolean shared;
+    private Integer processingAttempts;
+    private String processingErrorCode;
+    private Long processingLeaseUntilEpoch;
+    private Long processingRetryAtEpoch;
 
     @DynamoDbPartitionKey
     @DynamoDbAttribute("photoId")
@@ -149,5 +154,50 @@ public class DynamoPhotoItem {
 
     public void setSharedByName(String sharedByName) {
         this.sharedByName = sharedByName;
+    }
+
+    @DynamoDbAttribute("shared")
+    public Boolean getShared() {
+        return shared;
+    }
+
+    public void setShared(Boolean shared) {
+        this.shared = shared;
+    }
+
+    @DynamoDbAttribute("processingAttempts")
+    public Integer getProcessingAttempts() {
+        return processingAttempts;
+    }
+
+    public void setProcessingAttempts(Integer processingAttempts) {
+        this.processingAttempts = processingAttempts;
+    }
+
+    @DynamoDbAttribute("processingErrorCode")
+    public String getProcessingErrorCode() {
+        return processingErrorCode;
+    }
+
+    public void setProcessingErrorCode(String processingErrorCode) {
+        this.processingErrorCode = processingErrorCode;
+    }
+
+    @DynamoDbAttribute("processingLeaseUntilEpoch")
+    public Long getProcessingLeaseUntilEpoch() {
+        return processingLeaseUntilEpoch;
+    }
+
+    public void setProcessingLeaseUntilEpoch(Long processingLeaseUntilEpoch) {
+        this.processingLeaseUntilEpoch = processingLeaseUntilEpoch;
+    }
+
+    @DynamoDbAttribute("processingRetryAtEpoch")
+    public Long getProcessingRetryAtEpoch() {
+        return processingRetryAtEpoch;
+    }
+
+    public void setProcessingRetryAtEpoch(Long processingRetryAtEpoch) {
+        this.processingRetryAtEpoch = processingRetryAtEpoch;
     }
 }

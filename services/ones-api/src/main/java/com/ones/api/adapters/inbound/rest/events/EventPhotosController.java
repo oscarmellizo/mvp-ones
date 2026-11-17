@@ -97,6 +97,19 @@ public class EventPhotosController {
         return photosService.list(userId, email, eventId, limit, nextToken, scope, filter, guestIds);
     }
 
+    @PostMapping("/{eventId}/photos/{photoId}/processing-retry")
+    public ResponseEntity<PhotosService.RetryProcessingResult> retryProcessing(
+            Authentication authentication,
+            @PathVariable("eventId") String eventId,
+            @PathVariable("photoId") String photoId
+    ) {
+        String userId = authentication.getName();
+        String email = AuthClaims.requireEmail(authentication);
+        return ResponseEntity.accepted().body(
+                photosService.retryFailedProcessing(userId, email, eventId, photoId)
+        );
+    }
+
     @PostMapping("/{eventId}/photos/{photoId}/ready")
     public Photo ready(
             Authentication authentication,

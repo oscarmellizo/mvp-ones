@@ -12,6 +12,9 @@ class EventPhoto {
   final String? sharedByUserId;
   final String? sharedByName;
   final bool likedByMe;
+  final int processingAttempts;
+  final String? processingErrorCode;
+  final bool processingRetryable;
 
   const EventPhoto({
     required this.photoId,
@@ -27,5 +30,8 @@ class EventPhoto {
     required this.sharedByUserId,
     required this.sharedByName,
     required this.likedByMe,
+    this.processingAttempts = 0,
+    this.processingErrorCode,
+    this.processingRetryable = false,
   });
 }
