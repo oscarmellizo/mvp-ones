@@ -52,6 +52,19 @@ def _load_internal_basic_auth():
     return 'Basic ' + token
 
 
+_INTERNAL_BASIC_AUTH = None
+_INTERNAL_BASIC_AUTH_LOADED = False
+
+
+def _internal_basic_auth_cached():
+    global _INTERNAL_BASIC_AUTH, _INTERNAL_BASIC_AUTH_LOADED
+    if _INTERNAL_BASIC_AUTH_LOADED:
+        return _INTERNAL_BASIC_AUTH
+    _INTERNAL_BASIC_AUTH_LOADED = True
+    _INTERNAL_BASIC_AUTH = _load_internal_basic_auth()
+    return _INTERNAL_BASIC_AUTH
+
+
 class ProcessingError(Exception):
     def __init__(self, code, retryable, retry_after_seconds=None):
         super().__init__(code)

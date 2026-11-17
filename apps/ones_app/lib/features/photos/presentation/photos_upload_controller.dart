@@ -193,6 +193,13 @@ class PhotosUploadController extends ChangeNotifier {
     _activeByEvent[eventId] = items;
   }
 
+  Future<void> refreshActiveForEvent({required String eventId}) async {
+    final trimmed = eventId.trim();
+    if (!useLocalQueue || trimmed.isEmpty) return;
+    await _refreshActiveForEvent(trimmed);
+    _safeNotify();
+  }
+
   Future<void> trigger() async {
     if (!useLocalQueue) return;
     if (_running) {

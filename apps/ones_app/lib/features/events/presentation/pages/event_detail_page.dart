@@ -22,6 +22,7 @@ import '../../../auth/presentation/auth_controller.dart';
 import '../../../photos/presentation/pages/photo_viewer_page.dart';
 import '../../../photos/adapters/api/event_photos_api.dart';
 import '../../../photos/presentation/photo_processing_failure_overlay.dart';
+import '../../../photos/presentation/photo_upload_status_badge.dart';
 import '../../../photos/presentation/photos_gallery_controller.dart';
 import '../../../photos/presentation/photos_upload_controller.dart';
 import '../../../photos/presentation/photos_ws_controller.dart';
@@ -282,6 +283,10 @@ class _EventDetailPageState extends State<EventDetailPage> {
                             );
                             if (result == true && context.mounted) {
                               await context
+                                  .read<PhotosUploadController>()
+                                  .refreshActiveForEvent(eventId: event.id);
+                              if (!context.mounted) return;
+                              await context
                                   .read<PhotosGalleryController>()
                                   .refresh(eventId: event.id);
                             }
@@ -310,6 +315,10 @@ class _EventDetailPageState extends State<EventDetailPage> {
                                       ),
                               ),
                             );
+                            if (!context.mounted) return;
+                            await context
+                                .read<PhotosUploadController>()
+                                .refreshActiveForEvent(eventId: event.id);
                             if (!context.mounted) return;
                             await context
                                 .read<PhotosGalleryController>()
@@ -505,6 +514,7 @@ class _GalleryTabState extends State<_GalleryTab> {
   PhotoStorage? _photoStorage;
   PhotosGalleryController? _galleryController;
   PhotosUploadController? _uploader;
+  bool _localQueueLoaded = false;
 
   Color _badgeColorForIdentity(String identity) {
     final trimmed = identity.trim();
@@ -601,6 +611,12 @@ class _GalleryTabState extends State<_GalleryTab> {
     _photoStorage ??= context.read<PhotoStorage>();
     _galleryController ??= context.read<PhotosGalleryController>();
     _uploader ??= context.read<PhotosUploadController>();
+    if (!_localQueueLoaded) {
+      _localQueueLoaded = true;
+      unawaited(
+        _uploader!.refreshActiveForEvent(eventId: widget.eventId),
+      );
+    }
   }
 
   @override
@@ -612,11 +628,17 @@ class _GalleryTabState extends State<_GalleryTab> {
     if (!eventChanged && !userChanged) return;
 
     if (eventChanged) {
+      _localQueueLoaded = true;
       _autoFillEventId = null;
       _autoFillLoadMoreAttempts = 0;
       if (_gridScrollController.hasClients) {
         _gridScrollController.jumpTo(0);
       }
+      unawaited(
+        context
+            .read<PhotosUploadController>()
+            .refreshActiveForEvent(eventId: widget.eventId),
+      );
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1141,7 +1163,7 @@ class _GalleryTabState extends State<_GalleryTab> {
       return safeB.compareTo(safeA);
     });
 
-    if (!isCurrentEvent || !controller.loadedOnce) {
+    if (!isCurrentEvent || (!controller.loadedOnce && localPathById.isEmpty)) {
       return const Center(child: CircularProgressIndicator());
     }
 
@@ -1232,7 +1254,9 @@ class _GalleryTabState extends State<_GalleryTab> {
       );
     }
 
-    if (controller.error != null && controller.items.isEmpty) {
+    if (controller.error != null &&
+        controller.items.isEmpty &&
+        localPathById.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -1650,6 +1674,10 @@ class _GalleryTabState extends State<_GalleryTab> {
                         final remote = remoteById[photoId];
                         final remoteStatus =
                             (remote?.status ?? '').trim().toLowerCase();
+                        final localStatus =
+                            (localById[photoId]?.status as String? ?? '')
+                                .trim()
+                                .toLowerCase();
                         final processingFailed = remoteStatus == 'failed';
                         final processingRetryPending =
                             controller.isProcessingRetryPending(photoId);
@@ -1865,99 +1893,21 @@ class _GalleryTabState extends State<_GalleryTab> {
                                           ),
                               ),
                               if (isLocalPending)
-                                Container(
-                                  color: Colors.black.withOpacity(0.35),
-                                  child: Center(
-                                    child: () {
-                                      final local = localById[photoId];
-                                      final localStatus = (local?.status ?? '')
-                                          .trim()
-                                          .toLowerCase();
-                                      if (remoteStatus == 'retrying') {
-                                        return Text(
-                                          t.translate(
-                                            'event_detail.processing_retrying',
-                                            fallback: 'Reintentando...',
-                                          ),
-                                          textAlign: TextAlign.center,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w900,
-                                          ),
-                                        );
-                                      }
-                                      final isFailed = localStatus == 'failed';
-                                      if (isFailed) {
-                                        return GestureDetector(
-                                          onTap: () {
-                                            uploader.retryFailedByPhotoId(
+                                Positioned(
+                                  right: 8,
+                                  bottom: 8,
+                                  child: PhotoUploadStatusBadge(
+                                    status: localStatus.isNotEmpty
+                                        ? localStatus
+                                        : remoteStatus,
+                                    progress: uploader
+                                        .uploadProgressByPhotoId(photoId),
+                                    onRetry: localStatus == 'failed'
+                                        ? () => uploader.retryFailedByPhotoId(
                                               eventId: widget.eventId,
                                               photoId: photoId,
-                                            );
-                                          },
-                                          child: Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: const [
-                                              Icon(
-                                                Icons.error_outline,
-                                                color: Colors.white,
-                                              ),
-                                              SizedBox(height: 6),
-                                              Text(
-                                                'Error',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w900,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      }
-                                      final progress = uploader
-                                          .uploadProgressByPhotoId(photoId);
-                                      final isUploading =
-                                          localStatus == 'uploading';
-
-                                      final value =
-                                          (isUploading && progress != null)
-                                              ? progress
-                                              : null;
-                                      final pct =
-                                          (isUploading && progress != null)
-                                              ? (progress * 100).round()
-                                              : null;
-
-                                      return Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          SizedBox(
-                                            width: 18,
-                                            height: 18,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2.2,
-                                              value: value,
-                                              valueColor:
-                                                  const AlwaysStoppedAnimation(
-                                                      Colors.white),
-                                            ),
-                                          ),
-                                          if (pct != null) ...[
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              '$pct%',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w900,
-                                              ),
-                                            ),
-                                          ],
-                                        ],
-                                      );
-                                    }(),
+                                            )
+                                        : null,
                                   ),
                                 ),
                               if (processingFailed && remote != null)
