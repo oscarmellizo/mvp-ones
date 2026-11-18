@@ -1,5 +1,6 @@
 class PhotoUploadItem {
   final int id;
+  final String? ownerId;
   final String eventId;
   final String photoId;
   final String localPath;
@@ -15,6 +16,7 @@ class PhotoUploadItem {
 
   const PhotoUploadItem({
     required this.id,
+    required this.ownerId,
     required this.eventId,
     required this.photoId,
     required this.localPath,

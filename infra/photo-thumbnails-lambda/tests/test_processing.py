@@ -3,6 +3,7 @@ import json
 import pathlib
 import sys
 import unittest
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 
@@ -178,6 +179,42 @@ class ThumbnailWorkerTests(unittest.TestCase):
                 self.assertEqual(result, {"batchItemFailures": []})
                 mark_failed.assert_called_once()
                 self.assertEqual(mark_failed.call_args.args[1], "retry_exhausted")
+
+    def test_dlq_recovers_missing_photo_metadata_from_existing_s3_original(self):
+        last_modified = datetime(2026, 11, 17, 22, 10, tzinfo=timezone.utc)
+        job = {
+            "eventId": "event-1",
+            "photoId": "photo-1",
+            "s3KeyOriginal": "eventos/event-1/guests/user-1/private/photo-1.jpg",
+            "manualRetry": False,
+        }
+        record = {
+            "eventSource": "aws:sqs",
+            "eventSourceARN": "arn:aws:sqs:us-east-1:123:photo-dlq",
+            "messageId": "message-dlq",
+            "body": json.dumps(job),
+        }
+
+        for handler in HANDLERS:
+            with self.subTest(handler=handler.__name__):
+                with (
+                    patch.dict(handler.os.environ, {
+                        "BUCKET": "photos",
+                        "PROCESSING_DLQ_ARN": record["eventSourceARN"],
+                    }),
+                    patch.object(handler, "_call_backend_failed", return_value={"updated": False}),
+                    patch.object(handler, "_call_backend_recover", return_value={
+                        "status": "uploaded",
+                        "processingQueued": True,
+                    }) as recover,
+                    patch.object(handler.s3, "head_object", return_value={
+                        "LastModified": last_modified,
+                    }),
+                ):
+                    result = handler.handler({"Records": [record]}, None)
+
+                self.assertEqual(result, {"batchItemFailures": []})
+                recover.assert_called_once_with(job, last_modified.isoformat())
 
     def test_retryable_sqs_failure_returns_only_failed_message(self):
         for handler in HANDLERS:

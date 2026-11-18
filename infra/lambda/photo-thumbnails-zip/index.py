@@ -100,7 +100,15 @@ def _call_backend(event_id, photo_id, action, body):
             return result if isinstance(result, dict) else {}
         except urllib.error.HTTPError as exc:
             if exc.code == 429 or exc.code >= 500:
-                print(f"backend_retry eventId={event_id} photoId={photo_id} status={exc.code} attempt={attempt}")
+                try:
+                    error_body = json.loads(exc.read(2048).decode('utf-8'))
+                    backend_error = str(error_body.get('error') or 'unknown')[:80]
+                except Exception:
+                    backend_error = 'unavailable'
+                print(
+                    f"backend_retry eventId={event_id} photoId={photo_id} "
+                    f"status={exc.code} backendError={backend_error} attempt={attempt}"
+                )
             else:
                 raise ProcessingError("backend_rejected", False)
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
@@ -301,6 +309,18 @@ def _call_backend_failed(job, error_code):
     )
 
 
+def _call_backend_recover(job, created_at):
+    return _call_backend(
+        job["eventId"],
+        job["photoId"],
+        "recover",
+        {
+            "s3KeyOriginal": job["s3KeyOriginal"],
+            "createdAt": created_at,
+        },
+    )
+
+
 def _mark_retrying(job, error_code, receive_count):
     delay = _retry_delay(receive_count)
     print(
@@ -315,7 +335,52 @@ def _mark_failed(job, error_code):
         f"photo_processing_failed eventId={job['eventId']} photoId={job['photoId']} "
         f"errorCode={error_code}"
     )
-    return _call_backend_failed(job, error_code)
+    result = _call_backend_failed(job, error_code)
+    if isinstance(result, dict) and result.get("updated") is False:
+        _recover_missing_photo(job)
+    return result
+
+
+def _recover_missing_photo(job):
+    event_id = str(job["eventId"]).strip()
+    photo_id = str(job["photoId"]).strip()
+    key = str(job["s3KeyOriginal"]).strip()
+    parsed_event, parsed_photo = _parse_key(key)
+    if parsed_event != event_id or parsed_photo != photo_id:
+        print(f"photo_recovery_skipped_invalid_key eventId={event_id} photoId={photo_id}")
+        return
+
+    bucket = os.environ.get("BUCKET", "").strip()
+    if not bucket:
+        raise ProcessingError("s3_unavailable", True)
+    try:
+        source = s3.head_object(Bucket=bucket, Key=key)
+    except ClientError as exc:
+        code = str((exc.response.get("Error") or {}).get("Code") or "")
+        if code in ("NoSuchKey", "NotFound", "404"):
+            print(f"photo_recovery_source_missing eventId={event_id} photoId={photo_id}")
+            return
+        raise ProcessingError("s3_unavailable", True) from exc
+    except BotoCoreError as exc:
+        raise ProcessingError("s3_unavailable", True) from exc
+
+    created_at = source["LastModified"].isoformat()
+    try:
+        recovered = _call_backend_recover(job, created_at)
+    except ProcessingError as exc:
+        if exc.retryable:
+            raise
+        print(
+            f"photo_recovery_rejected eventId={event_id} photoId={photo_id} "
+            f"errorCode={exc.code}"
+        )
+        return
+
+    print(
+        f"photo_recovered eventId={event_id} photoId={photo_id} "
+        f"status={recovered.get('status', 'unknown')} "
+        f"processingQueued={bool(recovered.get('processingQueued'))}"
+    )
 
 
 def _process_photo(job, receive_count):
@@ -415,7 +480,15 @@ def _record_dlq_jobs(message):
     except (TypeError, json.JSONDecodeError):
         return
     for job in _jobs_from_body(body):
-        _mark_failed(job, "retry_exhausted")
+        try:
+            _mark_failed(job, "retry_exhausted")
+        except ProcessingError as exc:
+            if exc.retryable:
+                raise
+            print(
+                f"photo_dlq_record_terminal eventId={job.get('eventId')} "
+                f"photoId={job.get('photoId')} errorCode={exc.code}"
+            )
 
 
 def _change_message_visibility(record, delay_seconds):

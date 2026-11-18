@@ -1,8 +1,8 @@
 package com.ones.api.application.photos;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -12,9 +12,11 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.ByteArrayInputStream;
 import java.net.URL;
 import java.time.Clock;
 import java.time.Instant;
@@ -29,6 +31,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.ones.api.application.events.GetEventUseCase;
+import com.ones.api.application.events.ports.ObjectNotFoundException;
 import com.ones.api.application.events.ports.EventsRepository;
 import com.ones.api.application.events.ports.ObjectStorage;
 import com.ones.api.application.events.ports.ObjectStoragePresigner;
@@ -257,6 +260,59 @@ class PhotosServiceAutoShareTest {
         ).photo();
         assertEquals("processing", claimedAgain.getStatus());
         assertTrue(claimedAgain.isShared());
+    }
+
+    @Test
+    void internalRecoveryRegistersExistingS3PhotoAndQueuesThumbnailProcessing() {
+        when(storage.open("photos", ORIGINAL_KEY)).thenReturn(new ByteArrayInputStream(new byte[0]));
+
+        PhotosService.PhotoRecoveryResult result = service.recoverOrphanedPhotoInternal(
+                EVENT_ID, PHOTO_ID, ORIGINAL_KEY, CREATED_AT
+        );
+
+        assertEquals(PHOTO_ID, result.photo().getPhotoId());
+        assertEquals("uploaded", result.photo().getStatus());
+        assertTrue(result.photo().isShared());
+        assertTrue(result.processingQueued());
+        assertEquals(1, photos.countByEventId(EVENT_ID));
+        verify(processingQueue).enqueue(org.mockito.ArgumentMatchers.argThat(job ->
+                !job.manualRetry()
+                        && EVENT_ID.equals(job.eventId())
+                        && PHOTO_ID.equals(job.photoId())
+                        && ORIGINAL_KEY.equals(job.s3KeyOriginal())
+        ));
+    }
+
+    @Test
+    void internalRecoveryIsIdempotentForAReadyPhoto() {
+        when(storage.open("photos", ORIGINAL_KEY)).thenReturn(new ByteArrayInputStream(new byte[0]));
+        complete();
+        service.markReadyInternal(
+                EVENT_ID, PHOTO_ID, ORIGINAL_KEY,
+                ORIGINAL_KEY.replace(".jpg", "_m.jpg"),
+                ORIGINAL_KEY.replace(".jpg", "_s.jpg")
+        );
+        clearInvocations(processingQueue);
+
+        PhotosService.PhotoRecoveryResult result = service.recoverOrphanedPhotoInternal(
+                EVENT_ID, PHOTO_ID, ORIGINAL_KEY, CREATED_AT
+        );
+
+        assertEquals("ready", result.photo().getStatus());
+        assertFalse(result.processingQueued());
+        verify(processingQueue, never()).enqueue(any());
+    }
+
+    @Test
+    void internalRecoveryRejectsMissingSourceObject() {
+        when(storage.open("photos", ORIGINAL_KEY))
+                .thenThrow(new ObjectNotFoundException("photos", ORIGINAL_KEY));
+
+        assertThrows(ObjectNotFoundException.class, () -> service.recoverOrphanedPhotoInternal(
+                EVENT_ID, PHOTO_ID, ORIGINAL_KEY, CREATED_AT
+        ));
+        assertTrue(photos.items.isEmpty());
+        verify(processingQueue, never()).enqueue(any());
     }
 
     @Test

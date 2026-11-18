@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -17,6 +18,7 @@ class PhotosUploadController extends ChangeNotifier {
   final bool useLocalQueue;
 
   String? _idToken;
+  String? _currentOwnerId;
   bool _running = false;
   Object? _lastError;
 
@@ -69,7 +71,13 @@ class PhotosUploadController extends ChangeNotifier {
     required String eventId,
     required String photoId,
   }) async {
-    if (!useLocalQueue || eventId.isEmpty || photoId.isEmpty) return;
+    final ownerId = _currentOwnerId;
+    if (!useLocalQueue ||
+        ownerId == null ||
+        eventId.isEmpty ||
+        photoId.isEmpty) {
+      return;
+    }
     try {
       final file = await storage.getFile(eventId: eventId, photoId: photoId);
       if (await file.exists()) {
@@ -78,7 +86,7 @@ class PhotosUploadController extends ChangeNotifier {
     } catch (_) {
       // ignore
     }
-    await db.deleteByPhotoId(photoId);
+    await db.deleteByPhotoId(photoId, ownerId: ownerId);
     _uploadProgressByPhotoId.remove(photoId);
     await _refreshActiveForEvent(eventId);
     _safeNotify();
@@ -88,17 +96,26 @@ class PhotosUploadController extends ChangeNotifier {
     required String eventId,
     required String photoId,
   }) async {
-    if (!useLocalQueue || eventId.isEmpty || photoId.isEmpty) return;
-    await db.retryFailedByPhotoId(photoId);
+    final ownerId = _currentOwnerId;
+    if (!useLocalQueue ||
+        ownerId == null ||
+        eventId.isEmpty ||
+        photoId.isEmpty) {
+      return;
+    }
+    await db.retryFailedByPhotoId(photoId, ownerId: ownerId);
     await _refreshActiveForEvent(eventId);
     _safeNotify();
     unawaited(trigger());
   }
 
   Future<void> rehydrateActive() async {
-    if (!useLocalQueue) return;
+    final ownerId = _currentOwnerId;
+    if (!useLocalQueue || ownerId == null) return;
     await db.purgeStale(olderThan: const Duration(minutes: 10));
-    final items = await db.listActive();
+    await db.bindLegacyItems(ownerId: ownerId);
+    final items = await db.listActive(ownerId: ownerId);
+    if (ownerId != _currentOwnerId) return;
     final next = <String, List<PhotoUploadItem>>{};
     for (final it in items) {
       if (it.eventId.isEmpty) continue;
@@ -119,6 +136,7 @@ class PhotosUploadController extends ChangeNotifier {
     _tokenEpoch++;
 
     _idToken = token;
+    _currentOwnerId = _ownerIdFromIdToken(token);
     api.setIdToken(token);
 
     _lastError = null;
@@ -129,18 +147,39 @@ class PhotosUploadController extends ChangeNotifier {
     }
 
     final hasToken = token != null && token.isNotEmpty;
-    if (!hasToken) {
+    if (!hasToken || _currentOwnerId == null) {
       _activeByEvent.clear();
-      unawaited(db.clearAll());
       _triggerAgain = false;
       _safeNotify();
       return;
     }
 
-    unawaited(rehydrateActive());
-    _triggerAgain = true;
+    final tokenEpoch = _tokenEpoch;
     _safeNotify();
-    unawaited(trigger());
+    unawaited(_rehydrateThenTrigger(tokenEpoch));
+  }
+
+  Future<void> _rehydrateThenTrigger(int tokenEpoch) async {
+    await rehydrateActive();
+    if (tokenEpoch == _tokenEpoch && _currentOwnerId != null) {
+      unawaited(trigger());
+    }
+  }
+
+  static String? _ownerIdFromIdToken(String? token) {
+    if (token == null || token.isEmpty) return null;
+    final segments = token.split('.');
+    if (segments.length < 2) return null;
+    try {
+      final decoded = jsonDecode(
+        utf8.decode(base64Url.decode(base64Url.normalize(segments[1]))),
+      );
+      if (decoded is! Map<String, dynamic>) return null;
+      final ownerId = decoded['user_id'] ?? decoded['sub'];
+      return ownerId is String && ownerId.isNotEmpty ? ownerId : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> enqueueCapturedJpeg({
@@ -152,7 +191,13 @@ class PhotosUploadController extends ChangeNotifier {
     String? orientation,
     String? cameraType,
   }) async {
-    if (!useLocalQueue) throw UnsupportedError('Local uploads are unavailable on web');
+    if (!useLocalQueue) {
+      throw UnsupportedError('Local uploads are unavailable on web');
+    }
+    final ownerId = _currentOwnerId;
+    if (ownerId == null) {
+      throw StateError('Authenticated photo owner is unavailable');
+    }
     final created = createdAt.toUtc().toIso8601String();
     final saved = await storage.saveJpeg(
       eventId: eventId,
@@ -171,6 +216,7 @@ class PhotosUploadController extends ChangeNotifier {
     }
 
     await db.enqueue(
+      ownerId: ownerId,
       eventId: eventId,
       photoId: photoId,
       localPath: saved.path,
@@ -188,8 +234,13 @@ class PhotosUploadController extends ChangeNotifier {
   }
 
   Future<void> _refreshActiveForEvent(String eventId) async {
-    if (eventId.isEmpty) return;
-    final items = await db.listActiveByEvent(eventId: eventId);
+    final ownerId = _currentOwnerId;
+    if (eventId.isEmpty || ownerId == null) return;
+    final items = await db.listActiveByEvent(
+      eventId: eventId,
+      ownerId: ownerId,
+    );
+    if (ownerId != _currentOwnerId) return;
     _activeByEvent[eventId] = items;
   }
 
@@ -209,7 +260,8 @@ class PhotosUploadController extends ChangeNotifier {
 
     final epoch = _tokenEpoch;
     final token = _idToken;
-    if (token == null || token.isEmpty) return;
+    final ownerId = _currentOwnerId;
+    if (token == null || token.isEmpty || ownerId == null) return;
 
     _running = true;
     _triggerAgain = false;
@@ -230,7 +282,7 @@ class PhotosUploadController extends ChangeNotifier {
           break;
         }
 
-        final next = await db.listPending(limit: 1);
+        final next = await db.listPending(ownerId: ownerId, limit: 1);
         if (next.isEmpty) break;
 
         final item = next.first;
@@ -255,10 +307,10 @@ class PhotosUploadController extends ChangeNotifier {
         if (!localExists) {
           if (kDebugMode) {
             debugPrint(
-              'photo_upload: drop_missing_file eventId=${item.eventId} photoId=${item.photoId} path=${item.localPath}',
+              'photo_upload: local_file_missing eventId=${item.eventId} photoId=${item.photoId}',
             );
           }
-          await db.deleteByPhotoId(item.photoId);
+          await db.markLocalFileMissing(item.id);
           _uploadProgressByPhotoId.remove(item.photoId);
           await _refreshActiveForEvent(item.eventId);
           _safeNotify();
@@ -269,10 +321,10 @@ class PhotosUploadController extends ChangeNotifier {
         if (localLen <= 0) {
           if (kDebugMode) {
             debugPrint(
-              'photo_upload: drop_empty_file eventId=${item.eventId} photoId=${item.photoId} path=${item.localPath}',
+              'photo_upload: local_file_empty eventId=${item.eventId} photoId=${item.photoId}',
             );
           }
-          await db.deleteByPhotoId(item.photoId);
+          await db.markLocalFileMissing(item.id);
           _uploadProgressByPhotoId.remove(item.photoId);
           await _refreshActiveForEvent(item.eventId);
           _safeNotify();
@@ -354,15 +406,16 @@ class PhotosUploadController extends ChangeNotifier {
                 final osError = e.osError;
                 if (osError?.errorCode == 2) return true;
                 final msg = osError?.message;
-                return msg != null && msg.toLowerCase().contains('no such file');
+                return msg != null &&
+                    msg.toLowerCase().contains('no such file');
               })();
           if (isMissingLocalFile) {
             if (kDebugMode) {
               debugPrint(
-                'photo_upload: drop_missing_file_during_upload eventId=${item.eventId} photoId=${item.photoId} path=${item.localPath}',
+                'photo_upload: local_file_missing_during_upload eventId=${item.eventId} photoId=${item.photoId}',
               );
             }
-            await db.deleteByPhotoId(item.photoId);
+            await db.markLocalFileMissing(item.id);
             _uploadProgressByPhotoId.remove(item.photoId);
             await _refreshActiveForEvent(item.eventId);
             _safeNotify();

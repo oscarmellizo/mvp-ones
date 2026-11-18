@@ -28,6 +28,7 @@ import com.ones.api.application.events.EventCoverNotFoundException;
 import com.ones.api.application.events.EventForbiddenException;
 import com.ones.api.application.events.EventHasGuestPhotosException;
 import com.ones.api.application.events.EventNotFoundException;
+import com.ones.api.application.events.ports.ObjectNotFoundException;
 import com.ones.api.application.frames.FrameAssetNotFoundException;
 import com.ones.api.application.frames.FrameNotFoundException;
 import com.ones.api.application.events.invitelink.EventInviteLinkClosedException;
@@ -224,9 +225,21 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(DynamoDbException.class)
     public ResponseEntity<Map<String, Object>> dynamodb(DynamoDbException ex) {
+        String errorCode = ex.awsErrorDetails() == null
+                ? "unknown"
+                : ex.awsErrorDetails().errorCode();
+        log.error("DynamoDB operation failed code={} requestId={}", errorCode, ex.requestId(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                 "error", "aws_dynamodb_error",
-                "message", ex.getMessage()
+                "message", "Database operation failed"
+        ));
+    }
+
+    @ExceptionHandler(ObjectNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> objectNotFound(ObjectNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "error", "object_not_found",
+                "message", "Photo source object was not found"
         ));
     }
 

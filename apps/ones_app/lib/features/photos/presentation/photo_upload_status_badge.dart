@@ -16,12 +16,15 @@ class PhotoUploadStatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final normalized = status.trim().toLowerCase();
     final failed = normalized == 'failed';
+    final localFileMissing = normalized == 'missing_file';
     final uploading = normalized == 'uploading';
     final processing =
         const {'uploaded', 'processing', 'retrying'}.contains(normalized);
     final safeProgress = progress?.clamp(0.0, 1.0).toDouble();
     final label = switch (normalized) {
       'failed' => 'Error al subir. Toca para reintentar.',
+      'missing_file' =>
+        'La foto ya no está en el dispositivo; vuelve a importarla.',
       'uploading' => safeProgress == null
           ? 'Subiendo foto'
           : 'Subiendo foto: ${(safeProgress * 100).round()}%',
@@ -32,12 +35,13 @@ class PhotoUploadStatusBadge extends StatelessWidget {
       _ => 'Foto guardada en el dispositivo; pendiente de subir',
     };
 
-    final icon = failed
+    final icon = failed || localFileMissing
         ? Icons.error_outline
         : processing
             ? Icons.sync
             : Icons.cloud_upload_outlined;
-    final background = failed ? Colors.red.shade700 : Colors.black87;
+    final background =
+        failed || localFileMissing ? Colors.red.shade700 : Colors.black87;
 
     return Semantics(
       label: label,
