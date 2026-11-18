@@ -9,7 +9,7 @@ import '../../../auth/presentation/auth_controller.dart';
 import '../../../auth/presentation/pages/register_page.dart';
 import '../../domain/events_repository.dart';
 import 'event_detail_page.dart';
-import 'event_invite_link_page.dart';
+import 'event_invite_qr_payload.dart';
 
 class EventJoinScanPage extends StatefulWidget {
   const EventJoinScanPage({super.key});
@@ -34,17 +34,20 @@ class _EventJoinScanPageState extends State<EventJoinScanPage> {
   Future<AuthController?> _ensureRegisteredUser(BuildContext context) async {
     final authController = context.read<AuthController>();
     try {
-      if (!authController.isSignedIn || (authController.idToken ?? '').isEmpty) {
+      if (!authController.isSignedIn ||
+          (authController.idToken ?? '').isEmpty) {
         final step = await authController.signInExisting();
         if (!mounted) return null;
         if (step == AuthNextStep.needsRegistration) {
           await Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const RegisterPage(popToRootOnComplete: false)),
+            MaterialPageRoute(
+                builder: (_) => const RegisterPage(popToRootOnComplete: false)),
           );
         }
       } else if (!authController.isRegistered) {
         await Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const RegisterPage(popToRootOnComplete: false)),
+          MaterialPageRoute(
+              builder: (_) => const RegisterPage(popToRootOnComplete: false)),
         );
       }
     } catch (e) {
@@ -72,27 +75,16 @@ class _EventJoinScanPageState extends State<EventJoinScanPage> {
     final raw = first?.rawValue ?? first?.displayValue;
     if (raw == null || raw.isEmpty) return;
 
-    Uri? uri;
-    try {
-      uri = Uri.parse(raw);
-    } catch (_) {
-      uri = null;
-    }
-    if (uri == null || uri.path != EventInviteLinkPage.routeName) {
+    final payload = EventInviteQrPayload.tryParse(raw);
+    if (payload == null) {
       setState(() {
         _error = 'QR no reconocido para eventos.';
       });
       return;
     }
 
-    final eventId = uri.queryParameters['eventId'];
-    final sig = uri.queryParameters['sig'];
-    if (eventId == null || eventId.trim().isEmpty || sig == null || sig.trim().isEmpty) {
-      setState(() {
-        _error = 'QR incompleto o inválido.';
-      });
-      return;
-    }
+    final eventId = payload.eventId;
+    final sig = payload.signature;
 
     setState(() {
       _joining = true;
@@ -136,7 +128,7 @@ class _EventJoinScanPageState extends State<EventJoinScanPage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo unir al evento.')), 
+        const SnackBar(content: Text('No se pudo unir al evento.')),
       );
       setState(() {
         _joining = false;

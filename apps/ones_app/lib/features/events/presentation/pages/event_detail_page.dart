@@ -108,6 +108,8 @@ class _EventDetailPageState extends State<EventDetailPage> {
     'event_detail.section_event_details',
     'event_detail.action_edit_tooltip',
     'event_detail.field_event_name',
+    'event_detail.event_code',
+    'event_detail.event_code_unavailable',
     'event_detail.field_location',
     'event_detail.field_starts',
     'event_detail.field_ends',
@@ -2495,6 +2497,19 @@ class _DetailsTabState extends State<_DetailsTab> {
     _refreshQr();
   }
 
+  @override
+  void didUpdateWidget(covariant _DetailsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.eventId != oldWidget.eventId ||
+        widget.title != oldWidget.title ||
+        widget.eventCode != oldWidget.eventCode ||
+        widget.isOwner != oldWidget.isOwner ||
+        widget.allowGuestInvites != oldWidget.allowGuestInvites) {
+      _refreshInviteLink();
+      _refreshQr();
+    }
+  }
+
   Future<XFile> _downloadQrToXFile(String url) async {
     final response = await Dio().get<List<int>>(
       url,
@@ -2521,13 +2536,19 @@ class _DetailsTabState extends State<_DetailsTab> {
   }
 
   void _refreshInviteLink() {
-    if (!(widget.isOwner || widget.allowGuestInvites)) return;
+    if (!(widget.isOwner || widget.allowGuestInvites)) {
+      _inviteLinkFuture = null;
+      return;
+    }
     _inviteLinkFuture =
         context.read<EventsRepository>().getInviteLink(widget.eventId);
   }
 
   void _refreshQr() {
-    if (!(widget.isOwner || widget.allowGuestInvites)) return;
+    if (!(widget.isOwner || widget.allowGuestInvites)) {
+      _qrFuture = null;
+      return;
+    }
     _qrFuture = _loadQr();
   }
 
@@ -2957,6 +2978,18 @@ class _DetailsTabState extends State<_DetailsTab> {
               maxLines: null,
               overflow: null,
             ),
+            const SizedBox(height: 12),
+            EventCodeDisplay(
+              label: t.translate(
+                'event_detail.event_code',
+                fallback: 'Código de evento',
+              ),
+              code: widget.eventCode ?? '',
+              unavailableText: t.translate(
+                'event_detail.event_code_unavailable',
+                fallback: 'No disponible',
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 14),
@@ -3267,16 +3300,20 @@ class _DetailsTabState extends State<_DetailsTab> {
                                 Row(
                                   crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(4),
-                                      child: Image.network(
-                                        previewUrl,
-                                        width: 160,
-                                        height: 160,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) =>
-                                            const SizedBox(
-                                                width: 160, height: 160),
+                                    SizedBox(
+                                      width: 160,
+                                      height: 200,
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: Image.network(
+                                          previewUrl,
+                                          fit: BoxFit.contain,
+                                          errorBuilder: (_, __, ___) =>
+                                              const SizedBox(
+                                            width: 160,
+                                            height: 200,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(width: 12),
