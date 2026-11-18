@@ -2110,6 +2110,11 @@ Resources:
                   - !GetAtt MpCheckoutAttemptsTable.Arn
                   - !GetAtt SubscriptionPaymentsTable.Arn
                   - !Sub ${SubscriptionPaymentsTable.Arn}/index/*
+              - Effect: Allow
+                Action:
+                  - dynamodb:UpdateItem
+                Resource:
+                  - !GetAtt PhotosTable.Arn
         - PolicyName: ones-photos-ws
           PolicyDocument:
             Version: '2012-10-17'
