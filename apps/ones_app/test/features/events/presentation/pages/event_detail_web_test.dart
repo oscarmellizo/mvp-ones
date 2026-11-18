@@ -15,14 +15,20 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _Auth extends Mock implements AuthController {}
+
 class _Events extends Mock implements EventsController {}
+
 class _Translations extends Mock implements TranslationsService {}
+
 class _PhotosApi extends Mock implements EventPhotosApi {}
+
 class _UploadDb extends Mock implements PhotoUploadDb {}
+
 class _Storage extends Mock implements PhotoStorage {}
 
 void main() {
-  test('ruta inicial /events/detail obtiene eventId de la URL web completa', () {
+  test('ruta inicial /events/detail obtiene eventId de la URL web completa',
+      () {
     expect(
       eventIdForRoute(
         '/events/detail',
@@ -61,10 +67,11 @@ void main() {
     expect(uploader.activeByEvent('event-1'), isEmpty);
     verify(() => api.setIdToken('test-token')).called(1);
     verifyNever(() => db.clearAll());
-    verifyNever(() => db.listActive());
+    verifyNever(() => db.listActive(ownerId: 'user-1'));
     uploader.dispose();
   });
-  testWidgets('la galería puede abrir cámara sin Hero duplicado', (tester) async {
+  testWidgets('la galería puede abrir cámara sin Hero duplicado',
+      (tester) async {
     SharedPreferences.setMockInitialValues({
       'ones.tutorial_seen./events/detail': true,
       'ones.tutorial_version./events/detail': kTutorialVersion,

@@ -3,10 +3,13 @@ package com.ones.api.adapters.inbound.rest.internal;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,6 +24,8 @@ import com.ones.api.domain.photos.Photo;
 @RestController
 @RequestMapping("/internal/events")
 public class InternalPhotosController {
+
+    private static final Logger log = LoggerFactory.getLogger(InternalPhotosController.class);
 
     private final PhotosService photosService;
     private final PhotosWsPublisher photosWsPublisher;
@@ -88,13 +93,54 @@ public class InternalPhotosController {
             @PathVariable("photoId") String photoId,
             @Valid @RequestBody MarkProcessingFailedRequest request
     ) {
-        Optional<Photo> updated = photosService.markProcessingFailedInternal(
-                eventId,
-                photoId,
-                request.s3KeyOriginal(),
-                request.errorCode()
-        );
-        return new ProcessingStateResponse(updated.isPresent(), updated.map(Photo::getStatus).orElse(null));
+        try {
+            Optional<Photo> updated = photosService.markProcessingFailedInternal(
+                    eventId,
+                    photoId,
+                    request.s3KeyOriginal(),
+                    request.errorCode()
+            );
+            return new ProcessingStateResponse(updated.isPresent(), updated.map(Photo::getStatus).orElse(null));
+        } catch (RuntimeException e) {
+            log.error(
+                    "internal_photo_processing_failed_error eventId={} photoId={} exception={}",
+                    eventId,
+                    photoId,
+                    e.getClass().getSimpleName(),
+                    e
+            );
+            throw e;
+        }
+    }
+
+    @PostMapping("/{eventId}/photos/{photoId}/recover")
+    public PhotoRecoveryResponse recoverOrphanedPhoto(
+            @PathVariable("eventId") String eventId,
+            @PathVariable("photoId") String photoId,
+            @Valid @RequestBody RecoverOrphanedPhotoRequest request
+    ) {
+        try {
+            PhotosService.PhotoRecoveryResult result = photosService.recoverOrphanedPhotoInternal(
+                    eventId,
+                    photoId,
+                    request.s3KeyOriginal(),
+                    request.createdAt()
+            );
+            return new PhotoRecoveryResponse(
+                    result.photo().getPhotoId(),
+                    result.photo().getStatus(),
+                    result.processingQueued()
+            );
+        } catch (RuntimeException e) {
+            log.error(
+                    "internal_photo_recovery_error eventId={} photoId={} exception={}",
+                    eventId,
+                    photoId,
+                    e.getClass().getSimpleName(),
+                    e
+            );
+            throw e;
+        }
     }
 
     @PostMapping("/{eventId}/photos/uploaded")
@@ -136,6 +182,15 @@ record ProcessingClaimResponse(String status, int attempts, Long leaseUntilEpoch
 }
 
 record ProcessingStateResponse(boolean updated, String status) {
+}
+
+record RecoverOrphanedPhotoRequest(
+        @NotBlank String s3KeyOriginal,
+        @NotNull Instant createdAt
+) {
+}
+
+record PhotoRecoveryResponse(String photoId, String status, boolean processingQueued) {
 }
 
 record PhotoUploadedRequest(

@@ -691,9 +691,10 @@ class _GalleryTabState extends State<_GalleryTab> {
       final uploader = _uploader;
       if (uploader != null) {
         unawaited(() async {
-          final active = await uploader.db
-              .listActiveByEvent(eventId: widget.eventId, limit: 1);
-          if (active.isEmpty) {
+          final hasActive = await uploader.db.hasActiveForEvent(
+            eventId: widget.eventId,
+          );
+          if (!hasActive) {
             await storage.deleteEventPhotos(eventId: widget.eventId);
           }
         }());
@@ -1845,7 +1846,14 @@ class _GalleryTabState extends State<_GalleryTab> {
                                         File(localPath),
                                         fit: BoxFit.cover,
                                         errorBuilder: (context, error, stack) {
-                                          return const SizedBox.expand();
+                                          return const Center(
+                                            child: Icon(
+                                              Icons
+                                                  .image_not_supported_outlined,
+                                              color: Colors.white70,
+                                              size: 32,
+                                            ),
+                                          );
                                         },
                                       )
                                     : (thumbUrl == null || thumbUrl.isEmpty)

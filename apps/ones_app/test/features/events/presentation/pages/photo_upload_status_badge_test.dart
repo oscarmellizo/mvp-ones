@@ -53,4 +53,29 @@ void main() {
     await tester.tap(find.byType(InkWell));
     expect(retryCount, 1);
   });
+
+  testWidgets('missing local photo stays visible without a retry action',
+      (tester) async {
+    var retryCount = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PhotoUploadStatusBadge(
+            status: 'missing_file',
+            onRetry: () => retryCount++,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byIcon(Icons.error_outline), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(
+        'La foto ya no está en el dispositivo; vuelve a importarla.',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byType(InkWell));
+    expect(retryCount, 0);
+  });
 }

@@ -6,7 +6,7 @@ import '../../domain/photo_upload_item.dart';
 
 class PhotoUploadDb {
   static const _dbName = 'ones_photos.db';
-  static const _dbVersion = 2;
+  static const _dbVersion = 3;
   static const _table = 'photo_upload_queue';
   static const int _maxAttempts = 5;
 
@@ -26,6 +26,7 @@ class PhotoUploadDb {
         await db.execute('''
 CREATE TABLE $_table (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ownerId TEXT NOT NULL,
   eventId TEXT NOT NULL,
   photoId TEXT NOT NULL,
   localPath TEXT NOT NULL,
@@ -52,6 +53,9 @@ CREATE TABLE $_table (
           await db.execute('ALTER TABLE $_table ADD COLUMN orientation TEXT');
           await db.execute('ALTER TABLE $_table ADD COLUMN cameraType TEXT');
         }
+        if (oldVersion < 3) {
+          await db.execute('ALTER TABLE $_table ADD COLUMN ownerId TEXT');
+        }
       },
     );
 
@@ -60,6 +64,7 @@ CREATE TABLE $_table (
   }
 
   Future<int> enqueue({
+    required String ownerId,
     required String eventId,
     required String photoId,
     required String localPath,
@@ -75,6 +80,7 @@ CREATE TABLE $_table (
     return db.insert(
       _table,
       {
+        'ownerId': ownerId,
         'eventId': eventId,
         'photoId': photoId,
         'localPath': localPath,
@@ -98,11 +104,15 @@ CREATE TABLE $_table (
     await db.delete(_table);
   }
 
-  Future<List<PhotoUploadItem>> listPending({int limit = 10}) async {
+  Future<List<PhotoUploadItem>> listPending({
+    required String ownerId,
+    int limit = 10,
+  }) async {
     final db = await _open();
     final rows = await db.query(
       _table,
-      where: "status = 'pending'",
+      where: "ownerId = ? AND status = 'pending'",
+      whereArgs: [ownerId],
       orderBy: 'updatedAt ASC',
       limit: limit,
     );
@@ -112,28 +122,44 @@ CREATE TABLE $_table (
 
   Future<List<PhotoUploadItem>> listActiveByEvent({
     required String eventId,
+    required String ownerId,
     int limit = 100,
   }) async {
     final db = await _open();
     final rows = await db.query(
       _table,
       where:
-          "eventId = ? AND status IN ('pending','uploading','processing','uploaded','failed')",
-      whereArgs: [eventId],
+          "eventId = ? AND ownerId = ? AND status IN ('pending','uploading','processing','uploaded','failed','missing_file')",
+      whereArgs: [eventId, ownerId],
       orderBy: 'createdAt DESC',
       limit: limit,
     );
     return rows.map(_map).toList(growable: false);
   }
 
+  Future<bool> hasActiveForEvent({required String eventId}) async {
+    final db = await _open();
+    final rows = await db.query(
+      _table,
+      columns: ['id'],
+      where:
+          "eventId = ? AND status IN ('pending','uploading','processing','uploaded','failed','missing_file')",
+      whereArgs: [eventId],
+      limit: 1,
+    );
+    return rows.isNotEmpty;
+  }
+
   Future<List<PhotoUploadItem>> listActive({
+    required String ownerId,
     int limit = 500,
   }) async {
     final db = await _open();
     final rows = await db.query(
       _table,
       where:
-          "status IN ('pending','uploading','processing','uploaded','failed')",
+          "ownerId = ? AND status IN ('pending','uploading','processing','uploaded','failed','missing_file')",
+      whereArgs: [ownerId],
       orderBy: 'createdAt DESC',
       limit: limit,
     );
@@ -194,7 +220,8 @@ CREATE TABLE $_table (
     );
   }
 
-  Future<int> purgeStale({Duration olderThan = const Duration(hours: 1)}) async {
+  Future<int> purgeStale(
+      {Duration olderThan = const Duration(hours: 1)}) async {
     final db = await _open();
     final cutoff = DateTime.now().toUtc().subtract(olderThan).toIso8601String();
     return db.update(
@@ -209,18 +236,24 @@ CREATE TABLE $_table (
     );
   }
 
-  Future<void> deleteByPhotoId(String photoId) async {
-    if (photoId.isEmpty) return;
+  Future<void> deleteByPhotoId(
+    String photoId, {
+    required String ownerId,
+  }) async {
+    if (photoId.isEmpty || ownerId.isEmpty) return;
     final db = await _open();
     await db.delete(
       _table,
-      where: 'photoId = ?',
-      whereArgs: [photoId],
+      where: 'photoId = ? AND ownerId = ?',
+      whereArgs: [photoId, ownerId],
     );
   }
 
-  Future<void> retryFailedByPhotoId(String photoId) async {
-    if (photoId.isEmpty) return;
+  Future<void> retryFailedByPhotoId(
+    String photoId, {
+    required String ownerId,
+  }) async {
+    if (photoId.isEmpty || ownerId.isEmpty) return;
     final db = await _open();
     await db.update(
       _table,
@@ -229,8 +262,32 @@ CREATE TABLE $_table (
         'lastError': null,
         'updatedAt': DateTime.now().toUtc().toIso8601String(),
       },
-      where: 'photoId = ?',
-      whereArgs: [photoId],
+      where: "photoId = ? AND ownerId = ? AND status = 'failed'",
+      whereArgs: [photoId, ownerId],
+    );
+  }
+
+  Future<void> bindLegacyItems({required String ownerId}) async {
+    if (ownerId.isEmpty) return;
+    final db = await _open();
+    await db.update(
+      _table,
+      {'ownerId': ownerId},
+      where: 'ownerId IS NULL',
+    );
+  }
+
+  Future<void> markLocalFileMissing(int id) async {
+    final db = await _open();
+    await db.update(
+      _table,
+      {
+        'status': 'missing_file',
+        'lastError': 'local_file_missing',
+        'updatedAt': DateTime.now().toUtc().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [id],
     );
   }
 
@@ -266,6 +323,7 @@ CREATE TABLE $_table (
   PhotoUploadItem _map(Map<String, Object?> row) {
     return PhotoUploadItem(
       id: row['id'] as int,
+      ownerId: row['ownerId'] as String?,
       eventId: row['eventId'] as String,
       photoId: row['photoId'] as String,
       localPath: row['localPath'] as String,

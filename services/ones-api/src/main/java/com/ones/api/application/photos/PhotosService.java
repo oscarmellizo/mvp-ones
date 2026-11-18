@@ -1,5 +1,7 @@
 package com.ones.api.application.photos;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -18,6 +20,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.ones.api.application.events.GetEventUseCase;
+import com.ones.api.application.events.EventNotFoundException;
+import com.ones.api.application.events.ports.ObjectNotFoundException;
 import com.ones.api.application.events.ports.EventsRepository;
 import com.ones.api.application.events.ports.ObjectStorage;
 import com.ones.api.application.events.ports.ObjectStoragePresigner;
@@ -1120,6 +1124,88 @@ public class PhotosService {
         return updated;
     }
 
+    public PhotoRecoveryResult recoverOrphanedPhotoInternal(
+            String eventId,
+            String photoId,
+            String s3KeyOriginal,
+            Instant createdAt
+    ) {
+        require(eventId, "eventId");
+        require(photoId, "photoId");
+        require(s3KeyOriginal, "s3KeyOriginal");
+        if (createdAt == null) {
+            throw new IllegalArgumentException("createdAt is required");
+        }
+
+        String resolvedEventId = eventId.trim();
+        String resolvedPhotoId = photoId.trim();
+        String resolvedKey = s3KeyOriginal.trim();
+        if (!matchesOriginalKey(resolvedEventId, resolvedPhotoId, resolvedKey)) {
+            throw new IllegalArgumentException("Invalid original photo key");
+        }
+        if (eventsRepository.findById(resolvedEventId).isEmpty()) {
+            throw new EventNotFoundException(resolvedEventId);
+        }
+
+        String guestId = resolvedKey.split("/")[3];
+        Photo existing = photosRepository.findById(resolvedPhotoId).orElse(null);
+        if (existing != null) {
+            if (!resolvedEventId.equals(existing.getEventId())
+                    || !guestId.equals(existing.getGuestId())
+                    || !resolvedKey.equals(existing.getS3KeyOriginal())) {
+                throw new IllegalArgumentException("Photo recovery conflicts with an existing photo");
+            }
+            if ("ready".equalsIgnoreCase(existing.getStatus())) {
+                return new PhotoRecoveryResult(existing, false);
+            }
+        }
+
+        try (InputStream ignored = objectStorage.open(photosBucket, resolvedKey)) {
+            // Opening the object verifies it exists without buffering the image in the API.
+        } catch (IOException e) {
+            throw new IllegalStateException("Could not verify the original photo object", e);
+        } catch (ObjectNotFoundException e) {
+            throw e;
+        }
+
+        Instant now = Instant.now(clock);
+        Photo candidate = new Photo(
+                resolvedPhotoId,
+                resolvedEventId,
+                guestId,
+                createdAt,
+                now,
+                "uploaded",
+                resolvedKey,
+                null,
+                null,
+                null,
+                guestId,
+                null,
+                true
+        );
+        Photo recovered = photosRepository.completeUpload(candidate);
+        boolean manualRetry = "failed".equalsIgnoreCase(recovered.getStatus());
+        if (!"ready".equalsIgnoreCase(recovered.getStatus())) {
+            photoProcessingQueue.enqueue(new PhotoProcessingQueue.Job(
+                    resolvedEventId,
+                    resolvedPhotoId,
+                    resolvedKey,
+                    manualRetry,
+                    UUID.randomUUID().toString()
+            ));
+            log.info(
+                    "photo_recovery_queued eventId={} photoId={} priorStatus={} manualRetry={}",
+                    resolvedEventId,
+                    resolvedPhotoId,
+                    existing != null ? existing.getStatus() : "missing",
+                    manualRetry
+            );
+            return new PhotoRecoveryResult(recovered, true);
+        }
+        return new PhotoRecoveryResult(recovered, false);
+    }
+
     public RetryProcessingResult retryFailedProcessing(
             String requesterUserId,
             String requesterEmail,
@@ -1269,6 +1355,9 @@ public class PhotosService {
     }
 
     public record RetryProcessingResult(String photoId, String status) {
+    }
+
+    public record PhotoRecoveryResult(Photo photo, boolean processingQueued) {
     }
 
     private static String originalKey(String eventId, String guestId, String photoId) {
