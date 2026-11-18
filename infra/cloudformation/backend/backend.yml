@@ -840,6 +840,11 @@ Resources:
                   - !Sub ${FramesTable.Arn}/index/*
                   - !GetAtt EventTemplatesTable.Arn
                   - !Sub ${EventTemplatesTable.Arn}/index/*
+              - Effect: Allow
+                Action:
+                  - dynamodb:UpdateItem
+                Resource:
+                  - !GetAtt PhotosTable.Arn
         - PolicyName: ones-s3
           PolicyDocument:
             Version: '2012-10-17'
