@@ -89,3 +89,53 @@ class ReadOnlyField extends StatelessWidget {
     );
   }
 }
+
+class EventCodeDisplay extends StatelessWidget {
+  final String label;
+  final String code;
+  final String unavailableText;
+
+  const EventCodeDisplay({
+    super.key,
+    required this.label,
+    required this.code,
+    required this.unavailableText,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final value = code.trim();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: OnesColors.yellowSoft,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: OnesColors.black.withValues(alpha: 0.65),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          SelectableText(
+            value.isEmpty ? unavailableText : value,
+            key: const ValueKey('event-code-value'),
+            style: const TextStyle(
+              color: OnesColors.black,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
