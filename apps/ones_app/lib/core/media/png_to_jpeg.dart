@@ -4,7 +4,7 @@ import 'package:image/image.dart' as img;
 Uint8List pngToJpegBytes(Uint8List input, {int quality = 90}) {
   final decoded = img.decodeImage(input);
   if (decoded == null) {
-    throw StateError('Failed to decode PNG');
+    throw StateError('Failed to decode image');
   }
   final baked = img.bakeOrientation(decoded);
   final out = img.encodeJpg(baked, quality: quality);
