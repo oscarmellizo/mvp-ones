@@ -74,6 +74,30 @@ Parameters:
       - 'true'
       - 'false'
 
+  PhotoThumbnailsMaxConcurrency:
+    Type: Number
+    Default: 1000
+    MinValue: 2
+    MaxValue: 1000
+
+  PhotoThumbnailsMaxReceiveCount:
+    Type: Number
+    Default: 5
+    MinValue: 1
+    MaxValue: 1000
+
+  PhotoThumbnailsInitialRetryDelaySeconds:
+    Type: Number
+    Default: 5
+    MinValue: 1
+    MaxValue: 900
+
+  PhotoThumbnailsMaxRetryDelaySeconds:
+    Type: Number
+    Default: 300
+    MinValue: 1
+    MaxValue: 900
+
   GrafanaDesiredCount:
     Type: Number
     Default: 1
@@ -157,6 +181,8 @@ Resources:
           AttributeType: S
         - AttributeName: gsi1sk
           AttributeType: S
+        - AttributeName: eventCode
+          AttributeType: S
       KeySchema:
         - AttributeName: eventId
           KeyType: HASH
@@ -169,6 +195,24 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
+        - IndexName: byEventCode
+          KeySchema:
+            - AttributeName: eventCode
+              KeyType: HASH
+          Projection:
+            ProjectionType: INCLUDE
+            NonKeyAttributes:
+              - ownerId
+              - createdAt
+              - title
+              - objective
+              - location
+              - startAt
+              - endAt
+              - coverKey
+              - allowGuestInvites
+              - inviteLinkEnabled
+              - frameIds
 
   UsersTable:
     Type: AWS::DynamoDB::Table
@@ -268,10 +312,7 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: !Sub ${StackPrefix}-${Environment}-photos
-      BillingMode: PROVISIONED
-      ProvisionedThroughput:
-        ReadCapacityUnits: 5
-        WriteCapacityUnits: 2
+      BillingMode: PAY_PER_REQUEST
       Tags:
         - Key: Environment
           Value: !Ref Environment
@@ -296,18 +337,57 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
-          ProvisionedThroughput:
-            ReadCapacityUnits: 5
-            WriteCapacityUnits: 2
         - IndexName: byGuestId
           KeySchema:
             - AttributeName: guestId
               KeyType: HASH
           Projection:
             ProjectionType: ALL
-          ProvisionedThroughput:
-            ReadCapacityUnits: 5
-            WriteCapacityUnits: 2
+
+  PhotoThumbnailsDlq:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${StackPrefix}-${Environment}-photo-thumbnails-dlq
+      VisibilityTimeout: 360
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  PhotoThumbnailsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${StackPrefix}-${Environment}-photo-thumbnails
+      VisibilityTimeout: 360
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt PhotoThumbnailsDlq.Arn
+        maxReceiveCount: !Ref PhotoThumbnailsMaxReceiveCount
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  PhotoThumbnailsQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref PhotoThumbnailsQueue
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowPhotoBucketNotifications
+            Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt PhotoThumbnailsQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Sub arn:aws:s3:::${StackPrefix}-${Environment}-events-photos
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
 
   PhotoLikesTable:
     Type: AWS::DynamoDB::Table
@@ -689,144 +769,6 @@ Resources:
                   - cloudwatch:DeleteAlarms
                 Resource: '*'
 
-  PhotosTableReadScalableTarget:
-    Type: AWS::ApplicationAutoScaling::ScalableTarget
-    Properties:
-      MaxCapacity: 500
-      MinCapacity: 5
-      ResourceId: !Sub table/${PhotosTable}
-      RoleARN: !GetAtt DynamoDbAutoScalingRole.Arn
-      ScalableDimension: dynamodb:table:ReadCapacityUnits
-      ServiceNamespace: dynamodb
-
-  PhotosTableReadScalingPolicy:
-    Type: AWS::ApplicationAutoScaling::ScalingPolicy
-    Properties:
-      PolicyName: photos-table-read
-      PolicyType: TargetTrackingScaling
-      ScalingTargetId: !Ref PhotosTableReadScalableTarget
-      TargetTrackingScalingPolicyConfiguration:
-        PredefinedMetricSpecification:
-          PredefinedMetricType: DynamoDBReadCapacityUtilization
-        TargetValue: 70.0
-        ScaleInCooldown: 60
-        ScaleOutCooldown: 60
-
-  PhotosTableWriteScalableTarget:
-    Type: AWS::ApplicationAutoScaling::ScalableTarget
-    Properties:
-      MaxCapacity: 200
-      MinCapacity: 2
-      ResourceId: !Sub table/${PhotosTable}
-      RoleARN: !GetAtt DynamoDbAutoScalingRole.Arn
-      ScalableDimension: dynamodb:table:WriteCapacityUnits
-      ServiceNamespace: dynamodb
-
-  PhotosTableWriteScalingPolicy:
-    Type: AWS::ApplicationAutoScaling::ScalingPolicy
-    Properties:
-      PolicyName: photos-table-write
-      PolicyType: TargetTrackingScaling
-      ScalingTargetId: !Ref PhotosTableWriteScalableTarget
-      TargetTrackingScalingPolicyConfiguration:
-        PredefinedMetricSpecification:
-          PredefinedMetricType: DynamoDBWriteCapacityUtilization
-        TargetValue: 70.0
-        ScaleInCooldown: 60
-        ScaleOutCooldown: 60
-
-  PhotosByEventIdIndexReadScalableTarget:
-    Type: AWS::ApplicationAutoScaling::ScalableTarget
-    Properties:
-      MaxCapacity: 500
-      MinCapacity: 5
-      ResourceId: !Sub table/${PhotosTable}/index/byEventId
-      RoleARN: !GetAtt DynamoDbAutoScalingRole.Arn
-      ScalableDimension: dynamodb:index:ReadCapacityUnits
-      ServiceNamespace: dynamodb
-
-  PhotosByEventIdIndexReadScalingPolicy:
-    Type: AWS::ApplicationAutoScaling::ScalingPolicy
-    Properties:
-      PolicyName: photos-byEventId-read
-      PolicyType: TargetTrackingScaling
-      ScalingTargetId: !Ref PhotosByEventIdIndexReadScalableTarget
-      TargetTrackingScalingPolicyConfiguration:
-        PredefinedMetricSpecification:
-          PredefinedMetricType: DynamoDBReadCapacityUtilization
-        TargetValue: 70.0
-        ScaleInCooldown: 60
-        ScaleOutCooldown: 60
-
-  PhotosByEventIdIndexWriteScalableTarget:
-    Type: AWS::ApplicationAutoScaling::ScalableTarget
-    Properties:
-      MaxCapacity: 200
-      MinCapacity: 2
-      ResourceId: !Sub table/${PhotosTable}/index/byEventId
-      RoleARN: !GetAtt DynamoDbAutoScalingRole.Arn
-      ScalableDimension: dynamodb:index:WriteCapacityUnits
-      ServiceNamespace: dynamodb
-
-  PhotosByEventIdIndexWriteScalingPolicy:
-    Type: AWS::ApplicationAutoScaling::ScalingPolicy
-    Properties:
-      PolicyName: photos-byEventId-write
-      PolicyType: TargetTrackingScaling
-      ScalingTargetId: !Ref PhotosByEventIdIndexWriteScalableTarget
-      TargetTrackingScalingPolicyConfiguration:
-        PredefinedMetricSpecification:
-          PredefinedMetricType: DynamoDBWriteCapacityUtilization
-        TargetValue: 70.0
-        ScaleInCooldown: 60
-        ScaleOutCooldown: 60
-
-  PhotosByGuestIdIndexReadScalableTarget:
-    Type: AWS::ApplicationAutoScaling::ScalableTarget
-    Properties:
-      MaxCapacity: 500
-      MinCapacity: 5
-      ResourceId: !Sub table/${PhotosTable}/index/byGuestId
-      RoleARN: !GetAtt DynamoDbAutoScalingRole.Arn
-      ScalableDimension: dynamodb:index:ReadCapacityUnits
-      ServiceNamespace: dynamodb
-
-  PhotosByGuestIdIndexReadScalingPolicy:
-    Type: AWS::ApplicationAutoScaling::ScalingPolicy
-    Properties:
-      PolicyName: photos-byGuestId-read
-      PolicyType: TargetTrackingScaling
-      ScalingTargetId: !Ref PhotosByGuestIdIndexReadScalableTarget
-      TargetTrackingScalingPolicyConfiguration:
-        PredefinedMetricSpecification:
-          PredefinedMetricType: DynamoDBReadCapacityUtilization
-        TargetValue: 70.0
-        ScaleInCooldown: 60
-        ScaleOutCooldown: 60
-
-  PhotosByGuestIdIndexWriteScalableTarget:
-    Type: AWS::ApplicationAutoScaling::ScalableTarget
-    Properties:
-      MaxCapacity: 200
-      MinCapacity: 2
-      ResourceId: !Sub table/${PhotosTable}/index/byGuestId
-      RoleARN: !GetAtt DynamoDbAutoScalingRole.Arn
-      ScalableDimension: dynamodb:index:WriteCapacityUnits
-      ServiceNamespace: dynamodb
-
-  PhotosByGuestIdIndexWriteScalingPolicy:
-    Type: AWS::ApplicationAutoScaling::ScalingPolicy
-    Properties:
-      PolicyName: photos-byGuestId-write
-      PolicyType: TargetTrackingScaling
-      ScalingTargetId: !Ref PhotosByGuestIdIndexWriteScalableTarget
-      TargetTrackingScalingPolicyConfiguration:
-        PredefinedMetricSpecification:
-          PredefinedMetricType: DynamoDBWriteCapacityUtilization
-        TargetValue: 70.0
-        ScaleInCooldown: 60
-        ScaleOutCooldown: 60
-
   InvitationsTableReadScalableTarget:
     Type: AWS::ApplicationAutoScaling::ScalableTarget
     Properties:
@@ -1093,7 +1035,7 @@ Resources:
   EventsPhotosBucket:
     Type: AWS::S3::Bucket
     DependsOn:
-      - PhotoThumbnailsPermission
+      - PhotoThumbnailsQueuePolicy
     Properties:
       BucketName: !Sub ${StackPrefix}-${Environment}-events-photos
       OwnershipControls:
@@ -1123,12 +1065,9 @@ Resources:
               - ETag
             MaxAge: 3000
       NotificationConfiguration:
-        LambdaConfigurations:
+        QueueConfigurations:
           - Event: s3:ObjectCreated:Put
-            Function: !If
-              - UsePhotoThumbnailsImageCond
-              - !GetAtt PhotoThumbnailsFunctionImage.Arn
-              - !GetAtt PhotoThumbnailsFunctionZip.Arn
+            Queue: !GetAtt PhotoThumbnailsQueue.Arn
 
   PhotosOriginAccessControl:
     Type: AWS::CloudFront::OriginAccessControl
@@ -2171,6 +2110,11 @@ Resources:
                   - !GetAtt MpCheckoutAttemptsTable.Arn
                   - !GetAtt SubscriptionPaymentsTable.Arn
                   - !Sub ${SubscriptionPaymentsTable.Arn}/index/*
+              - Effect: Allow
+                Action:
+                  - dynamodb:UpdateItem
+                Resource:
+                  - !GetAtt PhotosTable.Arn
         - PolicyName: ones-photos-ws
           PolicyDocument:
             Version: '2012-10-17'
@@ -2186,6 +2130,14 @@ Resources:
                   - execute-api:ManageConnections
                 Resource:
                   - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${PhotosWebSocketApi}/*/POST/@connections/*
+        - PolicyName: ones-photo-processing-sqs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                Resource: !GetAtt PhotoThumbnailsQueue.Arn
         - PolicyName: ones-s3
           PolicyDocument:
             Version: '2012-10-17'
@@ -2425,6 +2377,8 @@ Resources:
               Value: !Ref EventsAssetsBucket
             - Name: ONES_EVENTS_PHOTOS_BUCKET
               Value: !Sub ${StackPrefix}-${Environment}-events-photos
+            - Name: ONES_PHOTO_PROCESSING_QUEUE_URL
+              Value: !Ref PhotoThumbnailsQueue
             - Name: OPENAI_API_KEY_SECRET_NAME
               Value: !Ref OpenAiApiKeySecret
             - Name: GOOGLE_CLIENT_ID
@@ -2558,6 +2512,15 @@ Resources:
                   - secretsmanager:GetSecretValue
                 Resource:
                   - !Ref InternalBasicAuthSecret
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                  - sqs:ChangeMessageVisibility
+                Resource:
+                  - !GetAtt PhotoThumbnailsQueue.Arn
+                  - !GetAtt PhotoThumbnailsDlq.Arn
 
               - Effect: Allow
                 Action:
@@ -2849,6 +2812,10 @@ Resources:
       Environment:
         Variables:
           BUCKET: !Sub ${StackPrefix}-${Environment}-events-photos
+          PROCESSING_QUEUE_URL: !Ref PhotoThumbnailsQueue
+          PROCESSING_DLQ_ARN: !GetAtt PhotoThumbnailsDlq.Arn
+          PROCESSING_INITIAL_RETRY_DELAY_SECONDS: !Ref PhotoThumbnailsInitialRetryDelaySeconds
+          PROCESSING_MAX_RETRY_DELAY_SECONDS: !Ref PhotoThumbnailsMaxRetryDelaySeconds
           BACKEND_BASE_URL: !Sub http://${LoadBalancer.DNSName}
           INTERNAL_SECRET_ARN: !Ref InternalBasicAuthSecret
           WS_ENDPOINT: !Sub https://${PhotosWebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
@@ -3019,6 +2986,10 @@ Resources:
       Environment:
         Variables:
           BUCKET: !Sub ${StackPrefix}-${Environment}-events-photos
+          PROCESSING_QUEUE_URL: !Ref PhotoThumbnailsQueue
+          PROCESSING_DLQ_ARN: !GetAtt PhotoThumbnailsDlq.Arn
+          PROCESSING_INITIAL_RETRY_DELAY_SECONDS: !Ref PhotoThumbnailsInitialRetryDelaySeconds
+          PROCESSING_MAX_RETRY_DELAY_SECONDS: !Ref PhotoThumbnailsMaxRetryDelaySeconds
           BACKEND_BASE_URL: !Sub http://${LoadBalancer.DNSName}
           INTERNAL_SECRET_ARN: !Ref InternalBasicAuthSecret
           M_WIDTH: '1280'
@@ -3030,16 +3001,228 @@ Resources:
       Code:
         ImageUri: !Sub ${PhotoThumbnailsEcrRepository.RepositoryUri}:latest
 
-  PhotoThumbnailsPermission:
-    Type: AWS::Lambda::Permission
+  PhotoThumbnailsQueueEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
     Properties:
-      Action: lambda:InvokeFunction
+      Enabled: true
+      BatchSize: 1
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
+      EventSourceArn: !GetAtt PhotoThumbnailsQueue.Arn
       FunctionName: !If
         - UsePhotoThumbnailsImageCond
         - !Ref PhotoThumbnailsFunctionImage
         - !Ref PhotoThumbnailsFunctionZip
-      Principal: s3.amazonaws.com
-      SourceArn: !Sub arn:aws:s3:::${StackPrefix}-${Environment}-events-photos
+      ScalingConfig:
+        MaximumConcurrency: !Ref PhotoThumbnailsMaxConcurrency
+
+  PhotoThumbnailsDlqEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      Enabled: true
+      BatchSize: 10
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
+      EventSourceArn: !GetAtt PhotoThumbnailsDlq.Arn
+      FunctionName: !If
+        - UsePhotoThumbnailsImageCond
+        - !Ref PhotoThumbnailsFunctionImage
+        - !Ref PhotoThumbnailsFunctionZip
+      ScalingConfig:
+        MaximumConcurrency: 10
+
+  PhotoThumbnailsErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-photo-thumbnails-errors
+      AlarmDescription: Fallaron ejecuciones del procesamiento de fotos.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !If
+            - UsePhotoThumbnailsImageCond
+            - !Ref PhotoThumbnailsFunctionImage
+            - !Ref PhotoThumbnailsFunctionZip
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  PhotoThumbnailsThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-photo-thumbnails-throttles
+      AlarmDescription: La Lambda de miniaturas está siendo limitada por concurrencia.
+      Namespace: AWS/Lambda
+      MetricName: Throttles
+      Dimensions:
+        - Name: FunctionName
+          Value: !If
+            - UsePhotoThumbnailsImageCond
+            - !Ref PhotoThumbnailsFunctionImage
+            - !Ref PhotoThumbnailsFunctionZip
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  PhotoThumbnailsDurationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-photo-thumbnails-duration
+      AlarmDescription: El procesamiento de miniaturas se acerca al timeout de la Lambda.
+      Namespace: AWS/Lambda
+      MetricName: Duration
+      Dimensions:
+        - Name: FunctionName
+          Value: !If
+            - UsePhotoThumbnailsImageCond
+            - !Ref PhotoThumbnailsFunctionImage
+            - !Ref PhotoThumbnailsFunctionZip
+      ExtendedStatistic: p95
+      Period: 60
+      EvaluationPeriods: 2
+      DatapointsToAlarm: 2
+      Threshold: 55000
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  PhotoThumbnailsQueueAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-photo-thumbnails-queue-age
+      AlarmDescription: La cola de miniaturas tiene trabajos atrasados.
+      Namespace: AWS/SQS
+      MetricName: ApproximateAgeOfOldestMessage
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt PhotoThumbnailsQueue.QueueName
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 2
+      DatapointsToAlarm: 2
+      Threshold: 300
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  PhotoThumbnailsQueueDepthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-photo-thumbnails-queue-depth
+      AlarmDescription: La cola de miniaturas acumula demasiados trabajos pendientes.
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt PhotoThumbnailsQueue.QueueName
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 2
+      DatapointsToAlarm: 2
+      Threshold: 10000
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  PhotoThumbnailsDlqMessagesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-photo-thumbnails-dlq-messages
+      AlarmDescription: Hay trabajos de miniaturas agotados en la DLQ.
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt PhotoThumbnailsDlq.QueueName
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  PhotoProcessingRetryMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref LogGroup
+      FilterPattern: '"photo_processing_retry"'
+      MetricTransformations:
+        - MetricNamespace: !Sub ${StackPrefix}/${Environment}
+          MetricName: photo_processing_retry
+          MetricValue: '1'
+
+  PhotoProcessingFailedMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref LogGroup
+      FilterPattern: '"photo_processing_failed"'
+      MetricTransformations:
+        - MetricNamespace: !Sub ${StackPrefix}/${Environment}
+          MetricName: photo_processing_failed
+          MetricValue: '1'
+
+  PhotoProcessingEnqueueFailureMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref LogGroup
+      FilterPattern: '"photo_processing_enqueue_failed"'
+      MetricTransformations:
+        - MetricNamespace: !Sub ${StackPrefix}/${Environment}
+          MetricName: photo_processing_enqueue_failed
+          MetricValue: '1'
+
+  PhotoProcessingFailedAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-photo-processing-failed
+      AlarmDescription: Una o más fotos agotaron o no admiten reintentos de miniaturas.
+      Namespace: !Sub ${StackPrefix}/${Environment}
+      MetricName: photo_processing_failed
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  PhotoProcessingEnqueueFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-photo-processing-enqueue-failed
+      AlarmDescription: Falló el trabajo de respaldo SQS al completar una foto.
+      Namespace: !Sub ${StackPrefix}/${Environment}
+      MetricName: photo_processing_enqueue_failed
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
 
   GrafanaTaskDefinition:
     Type: AWS::ECS::TaskDefinition
@@ -3300,6 +3483,24 @@ Resources:
                         "refId": "A",
                         "expr": "sum by (cache) (rate(cache_gets_total{result=\"hit\",cache=~\"translationsByLanguage|photosByEventFirstPage|invitationsByEvent|framesById|eventTemplatesByStatus\"}[5m])) / sum by (cache) (rate(cache_gets_total{cache=~\"translationsByLanguage|photosByEventFirstPage|invitationsByEvent|framesById|eventTemplatesByStatus\"}[5m]))",
                         "legendFormat": "{{cache}}"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "timeseries",
+                    "title": "Photo complete latency p95/p99",
+                    "datasource": {"type": "prometheus", "uid": "amp"},
+                    "gridPos": {"h": 8, "w": 24, "x": 0, "y": 31},
+                    "targets": [
+                      {
+                        "refId": "A",
+                        "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri=\"/v1/events/{eventId}/photos/complete\",method=\"POST\"}[5m])))",
+                        "legendFormat": "p95"
+                      },
+                      {
+                        "refId": "B",
+                        "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{uri=\"/v1/events/{eventId}/photos/complete\",method=\"POST\"}[5m])))",
+                        "legendFormat": "p99"
                       }
                     ]
                   }

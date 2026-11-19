@@ -60,6 +60,8 @@ class PhotosWsController extends ChangeNotifier {
       }
       final ch = WebSocketChannel.connect(uri);
       _channel = ch;
+      await ch.ready;
+      if (!identical(_channel, ch)) return;
 
       _sub = ch.stream.listen(
         (msg) {
@@ -106,6 +108,9 @@ class PhotosWsController extends ChangeNotifier {
       _reconnectAttempts = 0;
     } catch (e) {
       _connected = false;
+      _channel = null;
+      _sub = null;
+      _connecting = false;
       if (kDebugMode) {
         debugPrint('photos_ws: connect failed: $e');
       }

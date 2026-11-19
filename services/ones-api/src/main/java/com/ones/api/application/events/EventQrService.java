@@ -1,5 +1,10 @@
 package com.ones.api.application.events;
 
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.net.URLEncoder;
@@ -8,8 +13,19 @@ import java.security.MessageDigest;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+
+import javax.imageio.ImageIO;
+
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.EncodeHintType;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
+import com.google.zxing.qrcode.QRCodeWriter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,13 +42,6 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
-
-import com.google.zxing.BarcodeFormat;
-import com.google.zxing.EncodeHintType;
-import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
-import com.google.zxing.qrcode.QRCodeWriter;
-import com.google.zxing.common.BitMatrix;
-import com.google.zxing.client.j2se.MatrixToImageWriter;
 
 @Service
 public class EventQrService {
@@ -67,7 +76,9 @@ public class EventQrService {
         final String eventId = event.getEventId();
         final Instant eventEndsAt = event.getEndAt();
         final String url = buildInviteUrl(eventId);
-        final String hash = sha256Hex(url);
+        final String title = normalizeText(event.getTitle(), "Evento");
+        final String eventCode = normalizeText(event.getEventCode(), "");
+        final String hash = qrContentHash(url, title, eventCode);
 
         final String baseKey = "events/" + eventId + "/qr/";
         final String key1024 = baseKey + "qr-" + hash + "-1024.png";
@@ -76,19 +87,19 @@ public class EventQrService {
 
         try {
             if (!exists(photosBucket, key1024)) {
-                byte[] png1024 = renderQrPng(url, 1024);
+                byte[] png1024 = renderQrPng(url, title, eventCode, 1024);
                 putPng(photosBucket, key1024, png1024, Duration.ofDays(365), true);
                 log.info("Uploaded event QR 1024: bucket={}, key={}", photosBucket, key1024);
             }
 
             if (!exists(photosBucket, key256)) {
-                byte[] png256 = renderQrPng(url, 256);
+                byte[] png256 = renderQrPng(url, title, eventCode, 256);
                 putPng(photosBucket, key256, png256, Duration.ofDays(365), true);
                 log.info("Uploaded event QR 256: bucket={}, key={}", photosBucket, key256);
             }
 
             // Always refresh latest with a short TTL to avoid staleness
-            byte[] pngLatest = renderQrPng(url, 1024);
+            byte[] pngLatest = renderQrPng(url, title, eventCode, 1024);
             putPng(photosBucket, keyLatest, pngLatest, Duration.ofMinutes(5), false);
 
             return new QrResult(
@@ -164,23 +175,140 @@ public class EventQrService {
         }
     }
 
-    private static byte[] renderQrPng(String text, int sizePx) {
+    static byte[] renderQrPng(
+            String text,
+            String eventTitle,
+            String eventCode,
+            int qrSizePx
+    ) {
         try {
             Map<EncodeHintType, Object> hints = new HashMap<>();
             hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.Q);
             hints.put(EncodeHintType.MARGIN, 2); // quiet zone
             QRCodeWriter writer = new QRCodeWriter();
-            BitMatrix matrix = writer.encode(text, BarcodeFormat.QR_CODE, sizePx, sizePx, hints);
-            BufferedImage image = MatrixToImageWriter.toBufferedImage(matrix);
+            BitMatrix matrix =
+                    writer.encode(text, BarcodeFormat.QR_CODE, qrSizePx, qrSizePx, hints);
+            BufferedImage qrImage = MatrixToImageWriter.toBufferedImage(matrix);
+
+            String title = normalizeText(eventTitle, "Evento");
+            String codeLabel = normalizeText(eventCode, "").isEmpty()
+                    ? "Código de evento no disponible"
+                    : "Código de evento: " + normalizeText(eventCode, "");
+            int horizontalPadding = Math.max(8, qrSizePx / 16);
+            int textWidth = qrSizePx - horizontalPadding * 2;
+            Font titleFont = new Font(
+                    Font.SANS_SERIF, Font.BOLD, Math.max(12, qrSizePx / 22));
+            Font codeFont = new Font(
+                    Font.SANS_SERIF, Font.PLAIN, Math.max(10, qrSizePx / 30));
+
+            BufferedImage metricsImage =
+                    new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
+            Graphics2D metricsGraphics = metricsImage.createGraphics();
+            metricsGraphics.setFont(titleFont);
+            FontMetrics titleMetrics = metricsGraphics.getFontMetrics();
+            List<String> titleLines = wrapText(title, titleMetrics, textWidth);
+            metricsGraphics.setFont(codeFont);
+            FontMetrics codeMetrics = metricsGraphics.getFontMetrics();
+            List<String> codeLines = wrapText(codeLabel, codeMetrics, textWidth);
+            metricsGraphics.dispose();
+
+            int topPadding = Math.max(8, qrSizePx / 32);
+            int sectionGap = Math.max(5, qrSizePx / 48);
+            int bottomPadding = Math.max(8, qrSizePx / 32);
+            int posterHeight = qrSizePx
+                    + topPadding
+                    + titleMetrics.getHeight() * titleLines.size()
+                    + sectionGap
+                    + codeMetrics.getHeight() * codeLines.size()
+                    + bottomPadding;
+            BufferedImage image = new BufferedImage(
+                    qrSizePx, posterHeight, BufferedImage.TYPE_INT_RGB);
+            Graphics2D graphics = image.createGraphics();
+            graphics.setColor(Color.WHITE);
+            graphics.fillRect(0, 0, image.getWidth(), image.getHeight());
+            graphics.setRenderingHint(
+                    RenderingHints.KEY_ANTIALIASING,
+                    RenderingHints.VALUE_ANTIALIAS_ON);
+            graphics.setRenderingHint(
+                    RenderingHints.KEY_TEXT_ANTIALIASING,
+                    RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            graphics.drawImage(qrImage, 0, 0, null);
+
+            int baseline = qrSizePx + topPadding + titleMetrics.getAscent();
+            graphics.setColor(Color.BLACK);
+            graphics.setFont(titleFont);
+            for (String line : titleLines) {
+                graphics.drawString(
+                        line,
+                        (qrSizePx - titleMetrics.stringWidth(line)) / 2,
+                        baseline);
+                baseline += titleMetrics.getHeight();
+            }
+
+            baseline = qrSizePx
+                    + topPadding
+                    + titleMetrics.getHeight() * titleLines.size()
+                    + sectionGap
+                    + codeMetrics.getAscent();
+            graphics.setFont(codeFont);
+            for (String line : codeLines) {
+                graphics.drawString(
+                        line,
+                        (qrSizePx - codeMetrics.stringWidth(line)) / 2,
+                        baseline);
+                baseline += codeMetrics.getHeight();
+            }
+            graphics.dispose();
+
             ByteArrayOutputStream out = new ByteArrayOutputStream();
-            javax.imageio.ImageIO.write(image, "PNG", out);
+            ImageIO.write(image, "PNG", out);
             return out.toByteArray();
         } catch (Exception e) {
             throw new IllegalStateException("Failed to render QR image", e);
         }
     }
 
-    private String buildInviteUrl(String eventId) {
+    private static List<String> wrapText(
+            String text,
+            FontMetrics metrics,
+            int maxWidth
+    ) {
+        List<String> lines = new ArrayList<>();
+        StringBuilder line = new StringBuilder();
+        for (String word : text.split("\\s+")) {
+            String candidate = line.length() == 0
+                    ? word
+                    : line + " " + word;
+            if (line.length() > 0 && metrics.stringWidth(candidate) > maxWidth) {
+                lines.add(line.toString());
+                line.setLength(0);
+            }
+            if (line.length() > 0) {
+                line.append(' ');
+            }
+            line.append(word);
+        }
+        if (line.length() > 0) {
+            lines.add(line.toString());
+        }
+        return lines;
+    }
+
+    private static String normalizeText(String value, String fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        return value.trim().replaceAll("\\s+", " ");
+    }
+
+    static String qrContentHash(String inviteUrl, String title, String eventCode) {
+        return sha256Hex("event-qr-poster-v1\n"
+                + inviteUrl + "\n"
+                + normalizeText(title, "Evento") + "\n"
+                + normalizeText(eventCode, ""));
+    }
+
+    String buildInviteUrl(String eventId) {
         String base = appBaseUrl != null ? appBaseUrl.trim() : "";
         while (base.endsWith("/")) {
             base = base.substring(0, base.length() - 1);

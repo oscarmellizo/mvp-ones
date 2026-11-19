@@ -14,6 +14,7 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sesv2.SesV2Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -57,6 +58,13 @@ public class AwsConfig {
     @Bean
     S3Presigner s3Presigner(Region awsRegion) {
         return S3Presigner.builder()
+                .region(awsRegion)
+                .build();
+    }
+
+    @Bean
+    SqsClient sqsClient(Region awsRegion) {
+        return SqsClient.builder()
                 .region(awsRegion)
                 .build();
     }

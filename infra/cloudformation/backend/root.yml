@@ -73,6 +73,30 @@ Parameters:
       - 'true'
       - 'false'
 
+  PhotoThumbnailsMaxConcurrency:
+    Type: Number
+    Default: 1000
+    MinValue: 2
+    MaxValue: 1000
+
+  PhotoThumbnailsMaxReceiveCount:
+    Type: Number
+    Default: 5
+    MinValue: 1
+    MaxValue: 1000
+
+  PhotoThumbnailsInitialRetryDelaySeconds:
+    Type: Number
+    Default: 5
+    MinValue: 1
+    MaxValue: 900
+
+  PhotoThumbnailsMaxRetryDelaySeconds:
+    Type: Number
+    Default: 300
+    MinValue: 1
+    MaxValue: 900
+
   GrafanaDesiredCount:
     Type: Number
     Default: 1
@@ -135,6 +159,10 @@ Resources:
         PublicBaseUrl: !Ref PublicBaseUrl
         BackendDesiredCount: !Ref BackendDesiredCount
         UsePhotoThumbnailsImage: !Ref UsePhotoThumbnailsImage
+        PhotoThumbnailsMaxConcurrency: !Ref PhotoThumbnailsMaxConcurrency
+        PhotoThumbnailsMaxReceiveCount: !Ref PhotoThumbnailsMaxReceiveCount
+        PhotoThumbnailsInitialRetryDelaySeconds: !Ref PhotoThumbnailsInitialRetryDelaySeconds
+        PhotoThumbnailsMaxRetryDelaySeconds: !Ref PhotoThumbnailsMaxRetryDelaySeconds
         GrafanaDesiredCount: !Ref GrafanaDesiredCount
         CdnPhotosEnabled: !Ref CdnPhotosEnabled
         CdnPhotosSigningPublicKeyPem: !Ref CdnPhotosSigningPublicKeyPem
