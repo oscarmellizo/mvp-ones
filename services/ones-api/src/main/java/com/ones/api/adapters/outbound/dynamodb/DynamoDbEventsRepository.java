@@ -145,7 +145,7 @@ public class DynamoDbEventsRepository implements EventsRepository {
                 .count();
     }
 
-    private static DynamoEventItem toItem(Event e) {
+    static DynamoEventItem toItem(Event e) {
         DynamoEventItem item = new DynamoEventItem();
         item.setEventId(e.getEventId());
         item.setOwnerId(e.getOwnerId());
@@ -161,13 +161,14 @@ public class DynamoDbEventsRepository implements EventsRepository {
         item.setInviteLinkEnabled(e.isInviteLinkEnabled());
 
         item.setFrameIds(e.getFrameIds());
+        item.setEventCode(e.getEventCode());
 
         item.setGsi1pk(e.getOwnerId());
         item.setGsi1sk(e.getCreatedAt().toString());
         return item;
     }
 
-    private static Event toDomain(DynamoEventItem item) {
+    static Event toDomain(DynamoEventItem item) {
         Instant createdAt = Instant.parse(item.getCreatedAt());
         Instant startAt = item.getStartAt() != null ? Instant.parse(item.getStartAt()) : createdAt;
         Instant endAt = item.getEndAt() != null ? Instant.parse(item.getEndAt()) : startAt;

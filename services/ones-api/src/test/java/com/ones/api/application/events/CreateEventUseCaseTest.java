@@ -2,6 +2,7 @@ package com.ones.api.application.events;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -26,6 +27,8 @@ class CreateEventUseCaseTest {
         Event created = useCase.execute("user-123", "Hello", "birthday", "San Jose, CR", startAt, endAt, null, List.of(), true, List.of());
 
         assertNotNull(created.getEventId());
+        assertNotNull(created.getEventCode());
+        assertTrue(created.getEventCode().matches("\\d{6}"));
         assertEquals("user-123", created.getOwnerId());
         assertEquals("Hello", created.getTitle());
         assertEquals(Instant.parse("2025-01-01T00:00:00Z"), created.getCreatedAt());
