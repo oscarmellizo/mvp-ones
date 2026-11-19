@@ -32,6 +32,7 @@ import '../../../photos/presentation/pages/photo_import_web_sheet.dart';
 import '../../../photos/presentation/pages/photo_import_mobile_sheet.dart';
 import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
+import '../widgets/gallery_grid_layout.dart';
 import '../widgets/event_detail_details_widgets.dart';
 import '../widgets/event_detail_header.dart';
 import '../widgets/event_detail_tabs.dart';
@@ -721,12 +722,8 @@ class _GalleryTabState extends State<_GalleryTab> {
     }
   }
 
-  int _computeWebCrossAxisCount(BuildContext context) {
-    const double spacing = 1.0;
-    const double minTileWidth = 150.0;
-    final double width = MediaQuery.sizeOf(context).width;
-    final int count = ((width + spacing) / (minTileWidth + spacing)).floor();
-    return count.clamp(3, 18);
+  int _computePhotoGridCrossAxisCount(BuildContext context) {
+    return eventPhotoGridColumns(MediaQuery.sizeOf(context).width);
   }
 
   void _onWsPhotoReady(String eventId, String photoId) {
@@ -1647,10 +1644,12 @@ class _GalleryTabState extends State<_GalleryTab> {
                       padding: EdgeInsets.zero,
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount:
-                            kIsWeb ? _computeWebCrossAxisCount(context) : 3,
+                            _computePhotoGridCrossAxisCount(context),
                         mainAxisSpacing: 1,
                         crossAxisSpacing: 1,
-                        childAspectRatio: 0.82,
+                        childAspectRatio: eventPhotoGridAspectRatio(
+                          MediaQuery.sizeOf(context).width,
+                        ),
                       ),
                       itemCount: mergedIds.length,
                       itemBuilder: (context, index) {
