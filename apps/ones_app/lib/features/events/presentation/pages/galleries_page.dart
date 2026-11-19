@@ -9,6 +9,7 @@ import '../../../../core/ui/widgets/ones_search_field.dart';
 import '../../domain/event.dart';
 import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
+import '../widgets/gallery_grid_layout.dart';
 import 'event_detail_page.dart';
 
 const String _defaultEventCoverAsset = 'assets/branding/ones-logo.png';
@@ -174,6 +175,36 @@ class _GalleriesPageState extends State<GalleriesPage> {
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final children = <Widget>[];
+                    final contentWidth = galleryGridWidth(
+                      constraints.maxWidth,
+                    );
+                    final columns = galleryCardColumns(contentWidth);
+                    if (columns > 1) {
+                      return Center(
+                        child: SizedBox(
+                          width: contentWidth,
+                          child: GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding: EdgeInsets.zero,
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: columns,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                              childAspectRatio: 16 / 9,
+                            ),
+                            itemCount: filteredEvents.length,
+                            itemBuilder: (context, index) => _buildEventCard(
+                              context,
+                              filteredEvents[index],
+                              coverUrls,
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+
                     for (final day in orderedDays) {
                       final dayEvents = (groups[day] ?? const <Event>[])
                           .toList(growable: false);
@@ -193,53 +224,31 @@ class _GalleriesPageState extends State<GalleriesPage> {
                         ),
                       );
 
-                      for (var i = 0; i < dayEvents.length; i++) {
-                        final e = dayEvents[i];
-                        final when = e.startAt.toLocal();
-                        final end = e.endAt.toLocal();
-
-                        children.add(
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: AspectRatio(
-                              aspectRatio: 16 / 9,
-                              child: FutureBuilder<String?>(
-                                future: coverUrls.getUrlIfAny(
-                                  eventId: e.id,
-                                  coverKey: e.coverKey,
-                                ),
-                                builder: (context, snapshot) {
-                                  final url = snapshot.data;
-                                  final sameDay = when.year == end.year &&
-                                      when.month == end.month &&
-                                      when.day == end.day;
-                                  final dateText = sameDay
-                                      ? formatMonthDayYear(when)
-                                      : '${formatShortMonthDay(when)}–${formatShortMonthDay(end)} ${end.year}';
-                                  return _UpcomingCard(
-                                    title: e.title,
-                                    location: e.location,
-                                    imageUrl: (url != null && url.isNotEmpty)
-                                        ? url
-                                        : null,
-                                    fallbackAsset: _defaultEventCoverAsset,
-                                    dateText: dateText,
-                                    timeText:
-                                        '${_formatTimeOfDay(when)} - ${_formatTimeOfDay(end)}',
-                                    badgeText: null,
-                                    width: double.infinity,
-                                    onTap: () =>
-                                        Navigator.of(context).pushNamed(
-                                      EventDetailPage.routeName,
-                                      arguments: e.id,
-                                    ),
-                                  );
-                                },
+                      children.add(
+                        Center(
+                          child: SizedBox(
+                            width: contentWidth,
+                            child: GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              padding: EdgeInsets.zero,
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: columns,
+                                crossAxisSpacing: 12,
+                                mainAxisSpacing: 12,
+                                childAspectRatio: 16 / 9,
+                              ),
+                              itemCount: dayEvents.length,
+                              itemBuilder: (context, index) => _buildEventCard(
+                                context,
+                                dayEvents[index],
+                                coverUrls,
                               ),
                             ),
                           ),
-                        );
-                      }
+                        ),
+                      );
                     }
 
                     return Column(
@@ -252,6 +261,44 @@ class _GalleriesPageState extends State<GalleriesPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildEventCard(
+    BuildContext context,
+    Event event,
+    EventCoverUrlsController coverUrls,
+  ) {
+    final when = event.startAt.toLocal();
+    final end = event.endAt.toLocal();
+    final sameDay =
+        when.year == end.year && when.month == end.month && when.day == end.day;
+    final dateText = sameDay
+        ? formatMonthDayYear(when)
+        : '${formatShortMonthDay(when)}–${formatShortMonthDay(end)} ${end.year}';
+
+    return FutureBuilder<String?>(
+      future: coverUrls.getUrlIfAny(
+        eventId: event.id,
+        coverKey: event.coverKey,
+      ),
+      builder: (context, snapshot) {
+        final url = snapshot.data;
+        return _UpcomingCard(
+          title: event.title,
+          location: event.location,
+          imageUrl: (url != null && url.isNotEmpty) ? url : null,
+          fallbackAsset: _defaultEventCoverAsset,
+          dateText: dateText,
+          timeText: '${_formatTimeOfDay(when)} - ${_formatTimeOfDay(end)}',
+          badgeText: null,
+          width: null,
+          onTap: () => Navigator.of(context).pushNamed(
+            EventDetailPage.routeName,
+            arguments: event.id,
+          ),
+        );
+      },
     );
   }
 
@@ -368,6 +415,8 @@ class _UpcomingCard extends StatelessWidget {
                   const Spacer(),
                   Text(
                     title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           color: OnesColors.white,
                           letterSpacing: 0.6,
@@ -384,11 +433,15 @@ class _UpcomingCard extends StatelessWidget {
                           color: OnesColors.white,
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          dateText!,
-                          style: const TextStyle(
-                            color: OnesColors.white,
-                            fontWeight: FontWeight.w600,
+                        Expanded(
+                          child: Text(
+                            dateText!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: OnesColors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
@@ -403,11 +456,15 @@ class _UpcomingCard extends StatelessWidget {
                         color: OnesColors.white,
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        timeText,
-                        style: const TextStyle(
-                          color: OnesColors.white,
-                          fontWeight: FontWeight.w600,
+                      Expanded(
+                        child: Text(
+                          timeText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: OnesColors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
@@ -421,11 +478,15 @@ class _UpcomingCard extends StatelessWidget {
                         color: OnesColors.white,
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        location,
-                        style: const TextStyle(
-                          color: OnesColors.white,
-                          fontWeight: FontWeight.w600,
+                      Expanded(
+                        child: Text(
+                          location,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: OnesColors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
