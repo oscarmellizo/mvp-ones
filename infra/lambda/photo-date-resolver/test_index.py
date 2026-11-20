@@ -52,6 +52,8 @@ class PhotoDateResolverTests(unittest.TestCase):
         self.assertEqual(result[0]["dateValue"], "2024-06-27")
         prompt = fake.request["messages"][0]["content"][0]["text"]
         self.assertIn("WhatsApp 2024-06-27.jpg", prompt)
+        self.assertIn("Spanish names such as", prompt)
+        self.assertIn("copy an exact substring", prompt)
         self.assertNotIn("photoId", prompt)
         self.assertNotIn("metadataCreatedAt", prompt)
         self.assertEqual(fake.request["toolConfig"]["toolChoice"], {"any": {}})

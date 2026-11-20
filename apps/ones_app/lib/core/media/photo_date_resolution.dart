@@ -49,6 +49,70 @@ class PhotoDateResolver {
 
     final candidates = <DateTime>[];
 
+    const spanishMonths = {
+      'ene': 1,
+      'enero': 1,
+      'feb': 2,
+      'febrero': 2,
+      'mar': 3,
+      'marzo': 3,
+      'abr': 4,
+      'abril': 4,
+      'may': 5,
+      'mayo': 5,
+      'jun': 6,
+      'junio': 6,
+      'jul': 7,
+      'julio': 7,
+      'ago': 8,
+      'agosto': 8,
+      'sep': 9,
+      'sept': 9,
+      'set': 9,
+      'septiembre': 9,
+      'setiembre': 9,
+      'oct': 10,
+      'octubre': 10,
+      'nov': 11,
+      'noviembre': 11,
+      'dic': 12,
+      'diciembre': 12,
+    };
+    final spanish = RegExp(
+      r'(^|[^A-Za-z0-9])(\d{1,2})[\s._-]+'
+      r'(ene(?:ro)?|feb(?:rero)?|mar(?:zo)?|abr(?:il)?|may(?:o)?|'
+      r'jun(?:io)?|jul(?:io)?|ago(?:sto)?|sep(?:t(?:iembre)?)?|'
+      r'set(?:iembre)?|oct(?:ubre)?|nov(?:iembre)?|dic(?:iembre)?)'
+      r'[\s,._-]+(\d{4})'
+      r'(?:[, ]+(\d{1,2})[:._-](\d{2})(?:[:._-](\d{2}))?'
+      r'\s*(a\.?\s*m\.?|p\.?\s*m\.?)?)?',
+      caseSensitive: false,
+    );
+    for (final match in spanish.allMatches(name)) {
+      final month = spanishMonths[match.group(3)!.toLowerCase()];
+      if (month == null) continue;
+
+      var hour = int.tryParse(match.group(5) ?? '') ?? 0;
+      final minute = int.tryParse(match.group(6) ?? '') ?? 0;
+      final second = int.tryParse(match.group(7) ?? '') ?? 0;
+      final meridiem =
+          (match.group(8) ?? '').replaceAll(RegExp(r'[\s.]'), '').toLowerCase();
+      if (meridiem.isNotEmpty) {
+        if (hour < 1 || hour > 12) continue;
+        hour = hour % 12 + (meridiem == 'pm' ? 12 : 0);
+      }
+
+      final date = _makeDate(
+        year: int.parse(match.group(4)!),
+        month: month,
+        day: int.parse(match.group(2)!),
+        hour: hour,
+        minute: minute,
+        second: second,
+      );
+      if (date != null) candidates.add(date);
+    }
+
     // ISO-like names, including WhatsApp's "YYYY-MM-DD at HH.mm.ss" format.
     final iso = RegExp(
       r'(^|[^0-9])(\d{4})[-._/](\d{1,2})[-._/](\d{1,2})'
