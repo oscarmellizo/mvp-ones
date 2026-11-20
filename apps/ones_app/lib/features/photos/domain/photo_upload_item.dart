@@ -11,6 +11,11 @@ class PhotoUploadItem {
   final String? frameId;
   final String? orientation;
   final String? cameraType;
+  final String? originalFilename;
+  final String? metadataCreatedAt;
+  final String? filenameCreatedAt;
+  final String? createdAtSource;
+  final int? deviceUtcOffsetMinutes;
   final int attempts;
   final String? lastError;
 
@@ -27,6 +32,11 @@ class PhotoUploadItem {
     required this.frameId,
     required this.orientation,
     required this.cameraType,
+    this.originalFilename,
+    this.metadataCreatedAt,
+    this.filenameCreatedAt,
+    this.createdAtSource,
+    this.deviceUtcOffsetMinutes,
     required this.attempts,
     required this.lastError,
   });

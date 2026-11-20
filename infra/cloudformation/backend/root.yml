@@ -97,6 +97,43 @@ Parameters:
     MinValue: 1
     MaxValue: 900
 
+  PhotoDateResolverEnabled:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  PhotoDateResolverMaxConcurrency:
+    Type: Number
+    Default: 10
+    MinValue: 2
+    MaxValue: 1000
+
+  PhotoDateResolverMaxReceiveCount:
+    Type: Number
+    Default: 5
+    MinValue: 1
+    MaxValue: 1000
+
+  PhotoDateResolverModelId:
+    Type: String
+    Default: amazon.nova-micro-v1:0
+
+  PhotoDateResolverCacheTtlSeconds:
+    Type: Number
+    Default: 2592000
+    MinValue: 60
+
+  PhotoDateResolverMonthlyBudgetUsd:
+    Type: Number
+    Default: 20
+    MinValue: 1
+
+  PhotoDateResolverZipS3Key:
+    Type: String
+    Default: ''
+
   GrafanaDesiredCount:
     Type: Number
     Default: 1
@@ -163,6 +200,13 @@ Resources:
         PhotoThumbnailsMaxReceiveCount: !Ref PhotoThumbnailsMaxReceiveCount
         PhotoThumbnailsInitialRetryDelaySeconds: !Ref PhotoThumbnailsInitialRetryDelaySeconds
         PhotoThumbnailsMaxRetryDelaySeconds: !Ref PhotoThumbnailsMaxRetryDelaySeconds
+        PhotoDateResolverEnabled: !Ref PhotoDateResolverEnabled
+        PhotoDateResolverMaxConcurrency: !Ref PhotoDateResolverMaxConcurrency
+        PhotoDateResolverMaxReceiveCount: !Ref PhotoDateResolverMaxReceiveCount
+        PhotoDateResolverModelId: !Ref PhotoDateResolverModelId
+        PhotoDateResolverCacheTtlSeconds: !Ref PhotoDateResolverCacheTtlSeconds
+        PhotoDateResolverMonthlyBudgetUsd: !Ref PhotoDateResolverMonthlyBudgetUsd
+        PhotoDateResolverZipS3Key: !Ref PhotoDateResolverZipS3Key
         GrafanaDesiredCount: !Ref GrafanaDesiredCount
         CdnPhotosEnabled: !Ref CdnPhotosEnabled
         CdnPhotosSigningPublicKeyPem: !Ref CdnPhotosSigningPublicKeyPem

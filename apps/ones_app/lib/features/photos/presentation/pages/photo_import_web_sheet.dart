@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/i18n/translations_service.dart';
-import '../../../../core/media/photo_metadata_extractor.dart';
+import '../../../../core/media/photo_date_resolution.dart';
 import '../../../../core/media/png_to_jpeg.dart';
 import '../../../auth/presentation/auth_controller.dart';
 import '../../adapters/api/event_photos_api.dart';
@@ -22,7 +22,7 @@ class PhotoImportWebSheet extends StatefulWidget {
 
 class _PhotoImportWebSheetState extends State<PhotoImportWebSheet> {
   static const int _maxFiles = 15;
-  final _extractor = const PhotoMetadataExtractor();
+  final _dateResolver = const PhotoDateResolver();
 
   List<PlatformFile> _files = const [];
   final Map<String, double> _progress = {};
@@ -37,7 +37,9 @@ class _PhotoImportWebSheetState extends State<PhotoImportWebSheet> {
       allowedExtensions: const ['jpg', 'jpeg', 'png'],
     );
     if (res == null) return;
-    var items = res.files.where((f) => (f.bytes != null || (f.path ?? '').isNotEmpty)).toList(growable: false);
+    var items = res.files
+        .where((f) => (f.bytes != null || (f.path ?? '').isNotEmpty))
+        .toList(growable: false);
     if (items.length > _maxFiles) {
       items = items.sublist(0, _maxFiles);
     }
@@ -60,16 +62,17 @@ class _PhotoImportWebSheetState extends State<PhotoImportWebSheet> {
           Uint8List bytes = f.bytes ?? Uint8List.fromList([]);
           if (bytes.isEmpty) return;
 
-          if (ext == 'png') {
-            bytes = await compute(pngToJpegBytes, bytes);
-          }
-
-          final createdAt = await _extractor.createdAtFromBytes(
+          final dateResolution = await _dateResolver.resolveFromBytes(
             bytes: bytes,
             filename: name,
           );
 
-          final photoId = DateTime.now().microsecondsSinceEpoch.toString() + name.hashCode.toUnsigned(20).toString();
+          if (ext == 'png') {
+            bytes = await compute(pngToJpegBytes, bytes);
+          }
+
+          final photoId = DateTime.now().microsecondsSinceEpoch.toString() +
+              name.hashCode.toUnsigned(20).toString();
 
           final presign = await api.presignPut(
             eventId: widget.eventId,
@@ -84,7 +87,8 @@ class _PhotoImportWebSheetState extends State<PhotoImportWebSheet> {
             onProgress: (sent, total) {
               if (!mounted) return;
               setState(() {
-                _progress[name] = total > 0 ? (sent / total).clamp(0.0, 1.0) : 0.0;
+                _progress[name] =
+                    total > 0 ? (sent / total).clamp(0.0, 1.0) : 0.0;
               });
             },
           );
@@ -93,7 +97,12 @@ class _PhotoImportWebSheetState extends State<PhotoImportWebSheet> {
             eventId: widget.eventId,
             photoId: photoId,
             s3KeyOriginal: presign.s3KeyOriginal,
-            createdAt: createdAt.toUtc().toIso8601String(),
+            createdAt: dateResolution.createdAt.toIso8601String(),
+            originalFilename: name,
+            metadataCreatedAt: dateResolution.metadataDate?.toIso8601String(),
+            filenameCreatedAt: dateResolution.filenameDate?.toIso8601String(),
+            createdAtSource: dateResolution.source,
+            deviceUtcOffsetMinutes: dateResolution.deviceUtcOffsetMinutes,
           );
 
           setState(() => _progress[name] = 1.0);
@@ -120,6 +129,7 @@ class _PhotoImportWebSheetState extends State<PhotoImportWebSheet> {
           await uploadOne(f);
         }
       }
+
       for (var i = 0; i < poolSize; i++) {
         workers.add(worker());
       }
@@ -128,11 +138,15 @@ class _PhotoImportWebSheetState extends State<PhotoImportWebSheet> {
       if (!mounted) return;
       if (_progress.values.any((v) => v < 0)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t.translate('event_detail.upload_failed', fallback: 'Algunas fotos fallaron al subir'))),
+          SnackBar(
+              content: Text(t.translate('event_detail.upload_failed',
+                  fallback: 'Algunas fotos fallaron al subir'))),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t.translate('event_detail.upload_done', fallback: 'Fotos subidas'))),
+          SnackBar(
+              content: Text(t.translate('event_detail.upload_done',
+                  fallback: 'Fotos subidas'))),
         );
         Navigator.of(context).pop(true);
       }
@@ -159,19 +173,23 @@ class _PhotoImportWebSheetState extends State<PhotoImportWebSheet> {
               children: [
                 Expanded(
                   child: Text(
-                    t.translate('event_detail.action_upload_photos', fallback: 'Subir fotos'),
-                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                    t.translate('event_detail.action_upload_photos',
+                        fallback: 'Subir fotos'),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w900, fontSize: 16),
                   ),
                 ),
                 IconButton(
-                  onPressed: _uploading ? null : () => Navigator.of(context).pop(),
+                  onPressed:
+                      _uploading ? null : () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.close),
                 ),
               ],
             ),
             const SizedBox(height: 8),
             Text(
-              t.translate('event_detail.upload_limit_hint', fallback: 'Selecciona hasta 15 imágenes (JPG o PNG).'),
+              t.translate('event_detail.upload_limit_hint',
+                  fallback: 'Selecciona hasta 15 imágenes (JPG o PNG).'),
             ),
             const SizedBox(height: 12),
             Row(
@@ -179,18 +197,23 @@ class _PhotoImportWebSheetState extends State<PhotoImportWebSheet> {
                 FilledButton.icon(
                   onPressed: _uploading ? null : _pick,
                   icon: const Icon(Icons.add_photo_alternate_outlined),
-                  label: Text(t.translate('event_detail.action_pick', fallback: 'Elegir')),
+                  label: Text(t.translate('event_detail.action_pick',
+                      fallback: 'Elegir')),
                 ),
                 const SizedBox(width: 12),
                 FilledButton(
-                  onPressed: (!_uploading && authed && _files.isNotEmpty) ? _startUpload : null,
-                  child: Text(t.translate('event_detail.action_upload', fallback: 'Cargar fotos')),
+                  onPressed: (!_uploading && authed && _files.isNotEmpty)
+                      ? _startUpload
+                      : null,
+                  child: Text(t.translate('event_detail.action_upload',
+                      fallback: 'Cargar fotos')),
                 ),
               ],
             ),
             if (_error != null) ...[
               const SizedBox(height: 10),
-              Text('${t.translate('common.error', fallback: 'Error')}: $_error', style: const TextStyle(color: Colors.red)),
+              Text('${t.translate('common.error', fallback: 'Error')}: $_error',
+                  style: const TextStyle(color: Colors.red)),
             ],
             const SizedBox(height: 12),
             Flexible(
@@ -217,7 +240,10 @@ class _PhotoImportWebSheetState extends State<PhotoImportWebSheet> {
                               : Container(
                                   color: Colors.grey.shade200,
                                   child: Center(
-                                    child: Text(name, maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
+                                    child: Text(name,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center),
                                   ),
                                 ),
                         ),
@@ -227,7 +253,8 @@ class _PhotoImportWebSheetState extends State<PhotoImportWebSheet> {
                           left: 0,
                           right: 0,
                           bottom: 0,
-                          child: LinearProgressIndicator(value: p, minHeight: 4),
+                          child:
+                              LinearProgressIndicator(value: p, minHeight: 4),
                         ),
                       Positioned(
                         top: 4,
@@ -237,7 +264,8 @@ class _PhotoImportWebSheetState extends State<PhotoImportWebSheet> {
                               ? null
                               : () {
                                   setState(() {
-                                    final next = List<PlatformFile>.from(_files);
+                                    final next =
+                                        List<PlatformFile>.from(_files);
                                     next.removeAt(i);
                                     _files = next;
                                   });
@@ -248,7 +276,8 @@ class _PhotoImportWebSheetState extends State<PhotoImportWebSheet> {
                               shape: BoxShape.circle,
                             ),
                             padding: const EdgeInsets.all(2),
-                            child: const Icon(Icons.close, size: 16, color: Colors.red),
+                            child: const Icon(Icons.close,
+                                size: 16, color: Colors.red),
                           ),
                         ),
                       ),

@@ -38,6 +38,7 @@ import com.ones.api.application.events.ports.ObjectStoragePresigner;
 import com.ones.api.application.photos.ports.PhotoLikesRepository;
 import com.ones.api.application.photos.ports.PhotosRepository;
 import com.ones.api.application.photos.ports.PhotoProcessingQueue;
+import com.ones.api.application.photos.ports.PhotoDateResolutionQueue;
 import com.ones.api.application.users.GetUserByIdUseCase;
 import com.ones.api.application.users.ports.PreferredNamesCacheRepository;
 import com.ones.api.domain.events.Event;
@@ -61,6 +62,7 @@ class PhotosServiceAutoShareTest {
     private final GetUserByIdUseCase users = mock(GetUserByIdUseCase.class);
     private final PhotoLikesRepository likes = mock(PhotoLikesRepository.class);
     private final PhotoProcessingQueue processingQueue = mock(PhotoProcessingQueue.class);
+    private final PhotoDateResolutionQueue dateResolutionQueue = mock(PhotoDateResolutionQueue.class);
     private final ObjectStorage storage = mock(ObjectStorage.class);
     private final ObjectStoragePresigner presigner = mock(ObjectStoragePresigner.class);
     private final CloudFrontSignedUrlService cdn = mock(CloudFrontSignedUrlService.class);
@@ -101,6 +103,35 @@ class PhotosServiceAutoShareTest {
                 photos, likes, processingQueue, eventAccess, events, null, users, names,
                 presigner, storage, cdn, null, Clock.systemUTC(), "photos", 15, false
         );
+        when(dateResolutionQueue.isConfigured()).thenReturn(true);
+        service.setPhotoDateResolutionQueue(dateResolutionQueue);
+    }
+
+    @Test
+    void completeKeepsEarliestKnownDateAndQueuesOnlyTheFilenameForResolution() {
+        Instant metadataDate = Instant.parse("2024-06-27T10:00:00Z");
+        Photo photo = service.complete(
+                UPLOADER_ID,
+                UPLOADER_EMAIL,
+                EVENT_ID,
+                PHOTO_ID,
+                CREATED_AT,
+                ORIGINAL_KEY,
+                "WhatsApp Image 2024-06-27 at 10.31.12.jpg",
+                metadataDate,
+                null,
+                120,
+                "metadata"
+        );
+
+        assertEquals(metadataDate, photo.getCreatedAt());
+        verify(dateResolutionQueue).enqueue(org.mockito.ArgumentMatchers.argThat(job ->
+                EVENT_ID.equals(job.eventId())
+                        && PHOTO_ID.equals(job.photoId())
+                        && "WhatsApp Image 2024-06-27 at 10.31.12.jpg".equals(job.originalFilename())
+                        && metadataDate.toString().equals(job.metadataCreatedAt())
+                        && Integer.valueOf(120).equals(job.deviceUtcOffsetMinutes())
+        ));
     }
 
     @Test
@@ -422,6 +453,15 @@ class PhotosServiceAutoShareTest {
                 throw new IllegalStateException("Photo upload conflicts with an existing photo");
             }
             return existing;
+        }
+
+        @Override
+        public boolean markDateResolutionPending(
+                String eventId,
+                String photoId,
+                String createdAtSource
+        ) {
+            return true;
         }
 
         @Override
