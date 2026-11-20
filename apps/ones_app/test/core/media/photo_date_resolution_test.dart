@@ -16,6 +16,22 @@ void main() {
       expect(compact!.toLocal(), DateTime(2024, 6, 27));
     });
 
+    test('parses Spanish month names and localized AM/PM times', () {
+      final first = PhotoDateResolver.filenameDate(
+        'Test 6 dic 2025, 02_37_56 a.m. - copia.png',
+      );
+      final second = PhotoDateResolver.filenameDate(
+        'Test 6 dic 2025, 02_44_04 a.m. - copia.png',
+      );
+      final afternoon = PhotoDateResolver.filenameDate(
+        'Foto 6 diciembre 2025, 02_37_56 p.m..jpg',
+      );
+
+      expect(first!.toLocal(), DateTime(2025, 12, 6, 2, 37, 56));
+      expect(second!.toLocal(), DateTime(2025, 12, 6, 2, 44, 4));
+      expect(afternoon!.toLocal(), DateTime(2025, 12, 6, 14, 37, 56));
+    });
+
     test('chooses the oldest date and rejects impossible dates', () {
       final earliest = PhotoDateResolver.filenameDate(
         'copy_2024-06-27_2022-05-03.jpg',
