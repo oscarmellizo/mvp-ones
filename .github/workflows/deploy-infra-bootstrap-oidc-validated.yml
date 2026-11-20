@@ -70,6 +70,10 @@ jobs:
           aws cloudformation deploy \
             --stack-name "${stackName}" \
             --template-file infra/cloudformation/bootstrap-oidc.yml \
+            --parameter-overrides \
+              Environment="${{ inputs.environment }}" \
+              GitHubBranch="${{ inputs.environment == 'prod' && 'main' || 'develop' }}" \
+              StackPrefix="${STACK_PREFIX}" \
             --capabilities CAPABILITY_NAMED_IAM \
             --no-cli-pager
 
