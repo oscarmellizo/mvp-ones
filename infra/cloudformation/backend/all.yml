@@ -98,6 +98,43 @@ Parameters:
     MinValue: 1
     MaxValue: 900
 
+  PhotoDateResolverEnabled:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+  PhotoDateResolverMaxConcurrency:
+    Type: Number
+    Default: 10
+    MinValue: 2
+    MaxValue: 1000
+
+  PhotoDateResolverMaxReceiveCount:
+    Type: Number
+    Default: 5
+    MinValue: 1
+    MaxValue: 1000
+
+  PhotoDateResolverModelId:
+    Type: String
+    Default: amazon.nova-micro-v1:0
+
+  PhotoDateResolverCacheTtlSeconds:
+    Type: Number
+    Default: 2592000
+    MinValue: 60
+
+  PhotoDateResolverMonthlyBudgetUsd:
+    Type: Number
+    Default: 20
+    MinValue: 1
+
+  PhotoDateResolverZipS3Key:
+    Type: String
+    Default: ''
+
   GrafanaDesiredCount:
     Type: Number
     Default: 1
@@ -158,6 +195,7 @@ Parameters:
 Conditions:
   UsePhotoThumbnailsImageCond: !Equals [!Ref UsePhotoThumbnailsImage, 'true']
   UsePhotoThumbnailsZipCond: !Not [!Equals [!Ref UsePhotoThumbnailsImage, 'true']]
+  EnablePhotoDateResolverCond: !Equals [!Ref PhotoDateResolverEnabled, 'true']
   EnablePhotosCdnCond: !And
     - !Equals [!Ref CdnPhotosEnabled, 'true']
     - !Not [!Equals [!Ref CdnPhotosSigningPublicKeySsmParamName, '']]
@@ -365,6 +403,51 @@ Resources:
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt PhotoThumbnailsDlq.Arn
         maxReceiveCount: !Ref PhotoThumbnailsMaxReceiveCount
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  PhotoDateResolutionDlq:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${StackPrefix}-${Environment}-photo-date-resolution-dlq
+      VisibilityTimeout: 360
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  PhotoDateResolutionQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${StackPrefix}-${Environment}-photo-date-resolution
+      VisibilityTimeout: 360
+      MessageRetentionPeriod: 345600
+      SqsManagedSseEnabled: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt PhotoDateResolutionDlq.Arn
+        maxReceiveCount: !Ref PhotoDateResolverMaxReceiveCount
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  PhotoDateResolutionCacheTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-photo-date-cache
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: filenameHash
+          AttributeType: S
+      KeySchema:
+        - AttributeName: filenameHash
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
       Tags:
         - Key: Environment
           Value: !Ref Environment
@@ -2137,7 +2220,9 @@ Resources:
               - Effect: Allow
                 Action:
                   - sqs:SendMessage
-                Resource: !GetAtt PhotoThumbnailsQueue.Arn
+                Resource:
+                  - !GetAtt PhotoThumbnailsQueue.Arn
+                  - !GetAtt PhotoDateResolutionQueue.Arn
         - PolicyName: ones-s3
           PolicyDocument:
             Version: '2012-10-17'
@@ -2379,6 +2464,10 @@ Resources:
               Value: !Sub ${StackPrefix}-${Environment}-events-photos
             - Name: ONES_PHOTO_PROCESSING_QUEUE_URL
               Value: !Ref PhotoThumbnailsQueue
+            - Name: ONES_PHOTO_DATE_RESOLUTION_QUEUE_URL
+              Value: !Ref PhotoDateResolutionQueue
+            - Name: ONES_PHOTO_DATE_RESOLUTION_ENABLED
+              Value: !Ref PhotoDateResolverEnabled
             - Name: OPENAI_API_KEY_SECRET_NAME
               Value: !Ref OpenAiApiKeySecret
             - Name: GOOGLE_CLIENT_ID
@@ -2535,6 +2624,52 @@ Resources:
                   - execute-api:ManageConnections
                 Resource:
                   - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${PhotosWebSocketApi}/*/POST/@connections/*
+
+  PhotoDateResolverRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${StackPrefix}-${Environment}-photo-date-resolver-role
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: invoke-date-model
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                Resource: !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/${PhotoDateResolverModelId}
+        - PolicyName: resolve-photo-date
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                  - sqs:ChangeMessageVisibility
+                Resource: !GetAtt PhotoDateResolutionQueue.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                Resource: !GetAtt PhotoDateResolutionCacheTable.Arn
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref InternalBasicAuthSecret
 
   PhotosWebSocketHandlerRole:
     Type: AWS::IAM::Role
@@ -2826,6 +2961,29 @@ Resources:
         S3Bucket: !Ref LambdaArtifactsBucket
         S3Key: !Ref PhotoThumbnailsZipS3Key
 
+  PhotoDateResolverFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${StackPrefix}-${Environment}-photo-date-resolver
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      Runtime: python3.12
+      Handler: index.handler
+      MemorySize: 512
+      Timeout: 60
+      Role: !GetAtt PhotoDateResolverRole.Arn
+      Environment:
+        Variables:
+          BEDROCK_MODEL_ID: !Ref PhotoDateResolverModelId
+          BACKEND_BASE_URL: !Sub http://${LoadBalancer.DNSName}
+          INTERNAL_SECRET_ARN: !Ref InternalBasicAuthSecret
+          CACHE_TABLE_NAME: !Ref PhotoDateResolutionCacheTable
+          CACHE_TTL_SECONDS: !Ref PhotoDateResolverCacheTtlSeconds
+      Code:
+        S3Bucket: !Ref LambdaArtifactsBucket
+        S3Key: !Ref PhotoDateResolverZipS3Key
+
   AccountLifecycleTriggerRole:
     Type: AWS::IAM::Role
     Properties:
@@ -3016,6 +3174,19 @@ Resources:
       ScalingConfig:
         MaximumConcurrency: !Ref PhotoThumbnailsMaxConcurrency
 
+  PhotoDateResolverQueueEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      Enabled: !If [EnablePhotoDateResolverCond, true, false]
+      BatchSize: 10
+      MaximumBatchingWindowInSeconds: 5
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
+      EventSourceArn: !GetAtt PhotoDateResolutionQueue.Arn
+      FunctionName: !Ref PhotoDateResolverFunction
+      ScalingConfig:
+        MaximumConcurrency: !Ref PhotoDateResolverMaxConcurrency
+
   PhotoThumbnailsDlqEventSourceMapping:
     Type: AWS::Lambda::EventSourceMapping
     Properties:
@@ -3053,6 +3224,90 @@ Resources:
       TreatMissingData: notBreaching
       AlarmActions:
         - !Ref AlertsTopic
+
+  PhotoDateResolverErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-photo-date-resolver-errors
+      AlarmDescription: Fallaron ejecuciones de la resolucion de fechas de fotos.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref PhotoDateResolverFunction
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  PhotoDateResolverQueueAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-photo-date-resolution-queue-age
+      AlarmDescription: Hay resoluciones de fecha esperando demasiado tiempo.
+      Namespace: AWS/SQS
+      MetricName: ApproximateAgeOfOldestMessage
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt PhotoDateResolutionQueue.QueueName
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 2
+      DatapointsToAlarm: 2
+      Threshold: 300
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  PhotoDateResolverDlqAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-photo-date-resolution-dlq
+      AlarmDescription: Hay trabajos de resolucion de fecha en la DLQ.
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt PhotoDateResolutionDlq.QueueName
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  PhotoDateResolverBudget:
+    Type: AWS::Budgets::Budget
+    Condition: EnablePhotoDateResolverCond
+    Properties:
+      Budget:
+        BudgetName: !Sub ${StackPrefix}-${Environment}-photo-date-resolver
+        BudgetLimit:
+          Amount: !Ref PhotoDateResolverMonthlyBudgetUsd
+          Unit: USD
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        CostFilters:
+          Service:
+            - Amazon Bedrock
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: SNS
+              Address: !Ref AlertsTopic
 
   PhotoThumbnailsThrottlesAlarm:
     Type: AWS::CloudWatch::Alarm

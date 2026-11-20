@@ -19,6 +19,7 @@ class PhotosWsController extends ChangeNotifier {
   bool _notifyScheduled = false;
 
   void Function(String eventId, String photoId)? onPhotoReady;
+  void Function(String eventId, String photoId)? onPhotoDateResolved;
 
   PhotosWsController({required this.wsUrl});
 
@@ -54,8 +55,10 @@ class PhotosWsController extends ChangeNotifier {
       if (kDebugMode) {
         debugPrint('photos_ws: connect host=${uri.host} path=${uri.path}');
         if ((uri.pathSegments.isEmpty ||
-            (uri.pathSegments.length == 1 && uri.pathSegments.first.trim().isEmpty))) {
-          debugPrint('photos_ws: hint: missing stage (e.g., /dev or /prod) in ONES_PHOTOS_WS_URL');
+            (uri.pathSegments.length == 1 &&
+                uri.pathSegments.first.trim().isEmpty))) {
+          debugPrint(
+              'photos_ws: hint: missing stage (e.g., /dev or /prod) in ONES_PHOTOS_WS_URL');
         }
       }
       final ch = WebSocketChannel.connect(uri);
@@ -74,6 +77,12 @@ class PhotosWsController extends ChangeNotifier {
               final photoId = data['photoId'];
               if (eventId is String && photoId is String) {
                 onPhotoReady?.call(eventId, photoId);
+              }
+            } else if (data['type'] == 'photo.date_resolved') {
+              final eventId = data['eventId'];
+              final photoId = data['photoId'];
+              if (eventId is String && photoId is String) {
+                onPhotoDateResolved?.call(eventId, photoId);
               }
             }
           } catch (_) {
@@ -205,12 +214,15 @@ class PhotosWsController extends ChangeNotifier {
     }
 
     // Fix scheme to wss if http/https provided
-    final scheme = (base.scheme.isEmpty || base.scheme == 'http' || base.scheme == 'https')
-        ? 'wss'
-        : base.scheme;
+    final scheme =
+        (base.scheme.isEmpty || base.scheme == 'http' || base.scheme == 'https')
+            ? 'wss'
+            : base.scheme;
 
     // Drop invalid :0 port
-    final port = (base.hasPort && base.port == 0) ? null : (base.hasPort ? base.port : null);
+    final port = (base.hasPort && base.port == 0)
+        ? null
+        : (base.hasPort ? base.port : null);
 
     return base.replace(
       scheme: scheme,

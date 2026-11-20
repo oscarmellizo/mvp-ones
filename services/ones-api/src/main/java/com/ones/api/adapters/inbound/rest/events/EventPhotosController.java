@@ -70,6 +70,8 @@ public class EventPhotosController {
         if (request.createdAt() != null && !request.createdAt().isBlank()) {
             createdAt = Instant.parse(request.createdAt().trim());
         }
+        Instant metadataCreatedAt = parseOptionalInstant(request.metadataCreatedAt());
+        Instant filenameCreatedAt = parseOptionalInstant(request.filenameCreatedAt());
 
         return photosService.complete(
                 userId,
@@ -77,8 +79,17 @@ public class EventPhotosController {
                 eventId,
                 request.photoId(),
                 createdAt,
-                request.s3KeyOriginal()
+                request.s3KeyOriginal(),
+                request.originalFilename(),
+                metadataCreatedAt,
+                filenameCreatedAt,
+                request.deviceUtcOffsetMinutes(),
+                request.createdAtSource()
         );
+    }
+
+    private Instant parseOptionalInstant(String value) {
+        return value == null || value.isBlank() ? null : Instant.parse(value.trim());
     }
 
     @GetMapping("/{eventId}/photos")
@@ -223,7 +234,12 @@ record PresignPhotoRequest(
 record CompletePhotoRequest(
         @NotBlank String photoId,
         @NotBlank String s3KeyOriginal,
-        String createdAt
+        String createdAt,
+        String originalFilename,
+        String metadataCreatedAt,
+        String filenameCreatedAt,
+        Integer deviceUtcOffsetMinutes,
+        String createdAtSource
 ) {
 }
 

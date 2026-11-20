@@ -443,7 +443,8 @@ class PhotosGalleryController extends ChangeNotifier {
       list.sort((a, b) {
         final ad = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
         final bd = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return bd.compareTo(ad);
+        final byDate = bd.compareTo(ad);
+        return byDate != 0 ? byDate : a.photoId.compareTo(b.photoId);
       });
 
       if (kDebugMode && list.isNotEmpty) {
@@ -473,6 +474,15 @@ class PhotosGalleryController extends ChangeNotifier {
         notifyListeners();
       }
     }
+  }
+
+  Future<void> refreshAfterDateResolution({required String eventId}) async {
+    if (_currentEventId != eventId.trim()) return;
+    _items = const [];
+    _nextToken = null;
+    _hasMore = true;
+    _loadedOnce = false;
+    await refresh(eventId: eventId);
   }
 
   Future<void> loadMore({required String eventId}) async {
@@ -540,7 +550,8 @@ class PhotosGalleryController extends ChangeNotifier {
       list.sort((a, b) {
         final ad = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
         final bd = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return bd.compareTo(ad);
+        final byDate = bd.compareTo(ad);
+        return byDate != 0 ? byDate : a.photoId.compareTo(b.photoId);
       });
 
       if (kDebugMode && list.isNotEmpty) {

@@ -321,6 +321,11 @@ class EventPhotosApi {
     required String photoId,
     required String s3KeyOriginal,
     required String createdAt,
+    String? originalFilename,
+    String? metadataCreatedAt,
+    String? filenameCreatedAt,
+    String? createdAtSource,
+    int? deviceUtcOffsetMinutes,
   }) async {
     if (kDebugMode) {
       debugPrint(
@@ -333,6 +338,12 @@ class EventPhotosApi {
         'photoId': photoId,
         's3KeyOriginal': s3KeyOriginal,
         'createdAt': createdAt,
+        if (originalFilename != null) 'originalFilename': originalFilename,
+        if (metadataCreatedAt != null) 'metadataCreatedAt': metadataCreatedAt,
+        if (filenameCreatedAt != null) 'filenameCreatedAt': filenameCreatedAt,
+        if (createdAtSource != null) 'createdAtSource': createdAtSource,
+        if (deviceUtcOffsetMinutes != null)
+          'deviceUtcOffsetMinutes': deviceUtcOffsetMinutes,
       },
       options: Options(
         extra: {

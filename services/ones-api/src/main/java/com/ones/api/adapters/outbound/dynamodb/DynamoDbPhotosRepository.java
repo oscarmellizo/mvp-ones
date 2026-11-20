@@ -136,6 +136,104 @@ public class DynamoDbPhotosRepository implements PhotosRepository {
     }
 
     @Override
+    public void markDateResolutionNotNeeded(
+            String eventId,
+            String photoId,
+            String createdAtSource
+    ) {
+        dynamoDbClient.updateItem(UpdateItemRequest.builder()
+                .tableName(tableName)
+                .key(Map.of("photoId", AttributeValue.fromS(photoId)))
+                .updateExpression("SET #state = if_not_exists(#state, :state), "
+                        + "#source = if_not_exists(#source, :source)")
+                .conditionExpression("#eventId = :eventId")
+                .expressionAttributeNames(Map.of(
+                        "#eventId", "eventId",
+                        "#state", "dateResolutionStatus",
+                        "#source", "createdAtSource"
+                ))
+                .expressionAttributeValues(Map.of(
+                        ":eventId", AttributeValue.fromS(eventId),
+                        ":state", AttributeValue.fromS("not_needed"),
+                        ":source", AttributeValue.fromS(createdAtSource)
+                ))
+                .build());
+    }
+
+    @Override
+    public boolean markDateResolutionPending(
+            String eventId,
+            String photoId,
+            String createdAtSource
+    ) {
+        Map<String, AttributeValue> attributes = dynamoDbClient.updateItem(
+                UpdateItemRequest.builder()
+                        .tableName(tableName)
+                        .key(Map.of("photoId", AttributeValue.fromS(photoId)))
+                        .updateExpression("SET #state = if_not_exists(#state, :pending), "
+                                + "#source = if_not_exists(#source, :source)")
+                        .conditionExpression("#eventId = :eventId")
+                        .expressionAttributeNames(Map.of(
+                                "#eventId", "eventId",
+                                "#state", "dateResolutionStatus",
+                                "#source", "createdAtSource"
+                        ))
+                        .expressionAttributeValues(Map.of(
+                                ":eventId", AttributeValue.fromS(eventId),
+                                ":pending", AttributeValue.fromS("pending"),
+                                ":source", AttributeValue.fromS(createdAtSource)
+                        ))
+                        .returnValues(ReturnValue.ALL_NEW)
+                        .build()
+        ).attributes();
+        return attributes != null
+                && "pending".equals(s(attributes.get("dateResolutionStatus")));
+    }
+
+    @Override
+    public boolean completeDateResolution(
+            String eventId,
+            String photoId,
+            Instant resolvedCreatedAt,
+            String status,
+            String source
+    ) {
+        Map<String, String> names = new HashMap<>(Map.of(
+                "#eventId", "eventId",
+                "#state", "dateResolutionStatus",
+                "#source", "createdAtSource"
+        ));
+        Map<String, AttributeValue> values = new HashMap<>(Map.of(
+                ":eventId", AttributeValue.fromS(eventId),
+                ":pending", AttributeValue.fromS("pending"),
+                ":state", AttributeValue.fromS(status),
+                ":source", AttributeValue.fromS(source)
+        ));
+        String updateExpression = "SET #state = :state, #source = :source";
+        if (resolvedCreatedAt != null) {
+            names.put("#createdAt", "createdAt");
+            names.put("#eventSortKey", "eventSortKey");
+            values.put(":createdAt", AttributeValue.fromS(resolvedCreatedAt.toString()));
+            values.put(":eventSortKey",
+                    AttributeValue.fromS(eventSortKey(resolvedCreatedAt, photoId)));
+            updateExpression += ", #createdAt = :createdAt, #eventSortKey = :eventSortKey";
+        }
+        try {
+            dynamoDbClient.updateItem(UpdateItemRequest.builder()
+                    .tableName(tableName)
+                    .key(Map.of("photoId", AttributeValue.fromS(photoId)))
+                    .updateExpression(updateExpression)
+                    .conditionExpression("#eventId = :eventId AND #state = :pending")
+                    .expressionAttributeNames(names)
+                    .expressionAttributeValues(values)
+                    .build());
+            return true;
+        } catch (ConditionalCheckFailedException e) {
+            return false;
+        }
+    }
+
+    @Override
     public ProcessingClaim claimProcessing(
             String eventId,
             String photoId,

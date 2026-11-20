@@ -92,6 +92,39 @@ public class PhotosWsPublisher {
         }
     }
 
+    public void publishPhotoDateResolved(String eventId, String photoId) {
+        if (subscriptionsTable == null || subscriptionsTable.isBlank()) return;
+        List<String> connectionIds = queryConnectionIds(eventId);
+        if (connectionIds.isEmpty()) return;
+
+        String payload;
+        try {
+            payload = objectMapper.writeValueAsString(Map.of(
+                    "type", "photo.date_resolved",
+                    "eventId", eventId,
+                    "photoId", photoId
+            ));
+        } catch (Exception e) {
+            log.warn("publishPhotoDateResolved: failed to serialize eventId={} photoId={}", eventId, photoId);
+            return;
+        }
+
+        SdkBytes data = SdkBytes.fromString(payload, StandardCharsets.UTF_8);
+        for (String connectionId : connectionIds) {
+            try {
+                wsClient.postToConnection(PostToConnectionRequest.builder()
+                        .connectionId(connectionId)
+                        .data(data)
+                        .build());
+            } catch (GoneException e) {
+                log.debug("publishPhotoDateResolved: stale connectionId={} eventId={}", connectionId, eventId);
+            } catch (Exception e) {
+                log.warn("publishPhotoDateResolved: post failed eventId={} photoId={} error={}",
+                        eventId, photoId, e.getClass().getSimpleName());
+            }
+        }
+    }
+
     private List<String> queryConnectionIds(String eventId) {
         List<String> result = new ArrayList<>();
         Map<String, AttributeValue> lastKey = null;

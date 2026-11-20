@@ -14,6 +14,31 @@ public interface PhotosRepository {
 
     Photo completeUpload(Photo photo);
 
+    default void markDateResolutionNotNeeded(
+            String eventId,
+            String photoId,
+            String createdAtSource
+    ) {
+    }
+
+    default boolean markDateResolutionPending(
+            String eventId,
+            String photoId,
+            String createdAtSource
+    ) {
+        return false;
+    }
+
+    default boolean completeDateResolution(
+            String eventId,
+            String photoId,
+            Instant resolvedCreatedAt,
+            String status,
+            String source
+    ) {
+        return false;
+    }
+
     ProcessingClaim claimProcessing(
             String eventId,
             String photoId,
