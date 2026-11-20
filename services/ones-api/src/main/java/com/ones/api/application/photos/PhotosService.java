@@ -16,6 +16,7 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +29,7 @@ import com.ones.api.application.events.ports.ObjectStoragePresigner;
 import com.ones.api.application.photos.ports.PhotosRepository;
 import com.ones.api.application.photos.ports.PhotoLikesRepository;
 import com.ones.api.application.photos.ports.PhotoProcessingQueue;
+import com.ones.api.application.photos.ports.PhotoDateResolutionQueue;
 import com.ones.api.application.users.ports.PreferredNamesCacheRepository;
 import com.ones.api.application.users.GetUserByIdUseCase;
 import com.ones.api.domain.events.Event;
@@ -43,6 +45,7 @@ public class PhotosService {
     private final PhotosRepository photosRepository;
     private final PhotoLikesRepository photoLikesRepository;
     private final PhotoProcessingQueue photoProcessingQueue;
+    private PhotoDateResolutionQueue photoDateResolutionQueue;
     private final GetEventUseCase getEventUseCase;
     private final EventsRepository eventsRepository;
     private final com.ones.api.application.invitations.ports.InvitationsRepository invitationsRepository;
@@ -129,6 +132,39 @@ public class PhotosService {
             Instant createdAt,
             String s3KeyOriginal
     ) {
+        return complete(
+                requesterUserId,
+                requesterEmail,
+                eventId,
+                photoId,
+                createdAt,
+                s3KeyOriginal,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+    }
+
+    @Autowired(required = false)
+    public void setPhotoDateResolutionQueue(PhotoDateResolutionQueue queue) {
+        this.photoDateResolutionQueue = queue;
+    }
+
+    public Photo complete(
+            String requesterUserId,
+            String requesterEmail,
+            String eventId,
+            String photoId,
+            Instant createdAt,
+            String s3KeyOriginal,
+            String originalFilename,
+            Instant metadataCreatedAt,
+            Instant filenameCreatedAt,
+            Integer deviceUtcOffsetMinutes,
+            String createdAtSource
+    ) {
         require(eventId, "eventId");
         require(photoId, "photoId");
         require(s3KeyOriginal, "s3KeyOriginal");
@@ -140,7 +176,19 @@ public class PhotosService {
         }
 
         Instant now = Instant.now(clock);
-        Instant resolvedCreatedAt = createdAt != null ? createdAt : now;
+        Instant safeMetadataCreatedAt = validCaptureDate(metadataCreatedAt, now);
+        Instant safeFilenameCreatedAt = validCaptureDate(filenameCreatedAt, now);
+        Instant safeClientCreatedAt = validCaptureDate(createdAt, now);
+        Instant resolvedCreatedAt = earlier(safeMetadataCreatedAt, safeFilenameCreatedAt);
+        if (resolvedCreatedAt == null) {
+            resolvedCreatedAt = safeClientCreatedAt != null ? safeClientCreatedAt : now;
+        }
+        String resolvedSource = resolveDateSource(
+                safeMetadataCreatedAt,
+                safeFilenameCreatedAt,
+                createdAtSource,
+                safeClientCreatedAt
+        );
 
         String ownerName = resolvePreferredName(requesterUserId, requesterEmail);
 
@@ -161,6 +209,42 @@ public class PhotosService {
         );
 
         Photo completed = photosRepository.completeUpload(photo);
+        String safeFilename = sanitizeOriginalFilename(originalFilename);
+        boolean shouldResolveFilename = safeFilename != null && safeFilenameCreatedAt == null;
+        if (photoDateResolutionQueue != null && photoDateResolutionQueue.isConfigured()) {
+            if (shouldResolveFilename) {
+                boolean pending = photosRepository.markDateResolutionPending(
+                        completed.getEventId(),
+                        completed.getPhotoId(),
+                        resolvedSource
+                );
+                if (pending) {
+                    try {
+                        photoDateResolutionQueue.enqueue(new PhotoDateResolutionQueue.Job(
+                                completed.getEventId(),
+                                completed.getPhotoId(),
+                                safeFilename,
+                                safeMetadataCreatedAt == null ? null : safeMetadataCreatedAt.toString(),
+                                normalizeOffset(deviceUtcOffsetMinutes)
+                        ));
+                    } catch (RuntimeException e) {
+                        log.warn(
+                                "photo_date_resolution_enqueue_failed eventId={} photoId={} error={}",
+                                completed.getEventId(),
+                                completed.getPhotoId(),
+                                e.getClass().getSimpleName()
+                        );
+                    }
+                }
+            } else {
+                photosRepository.markDateResolutionNotNeeded(
+                        completed.getEventId(),
+                        completed.getPhotoId(),
+                        resolvedSource
+                );
+            }
+        }
+
         if ("uploaded".equalsIgnoreCase(completed.getStatus())) {
             try {
                 photoProcessingQueue.enqueue(new PhotoProcessingQueue.Job(
@@ -180,6 +264,90 @@ public class PhotosService {
             }
         }
         return completed;
+    }
+
+    public boolean applyPhotoDateResolutionInternal(
+            String eventId,
+            String photoId,
+            Instant resolvedCreatedAt,
+            String status,
+            String source
+    ) {
+        require(eventId, "eventId");
+        require(photoId, "photoId");
+        String resolvedStatus = status == null ? "" : status.trim().toLowerCase();
+        if ("no_date".equals(resolvedStatus)) {
+            return photosRepository.completeDateResolution(
+                    eventId,
+                    photoId,
+                    null,
+                    "no_date",
+                    "upload_fallback"
+            );
+        }
+        if (!"resolved".equals(resolvedStatus) || resolvedCreatedAt == null) {
+            throw new IllegalArgumentException("Invalid photo date resolution");
+        }
+        Instant now = Instant.now(clock);
+        if (resolvedCreatedAt.isBefore(Instant.parse("1900-01-01T00:00:00Z"))
+                || resolvedCreatedAt.isAfter(now.plus(Duration.ofDays(1)))) {
+            throw new IllegalArgumentException("Resolved photo date is outside the accepted range");
+        }
+        String resolvedSource = "metadata".equalsIgnoreCase(source) ? "metadata" : "filename_ai";
+        return photosRepository.completeDateResolution(
+                eventId,
+                photoId,
+                resolvedCreatedAt,
+                "resolved",
+                resolvedSource
+        );
+    }
+
+    private Instant earlier(Instant first, Instant second) {
+        if (first == null) return second;
+        if (second == null) return first;
+        return first.isBefore(second) ? first : second;
+    }
+
+    private Instant validCaptureDate(Instant candidate, Instant now) {
+        if (candidate == null
+                || candidate.isBefore(Instant.parse("1900-01-01T00:00:00Z"))
+                || candidate.isAfter(now.plus(Duration.ofDays(1)))) {
+            return null;
+        }
+        return candidate;
+    }
+
+    private String resolveDateSource(
+            Instant metadataDate,
+            Instant filenameDate,
+            String requestSource,
+            Instant createdAt
+    ) {
+        if (metadataDate != null && filenameDate != null) {
+            return metadataDate.isBefore(filenameDate) ? "metadata" : "filename";
+        }
+        if (metadataDate != null) return "metadata";
+        if (filenameDate != null) return "filename";
+        if (requestSource != null && Set.of("metadata", "filename", "file_modified", "upload_time")
+                .contains(requestSource.trim().toLowerCase())) {
+            return requestSource.trim().toLowerCase();
+        }
+        return createdAt == null ? "upload_time" : "client";
+    }
+
+    private String sanitizeOriginalFilename(String filename) {
+        if (filename == null || filename.isBlank()) return null;
+        String basename = filename.replace('\\', '/');
+        basename = basename.substring(basename.lastIndexOf('/') + 1)
+                .replaceAll("[\\p{Cntrl}]", "")
+                .trim();
+        if (basename.isEmpty()) return null;
+        return basename.length() <= 255 ? basename : basename.substring(0, 255);
+    }
+
+    private Integer normalizeOffset(Integer offset) {
+        return offset == null || offset < -840 || offset > 840 ? 0 : offset;
     }
 
     public ListPage list(

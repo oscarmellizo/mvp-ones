@@ -6,7 +6,7 @@ import '../../domain/photo_upload_item.dart';
 
 class PhotoUploadDb {
   static const _dbName = 'ones_photos.db';
-  static const _dbVersion = 3;
+  static const _dbVersion = 5;
   static const _table = 'photo_upload_queue';
   static const int _maxAttempts = 5;
 
@@ -37,6 +37,11 @@ CREATE TABLE $_table (
   frameId TEXT,
   orientation TEXT,
   cameraType TEXT,
+  originalFilename TEXT,
+  metadataCreatedAt TEXT,
+  filenameCreatedAt TEXT,
+  createdAtSource TEXT,
+  deviceUtcOffsetMinutes INTEGER,
   attempts INTEGER NOT NULL,
   lastError TEXT,
   updatedAt TEXT NOT NULL
@@ -56,6 +61,20 @@ CREATE TABLE $_table (
         if (oldVersion < 3) {
           await db.execute('ALTER TABLE $_table ADD COLUMN ownerId TEXT');
         }
+        if (oldVersion < 4) {
+          await db
+              .execute('ALTER TABLE $_table ADD COLUMN originalFilename TEXT');
+          await db
+              .execute('ALTER TABLE $_table ADD COLUMN metadataCreatedAt TEXT');
+          await db
+              .execute('ALTER TABLE $_table ADD COLUMN filenameCreatedAt TEXT');
+          await db.execute(
+              'ALTER TABLE $_table ADD COLUMN deviceUtcOffsetMinutes INTEGER');
+        }
+        if (oldVersion < 5) {
+          await db
+              .execute('ALTER TABLE $_table ADD COLUMN createdAtSource TEXT');
+        }
       },
     );
 
@@ -73,6 +92,11 @@ CREATE TABLE $_table (
     String? frameId,
     String? orientation,
     String? cameraType,
+    String? originalFilename,
+    String? metadataCreatedAt,
+    String? filenameCreatedAt,
+    String? createdAtSource,
+    int? deviceUtcOffsetMinutes,
   }) async {
     final db = await _open();
     final now = DateTime.now().toUtc().toIso8601String();
@@ -91,6 +115,11 @@ CREATE TABLE $_table (
         'frameId': frameId,
         'orientation': orientation,
         'cameraType': cameraType,
+        'originalFilename': originalFilename,
+        'metadataCreatedAt': metadataCreatedAt,
+        'filenameCreatedAt': filenameCreatedAt,
+        'createdAtSource': createdAtSource,
+        'deviceUtcOffsetMinutes': deviceUtcOffsetMinutes,
         'attempts': 0,
         'lastError': null,
         'updatedAt': now,
@@ -334,6 +363,11 @@ CREATE TABLE $_table (
       frameId: row['frameId'] as String?,
       orientation: row['orientation'] as String?,
       cameraType: row['cameraType'] as String?,
+      originalFilename: row['originalFilename'] as String?,
+      metadataCreatedAt: row['metadataCreatedAt'] as String?,
+      filenameCreatedAt: row['filenameCreatedAt'] as String?,
+      createdAtSource: row['createdAtSource'] as String?,
+      deviceUtcOffsetMinutes: row['deviceUtcOffsetMinutes'] as int?,
       attempts: (row['attempts'] as int?) ?? 0,
       lastError: row['lastError'] as String?,
     );

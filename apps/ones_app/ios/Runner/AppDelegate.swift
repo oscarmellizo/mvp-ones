@@ -19,5 +19,8 @@ import workmanager_apple
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    OnesPhotoLibraryPicker.register(
+      with: engineBridge.pluginRegistry.registrar(forPlugin: "OnesPhotoLibraryPicker")
+    )
   }
 }

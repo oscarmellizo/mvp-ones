@@ -156,6 +156,29 @@ public class InternalPhotosController {
         );
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/{eventId}/photos/{photoId}/date-resolution")
+    public ResponseEntity<DateResolutionResponse> resolvePhotoDate(
+            @PathVariable("eventId") String eventId,
+            @PathVariable("photoId") String photoId,
+            @Valid @RequestBody PhotoDateResolutionRequest request
+    ) {
+        Instant resolvedCreatedAt = request.resolvedCreatedAt() == null
+                || request.resolvedCreatedAt().isBlank()
+                ? null
+                : Instant.parse(request.resolvedCreatedAt());
+        boolean updated = photosService.applyPhotoDateResolutionInternal(
+                eventId,
+                photoId,
+                resolvedCreatedAt,
+                request.status(),
+                request.source()
+        );
+        if (updated && "resolved".equalsIgnoreCase(request.status())) {
+            photosWsPublisher.publishPhotoDateResolved(eventId, photoId);
+        }
+        return ResponseEntity.ok(new DateResolutionResponse(updated));
+    }
 }
 
 record MarkReadyRequest(
@@ -198,4 +221,14 @@ record PhotoUploadedRequest(
         @Min(1) int photoCount,
         @NotBlank String eventTitle
 ) {
+}
+
+record PhotoDateResolutionRequest(
+        @NotBlank String status,
+        String resolvedCreatedAt,
+        String source
+) {
+}
+
+record DateResolutionResponse(boolean updated) {
 }

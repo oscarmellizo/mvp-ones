@@ -581,6 +581,7 @@ class _GalleryTabState extends State<_GalleryTab> {
       final ws = context.read<PhotosWsController>();
       _ws = ws;
       ws.onPhotoReady = _onWsPhotoReady;
+      ws.onPhotoDateResolved = _onWsPhotoDateResolved;
       ws.subscribe(eventId: widget.eventId);
       unawaited(ws.connect());
       setState(() {
@@ -662,6 +663,7 @@ class _GalleryTabState extends State<_GalleryTab> {
       final ws = _ws ?? context.read<PhotosWsController>();
       _ws = ws;
       ws.onPhotoReady = _onWsPhotoReady;
+      ws.onPhotoDateResolved = _onWsPhotoDateResolved;
       if (eventChanged) {
         ws.unsubscribe(eventId: oldWidget.eventId);
       }
@@ -685,6 +687,9 @@ class _GalleryTabState extends State<_GalleryTab> {
       ws.unsubscribe(eventId: widget.eventId);
       if (ws.onPhotoReady == _onWsPhotoReady) {
         ws.onPhotoReady = null;
+      }
+      if (ws.onPhotoDateResolved == _onWsPhotoDateResolved) {
+        ws.onPhotoDateResolved = null;
       }
     }
 
@@ -747,6 +752,17 @@ class _GalleryTabState extends State<_GalleryTab> {
     _wsDebounce = Timer(const Duration(milliseconds: 350), () {
       if (!mounted) return;
       context.read<PhotosGalleryController>().refresh(eventId: widget.eventId);
+    });
+  }
+
+  void _onWsPhotoDateResolved(String eventId, String photoId) {
+    if (!mounted || eventId != widget.eventId) return;
+    _wsDebounce?.cancel();
+    _wsDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      context
+          .read<PhotosGalleryController>()
+          .refreshAfterDateResolution(eventId: widget.eventId);
     });
   }
 

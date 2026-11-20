@@ -4,11 +4,13 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/i18n/translations_service.dart';
-import '../../../../core/media/photo_metadata_extractor.dart';
+import '../../../../core/media/photo_date_resolution.dart';
+import '../../../../core/media/ios_photo_library_picker.dart';
 import '../../../../core/media/png_to_jpeg.dart';
 import '../../presentation/photos_upload_controller.dart';
 import 'photo_import_file_utils.dart';
@@ -23,8 +25,9 @@ class PhotoImportMobileSheet extends StatefulWidget {
 
 class _PhotoImportMobileSheetState extends State<PhotoImportMobileSheet> {
   static const int _maxFiles = 15;
-  final _extractor = const PhotoMetadataExtractor();
+  final _dateResolver = const PhotoDateResolver();
   final _imagePicker = ImagePicker();
+  final _iosPhotoLibraryPicker = IosPhotoLibraryPicker();
 
   List<PlatformFile> _files = const [];
   bool _picking = false;
@@ -60,6 +63,23 @@ class _PhotoImportMobileSheetState extends State<PhotoImportMobileSheet> {
   }
 
   Future<List<PlatformFile>?> _pickFromPhotoLibrary() async {
+    try {
+      final photos = await _iosPhotoLibraryPicker.pickImages(limit: _maxFiles);
+      return Future.wait(
+        photos.map(
+          (photo) async => PlatformFile(
+            name: photo.name,
+            size: await File(photo.path).length(),
+            path: photo.path,
+          ),
+        ),
+      );
+    } on MissingPluginException {
+      // Keep the existing picker available on older app installations.
+    } on PlatformException {
+      // Keep the existing picker available if the native picker is unsupported.
+    }
+
     final photos = await _imagePicker.pickMultiImage(
       imageQuality: 100,
       requestFullMetadata: true,
@@ -96,7 +116,8 @@ class _PhotoImportMobileSheetState extends State<PhotoImportMobileSheet> {
       final t = context.read<TranslationsService>();
 
       for (final pf in _files) {
-        final name = pf.name.toLowerCase();
+        final originalFilename = pf.name;
+        final name = originalFilename.toLowerCase();
         final ext = name.split('.').last;
 
         Uint8List bytes;
@@ -109,8 +130,10 @@ class _PhotoImportMobileSheetState extends State<PhotoImportMobileSheet> {
         }
 
         // Compute createdAt from original bytes + original filename to preserve WhatsApp patterns
-        final createdAt =
-            await _extractor.createdAtFromBytes(bytes: bytes, filename: name);
+        final dateResolution = await _dateResolver.resolveFromBytes(
+          bytes: bytes,
+          filename: originalFilename,
+        );
 
         // Store every supported image as JPEG before enqueueing it.
         File file;
@@ -130,7 +153,12 @@ class _PhotoImportMobileSheetState extends State<PhotoImportMobileSheet> {
           eventId: widget.eventId,
           photoId: photoId,
           capturedFile: file,
-          createdAt: createdAt,
+          createdAt: dateResolution.createdAt,
+          originalFilename: originalFilename,
+          metadataCreatedAt: dateResolution.metadataDate,
+          filenameCreatedAt: dateResolution.filenameDate,
+          createdAtSource: dateResolution.source,
+          deviceUtcOffsetMinutes: dateResolution.deviceUtcOffsetMinutes,
           frameId: null,
           orientation: null,
           cameraType: 'import',
