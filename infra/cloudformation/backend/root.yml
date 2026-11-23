@@ -152,7 +152,7 @@ Parameters:
 
   TournamentScoringMaxConcurrency:
     Type: Number
-    Default: 16
+    Default: 2
     MinValue: 2
     MaxValue: 1000
 
