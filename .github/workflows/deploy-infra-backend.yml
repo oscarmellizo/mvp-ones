@@ -286,7 +286,7 @@ jobs:
               PhotoDateResolverModelId="${{ vars.PHOTO_DATE_RESOLVER_MODEL_ID || 'amazon.nova-micro-v1:0' }}" \
               PhotoDateResolverCacheTtlSeconds="${{ vars.PHOTO_DATE_RESOLVER_CACHE_TTL_SECONDS || '2592000' }}" \
               PhotoDateResolverMonthlyBudgetUsd="${{ vars.PHOTO_DATE_RESOLVER_MONTHLY_BUDGET_USD || (inputs.environment == 'prod' && '100' || '20') }}" \
-              TournamentScoringMaxConcurrency="${{ inputs.environment == 'prod' && '32' || '8' }}" \
+              TournamentScoringMaxConcurrency="2" \
               TournamentLogoModelId="${{ vars.TOURNAMENT_LOGO_MODEL_ID || 'stability.stable-image-core-v1:1' }}" \
               TournamentLogoModelRegion="${{ vars.TOURNAMENT_LOGO_MODEL_REGION || 'us-west-2' }}" \
               TournamentLogoMonthlyBudgetUsd="${{ vars.TOURNAMENT_LOGO_MONTHLY_BUDGET_USD || (inputs.environment == 'prod' && '100' || '20') }}" \
@@ -556,7 +556,7 @@ jobs:
               PhotoDateResolverModelId="${{ vars.PHOTO_DATE_RESOLVER_MODEL_ID || 'amazon.nova-micro-v1:0' }}" \
               PhotoDateResolverCacheTtlSeconds="${{ vars.PHOTO_DATE_RESOLVER_CACHE_TTL_SECONDS || '2592000' }}" \
               PhotoDateResolverMonthlyBudgetUsd="${{ vars.PHOTO_DATE_RESOLVER_MONTHLY_BUDGET_USD || (inputs.environment == 'prod' && '100' || '20') }}" \
-              TournamentScoringMaxConcurrency="${{ inputs.environment == 'prod' && '32' || '8' }}" \
+              TournamentScoringMaxConcurrency="2" \
               TournamentLogoModelId="${{ vars.TOURNAMENT_LOGO_MODEL_ID || 'stability.stable-image-core-v1:1' }}" \
               TournamentLogoModelRegion="${{ vars.TOURNAMENT_LOGO_MODEL_REGION || 'us-west-2' }}" \
               TournamentLogoMonthlyBudgetUsd="${{ vars.TOURNAMENT_LOGO_MONTHLY_BUDGET_USD || (inputs.environment == 'prod' && '100' || '20') }}" \

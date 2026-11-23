@@ -153,8 +153,8 @@ Parameters:
 
   TournamentScoringMaxConcurrency:
     Type: Number
-    Default: 16
-    MinValue: 1
+    Default: 2
+    MinValue: 2
     MaxValue: 1000
 
   TournamentLogoModelId:
@@ -2872,7 +2872,6 @@ Resources:
       Handler: index.handler
       MemorySize: 512
       Timeout: 300
-      ReservedConcurrentExecutions: !Ref TournamentScoringMaxConcurrency
       Role: !GetAtt TournamentScoringWorkerRole.Arn
       Environment:
         Variables:
@@ -2881,6 +2880,7 @@ Resources:
         S3Bucket: !Ref LambdaArtifactsBucket
         S3Key: !Ref TournamentScoringWorkerZipS3Key
 
+  # Cap the SQS poller instead of reserving account-wide Lambda concurrency.
   TournamentScoringWorkerEventSource:
     Type: AWS::Lambda::EventSourceMapping
     Properties:
@@ -2888,6 +2888,8 @@ Resources:
       FunctionName: !Ref TournamentScoringWorkerFunction
       Enabled: true
       BatchSize: 1
+      ScalingConfig:
+        MaximumConcurrency: !Ref TournamentScoringMaxConcurrency
       FunctionResponseTypes:
         - ReportBatchItemFailures
 
