@@ -147,14 +147,17 @@ jobs:
           cleanupZip="cleanup.zip"
           thumbnailsZip="photo-thumbnails-zip.zip"
           photoDateResolverZip="photo-date-resolver.zip"
-          python3 -c "import zipfile; z=zipfile.ZipFile('cleanup.zip','w',compression=zipfile.ZIP_DEFLATED); z.write('infra/lambda/cleanup/index.py','index.py'); z.close(); z=zipfile.ZipFile('photo-thumbnails-zip.zip','w',compression=zipfile.ZIP_DEFLATED); z.write('infra/lambda/photo-thumbnails-zip/index.py','index.py'); z.close(); z=zipfile.ZipFile('photo-date-resolver.zip','w',compression=zipfile.ZIP_DEFLATED); z.write('infra/lambda/photo-date-resolver/index.py','index.py'); z.close()"
+          tournamentScoringZip="tournament-score-worker.zip"
+          python3 -c "import zipfile; z=zipfile.ZipFile('cleanup.zip','w',compression=zipfile.ZIP_DEFLATED); z.write('infra/lambda/cleanup/index.py','index.py'); z.close(); z=zipfile.ZipFile('photo-thumbnails-zip.zip','w',compression=zipfile.ZIP_DEFLATED); z.write('infra/lambda/photo-thumbnails-zip/index.py','index.py'); z.close(); z=zipfile.ZipFile('photo-date-resolver.zip','w',compression=zipfile.ZIP_DEFLATED); z.write('infra/lambda/photo-date-resolver/index.py','index.py'); z.close(); z=zipfile.ZipFile('tournament-score-worker.zip','w',compression=zipfile.ZIP_DEFLATED); z.write('infra/lambda/tournament-score-worker/index.py','index.py'); z.close()"
 
           cleanupKey="lambda/cleanup/${GITHUB_SHA}.zip"
           thumbnailsKey="lambda/photo-thumbnails-zip/${GITHUB_SHA}.zip"
           photoDateResolverKey="lambda/photo-date-resolver/${GITHUB_SHA}.zip"
+          tournamentScoringKey="lambda/tournament-score-worker/${GITHUB_SHA}.zip"
           aws s3 cp "${cleanupZip}" "s3://${packageBucket}/${cleanupKey}"
           aws s3 cp "${thumbnailsZip}" "s3://${packageBucket}/${thumbnailsKey}"
           aws s3 cp "${photoDateResolverZip}" "s3://${packageBucket}/${photoDateResolverKey}"
+          aws s3 cp "${tournamentScoringZip}" "s3://${packageBucket}/${tournamentScoringKey}"
 
           aws cloudformation package \
             --template-file infra/cloudformation/backend/root.yml \
@@ -274,6 +277,8 @@ jobs:
               EmailLogoUrl="${appBaseUrl}/assets/assets/branding/ones-logo.png" \
               PublicBaseUrl="${appBaseUrl}" \
               BackendDesiredCount="${{ inputs.backendDesiredCount }}" \
+              BackendMinCapacity="${{ inputs.environment == 'prod' && '2' || '1' }}" \
+              BackendMaxCapacity="10" \
               UsePhotoThumbnailsImage="${usePhotoThumbnailsImage}" \
               PhotoDateResolverEnabled="${{ vars.PHOTO_DATE_RESOLVER_ENABLED || 'true' }}" \
               PhotoDateResolverMaxConcurrency="${{ vars.PHOTO_DATE_RESOLVER_MAX_CONCURRENCY || (inputs.environment == 'prod' && '10' || '2') }}" \
@@ -281,6 +286,10 @@ jobs:
               PhotoDateResolverModelId="${{ vars.PHOTO_DATE_RESOLVER_MODEL_ID || 'amazon.nova-micro-v1:0' }}" \
               PhotoDateResolverCacheTtlSeconds="${{ vars.PHOTO_DATE_RESOLVER_CACHE_TTL_SECONDS || '2592000' }}" \
               PhotoDateResolverMonthlyBudgetUsd="${{ vars.PHOTO_DATE_RESOLVER_MONTHLY_BUDGET_USD || (inputs.environment == 'prod' && '100' || '20') }}" \
+              TournamentScoringMaxConcurrency="${{ inputs.environment == 'prod' && '32' || '8' }}" \
+              TournamentLogoModelId="${{ vars.TOURNAMENT_LOGO_MODEL_ID || 'stability.stable-image-core-v1:1' }}" \
+              TournamentLogoModelRegion="${{ vars.TOURNAMENT_LOGO_MODEL_REGION || 'us-west-2' }}" \
+              TournamentLogoMonthlyBudgetUsd="${{ vars.TOURNAMENT_LOGO_MONTHLY_BUDGET_USD || (inputs.environment == 'prod' && '100' || '20') }}" \
               CdnPhotosEnabled="${CDN_PHOTOS_ENABLED:-false}" \
               CdnPhotosSigningPublicKeyPem="" \
               CdnPhotosSigningPublicKeySsmParamName="${cdnPublicKeySsmParamName}" \
@@ -289,6 +298,7 @@ jobs:
               CleanupFunctionS3Key="${cleanupKey}" \
               PhotoThumbnailsZipS3Key="${thumbnailsKey}" \
               PhotoDateResolverZipS3Key="${photoDateResolverKey}" \
+              TournamentScoringWorkerZipS3Key="${tournamentScoringKey}" \
               ${realtimeParam} \
               PillowLayerArn="arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p312-Pillow:9"
 
@@ -440,14 +450,17 @@ jobs:
           cleanupZip="cleanup.zip"
           thumbnailsZip="photo-thumbnails-zip.zip"
           photoDateResolverZip="photo-date-resolver.zip"
-          python3 -c "import zipfile; z=zipfile.ZipFile('cleanup.zip','w',compression=zipfile.ZIP_DEFLATED); z.write('infra/lambda/cleanup/index.py','index.py'); z.close(); z=zipfile.ZipFile('photo-thumbnails-zip.zip','w',compression=zipfile.ZIP_DEFLATED); z.write('infra/lambda/photo-thumbnails-zip/index.py','index.py'); z.close(); z=zipfile.ZipFile('photo-date-resolver.zip','w',compression=zipfile.ZIP_DEFLATED); z.write('infra/lambda/photo-date-resolver/index.py','index.py'); z.close()"
+          tournamentScoringZip="tournament-score-worker.zip"
+          python3 -c "import zipfile; z=zipfile.ZipFile('cleanup.zip','w',compression=zipfile.ZIP_DEFLATED); z.write('infra/lambda/cleanup/index.py','index.py'); z.close(); z=zipfile.ZipFile('photo-thumbnails-zip.zip','w',compression=zipfile.ZIP_DEFLATED); z.write('infra/lambda/photo-thumbnails-zip/index.py','index.py'); z.close(); z=zipfile.ZipFile('photo-date-resolver.zip','w',compression=zipfile.ZIP_DEFLATED); z.write('infra/lambda/photo-date-resolver/index.py','index.py'); z.close(); z=zipfile.ZipFile('tournament-score-worker.zip','w',compression=zipfile.ZIP_DEFLATED); z.write('infra/lambda/tournament-score-worker/index.py','index.py'); z.close()"
 
           cleanupKey="lambda/cleanup/${GITHUB_SHA}.zip"
           thumbnailsKey="lambda/photo-thumbnails-zip/${GITHUB_SHA}.zip"
           photoDateResolverKey="lambda/photo-date-resolver/${GITHUB_SHA}.zip"
+          tournamentScoringKey="lambda/tournament-score-worker/${GITHUB_SHA}.zip"
           aws s3 cp "${cleanupZip}" "s3://${packageBucket}/${cleanupKey}"
           aws s3 cp "${thumbnailsZip}" "s3://${packageBucket}/${thumbnailsKey}"
           aws s3 cp "${photoDateResolverZip}" "s3://${packageBucket}/${photoDateResolverKey}"
+          aws s3 cp "${tournamentScoringZip}" "s3://${packageBucket}/${tournamentScoringKey}"
 
           repoUri=$(aws cloudformation describe-stacks \
             --stack-name "${stackName}" \
@@ -534,6 +547,8 @@ jobs:
               EmailLogoUrl="${appBaseUrl}/assets/assets/branding/ones-logo.png" \
               PublicBaseUrl="${appBaseUrl}" \
               BackendDesiredCount="${{ inputs.backendDesiredCount }}" \
+              BackendMinCapacity="${{ inputs.environment == 'prod' && '2' || '1' }}" \
+              BackendMaxCapacity="10" \
               UsePhotoThumbnailsImage="true" \
               PhotoDateResolverEnabled="${{ vars.PHOTO_DATE_RESOLVER_ENABLED || 'true' }}" \
               PhotoDateResolverMaxConcurrency="${{ vars.PHOTO_DATE_RESOLVER_MAX_CONCURRENCY || (inputs.environment == 'prod' && '10' || '2') }}" \
@@ -541,6 +556,10 @@ jobs:
               PhotoDateResolverModelId="${{ vars.PHOTO_DATE_RESOLVER_MODEL_ID || 'amazon.nova-micro-v1:0' }}" \
               PhotoDateResolverCacheTtlSeconds="${{ vars.PHOTO_DATE_RESOLVER_CACHE_TTL_SECONDS || '2592000' }}" \
               PhotoDateResolverMonthlyBudgetUsd="${{ vars.PHOTO_DATE_RESOLVER_MONTHLY_BUDGET_USD || (inputs.environment == 'prod' && '100' || '20') }}" \
+              TournamentScoringMaxConcurrency="${{ inputs.environment == 'prod' && '32' || '8' }}" \
+              TournamentLogoModelId="${{ vars.TOURNAMENT_LOGO_MODEL_ID || 'stability.stable-image-core-v1:1' }}" \
+              TournamentLogoModelRegion="${{ vars.TOURNAMENT_LOGO_MODEL_REGION || 'us-west-2' }}" \
+              TournamentLogoMonthlyBudgetUsd="${{ vars.TOURNAMENT_LOGO_MONTHLY_BUDGET_USD || (inputs.environment == 'prod' && '100' || '20') }}" \
               CdnPhotosEnabled="${CDN_PHOTOS_ENABLED:-false}" \
               CdnPhotosSigningPublicKeyPem="" \
               CdnPhotosSigningPublicKeySsmParamName="${cdnPublicKeySsmParamName}" \
@@ -549,6 +568,7 @@ jobs:
               CleanupFunctionS3Key="${cleanupKey}" \
               PhotoThumbnailsZipS3Key="${thumbnailsKey}" \
               PhotoDateResolverZipS3Key="${photoDateResolverKey}" \
+              TournamentScoringWorkerZipS3Key="${tournamentScoringKey}" \
               ${realtimeParam}
 
       - name: Fail if CloudFormation deploy failed (final)

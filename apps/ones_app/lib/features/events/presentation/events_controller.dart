@@ -179,7 +179,7 @@ class EventsController extends ChangeNotifier {
     }
   }
 
-  Future<void> createNew(
+  Future<Event> createNew(
     String title,
     String objective,
     String location,
@@ -207,6 +207,7 @@ class EventsController extends ChangeNotifier {
         frameIds,
       );
       if (session == _sessionEpoch) _events = [created, ..._events];
+      return created;
     } catch (e) {
       if (session == _sessionEpoch) _error = e;
       rethrow;

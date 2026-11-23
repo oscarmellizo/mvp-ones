@@ -60,6 +60,12 @@ ones:
       api-key-secret-name: ${OPENAI_API_KEY_SECRET_NAME:ones/dev/openai-api-key}
       image-model: ${OPENAI_IMAGE_MODEL:gpt-image-2}
       image-size: ${OPENAI_IMAGE_SIZE:1536x1024}
+    bedrock:
+      image-region: ${ONES_BEDROCK_IMAGE_REGION:us-west-2}
+      logo-model-id: ${ONES_BEDROCK_LOGO_MODEL_ID:stability.stable-image-core-v1:1}
+      logo-preview-ttl-minutes: ${ONES_TOURNAMENT_LOGO_PREVIEW_TTL_MINUTES:30}
+  tournament:
+    logo-daily-generation-quota: ${ONES_TOURNAMENT_LOGO_DAILY_QUOTA:5}
   s3:
     events:
       covers:
@@ -75,6 +81,7 @@ ones:
   sqs:
     photo-processing-queue-url: ${ONES_PHOTO_PROCESSING_QUEUE_URL:}
     photo-date-resolution-queue-url: ${ONES_PHOTO_DATE_RESOLUTION_QUEUE_URL:}
+    tournament-scoring-queue-url: ${ONES_TOURNAMENT_SCORING_QUEUE_URL:}
   events:
     metadata:
       categories:
@@ -263,6 +270,8 @@ ones:
     user-subscriptions-table-name: ${ONES_USER_SUBSCRIPTIONS_TABLE:ones-user-subscriptions}
     payment-profiles-table-name: ${ONES_PAYMENT_PROFILES_TABLE:ones-payment-profiles}
     subscription-payments-table-name: ${ONES_SUBSCRIPTION_PAYMENTS_TABLE:ones-subscription-payments}
+    event-complements-table-name: ${ONES_EVENT_COMPLEMENTS_TABLE_NAME:ones-dev-event-complements}
+    tournaments-table-name: ${ONES_TOURNAMENTS_TABLE_NAME:ones-dev-tournaments}
     endpoint: ${DYNAMODB_ENDPOINT:}
 
   mercadopago:

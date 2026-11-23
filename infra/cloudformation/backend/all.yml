@@ -67,6 +67,18 @@ Parameters:
     Type: Number
     Default: 0
 
+  BackendMinCapacity:
+    Type: Number
+    Default: 1
+    MinValue: 1
+    MaxValue: 50
+
+  BackendMaxCapacity:
+    Type: Number
+    Default: 10
+    MinValue: 1
+    MaxValue: 100
+
   UsePhotoThumbnailsImage:
     Type: String
     Default: 'false'
@@ -135,6 +147,29 @@ Parameters:
     Type: String
     Default: ''
 
+  TournamentScoringWorkerZipS3Key:
+    Type: String
+    Default: ''
+
+  TournamentScoringMaxConcurrency:
+    Type: Number
+    Default: 16
+    MinValue: 1
+    MaxValue: 1000
+
+  TournamentLogoModelId:
+    Type: String
+    Default: stability.stable-image-core-v1:1
+
+  TournamentLogoModelRegion:
+    Type: String
+    Default: us-west-2
+
+  TournamentLogoMonthlyBudgetUsd:
+    Type: Number
+    Default: 20
+    MinValue: 1
+
   GrafanaDesiredCount:
     Type: Number
     Default: 1
@@ -196,6 +231,7 @@ Conditions:
   UsePhotoThumbnailsImageCond: !Equals [!Ref UsePhotoThumbnailsImage, 'true']
   UsePhotoThumbnailsZipCond: !Not [!Equals [!Ref UsePhotoThumbnailsImage, 'true']]
   EnablePhotoDateResolverCond: !Equals [!Ref PhotoDateResolverEnabled, 'true']
+  EnableTournamentLogoBudgetCond: !Equals [!Ref Environment, 'prod']
   EnablePhotosCdnCond: !And
     - !Equals [!Ref CdnPhotosEnabled, 'true']
     - !Not [!Equals [!Ref CdnPhotosSigningPublicKeySsmParamName, '']]
@@ -251,6 +287,64 @@ Resources:
               - allowGuestInvites
               - inviteLinkEnabled
               - frameIds
+
+  EventComplementsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-event-complements
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: eventId
+          AttributeType: S
+        - AttributeName: complementId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: eventId
+          KeyType: HASH
+        - AttributeName: complementId
+          KeyType: RANGE
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  TournamentsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-tournaments
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+        - AttributeName: eventShardPk
+          AttributeType: S
+        - AttributeName: eventShardSk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: byEventShard
+          KeySchema:
+            - AttributeName: eventShardPk
+              KeyType: HASH
+            - AttributeName: eventShardSk
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
 
   UsersTable:
     Type: AWS::DynamoDB::Table
@@ -428,6 +522,30 @@ Resources:
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt PhotoDateResolutionDlq.Arn
         maxReceiveCount: !Ref PhotoDateResolverMaxReceiveCount
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  TournamentScoringDlq:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${StackPrefix}-${Environment}-tournament-scoring-dlq
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  TournamentScoringQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${StackPrefix}-${Environment}-tournament-scoring
+      VisibilityTimeout: 360
+      MessageRetentionPeriod: 345600
+      SqsManagedSseEnabled: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt TournamentScoringDlq.Arn
+        maxReceiveCount: 5
       Tags:
         - Key: Environment
           Value: !Ref Environment
@@ -1096,6 +1214,12 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub ${StackPrefix}-${Environment}-events-assets
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireTournamentLogoPreviews
+            Status: Enabled
+            Prefix: tournament-previews/
+            ExpirationInDays: 1
       Tags:
         - Key: Name
           Value: !Sub ${StackPrefix}-${Environment}-events-assets
@@ -2164,6 +2288,7 @@ Resources:
                   - dynamodb:Scan
                   - dynamodb:DescribeTable
                   - dynamodb:DeleteItem
+                  - dynamodb:TransactWriteItems
                 Resource:
                   - !GetAtt EventsTable.Arn
                   - !Sub ${EventsTable.Arn}/index/*
@@ -2171,6 +2296,9 @@ Resources:
                   - !Sub ${UsersTable.Arn}/index/*
                   - !GetAtt InvitationsTable.Arn
                   - !Sub ${InvitationsTable.Arn}/index/*
+                  - !GetAtt EventComplementsTable.Arn
+                  - !GetAtt TournamentsTable.Arn
+                  - !Sub ${TournamentsTable.Arn}/index/*
                   - !GetAtt CoverPreviewsTable.Arn
                   - !GetAtt CoverReservationsTable.Arn
                   - !GetAtt PhotosTable.Arn
@@ -2198,6 +2326,7 @@ Resources:
                   - dynamodb:UpdateItem
                 Resource:
                   - !GetAtt PhotosTable.Arn
+                  - !GetAtt TournamentsTable.Arn
         - PolicyName: ones-photos-ws
           PolicyDocument:
             Version: '2012-10-17'
@@ -2223,6 +2352,15 @@ Resources:
                 Resource:
                   - !GetAtt PhotoThumbnailsQueue.Arn
                   - !GetAtt PhotoDateResolutionQueue.Arn
+                  - !GetAtt TournamentScoringQueue.Arn
+        - PolicyName: ones-bedrock-tournament-logos
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                Resource: !Sub arn:aws:bedrock:${TournamentLogoModelRegion}::foundation-model/${TournamentLogoModelId}
         - PolicyName: ones-s3
           PolicyDocument:
             Version: '2012-10-17'
@@ -2424,6 +2562,10 @@ Resources:
               Value: !Ref UsersTable
             - Name: ONES_INVITATIONS_TABLE
               Value: !Ref InvitationsTable
+            - Name: ONES_EVENT_COMPLEMENTS_TABLE_NAME
+              Value: !Ref EventComplementsTable
+            - Name: ONES_TOURNAMENTS_TABLE_NAME
+              Value: !Ref TournamentsTable
             - Name: ONES_COVER_PREVIEWS_TABLE
               Value: !Ref CoverPreviewsTable
             - Name: ONES_COVER_RESERVATIONS_TABLE
@@ -2466,6 +2608,14 @@ Resources:
               Value: !Ref PhotoThumbnailsQueue
             - Name: ONES_PHOTO_DATE_RESOLUTION_QUEUE_URL
               Value: !Ref PhotoDateResolutionQueue
+            - Name: ONES_TOURNAMENT_SCORING_QUEUE_URL
+              Value: !Ref TournamentScoringQueue
+            - Name: ONES_BEDROCK_IMAGE_REGION
+              Value: !Ref TournamentLogoModelRegion
+            - Name: ONES_BEDROCK_LOGO_MODEL_ID
+              Value: !Ref TournamentLogoModelId
+            - Name: ONES_TOURNAMENT_LOGO_DAILY_QUOTA
+              Value: '5'
             - Name: ONES_PHOTO_DATE_RESOLUTION_ENABLED
               Value: !Ref PhotoDateResolverEnabled
             - Name: OPENAI_API_KEY_SECRET_NAME
@@ -2670,6 +2820,76 @@ Resources:
                 Action:
                   - secretsmanager:GetSecretValue
                 Resource: !Ref InternalBasicAuthSecret
+
+  TournamentScoringWorkerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${StackPrefix}-${Environment}-tournament-scoring-role
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: tournament-score-jobs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                  - sqs:ChangeMessageVisibility
+                Resource: !GetAtt TournamentScoringQueue.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:TransactWriteItems
+                Resource:
+                  - !GetAtt TournamentsTable.Arn
+                  - !Sub ${TournamentsTable.Arn}/index/*
+
+  TournamentScoringWorkerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${StackPrefix}-${Environment}-tournament-score-worker
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      Runtime: python3.12
+      Handler: index.handler
+      MemorySize: 512
+      Timeout: 300
+      ReservedConcurrentExecutions: !Ref TournamentScoringMaxConcurrency
+      Role: !GetAtt TournamentScoringWorkerRole.Arn
+      Environment:
+        Variables:
+          TOURNAMENTS_TABLE_NAME: !Ref TournamentsTable
+      Code:
+        S3Bucket: !Ref LambdaArtifactsBucket
+        S3Key: !Ref TournamentScoringWorkerZipS3Key
+
+  TournamentScoringWorkerEventSource:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !GetAtt TournamentScoringQueue.Arn
+      FunctionName: !Ref TournamentScoringWorkerFunction
+      Enabled: true
+      BatchSize: 1
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
 
   PhotosWebSocketHandlerRole:
     Type: AWS::IAM::Role
@@ -2984,6 +3204,46 @@ Resources:
         S3Bucket: !Ref LambdaArtifactsBucket
         S3Key: !Ref PhotoDateResolverZipS3Key
 
+  TournamentScoringQueueAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-tournament-score-queue-age
+      AlarmDescription: Tournament score jobs are waiting for processing.
+      Namespace: AWS/SQS
+      MetricName: ApproximateAgeOfOldestMessage
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt TournamentScoringQueue.QueueName
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 2
+      DatapointsToAlarm: 2
+      Threshold: 120
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  TournamentScoringDlqAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-tournament-scoring-dlq
+      AlarmDescription: Tournament score jobs require investigation.
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt TournamentScoringDlq.QueueName
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
   AccountLifecycleTriggerRole:
     Type: AWS::IAM::Role
     Properties:
@@ -3293,6 +3553,30 @@ Resources:
         BudgetName: !Sub ${StackPrefix}-${Environment}-photo-date-resolver
         BudgetLimit:
           Amount: !Ref PhotoDateResolverMonthlyBudgetUsd
+          Unit: USD
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        CostFilters:
+          Service:
+            - Amazon Bedrock
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: SNS
+              Address: !Ref AlertsTopic
+
+  TournamentLogoBudget:
+    Type: AWS::Budgets::Budget
+    Condition: EnableTournamentLogoBudgetCond
+    Properties:
+      Budget:
+        BudgetName: !Sub ${StackPrefix}-${Environment}-tournament-logo-generation
+        BudgetLimit:
+          Amount: !Ref TournamentLogoMonthlyBudgetUsd
           Unit: USD
         BudgetType: COST
         TimeUnit: MONTHLY
@@ -3797,6 +4081,30 @@ Resources:
       Tags:
         - Key: Environment
           Value: !Ref Environment
+
+  ApiServiceScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    DependsOn: Service
+    Properties:
+      MaxCapacity: !Ref BackendMaxCapacity
+      MinCapacity: !Ref BackendMinCapacity
+      ResourceId: !Sub service/${Cluster}/${StackPrefix}-${Environment}-ones-api
+      RoleARN: !Sub arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+
+  ApiServiceCpuScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub ${StackPrefix}-${Environment}-ones-api-cpu
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref ApiServiceScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: 60
+        ScaleInCooldown: 120
+        ScaleOutCooldown: 30
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
 
   GrafanaService:
     Type: AWS::ECS::Service
