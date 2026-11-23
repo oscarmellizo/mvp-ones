@@ -4091,7 +4091,6 @@ Resources:
       MaxCapacity: !Ref BackendMaxCapacity
       MinCapacity: !Ref BackendMinCapacity
       ResourceId: !Sub service/${Cluster}/${StackPrefix}-${Environment}-ones-api
-      RoleARN: !Sub arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService
       ScalableDimension: ecs:service:DesiredCount
       ServiceNamespace: ecs
 

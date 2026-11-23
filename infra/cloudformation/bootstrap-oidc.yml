@@ -509,6 +509,7 @@ Resources:
                     iam:AWSServiceName:
                       - elasticloadbalancing.amazonaws.com
                       - ecs.amazonaws.com
+                      - ecs.application-autoscaling.amazonaws.com
 
 Outputs:
   GitHubActionsDeployRoleArn:
