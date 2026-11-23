@@ -15,6 +15,7 @@ import 'package:file_picker/file_picker.dart';
 
 import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/utils/datetime_formatters.dart';
+import '../../../../core/utils/share_utils.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/widgets/ones_text_field.dart';
@@ -3147,11 +3148,11 @@ class _DetailsTabState extends State<_DetailsTab> {
                     );
                   }
 
-                  Future<void> onShare() async {
-                    await Share.share(link.url);
+                  Future<void> onShare(Rect origin) async {
+                    await Share.share(link.url, sharePositionOrigin: origin);
                   }
 
-                  Future<void> onShareQr() async {
+                  Future<void> onShareQr(Rect origin) async {
                     if (_sharingQr) return;
                     setState(() {
                       _sharingQr = true;
@@ -3165,7 +3166,8 @@ class _DetailsTabState extends State<_DetailsTab> {
                       final qrUrl =
                           qr.urlLarge.isNotEmpty ? qr.urlLarge : qr.urlLatest;
                       final file = await _downloadQrToXFile(qrUrl);
-                      await Share.shareXFiles([file]);
+                      await Share.shareXFiles([file],
+                          sharePositionOrigin: origin);
                     } catch (error, stackTrace) {
                       debugPrint('Failed to share event QR: $error');
                       debugPrintStack(stackTrace: stackTrace);
@@ -3285,24 +3287,29 @@ class _DetailsTabState extends State<_DetailsTab> {
                             ),
                             const SizedBox(width: 10),
                             Expanded(
-                              child: FilledButton(
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: OnesColors.yellowSoft,
-                                  foregroundColor: OnesColors.black,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 12),
-                                  shape: const RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.zero,
+                              child: Builder(
+                                builder: (buttonContext) => FilledButton(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: OnesColors.yellowSoft,
+                                    foregroundColor: OnesColors.black,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 12),
+                                    shape: const RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.zero,
+                                    ),
                                   ),
-                                ),
-                                onPressed: canUseLink ? onShare : null,
-                                child: Text(
-                                  t.translate(
-                                    'event_detail.share_link',
-                                    fallback: 'Share',
-                                  ),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w900,
+                                  onPressed: canUseLink
+                                      ? () => onShare(
+                                          shareOriginRect(buttonContext))
+                                      : null,
+                                  child: Text(
+                                    t.translate(
+                                      'event_detail.share_link',
+                                      fallback: 'Share',
+                                    ),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -3427,13 +3434,19 @@ class _DetailsTabState extends State<_DetailsTab> {
                                                     fallback:
                                                         'Ver tamaño completo')),
                                               ),
-                                              OutlinedButton(
-                                                onPressed: _sharingQr
-                                                    ? null
-                                                    : onShareQr,
-                                                child: Text(t.translate(
-                                                    'event_detail.share_qr',
-                                                    fallback: 'Compartir QR')),
+                                              Builder(
+                                                builder: (buttonContext) =>
+                                                    OutlinedButton(
+                                                  onPressed: _sharingQr
+                                                      ? null
+                                                      : () => onShareQr(
+                                                          shareOriginRect(
+                                                              buttonContext)),
+                                                  child: Text(t.translate(
+                                                      'event_detail.share_qr',
+                                                      fallback:
+                                                          'Compartir QR')),
+                                                ),
                                               ),
                                             ],
                                           ),
