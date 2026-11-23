@@ -1033,5 +1033,97 @@
     "es": "No se pudo compartir la foto",
     "en": "Could not share the photo",
     "pt": "Não foi possível compartilhar a foto"
+  },
+
+  "tournament.title": {
+    "es": "Torneo 4 Equipos",
+    "en": "Four-Team Tournament",
+    "pt": "Torneio de 4 equipes"
+  },
+  "tournament.subtitle": {
+    "es": "Pronosticos, posiciones y resultados en un solo lugar.",
+    "en": "Predictions, standings, and results in one place.",
+    "pt": "Palpites, classificacao e resultados em um so lugar."
+  },
+  "tournament.teams": {
+    "es": "Configuracion de equipos",
+    "en": "Team setup",
+    "pt": "Configuracao das equipes"
+  },
+  "tournament.team": {
+    "es": "Equipo",
+    "en": "Team",
+    "pt": "Equipe"
+  },
+  "tournament.upload_logo": {
+    "es": "Subir imagen",
+    "en": "Upload image",
+    "pt": "Enviar imagem"
+  },
+  "tournament.generate_logo": {
+    "es": "Generar con IA",
+    "en": "Generate with AI",
+    "pt": "Gerar com IA"
+  },
+  "tournament.save_teams": {
+    "es": "Guardar equipos",
+    "en": "Save teams",
+    "pt": "Salvar equipes"
+  },
+  "tournament.delegates": {
+    "es": "Delegados",
+    "en": "Delegates",
+    "pt": "Delegados"
+  },
+  "tournament.accepted_members_only": {
+    "es": "Solo personas que ya aceptaron el evento.",
+    "en": "Only people who have accepted the event.",
+    "pt": "Somente pessoas que aceitaram o evento."
+  },
+  "tournament.actual_matches": {
+    "es": "Partidos y resultados reales",
+    "en": "Matches and actual results",
+    "pt": "Partidas e resultados reais"
+  },
+  "tournament.actual_standings": {
+    "es": "Tabla real",
+    "en": "Actual standings",
+    "pt": "Classificacao real"
+  },
+  "tournament.projected_standings": {
+    "es": "Tu proyeccion",
+    "en": "Your projection",
+    "pt": "Sua projecao"
+  },
+  "tournament.enter_group_scores": {
+    "es": "Completa los seis marcadores del todos contra todos.",
+    "en": "Enter all six round-robin scores.",
+    "pt": "Informe os seis placares da fase de todos contra todos."
+  },
+  "tournament.final": {
+    "es": "Final",
+    "en": "Final",
+    "pt": "Final"
+  },
+  "tournament.third_place": {
+    "es": "Tercer puesto",
+    "en": "Third-place match",
+    "pt": "Disputa do terceiro lugar"
+  },
+  "tournament.save_predictions": {
+    "es": "Guardar pronosticos",
+    "en": "Save predictions",
+    "pt": "Salvar palpites"
+  },
+  "tournament.leaderboard": {
+    "es": "Ranking",
+    "en": "Leaderboard",
+    "pt": "Classificacao"
+  },
+  "tournament.ranking_pending": {
+    "es": "El ranking se esta calculando. Desliza para actualizar.",
+    "en": "The leaderboard is being calculated. Pull to refresh.",
+    "pt": "A classificacao esta sendo calculada. Puxe para atualizar."
   }
+
 }

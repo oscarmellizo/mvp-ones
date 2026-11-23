@@ -31,6 +31,8 @@ import '../../../photos/adapters/local/photo_storage.dart';
 import '../../../photos/presentation/pages/photo_import_web_sheet.dart';
 import '../../../photos/presentation/pages/photo_import_mobile_sheet.dart';
 import '../event_cover_urls_controller.dart';
+import '../../adapters/api/event_complements_api_repository.dart';
+import '../../../tournament/presentation/tournament_tab_page.dart';
 import '../events_controller.dart';
 import '../widgets/gallery_grid_layout.dart';
 import '../widgets/event_detail_details_widgets.dart';
@@ -68,6 +70,7 @@ class EventDetailPage extends StatefulWidget {
 
 class _EventDetailPageState extends State<EventDetailPage> {
   int _tabIndex = 0;
+  bool _tournamentEnabled = false;
   final _searchController = TextEditingController();
   bool _openedInitialPhoto = false;
   bool _gallerySelecting = false;
@@ -162,6 +165,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<EventsController>().select(widget.eventId);
+      _loadEventComplements();
       context.read<TranslationsService>().ensurePageTranslations(
             page: 'event_detail',
             requiredKeys: _eventDetailRequiredKeys,
@@ -207,9 +211,29 @@ class _EventDetailPageState extends State<EventDetailPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<EventsController>().select(widget.eventId);
+      _loadEventComplements();
       prev?.dispose();
       next.refresh(eventId: widget.eventId);
     });
+  }
+
+  Future<void> _loadEventComplements() async {
+    try {
+      final complements = await context
+          .read<EventComplementsApiRepository>()
+          .list(widget.eventId);
+      final enabled = complements.any(
+        (item) => item['id'] == 'tournament' && item['enabled'] == true,
+      );
+      if (!mounted) return;
+      setState(() {
+        _tournamentEnabled = enabled;
+        if (!enabled && _tabIndex == 2) _tabIndex = 1;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _tournamentEnabled = false);
+    }
   }
 
   @override
@@ -392,6 +416,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                                       index: _tabIndex,
                                       onChanged: (i) =>
                                           setState(() => _tabIndex = i),
+                                      showTournament: _tournamentEnabled,
                                       galleryKey: TutorialKeys.eventTabGallery,
                                       detailsKey: TutorialKeys.eventTabDetails,
                                     ),
@@ -427,27 +452,33 @@ class _EventDetailPageState extends State<EventDetailPage> {
                                           });
                                         },
                                       )
-                                    : Padding(
-                                        padding: EdgeInsets.symmetric(
-                                            horizontal: horizontalPadding),
-                                        child: _DetailsTab(
-                                          eventId: event.id,
-                                          coverKey: event.coverKey,
-                                          title: event.title,
-                                          eventType: event.objective,
-                                          startAt: event.startAt,
-                                          endAt: event.endAt,
-                                          location: event.location,
-                                          frameIds: event.frameIds,
-                                          isOwner: auth.user?.userId ==
-                                              event.ownerId,
-                                          allowGuestInvites:
-                                              event.allowGuestInvites,
-                                          inviteLinkEnabled:
-                                              event.inviteLinkEnabled,
-                                          eventCode: event.eventCode,
-                                        ),
-                                      ),
+                                    : _tabIndex == 2 && _tournamentEnabled
+                                        ? TournamentTabPage(
+                                            key: ValueKey(
+                                                'tournament:${widget.eventId}'),
+                                            eventId: widget.eventId,
+                                          )
+                                        : Padding(
+                                            padding: EdgeInsets.symmetric(
+                                                horizontal: horizontalPadding),
+                                            child: _DetailsTab(
+                                              eventId: event.id,
+                                              coverKey: event.coverKey,
+                                              title: event.title,
+                                              eventType: event.objective,
+                                              startAt: event.startAt,
+                                              endAt: event.endAt,
+                                              location: event.location,
+                                              frameIds: event.frameIds,
+                                              isOwner: auth.user?.userId ==
+                                                  event.ownerId,
+                                              allowGuestInvites:
+                                                  event.allowGuestInvites,
+                                              inviteLinkEnabled:
+                                                  event.inviteLinkEnabled,
+                                              eventCode: event.eventCode,
+                                            ),
+                                          ),
                               ),
                             ),
                           ],

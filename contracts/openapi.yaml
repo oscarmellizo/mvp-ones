@@ -469,6 +469,345 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /v1/events/{eventId}/complements:
+    get:
+      operationId: listEventComplements
+      summary: List available complements and activation state
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+      responses:
+        '200':
+          description: Available event complements
+  /v1/events/{eventId}/complements/{complementId}:
+    put:
+      operationId: updateEventComplement
+      summary: Activate or deactivate a selected complement
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+        - name: complementId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled:
+                  type: boolean
+      responses:
+        '200':
+          description: Updated complement state
+  /v1/events/{eventId}/tournament:
+    get:
+      operationId: getTournament
+      summary: Get tournament state and the current member's prediction
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+      responses:
+        '200':
+          description: Tournament state
+  /v1/events/{eventId}/tournament/setup:
+    put:
+      operationId: setupTournament
+      summary: Configure the four tournament teams
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [teams]
+              properties:
+                teams:
+                  type: array
+                  minItems: 4
+                  maxItems: 4
+                  items:
+                    type: object
+                    required: [name]
+                    properties:
+                      id: { type: string }
+                      name: { type: string, maxLength: 80 }
+                      logoKey: { type: string }
+                      members:
+                        type: array
+                        items: { type: string }
+      responses:
+        '200':
+          description: Tournament configuration saved
+  /v1/events/{eventId}/tournament/predictions/start:
+    post:
+      operationId: startTournamentPredictions
+      summary: Manually open predictions for event members
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+      responses:
+        '200':
+          description: Prediction window opened
+  /v1/events/{eventId}/tournament/predictions/close:
+    post:
+      operationId: closeTournamentPredictions
+      summary: Manually close and reveal predictions
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+      responses:
+        '200':
+          description: Prediction window closed
+  /v1/events/{eventId}/tournament/predictions:
+    put:
+      operationId: saveTournamentPrediction
+      summary: Save six group predictions and the two projected knockout scores
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [roundRobinScores]
+              properties:
+                roundRobinScores:
+                  type: object
+                  additionalProperties:
+                    $ref: '#/components/schemas/MatchScore'
+                finalScore:
+                  $ref: '#/components/schemas/MatchScore'
+                thirdPlaceScore:
+                  $ref: '#/components/schemas/MatchScore'
+      responses:
+        '200':
+          description: Prediction saved
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /v1/events/{eventId}/tournament/predictions/leaderboard:
+    get:
+      operationId: getTournamentLeaderboard
+      summary: Read the materialized leaderboard after predictions close
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+      responses:
+        '200':
+          description: Current leaderboard
+  /v1/events/{eventId}/tournament/predictions/revealed:
+    get:
+      operationId: getRevealedTournamentPredictions
+      summary: Read other members' predictions after the prediction window closes
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+      responses:
+        '200':
+          description: Revealed predictions
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /v1/events/{eventId}/tournament/delegates:
+    put:
+      operationId: updateTournamentDelegates
+      summary: Assign accepted event members as tournament delegates
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userIds:
+                  type: array
+                  items: { type: string }
+                emails:
+                  type: array
+                  items: { type: string, format: email }
+      responses:
+        '200':
+          description: Delegates updated
+  /v1/events/{eventId}/tournament/teams/{teamId}/logos/upload:
+    post:
+      operationId: uploadTournamentTeamLogo
+      summary: Upload and normalize an owner-provided logo preview
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+        - name: teamId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [imageBase64]
+              properties:
+                imageBase64: { type: string, maxLength: 5600000 }
+      responses:
+        '200':
+          description: Logo preview URL and key, normalized to 512x512
+  /v1/events/{eventId}/tournament/teams/{teamId}/logos/generate:
+    post:
+      operationId: generateTournamentTeamLogo
+      summary: Generate a 512x512 logo preview using AWS Bedrock
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+        - name: teamId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prompt]
+              properties:
+                prompt: { type: string, minLength: 1, maxLength: 300 }
+      responses:
+        '200':
+          description: Generated preview; generation is rate-limited per owner
+  /v1/events/{eventId}/tournament/teams/{teamId}/logos/accept:
+    post:
+      operationId: acceptTournamentTeamLogo
+      summary: Accept a preview as the team's active logo
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+        - name: teamId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [previewKey]
+              properties:
+                previewKey: { type: string }
+      responses:
+        '200':
+          description: Accepted team logo key
+  /v1/events/{eventId}/tournament/standings/tie-break:
+    put:
+      operationId: resolveTournamentTieBreak
+      summary: Store a manager's manual tie-break order and audit reason
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [teamIds, reason]
+              properties:
+                teamIds:
+                  type: array
+                  minItems: 4
+                  maxItems: 4
+                  items: { type: string }
+                reason: { type: string, maxLength: 500 }
+      responses:
+        '200':
+          description: Tie-break order saved
+  /v1/events/{eventId}/tournament/matches/{matchId}/start:
+    post:
+      operationId: startTournamentMatch
+      summary: Start an actual tournament match
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+        - name: matchId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Match started
+  /v1/events/{eventId}/tournament/matches/{matchId}/result:
+    put:
+      operationId: finishTournamentMatch
+      summary: Record an actual match result
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+        - name: matchId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [homeGoals, awayGoals]
+              properties:
+                homeGoals: { type: integer, minimum: 0, maximum: 99 }
+                awayGoals: { type: integer, minimum: 0, maximum: 99 }
+                penaltyWinnerTeamId: { type: string }
+                confirmKnockoutReset:
+                  type: boolean
+                  description: Required when correcting a group result after knockout matches started.
+      responses:
+        '200':
+          description: Match result recorded and score recalculation queued
+  /v1/events/{eventId}/tournament/teams/{teamId}/logo:
+    get:
+      operationId: getTournamentTeamLogoUrl
+      summary: Get a short-lived URL for the active team logo
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+        - name: teamId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Presigned logo URL
   /v1/events/{id}/invitees:
     post:
       operationId: inviteEventGuests
@@ -643,6 +982,13 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  parameters:
+    EventId:
+      name: eventId
+      in: path
+      required: true
+      schema:
+        type: string
   responses:
     Unauthorized:
       description: Unauthorized
@@ -662,7 +1008,26 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Operation conflicts with the current tournament state
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
   schemas:
+    MatchScore:
+      type: object
+      properties:
+        homeGoals:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 99
+        awayGoals:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 99
     HealthResponse:
       type: object
       required: [status]

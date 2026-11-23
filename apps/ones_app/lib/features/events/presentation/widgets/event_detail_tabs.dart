@@ -9,6 +9,7 @@ class EventDetailTabs extends StatelessWidget {
   final ValueChanged<int> onChanged;
   final Key? galleryKey;
   final Key? detailsKey;
+  final bool showTournament;
 
   const EventDetailTabs({
     super.key,
@@ -16,6 +17,7 @@ class EventDetailTabs extends StatelessWidget {
     required this.onChanged,
     this.galleryKey,
     this.detailsKey,
+    this.showTournament = false,
   });
 
   @override
@@ -52,6 +54,16 @@ class EventDetailTabs extends StatelessWidget {
               onTap: () => onChanged(1),
             ),
           ),
+          if (showTournament) ...[
+            const SizedBox(width: 4),
+            Expanded(
+              child: _TabButton(
+                label: 'Torneo',
+                selected: index == 2,
+                onTap: () => onChanged(2),
+              ),
+            ),
+          ],
         ],
       ),
     );

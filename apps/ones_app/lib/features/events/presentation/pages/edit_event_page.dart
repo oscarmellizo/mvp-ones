@@ -7,6 +7,7 @@ import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/ones_typography.dart';
 import '../../../../core/utils/datetime_formatters.dart';
 import '../../domain/event.dart';
+import '../../adapters/api/event_complements_api_repository.dart';
 import '../event_covers_controller.dart';
 import '../events_controller.dart';
 import '../widgets/create_event_cover_widgets.dart';
@@ -39,6 +40,8 @@ class _EditEventPageState extends State<EditEventPage> {
   String? _dateTimeError;
 
   List<String> _frameIds = const [];
+  bool _tournamentEnabled = false;
+  bool _complementsLoaded = false;
 
   String? _coverReservationId;
 
@@ -104,10 +107,28 @@ class _EditEventPageState extends State<EditEventPage> {
             requiredKeys: _editEventRequiredKeys,
           );
       context.read<EventCoversController>().clear();
+      _loadTournamentFlag();
       setState(() {
         _coverReservationId = null;
       });
     });
+  }
+
+  Future<void> _loadTournamentFlag() async {
+    try {
+      final items = await context
+          .read<EventComplementsApiRepository>()
+          .list(widget.initial.id);
+      if (!mounted) return;
+      setState(() {
+        _tournamentEnabled = items.any(
+          (item) => item['id'] == 'tournament' && item['enabled'] == true,
+        );
+        _complementsLoaded = true;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _complementsLoaded = false);
+    }
   }
 
   @override
@@ -393,6 +414,11 @@ class _EditEventPageState extends State<EditEventPage> {
         allowGuestInvites: widget.initial.allowGuestInvites,
         frameIds: _frameIds,
       );
+      if (_complementsLoaded) {
+        await context
+            .read<EventComplementsApiRepository>()
+            .setEnabled(widget.initial.id, 'tournament', _tournamentEnabled);
+      }
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -503,13 +529,12 @@ class _EditEventPageState extends State<EditEventPage> {
                           fallback: 'Event Name',
                         ),
                   ),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty)
-                          ? context.read<TranslationsService>().translate(
-                                'create_event.validation_required',
-                                fallback: 'Required',
-                              )
-                          : null,
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? context.read<TranslationsService>().translate(
+                            'create_event.validation_required',
+                            fallback: 'Required',
+                          )
+                      : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -522,13 +547,12 @@ class _EditEventPageState extends State<EditEventPage> {
                   ),
                   minLines: 3,
                   maxLines: 6,
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty)
-                          ? context.read<TranslationsService>().translate(
-                                'create_event.validation_required',
-                                fallback: 'Required',
-                              )
-                          : null,
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? context.read<TranslationsService>().translate(
+                            'create_event.validation_required',
+                            fallback: 'Required',
+                          )
+                      : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -614,6 +638,19 @@ class _EditEventPageState extends State<EditEventPage> {
                             'create_event.select_frames',
                             fallback: 'Seleccionar marcos',
                           ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Card(
+                  child: SwitchListTile(
+                    value: _tournamentEnabled,
+                    onChanged: _complementsLoaded
+                        ? (value) => setState(() => _tournamentEnabled = value)
+                        : null,
+                    title: const Text('Torneo 4 Equipos'),
+                    subtitle: const Text(
+                      'Complemento opcional con pronósticos y clasificación.',
                     ),
                   ),
                 ),

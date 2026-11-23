@@ -22,6 +22,7 @@ import '../../../tutorial/presentation/tutorial_keys.dart';
 import '../../../tutorial/presentation/tutorial_controller.dart';
 import '../../../tutorial/presentation/tutorial_store.dart';
 import '../../adapters/api/event_covers_api_repository.dart';
+import '../../adapters/api/event_complements_api_repository.dart';
 
 class CreateEventPage extends StatefulWidget {
   static const routeName = '/events/create';
@@ -143,6 +144,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
   String? _localImageContentType; // image/png or image/jpeg
 
   bool _allowGuestInvites = true;
+  bool _enableTournament = false;
 
   List<String> _frameIds = const [];
 
@@ -324,7 +326,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
     }
   }
 
-  Future<void> _uploadCoverForEvent(BuildContext context, String eventId) async {
+  Future<void> _uploadCoverForEvent(
+      BuildContext context, String eventId) async {
     final coversRepo = context.read<EventCoversApiRepository>();
     final dio = Dio();
     final bytes = _localImageBytes;
@@ -350,7 +353,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
     );
 
     // 3) Confirm setFromUpload
-    await coversRepo.setFromUpload(eventId: eventId, uploadKey: presign.uploadKey);
+    await coversRepo.setFromUpload(
+        eventId: eventId, uploadKey: presign.uploadKey);
 
     // 4) Clear local selection
     setState(() {
@@ -998,6 +1002,19 @@ class _CreateEventPageState extends State<CreateEventPage> {
                     ],
                   ),
                 ),
+                CreateEventFormSection(
+                  title: 'Complementos',
+                  child: SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: _enableTournament,
+                    onChanged: (value) =>
+                        setState(() => _enableTournament = value),
+                    title: const Text('Torneo 4 Equipos'),
+                    subtitle: const Text(
+                      'Agrega pronósticos y tabla de posiciones al evento.',
+                    ),
+                  ),
+                ),
                 if (!isKeyboardOpen) ...[
                   const SizedBox(height: 20),
                   SizedBox(
@@ -1096,7 +1113,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
     final endAt = endLocal.toUtc();
 
     try {
-      await controller.createNew(
+      final createdEvent = await controller.createNew(
         _nameController.text.trim(),
         objective,
         _resolveLocation(),
@@ -1107,9 +1124,27 @@ class _CreateEventPageState extends State<CreateEventPage> {
         _allowGuestInvites,
         _frameIds,
       );
+      if (_enableTournament) {
+        try {
+          await context
+              .read<EventComplementsApiRepository>()
+              .setEnabled(createdEvent.id, 'tournament', true);
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'El evento se creó, pero el torneo quedó pendiente. Actívalo desde Editar evento. ($e)',
+                ),
+              ),
+            );
+          }
+        }
+      }
       // If user selected a local image, upload it as cover for the created event (the newly created event will be first in list)
       if (_localImageBytes != null && _localImageBytes!.isNotEmpty) {
-        final createdEvent = controller.events.isNotEmpty ? controller.events.first : null;
+        final createdEvent =
+            controller.events.isNotEmpty ? controller.events.first : null;
         if (createdEvent != null) {
           await _uploadCoverForEvent(context, createdEvent.id);
           // Ensure UI reflects the new cover immediately
