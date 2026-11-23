@@ -138,7 +138,14 @@ class _PhotoImportMobileSheetState extends State<PhotoImportMobileSheet> {
         // Store every supported image as JPEG before enqueueing it.
         File file;
         if (ext != 'jpg' && ext != 'jpeg') {
-          final jpgBytes = await compute(pngToJpegBytes, bytes);
+          Uint8List jpgBytes;
+          try {
+            jpgBytes = await compute(pngToJpegBytes, bytes);
+          } catch (_) {
+            // Formats the `image` package can't decode (e.g. HEIC from the
+            // iOS photo library) still decode via the platform codec.
+            jpgBytes = await platformImageToJpegBytes(bytes);
+          }
           file = await _writeTempJpeg(jpgBytes, baseName: name);
         } else if ((pf.path ?? '').isNotEmpty) {
           file = File(pf.path!);
