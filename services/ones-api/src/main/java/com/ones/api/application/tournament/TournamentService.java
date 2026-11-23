@@ -16,7 +16,6 @@ import java.util.function.UnaryOperator;
 import org.springframework.stereotype.Service;
 
 import com.ones.api.adapters.outbound.dynamodb.DynamoDbTournamentRepository;
-import com.ones.api.application.complements.EventComplementModule;
 import com.ones.api.application.tournament.ports.TournamentScoringQueue;
 import com.ones.api.domain.tournament.TournamentEngine;
 import com.ones.api.domain.tournament.TournamentModels.LeaderboardEntry;
@@ -33,7 +32,7 @@ import com.ones.api.domain.tournament.TournamentModels.TournamentState;
 import com.ones.api.domain.tournament.TournamentModels.UserPrediction;
 
 @Service
-public class TournamentService implements EventComplementModule {
+public class TournamentService {
 
     private final DynamoDbTournamentRepository repository;
     private final TournamentScoringQueue scoringQueue;
@@ -49,28 +48,12 @@ public class TournamentService implements EventComplementModule {
         this.clock = clock;
     }
 
-    @Override
-    public String id() {
-        return "tournament";
-    }
-
-    @Override
-    public String displayName() {
-        return "Torneo 4 Equipos";
-    }
-
-    @Override
-    public String defaultTabLabel() {
-        return "Torneo";
-    }
-
-    @Override
-    public void initialize(String eventId, String ownerId) {
+    public void initialize(String eventId, String ownerId, String tabLabel) {
         Instant now = Instant.now(clock);
         TournamentState state = new TournamentState(
                 eventId,
                 ownerId,
-                defaultTabLabel(),
+                tabLabel,
                 List.of(),
                 List.of(),
                 List.of(),
