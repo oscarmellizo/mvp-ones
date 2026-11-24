@@ -60,12 +60,6 @@ ones:
       api-key-secret-name: ${OPENAI_API_KEY_SECRET_NAME:ones/dev/openai-api-key}
       image-model: ${OPENAI_IMAGE_MODEL:gpt-image-2}
       image-size: ${OPENAI_IMAGE_SIZE:1536x1024}
-    bedrock:
-      image-region: ${ONES_BEDROCK_IMAGE_REGION:us-west-2}
-      logo-model-id: ${ONES_BEDROCK_LOGO_MODEL_ID:stability.stable-image-core-v1:1}
-      logo-preview-ttl-minutes: ${ONES_TOURNAMENT_LOGO_PREVIEW_TTL_MINUTES:30}
-  tournament:
-    logo-daily-generation-quota: ${ONES_TOURNAMENT_LOGO_DAILY_QUOTA:5}
   s3:
     events:
       covers:

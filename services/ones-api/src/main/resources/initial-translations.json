@@ -1055,16 +1055,6 @@
     "en": "Team",
     "pt": "Equipe"
   },
-  "tournament.upload_logo": {
-    "es": "Subir imagen",
-    "en": "Upload image",
-    "pt": "Enviar imagem"
-  },
-  "tournament.generate_logo": {
-    "es": "Generar con IA",
-    "en": "Generate with AI",
-    "pt": "Gerar com IA"
-  },
   "tournament.save_teams": {
     "es": "Guardar equipos",
     "en": "Save teams",

@@ -39,7 +39,6 @@ public class EventPurger {
 
     private final String photosBucket;
     private final String coversFinalBucket;
-    private final String assetsBucket;
 
     @Autowired
     public EventPurger(
@@ -51,8 +50,7 @@ public class EventPurger {
             DynamoDbEventComplementsRepository complementsRepository,
             DynamoDbTournamentRepository tournamentRepository,
             @Value("${ones.s3.events.photos.bucket}") String photosBucket,
-            @Value("${ones.s3.events.covers.final-bucket}") String coversFinalBucket,
-            @Value("${ones.s3.events.assets.bucket:}") String assetsBucket
+            @Value("${ones.s3.events.covers.final-bucket}") String coversFinalBucket
     ) {
         this.eventsRepository = eventsRepository;
         this.photosRepository = photosRepository;
@@ -63,7 +61,6 @@ public class EventPurger {
         this.tournamentRepository = tournamentRepository;
         this.photosBucket = photosBucket;
         this.coversFinalBucket = coversFinalBucket;
-        this.assetsBucket = assetsBucket;
     }
 
     public EventPurger(
@@ -84,7 +81,6 @@ public class EventPurger {
         this.tournamentRepository = null;
         this.photosBucket = photosBucket;
         this.coversFinalBucket = coversFinalBucket;
-        this.assetsBucket = "";
     }
 
     /** Devuelve el número de fotos borradas. Lanza si alguna foto o la portada no se pudo borrar (el evento se conserva). */
@@ -121,11 +117,6 @@ public class EventPurger {
 
         invitationsRepository.deleteAllByEventId(event.getEventId());
         if (tournamentRepository != null) {
-            tournamentRepository.findState(event.getEventId()).ifPresent(state ->
-                    state.teams().stream()
-                            .map(team -> team.logoKey())
-                            .filter(key -> key != null && !key.isBlank())
-                            .forEach(key -> objectStorage.delete(assetsBucket, key)));
             tournamentRepository.deleteByEventId(event.getEventId());
         }
         if (complementsRepository != null) complementsRepository.deleteByEventId(event.getEventId());

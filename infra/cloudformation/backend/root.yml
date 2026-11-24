@@ -156,19 +156,6 @@ Parameters:
     MinValue: 2
     MaxValue: 1000
 
-  TournamentLogoModelId:
-    Type: String
-    Default: stability.stable-image-core-v1:1
-
-  TournamentLogoModelRegion:
-    Type: String
-    Default: us-west-2
-
-  TournamentLogoMonthlyBudgetUsd:
-    Type: Number
-    Default: 20
-    MinValue: 1
-
   GrafanaDesiredCount:
     Type: Number
     Default: 1
@@ -246,9 +233,6 @@ Resources:
         PhotoDateResolverZipS3Key: !Ref PhotoDateResolverZipS3Key
         TournamentScoringWorkerZipS3Key: !Ref TournamentScoringWorkerZipS3Key
         TournamentScoringMaxConcurrency: !Ref TournamentScoringMaxConcurrency
-        TournamentLogoModelId: !Ref TournamentLogoModelId
-        TournamentLogoModelRegion: !Ref TournamentLogoModelRegion
-        TournamentLogoMonthlyBudgetUsd: !Ref TournamentLogoMonthlyBudgetUsd
         GrafanaDesiredCount: !Ref GrafanaDesiredCount
         CdnPhotosEnabled: !Ref CdnPhotosEnabled
         CdnPhotosSigningPublicKeyPem: !Ref CdnPhotosSigningPublicKeyPem

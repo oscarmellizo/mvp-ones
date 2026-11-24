@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -25,12 +24,10 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
       List.generate(4, (_) => TextEditingController());
   final Map<String, TextEditingController> _homeScores = {};
   final Map<String, TextEditingController> _awayScores = {};
-  final Map<String, Future<String>> _logoUrls = {};
   final Map<String, TextEditingController> _actualHomeScores = {};
   final Map<String, TextEditingController> _actualAwayScores = {};
   final Map<String, String> _penaltyWinners = {};
   final Set<String> _editingResults = {};
-  final Map<String, TextEditingController> _prompts = {};
 
   TournamentApiRepository? _api;
   Map<String, dynamic>? _view;
@@ -64,7 +61,6 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
       ..._awayScores.values,
       ..._actualHomeScores.values,
       ..._actualAwayScores.values,
-      ..._prompts.values,
     ]) {
       controller.dispose();
     }
@@ -293,8 +289,6 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
           (i) => {
                 if (i < existing.length) 'id': existing[i]['id'],
                 'name': _teamNames[i].text.trim(),
-                if (i < existing.length && existing[i]['logoKey'] != null)
-                  'logoKey': existing[i]['logoKey'],
                 if (i < existing.length && existing[i]['members'] != null)
                   'members': existing[i]['members'],
               });
@@ -305,104 +299,6 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
       _toast('No se pudo guardar la configuración: $e');
     } finally {
       if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _pickLogo(String teamId) async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      withData: true,
-    );
-    if (result == null || result.files.single.bytes == null) return;
-    setState(() => _busy = true);
-    try {
-      final preview = await _api!
-          .uploadLogo(widget.eventId, teamId, result.files.single.bytes!);
-      await _previewLogo(teamId, preview);
-    } catch (e) {
-      _toast('No se pudo cargar el logo: ${_actionError(e)}');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _generateLogo(String teamId) async {
-    final promptController = TextEditingController();
-    final prompt = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Generar logo con IA'),
-        content: TextField(
-          controller: promptController,
-          maxLength: 300,
-          decoration: const InputDecoration(
-            labelText: 'Describe el estilo, colores o símbolo',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, promptController.text),
-            child: const Text('Generar'),
-          ),
-        ],
-      ),
-    );
-    promptController.dispose();
-    if (prompt == null || prompt.trim().isEmpty) return;
-    setState(() => _busy = true);
-    try {
-      final preview =
-          await _api!.generateLogo(widget.eventId, teamId, prompt.trim());
-      if (mounted) await _previewLogo(teamId, preview);
-    } catch (e) {
-      _toast('No se pudo generar el logo: ${_actionError(e)}');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _previewLogo(
-    String teamId,
-    Map<String, dynamic> preview,
-  ) async {
-    final accepted = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Vista previa del logo'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.network(preview['previewUrl'] as String,
-                width: 180, height: 180),
-            const SizedBox(height: 8),
-            const Text('La imagen se normalizará a 512 × 512 píxeles.'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Descartar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Usar logo'),
-          ),
-        ],
-      ),
-    );
-    if (accepted == true) {
-      await _api!.acceptLogo(
-        widget.eventId,
-        teamId,
-        preview['previewKey'] as String,
-      );
-      _logoUrls.remove(teamId);
-      await _load();
-      _toast('Logo aplicado al equipo.');
     }
   }
 
@@ -710,46 +606,16 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
                       fontWeight: FontWeight.w800, fontSize: 18)),
               const SizedBox(height: 8),
               for (var i = 0; i < 4; i++)
-                Row(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: _teamLogo(teams, i),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: TextField(
+                    controller: _teamNames[i],
+                    enabled: owner && teams.every((t) => t['id'] != null),
+                    decoration: InputDecoration(
+                      labelText:
+                          '${_t('tournament.team', 'Equipo')} ${i + 1}',
                     ),
-                    Expanded(
-                      child: TextField(
-                        controller: _teamNames[i],
-                        enabled: owner && teams.every((t) => t['id'] != null),
-                        decoration: InputDecoration(
-                          labelText:
-                              '${_t('tournament.team', 'Equipo')} ${i + 1}',
-                        ),
-                      ),
-                    ),
-                    if (i < teams.length && teams[i]['id'] != null)
-                      PopupMenuButton<String>(
-                        tooltip: 'Logo del equipo',
-                        onSelected: (action) {
-                          final id = teams[i]['id'] as String;
-                          if (action == 'upload') _pickLogo(id);
-                          if (action == 'generate') _generateLogo(id);
-                        },
-                        itemBuilder: (_) => [
-                          PopupMenuItem(
-                              value: 'upload',
-                              child: Text(_t(
-                                  'tournament.upload_logo', 'Subir imagen'))),
-                          PopupMenuItem(
-                              value: 'generate',
-                              child: Text(_t('tournament.generate_logo',
-                                  'Generar con IA'))),
-                        ],
-                        child: const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: Icon(Icons.add_a_photo_outlined),
-                        ),
-                      ),
-                  ],
+                  ),
                 ),
               const SizedBox(height: 8),
               if (owner)
@@ -761,52 +627,6 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
           ),
         ),
       );
-
-  Widget _teamLogo(List<Map<String, dynamic>> teams, int index) {
-    if (index >= teams.length || teams[index]['id'] == null) {
-      return const SizedBox(
-        width: 44,
-        height: 44,
-        child: Icon(Icons.shield_outlined),
-      );
-    }
-    final teamId = teams[index]['id'] as String;
-    if (teams[index]['logoKey'] == null || _api == null) {
-      return const SizedBox(
-        width: 44,
-        height: 44,
-        child: Icon(Icons.shield_outlined),
-      );
-    }
-
-    final url = _logoUrls.putIfAbsent(
-      teamId,
-      () => _api!.logoUrl(widget.eventId, teamId),
-    );
-    return FutureBuilder<String>(
-      future: url,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const SizedBox(
-            width: 44,
-            height: 44,
-            child: Icon(Icons.shield_outlined),
-          );
-        }
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.network(
-            snapshot.data!,
-            width: 44,
-            height: 44,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) =>
-                const Icon(Icons.broken_image_outlined),
-          ),
-        );
-      },
-    );
-  }
 
   Widget _delegatesCard() => Card(
         child: ExpansionTile(

@@ -90,10 +90,10 @@ class TournamentServicePartialPredictionTest {
                 mock(TournamentScoringQueue.class),
                 Clock.fixed(Instant.EPOCH, ZoneOffset.UTC));
         List<Team> teams = List.of(
-                new Team("team-1", "Team 1", null, List.of()),
-                new Team("team-2", "Team 2", null, List.of()),
-                new Team("team-3", "Team 3", null, List.of()),
-                new Team("team-4", "Team 4", null, List.of()));
+                new Team("team-1", "Team 1", List.of()),
+                new Team("team-2", "Team 2", List.of()),
+                new Team("team-3", "Team 3", List.of()),
+                new Team("team-4", "Team 4", List.of()));
         List<Match> matches = new ArrayList<>(TournamentEngine.createRoundRobinMatches(teams));
         matches.add(new Match(
                 "final", MatchPhase.FINAL, null, null, null, MatchStatus.PENDING, null, null, null));

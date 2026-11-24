@@ -21,10 +21,10 @@ import com.ones.api.domain.tournament.TournamentModels.TournamentState;
 class TournamentEngineTest {
 
     private final List<Team> teams = List.of(
-            new Team("a", "A", null, List.of()),
-            new Team("b", "B", null, List.of()),
-            new Team("c", "C", null, List.of()),
-            new Team("d", "D", null, List.of()));
+            new Team("a", "A", List.of()),
+            new Team("b", "B", List.of()),
+            new Team("c", "C", List.of()),
+            new Team("d", "D", List.of()));
 
     @Test
     void projectedStandingsAutomaticallyAssignFinalAndThirdPlaceSlots() {
@@ -89,10 +89,10 @@ class TournamentEngineTest {
                 "third-place", MatchPhase.THIRD_PLACE, null, null, null, MatchStatus.PENDING, null, null, null));
         return new TournamentState(
                 "event", "owner", "Torneo", List.of(
-                        new Team("a", "A", null, List.of()),
-                        new Team("b", "B", null, List.of()),
-                        new Team("c", "C", null, List.of()),
-                        new Team("d", "D", null, List.of())),
+                        new Team("a", "A", List.of()),
+                        new Team("b", "B", List.of()),
+                        new Team("c", "C", List.of()),
+                        new Team("d", "D", List.of())),
                 matches, List.of(), List.of(), List.of(),
                 PredictionPeriod.notStarted(), PredictionPeriod.notStarted(),
                 true, 1, Instant.EPOCH);

@@ -18,7 +18,6 @@ import com.ones.api.adapters.inbound.rest.AuthClaims;
 import com.ones.api.application.events.GetEventUseCase;
 import com.ones.api.application.invitations.ports.InvitationsRepository;
 import com.ones.api.application.tournament.TournamentService;
-import com.ones.api.application.tournament.TournamentLogoService;
 import com.ones.api.application.tournament.TournamentService.TeamInput;
 import com.ones.api.application.tournament.TournamentService.TournamentView;
 import com.ones.api.domain.events.Event;
@@ -37,18 +36,15 @@ import jakarta.validation.constraints.Size;
 public class TournamentController {
 
     private final TournamentService tournamentService;
-    private final TournamentLogoService logoService;
     private final GetEventUseCase getEventUseCase;
     private final InvitationsRepository invitationsRepository;
 
     public TournamentController(
             TournamentService tournamentService,
-            TournamentLogoService logoService,
             GetEventUseCase getEventUseCase,
             InvitationsRepository invitationsRepository
     ) {
         this.tournamentService = tournamentService;
-        this.logoService = logoService;
         this.getEventUseCase = getEventUseCase;
         this.invitationsRepository = invitationsRepository;
     }
@@ -67,50 +63,6 @@ public class TournamentController {
     ) {
         Event event = requireEvent(authentication, eventId);
         return tournamentService.saveSetup(eventId, event.getOwnerId(), request.teams());
-    }
-
-    @PostMapping("/teams/{teamId}/logos/upload")
-    public TournamentLogoService.LogoPreview uploadLogo(
-            Authentication authentication,
-            @PathVariable("eventId") String eventId,
-            @PathVariable("teamId") String teamId,
-            @Valid @RequestBody LogoUploadRequest request
-    ) {
-        requireEvent(authentication, eventId);
-        return logoService.upload(eventId, authentication.getName(), teamId, request.imageBase64());
-    }
-
-    @PostMapping("/teams/{teamId}/logos/generate")
-    public TournamentLogoService.LogoPreview generateLogo(
-            Authentication authentication,
-            @PathVariable("eventId") String eventId,
-            @PathVariable("teamId") String teamId,
-            @Valid @RequestBody LogoGenerateRequest request
-    ) {
-        requireEvent(authentication, eventId);
-        return logoService.generate(eventId, authentication.getName(), teamId, request.prompt());
-    }
-
-    @PostMapping("/teams/{teamId}/logos/accept")
-    public LogoAcceptedResponse acceptLogo(
-            Authentication authentication,
-            @PathVariable("eventId") String eventId,
-            @PathVariable("teamId") String teamId,
-            @Valid @RequestBody LogoAcceptRequest request
-    ) {
-        requireEvent(authentication, eventId);
-        String key = logoService.accept(eventId, authentication.getName(), teamId, request.previewKey());
-        return new LogoAcceptedResponse(key);
-    }
-
-    @GetMapping("/teams/{teamId}/logo")
-    public LogoUrlResponse logoUrl(
-            Authentication authentication,
-            @PathVariable("eventId") String eventId,
-            @PathVariable("teamId") String teamId
-    ) {
-        requireEvent(authentication, eventId);
-        return new LogoUrlResponse(logoService.logoUrl(eventId, teamId).toString());
     }
 
     @PutMapping("/delegates")
@@ -283,18 +235,5 @@ public class TournamentController {
     ) {
     }
 
-    public record LogoUploadRequest(@NotBlank @Size(max = 5_600_000) String imageBase64) {
-    }
 
-    public record LogoGenerateRequest(@NotBlank @Size(max = 300) String prompt) {
-    }
-
-    public record LogoAcceptRequest(@NotBlank @Size(max = 1024) String previewKey) {
-    }
-
-    public record LogoAcceptedResponse(String logoKey) {
-    }
-
-    public record LogoUrlResponse(String url) {
-    }
 }

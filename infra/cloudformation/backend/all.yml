@@ -157,19 +157,6 @@ Parameters:
     MinValue: 2
     MaxValue: 1000
 
-  TournamentLogoModelId:
-    Type: String
-    Default: stability.stable-image-core-v1:1
-
-  TournamentLogoModelRegion:
-    Type: String
-    Default: us-west-2
-
-  TournamentLogoMonthlyBudgetUsd:
-    Type: Number
-    Default: 20
-    MinValue: 1
-
   GrafanaDesiredCount:
     Type: Number
     Default: 1
@@ -231,7 +218,6 @@ Conditions:
   UsePhotoThumbnailsImageCond: !Equals [!Ref UsePhotoThumbnailsImage, 'true']
   UsePhotoThumbnailsZipCond: !Not [!Equals [!Ref UsePhotoThumbnailsImage, 'true']]
   EnablePhotoDateResolverCond: !Equals [!Ref PhotoDateResolverEnabled, 'true']
-  EnableTournamentLogoBudgetCond: !Equals [!Ref Environment, 'prod']
   EnablePhotosCdnCond: !And
     - !Equals [!Ref CdnPhotosEnabled, 'true']
     - !Not [!Equals [!Ref CdnPhotosSigningPublicKeySsmParamName, '']]
@@ -1214,12 +1200,6 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub ${StackPrefix}-${Environment}-events-assets
-      LifecycleConfiguration:
-        Rules:
-          - Id: ExpireTournamentLogoPreviews
-            Status: Enabled
-            Prefix: tournament-previews/
-            ExpirationInDays: 1
       Tags:
         - Key: Name
           Value: !Sub ${StackPrefix}-${Environment}-events-assets
@@ -2358,14 +2338,6 @@ Resources:
                   - !GetAtt PhotoThumbnailsQueue.Arn
                   - !GetAtt PhotoDateResolutionQueue.Arn
                   - !GetAtt TournamentScoringQueue.Arn
-        - PolicyName: ones-bedrock-tournament-logos
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - bedrock:InvokeModel
-                Resource: !Sub arn:aws:bedrock:${TournamentLogoModelRegion}::foundation-model/${TournamentLogoModelId}
         - PolicyName: ones-s3
           PolicyDocument:
             Version: '2012-10-17'
@@ -2615,12 +2587,6 @@ Resources:
               Value: !Ref PhotoDateResolutionQueue
             - Name: ONES_TOURNAMENT_SCORING_QUEUE_URL
               Value: !Ref TournamentScoringQueue
-            - Name: ONES_BEDROCK_IMAGE_REGION
-              Value: !Ref TournamentLogoModelRegion
-            - Name: ONES_BEDROCK_LOGO_MODEL_ID
-              Value: !Ref TournamentLogoModelId
-            - Name: ONES_TOURNAMENT_LOGO_DAILY_QUOTA
-              Value: '5'
             - Name: ONES_PHOTO_DATE_RESOLUTION_ENABLED
               Value: !Ref PhotoDateResolverEnabled
             - Name: OPENAI_API_KEY_SECRET_NAME
@@ -3560,30 +3526,6 @@ Resources:
         BudgetName: !Sub ${StackPrefix}-${Environment}-photo-date-resolver
         BudgetLimit:
           Amount: !Ref PhotoDateResolverMonthlyBudgetUsd
-          Unit: USD
-        BudgetType: COST
-        TimeUnit: MONTHLY
-        CostFilters:
-          Service:
-            - Amazon Bedrock
-      NotificationsWithSubscribers:
-        - Notification:
-            NotificationType: ACTUAL
-            ComparisonOperator: GREATER_THAN
-            Threshold: 80
-            ThresholdType: PERCENTAGE
-          Subscribers:
-            - SubscriptionType: SNS
-              Address: !Ref AlertsTopic
-
-  TournamentLogoBudget:
-    Type: AWS::Budgets::Budget
-    Condition: EnableTournamentLogoBudgetCond
-    Properties:
-      Budget:
-        BudgetName: !Sub ${StackPrefix}-${Environment}-tournament-logo-generation
-        BudgetLimit:
-          Amount: !Ref TournamentLogoMonthlyBudgetUsd
           Unit: USD
         BudgetType: COST
         TimeUnit: MONTHLY

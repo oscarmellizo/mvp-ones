@@ -4,6 +4,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 public final class TournamentModels {
 
     private TournamentModels() {
@@ -27,10 +29,10 @@ public final class TournamentModels {
         CLOSED
     }
 
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public record Team(
             String id,
             String name,
-            String logoKey,
             List<String> members
     ) {
     }
