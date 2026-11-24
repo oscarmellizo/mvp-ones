@@ -1,6 +1,7 @@
 package com.ones.api.adapters.outbound.dynamodb;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -29,7 +30,36 @@ class DynamoDbTournamentRepositoryPredictionTest {
                 dynamoDbClient,
                 new ObjectMapper().findAndRegisterModules(),
                 "ones-tournaments");
-        UserPrediction prediction = new UserPrediction(
+        repository.savePredictionIfOpen(prediction(), 0);
+
+        ArgumentCaptor<TransactWriteItemsRequest> requestCaptor =
+                ArgumentCaptor.forClass(TransactWriteItemsRequest.class);
+        verify(dynamoDbClient).transactWriteItems(requestCaptor.capture());
+        Put forecastPut = requestCaptor.getValue().transactItems().get(1).put();
+        assertFalse(forecastPut.hasExpressionAttributeValues());
+    }
+
+    @Test
+    void usesOnlyVersionPlaceholderWhenUpdatingPrediction() {
+        DynamoDbClient dynamoDbClient = mock(DynamoDbClient.class);
+        DynamoDbTournamentRepository repository = new DynamoDbTournamentRepository(
+                mock(DynamoDbEnhancedClient.class),
+                dynamoDbClient,
+                new ObjectMapper().findAndRegisterModules(),
+                "ones-tournaments");
+
+        repository.savePredictionIfOpen(prediction(), 1);
+
+        ArgumentCaptor<TransactWriteItemsRequest> requestCaptor =
+                ArgumentCaptor.forClass(TransactWriteItemsRequest.class);
+        verify(dynamoDbClient).transactWriteItems(requestCaptor.capture());
+        Put forecastPut = requestCaptor.getValue().transactItems().get(1).put();
+        assertEquals(Map.of("#version", "version"), forecastPut.expressionAttributeNames());
+        assertEquals("1", forecastPut.expressionAttributeValues().get(":expected").n());
+    }
+
+    private static UserPrediction prediction() {
+        return new UserPrediction(
                 "event-1",
                 "user-1",
                 "Tester",
@@ -42,13 +72,5 @@ class DynamoDbTournamentRepositoryPredictionTest {
                 -1,
                 1,
                 Instant.parse("2026-01-01T00:00:00Z"));
-
-        repository.savePredictionIfOpen(prediction, 0);
-
-        ArgumentCaptor<TransactWriteItemsRequest> requestCaptor =
-                ArgumentCaptor.forClass(TransactWriteItemsRequest.class);
-        verify(dynamoDbClient).transactWriteItems(requestCaptor.capture());
-        Put forecastPut = requestCaptor.getValue().transactItems().get(1).put();
-        assertFalse(forecastPut.hasExpressionAttributeValues());
     }
 }

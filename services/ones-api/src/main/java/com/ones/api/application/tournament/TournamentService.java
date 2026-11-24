@@ -255,20 +255,24 @@ public class TournamentService {
             throw new TournamentConflictException("Predictions are not open");
         }
         validatePredictionScores(roundRobinScores, finalScore, thirdPlaceScore);
+        Map<String, MatchScore> normalizedRoundRobinScores =
+                completedRoundRobinScores(state, roundRobinScores);
+        MatchScore normalizedFinalScore = completeScoreOrNull(finalScore);
+        MatchScore normalizedThirdPlaceScore = completeScoreOrNull(thirdPlaceScore);
         UserPrediction previous = repository.findPrediction(eventId, userId).orElse(null);
         if (previous != null
-                && Objects.equals(previous.roundRobinScores(), roundRobinScores)
-                && Objects.equals(previous.finalScore(), finalScore)
-                && Objects.equals(previous.thirdPlaceScore(), thirdPlaceScore)) {
+                && Objects.equals(previous.roundRobinScores(), normalizedRoundRobinScores)
+                && Objects.equals(previous.finalScore(), normalizedFinalScore)
+                && Objects.equals(previous.thirdPlaceScore(), normalizedThirdPlaceScore)) {
             return previous;
         }
         UserPrediction candidate = new UserPrediction(
                 eventId,
                 userId,
                 displayName == null || displayName.isBlank() ? userId : displayName.trim(),
-                roundRobinScores == null ? Map.of() : Map.copyOf(roundRobinScores),
-                finalScore,
-                thirdPlaceScore,
+                normalizedRoundRobinScores,
+                normalizedFinalScore,
+                normalizedThirdPlaceScore,
                 0,
                 0,
                 0,
@@ -281,6 +285,32 @@ public class TournamentService {
             throw new TournamentConflictException("Tournament changed while saving predictions; refresh and retry");
         }
         return scored;
+    }
+
+    static Map<String, MatchScore> completedRoundRobinScores(
+            TournamentState state,
+            Map<String, MatchScore> scores
+    ) {
+        Set<String> validMatchIds = new HashSet<>();
+        for (Match match : state.matches()) {
+            if (match.phase() == MatchPhase.ROUND_ROBIN) {
+                validMatchIds.add(match.id());
+            }
+        }
+        if (scores == null || scores.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, MatchScore> completed = new HashMap<>();
+        scores.forEach((matchId, score) -> {
+            if (validMatchIds.contains(matchId) && score != null && score.complete()) {
+                completed.put(matchId, score);
+            }
+        });
+        return Map.copyOf(completed);
+    }
+
+    private static MatchScore completeScoreOrNull(MatchScore score) {
+        return score != null && score.complete() ? score : null;
     }
 
     public TournamentState startMatch(String eventId, String requesterId, String matchId) {
