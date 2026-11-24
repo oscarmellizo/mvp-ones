@@ -82,6 +82,12 @@ class TournamentApiRepository {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
+  Future<bool> recalculateScores(String eventId) async {
+    final response = await _secureDio()
+        .post('/v1/events/$eventId/tournament/scores/recalculate');
+    return response.data is Map && response.data['status'] == 'queued';
+  }
+
   Future<void> savePredictions(
     String eventId, {
     required Map<String, dynamic> roundRobinScores,

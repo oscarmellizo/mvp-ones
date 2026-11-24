@@ -118,7 +118,7 @@ def _score_key(points, exact, fives, user_id):
     )
 
 
-def _process_shard(event_id, shard):
+def _process_shard(event_id, shard, force=False):
     state_response = TABLE.get_item(Key={"pk": "EVENT#" + event_id, "sk": "STATE"}, ConsistentRead=True)
     state_item = state_response.get("Item")
     if not state_item:
@@ -144,7 +144,7 @@ def _process_shard(event_id, shard):
         if item.get("sk") != "PREDICTION":
             continue
         prediction = json.loads(item["payload"])
-        if (
+        if not force and (
             int(prediction.get("scoredVersion", -1)) >= state_version
             and int(item.get("scoringRevision", 0)) >= SCORING_REVISION
             and item.get("rankKey")
@@ -234,14 +234,16 @@ def handler(event, context):
             body = json.loads(record["body"])
             event_id = str(body["eventId"])
             shard = int(body["shard"])
+            force = bool(body.get("force", False))
             if shard < 0 or shard > 15:
                 raise ValueError("Invalid tournament score shard")
-            processed = _process_shard(event_id, shard)
+            processed = _process_shard(event_id, shard, force=force)
             log.info(json.dumps({
                 "event": "tournament_score_shard_processed",
                 "eventId": event_id,
                 "shard": shard,
                 "predictionsProcessed": processed,
+                "forceRecalculation": force,
                 "durationMs": round((time.perf_counter() - started) * 1000),
             }))
         except Exception:

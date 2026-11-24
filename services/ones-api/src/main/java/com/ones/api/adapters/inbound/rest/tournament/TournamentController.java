@@ -158,6 +158,16 @@ public class TournamentController {
         return tournamentService.closePredictions(eventId, authentication.getName());
     }
 
+    @PostMapping("/scores/recalculate")
+    public Map<String, String> recalculateScores(
+            Authentication authentication,
+            @PathVariable("eventId") String eventId
+    ) {
+        requireEvent(authentication, eventId);
+        boolean queued = tournamentService.recalculateScores(eventId, authentication.getName());
+        return Map.of("status", queued ? "queued" : "already_queued");
+    }
+
     @PutMapping("/predictions")
     public UserPrediction savePredictions(
             Authentication authentication,

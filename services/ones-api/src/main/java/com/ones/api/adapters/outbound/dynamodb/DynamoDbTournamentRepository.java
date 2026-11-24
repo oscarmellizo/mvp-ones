@@ -24,7 +24,9 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 import software.amazon.awssdk.services.dynamodb.model.ConditionCheck;
+import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.Put;
+import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
@@ -158,6 +160,53 @@ public class DynamoDbTournamentRepository {
         } catch (software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException e) {
             return false;
         }
+    }
+
+    public boolean claimScoreRecalculation(
+            String eventId,
+            long stateVersion,
+            long requestedAtMillis,
+            long cooldownCutoffMillis
+    ) {
+        String pk = "EVENT#" + eventId + "#SCORE_RECALC";
+        try {
+            dynamoDbClient.putItem(PutItemRequest.builder()
+                    .tableName(tableName)
+                    .item(Map.of(
+                            "pk", AttributeValue.fromS(pk),
+                            "sk", AttributeValue.fromS("REQUEST"),
+                            "stateVersion", AttributeValue.fromN(Long.toString(stateVersion)),
+                            "requestedAt", AttributeValue.fromN(Long.toString(requestedAtMillis))))
+                    .conditionExpression(
+                            "attribute_not_exists(#pk) OR #requestedAt < :cutoff OR #stateVersion < :version")
+                    .expressionAttributeNames(Map.of(
+                            "#pk", "pk",
+                            "#requestedAt", "requestedAt",
+                            "#stateVersion", "stateVersion"))
+                    .expressionAttributeValues(Map.of(
+                            ":cutoff", AttributeValue.fromN(Long.toString(cooldownCutoffMillis)),
+                            ":version", AttributeValue.fromN(Long.toString(stateVersion))))
+                    .build());
+            return true;
+        } catch (ConditionalCheckFailedException e) {
+            return false;
+        }
+    }
+
+    public void releaseScoreRecalculation(String eventId, long stateVersion, long requestedAtMillis) {
+        dynamoDbClient.deleteItem(DeleteItemRequest.builder()
+                .tableName(tableName)
+                .key(Map.of(
+                        "pk", AttributeValue.fromS("EVENT#" + eventId + "#SCORE_RECALC"),
+                        "sk", AttributeValue.fromS("REQUEST")))
+                .conditionExpression("#stateVersion = :version AND #requestedAt = :requestedAt")
+                .expressionAttributeNames(Map.of(
+                        "#stateVersion", "stateVersion",
+                        "#requestedAt", "requestedAt"))
+                .expressionAttributeValues(Map.of(
+                        ":version", AttributeValue.fromN(Long.toString(stateVersion)),
+                        ":requestedAt", AttributeValue.fromN(Long.toString(requestedAtMillis))))
+                .build());
     }
 
     public Optional<UserPrediction> findPrediction(String eventId, String userId) {
@@ -294,6 +343,7 @@ public class DynamoDbTournamentRepository {
 
     public void deleteByEventId(String eventId) {
         table.deleteItem(key("EVENT#" + eventId, "STATE"));
+        table.deleteItem(key("EVENT#" + eventId + "#SCORE_RECALC", "REQUEST"));
         for (int shard = 0; shard < SHARD_COUNT; shard++) {
             table.deleteItem(key(
                     "EVENT#" + eventId + "#STATE#" + String.format("%02d", shard),

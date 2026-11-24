@@ -116,6 +116,15 @@ class TournamentScoreWorkerTests(unittest.TestCase):
             processed = worker._process_shard("event-1", 4)
 
         self.assertEqual(processed, 0)
+        dynamodb = Mock()
+        with (
+            patch.object(worker, "TABLE", table),
+            patch.object(worker.boto3, "client", return_value=dynamodb),
+        ):
+            forced = worker._process_shard("event-1", 4, force=True)
+
+        self.assertEqual(forced, 1)
+        self.assertTrue(dynamodb.transact_write_items.called)
 
 
 if __name__ == "__main__":

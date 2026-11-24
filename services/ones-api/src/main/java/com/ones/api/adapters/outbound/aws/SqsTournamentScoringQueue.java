@@ -36,6 +36,15 @@ public class SqsTournamentScoringQueue implements TournamentScoringQueue {
 
     @Override
     public void enqueue(String eventId) {
+        enqueue(eventId, false);
+    }
+
+    @Override
+    public void enqueueRecalculation(String eventId) {
+        enqueue(eventId, true);
+    }
+
+    private void enqueue(String eventId, boolean force) {
         if (queueUrl == null || queueUrl.isBlank()) {
             log.warn("Tournament score queue is not configured; eventId={} will need score refresh", eventId);
             return;
@@ -44,7 +53,10 @@ public class SqsTournamentScoringQueue implements TournamentScoringQueue {
             for (int offset = 0; offset < 16; offset += 10) {
                 var entries = new java.util.ArrayList<SendMessageBatchRequestEntry>();
                 for (int shard = offset; shard < Math.min(16, offset + 10); shard++) {
-                    String body = objectMapper.writeValueAsString(Map.of("eventId", eventId, "shard", shard));
+                    Map<String, Object> message = force
+                            ? Map.of("eventId", eventId, "shard", shard, "force", true)
+                            : Map.of("eventId", eventId, "shard", shard);
+                    String body = objectMapper.writeValueAsString(message);
                     entries.add(SendMessageBatchRequestEntry.builder()
                             .id("shard-" + shard)
                             .messageBody(body)
