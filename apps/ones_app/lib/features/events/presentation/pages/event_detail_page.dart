@@ -293,10 +293,13 @@ class _EventDetailPageState extends State<EventDetailPage> {
 
           return Scaffold(
             backgroundColor: OnesColors.background,
-            floatingActionButton: AnimatedPadding(
-              duration: const Duration(milliseconds: 200),
-              padding: EdgeInsets.only(bottom: _gallerySelecting ? 68.0 : 0.0),
-              child: Column(
+            floatingActionButton: _tabIndex == 2 && _tournamentEnabled
+                ? null
+                : AnimatedPadding(
+                    duration: const Duration(milliseconds: 200),
+                    padding: EdgeInsets.only(
+                        bottom: _gallerySelecting ? 68.0 : 0.0),
+                    child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Upload/import photos FAB (top)
@@ -363,8 +366,8 @@ class _EventDetailPageState extends State<EventDetailPage> {
                     child: const Icon(Icons.photo_camera),
                   ),
                 ],
-              ),
-            ),
+                    ),
+                  ),
             body: SafeArea(
               child: event == null
                   ? controller.selectedError == null

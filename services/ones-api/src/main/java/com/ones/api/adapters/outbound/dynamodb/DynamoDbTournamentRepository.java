@@ -185,6 +185,14 @@ public class DynamoDbTournamentRepository {
             forecastNames.put("#version", "version");
             forecastValueMap.put(":expected", AttributeValue.fromN(Long.toString(expectedPredictionVersion)));
         }
+        Put.Builder forecastPut = Put.builder()
+                .tableName(tableName)
+                .item(toAttributeMap(forecast))
+                .conditionExpression(forecastCondition)
+                .expressionAttributeNames(forecastNames);
+        if (!forecastValueMap.isEmpty()) {
+            forecastPut.expressionAttributeValues(forecastValueMap);
+        }
 
         try {
             dynamoDbClient.transactWriteItems(TransactWriteItemsRequest.builder()
@@ -196,13 +204,7 @@ public class DynamoDbTournamentRepository {
                                     .expressionAttributeNames(java.util.Map.of("#gateStatus", "gateStatus"))
                                     .expressionAttributeValues(java.util.Map.of(":open", AttributeValue.fromS("OPEN")))
                                     .build()).build(),
-                            TransactWriteItem.builder().put(Put.builder()
-                                    .tableName(tableName)
-                                    .item(toAttributeMap(forecast))
-                                    .conditionExpression(forecastCondition)
-                                    .expressionAttributeNames(forecastNames)
-                                    .expressionAttributeValues(forecastValueMap)
-                                    .build()).build())
+                            TransactWriteItem.builder().put(forecastPut.build()).build())
                     .build());
             return true;
         } catch (software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException e) {
