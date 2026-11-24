@@ -14,13 +14,15 @@ class PredictionFeedback {
     this.type, {
     this.homeScoreCorrect,
     this.awayScoreCorrect,
+    this.pointsAwarded,
   });
 
   final PredictionFeedbackType type;
   final bool? homeScoreCorrect;
   final bool? awayScoreCorrect;
+  final int? pointsAwarded;
 
-  // Mirrors the scoring tiers for per-match feedback; totals stay server-owned.
+  // Per-match detail mirrors the server tiers; leaderboard totals stay server-owned.
   factory PredictionFeedback.evaluate({
     required int? predictedHome,
     required int? predictedAway,
@@ -29,17 +31,25 @@ class PredictionFeedback {
     required bool matchFinished,
     bool fixtureMatches = true,
   }) {
+    final resultAvailable =
+        matchFinished && actualHome != null && actualAway != null;
+    if (resultAvailable && !fixtureMatches) {
+      return const PredictionFeedback(PredictionFeedbackType.fixtureMismatch);
+    }
     if (predictedHome == null && predictedAway == null) {
-      return const PredictionFeedback(PredictionFeedbackType.missing);
+      return PredictionFeedback(
+        PredictionFeedbackType.missing,
+        pointsAwarded: resultAvailable ? 0 : null,
+      );
     }
     if (predictedHome == null || predictedAway == null) {
-      return const PredictionFeedback(PredictionFeedbackType.incomplete);
+      return PredictionFeedback(
+        PredictionFeedbackType.incomplete,
+        pointsAwarded: resultAvailable ? 0 : null,
+      );
     }
     if (!matchFinished || actualHome == null || actualAway == null) {
       return const PredictionFeedback(PredictionFeedbackType.waiting);
-    }
-    if (!fixtureMatches) {
-      return const PredictionFeedback(PredictionFeedbackType.fixtureMismatch);
     }
 
     final homeCorrect = predictedHome == actualHome;
@@ -49,6 +59,7 @@ class PredictionFeedback {
         PredictionFeedbackType.exact,
         homeScoreCorrect: true,
         awayScoreCorrect: true,
+        pointsAwarded: 10,
       );
     }
     if (homeCorrect || awayCorrect) {
@@ -56,6 +67,7 @@ class PredictionFeedback {
         PredictionFeedbackType.partialScore,
         homeScoreCorrect: homeCorrect,
         awayScoreCorrect: awayCorrect,
+        pointsAwarded: 5,
       );
     }
     if (_outcome(predictedHome, predictedAway) ==
@@ -64,12 +76,14 @@ class PredictionFeedback {
         PredictionFeedbackType.correctOutcome,
         homeScoreCorrect: false,
         awayScoreCorrect: false,
+        pointsAwarded: 0,
       );
     }
     return const PredictionFeedback(
       PredictionFeedbackType.missed,
       homeScoreCorrect: false,
       awayScoreCorrect: false,
+      pointsAwarded: 0,
     );
   }
 

@@ -1801,7 +1801,10 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
         _predictionLegendItem(Colors.green.shade700, 'Ese marcador coincide'),
         _predictionLegendItem(Colors.orange.shade800, 'Acierto parcial'),
         _predictionLegendItem(colors.error, 'Ese marcador no coincide'),
-        _predictionLegendItem(colors.tertiary, 'Resultado acertado'),
+        _predictionLegendItem(
+          colors.onSurfaceVariant,
+          'Ganador/empate sin puntos',
+        ),
         _predictionLegendItem(colors.outline, 'Pendiente / sin evaluar'),
       ],
     );
@@ -1968,7 +1971,7 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
     return switch (type) {
       PredictionFeedbackType.exact => Colors.green.shade700,
       PredictionFeedbackType.partialScore => Colors.orange.shade800,
-      PredictionFeedbackType.correctOutcome => colors.tertiary,
+      PredictionFeedbackType.correctOutcome => colors.onSurfaceVariant,
       PredictionFeedbackType.missed => colors.error,
       PredictionFeedbackType.fixtureMismatch => colors.onSurfaceVariant,
       _ => colors.onSurfaceVariant,
@@ -1985,7 +1988,7 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
       enabled ? 'Completa ambos marcadores' : 'Pronóstico incompleto',
     PredictionFeedbackType.exact => 'Marcador exacto',
     PredictionFeedbackType.partialScore => 'Acierto parcial',
-    PredictionFeedbackType.correctOutcome => 'Acertaste el resultado',
+    PredictionFeedbackType.correctOutcome => 'Ganador/empate · 0 pts',
     PredictionFeedbackType.missed => 'Ningún marcador acertado',
     PredictionFeedbackType.fixtureMismatch => 'Cruce distinto',
   };
@@ -1997,7 +2000,7 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
         PredictionFeedbackType.incomplete => Icons.more_horiz_rounded,
         PredictionFeedbackType.exact => Icons.check_circle_rounded,
         PredictionFeedbackType.partialScore => Icons.adjust_rounded,
-        PredictionFeedbackType.correctOutcome => Icons.thumb_up_alt_rounded,
+        PredictionFeedbackType.correctOutcome => Icons.info_outline_rounded,
         PredictionFeedbackType.missed => Icons.cancel_rounded,
         PredictionFeedbackType.fixtureMismatch => Icons.swap_horiz_rounded,
       };

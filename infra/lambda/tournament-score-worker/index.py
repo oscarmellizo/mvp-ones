@@ -14,15 +14,13 @@ TABLE = boto3.resource("dynamodb").Table(os.environ["TOURNAMENTS_TABLE_NAME"])
 MAX_POINTS = 80
 MAX_EXACT = 8
 MAX_FIVES = 8
+# Bump this when point rules change to re-score stored predictions on enqueue.
+SCORING_REVISION = 2
 
 
 def _score_value(score, key):
     value = score.get(key) if isinstance(score, dict) else None
     return int(value) if value is not None else None
-
-
-def _outcome(home, away):
-    return (home > away) - (home < away)
 
 
 def _match_points(prediction, actual_home, actual_away):
@@ -34,7 +32,7 @@ def _match_points(prediction, actual_home, actual_away):
         return 10
     if home == actual_home or away == actual_away:
         return 5
-    return 3 if _outcome(home, away) == _outcome(actual_home, actual_away) else 0
+    return 0
 
 
 def _projected_order(state, forecasts):
@@ -146,7 +144,11 @@ def _process_shard(event_id, shard):
         if item.get("sk") != "PREDICTION":
             continue
         prediction = json.loads(item["payload"])
-        if int(prediction.get("scoredVersion", -1)) >= state_version and item.get("rankKey"):
+        if (
+            int(prediction.get("scoredVersion", -1)) >= state_version
+            and int(item.get("scoringRevision", 0)) >= SCORING_REVISION
+            and item.get("rankKey")
+        ):
             continue
         points, exact, fives = _calculate(state, prediction)
         prediction.update({
@@ -181,12 +183,23 @@ def _process_shard(event_id, shard):
                 "Update": {
                     "TableName": TABLE.name,
                     "Key": {"pk": {"S": item["pk"]}, "sk": {"S": item["sk"]}},
-                    "UpdateExpression": "SET #payload = :payload, scoredVersion = :version, rankKey = :rank",
-                    "ConditionExpression": "attribute_not_exists(scoredVersion) OR scoredVersion <= :version",
-                    "ExpressionAttributeNames": {"#payload": "payload"},
+                    "UpdateExpression": (
+                        "SET #payload = :payload, scoredVersion = :version, "
+                        "#scoringRevision = :revision, rankKey = :rank"
+                    ),
+                    "ConditionExpression": (
+                        "attribute_not_exists(scoredVersion) OR scoredVersion < :version OR "
+                        "(scoredVersion = :version AND "
+                        "(attribute_not_exists(#scoringRevision) OR #scoringRevision <= :revision))"
+                    ),
+                    "ExpressionAttributeNames": {
+                        "#payload": "payload",
+                        "#scoringRevision": "scoringRevision",
+                    },
                     "ExpressionAttributeValues": {
                         ":payload": {"S": json.dumps(prediction, separators=(",", ":"))},
                         ":version": {"N": str(state_version)},
+                        ":revision": {"N": str(SCORING_REVISION)},
                         ":rank": {"S": rank_key},
                     },
                 }

@@ -123,9 +123,6 @@ public final class TournamentEngine {
         if (oneTeamScoreExact) {
             return 5;
         }
-        if (outcome(predictedHome, predictedAway) == outcome(actualHomeGoals, actualAwayGoals)) {
-            return 3;
-        }
         return 0;
     }
 
@@ -317,10 +314,6 @@ public final class TournamentEngine {
 
     private static String teamAt(List<Standing> standings, int index) {
         return standings.size() > index ? standings.get(index).teamId() : null;
-    }
-
-    private static int outcome(int home, int away) {
-        return Integer.compare(home, away);
     }
 
     private static final class MutableStanding {

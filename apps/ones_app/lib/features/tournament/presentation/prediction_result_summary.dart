@@ -54,10 +54,10 @@ class PredictionResultSummary extends StatelessWidget {
         explanationIcon = Icons.check_circle_rounded;
         break;
       case PredictionFeedbackType.correctOutcome:
-        explanationColor = colors.tertiary;
+        explanationColor = colors.onSurfaceVariant;
         explanation =
-            'Acertaste quién ganó o el empate; los dos marcadores fueron distintos.';
-        explanationIcon = Icons.thumb_up_alt_rounded;
+            'Coincidió el ganador o el empate, pero ningún gol: 0 puntos.';
+        explanationIcon = Icons.info_outline_rounded;
         break;
       case PredictionFeedbackType.missed:
         explanationColor = colors.error;
@@ -102,7 +102,11 @@ class PredictionResultSummary extends StatelessWidget {
                   ),
                 ),
               ),
-              if (hasScore && !finished)
+              if (feedback.pointsAwarded != null)
+                _pointsBadge(context, feedback.pointsAwarded!)
+              else if (isMismatch)
+                _notEvaluatedBadge(context)
+              else if (hasScore && !finished)
                 Text(
                   'EN CURSO',
                   style: TextStyle(
@@ -190,6 +194,48 @@ class PredictionResultSummary extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _pointsBadge(BuildContext context, int points) {
+    final colors = Theme.of(context).colorScheme;
+    final color = points > 0 ? Colors.green.shade700 : colors.onSurfaceVariant;
+    return Tooltip(
+      message: 'Puntos obtenidos por este partido: $points',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          points == 0 ? '0 pts' : '+$points pts',
+          style: TextStyle(
+            color: color,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _notEvaluatedBadge(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: colors.onSurfaceVariant.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        'No evaluado',
+        style: TextStyle(
+          color: colors.onSurfaceVariant,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }
