@@ -23,6 +23,7 @@ import '../../../tutorial/presentation/tutorial_controller.dart';
 import '../../../tutorial/presentation/tutorial_store.dart';
 import '../../adapters/api/event_covers_api_repository.dart';
 import '../../adapters/api/event_complements_api_repository.dart';
+import 'event_detail_page.dart';
 
 class CreateEventPage extends StatefulWidget {
   static const routeName = '/events/create';
@@ -145,6 +146,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
 
   bool _allowGuestInvites = true;
   bool _enableTournament = false;
+  bool _activatingTournament = false;
+  String? _pendingTournamentEventId;
 
   List<String> _frameIds = const [];
 
@@ -1007,8 +1010,10 @@ class _CreateEventPageState extends State<CreateEventPage> {
                   child: SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     value: _enableTournament,
-                    onChanged: (value) =>
-                        setState(() => _enableTournament = value),
+                    onChanged: _pendingTournamentEventId == null
+                        ? (value) =>
+                            setState(() => _enableTournament = value)
+                        : null,
                     title: const Text('Torneo 4 Equipos'),
                     subtitle: const Text(
                       'Agrega pronósticos y tabla de posiciones al evento.',
@@ -1030,16 +1035,23 @@ class _CreateEventPageState extends State<CreateEventPage> {
                           borderRadius: BorderRadius.zero,
                         ),
                       ),
-                      onPressed: (controller.loading || !_isFormReady)
+                      onPressed: (controller.loading ||
+                              _activatingTournament ||
+                              (_pendingTournamentEventId == null &&
+                                  !_isFormReady))
                           ? null
                           : () => _submit(context),
-                      child: controller.loading
+                      child: _activatingTournament
+                          ? const Text('Activando torneo...')
+                          : controller.loading
                           ? Text(t.translate('create_event.creating'))
                           : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
-                                  t.translate('create_event.cta_create'),
+                                  _pendingTournamentEventId != null
+                                      ? 'Reintentar activación del torneo'
+                                      : t.translate('create_event.cta_create'),
                                   style: TextStyle(
                                     fontWeight: FontWeight.w800,
                                     fontSize: 16,
@@ -1063,6 +1075,11 @@ class _CreateEventPageState extends State<CreateEventPage> {
 
   Future<void> _submit(BuildContext context) async {
     final controller = context.read<EventsController>();
+    if (_pendingTournamentEventId != null) {
+      await _activateTournamentAndOpen(context, _pendingTournamentEventId!);
+      return;
+    }
+
     final auth = context.read<AuthController>();
     final t = context.read<TranslationsService>();
     if (!_formKey.currentState!.validate()) {
@@ -1071,7 +1088,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
         ..showSnackBar(
           SnackBar(
             content: Text(
-                t.translate('create_event.error_complete_required_fields')),
+              t.translate('create_event.error_complete_required_fields'),
+            ),
           ),
         );
       return;
@@ -1124,32 +1142,16 @@ class _CreateEventPageState extends State<CreateEventPage> {
         _allowGuestInvites,
         _frameIds,
       );
+      if (!mounted || !context.mounted) return;
       if (_enableTournament) {
-        try {
-          await context
-              .read<EventComplementsApiRepository>()
-              .setEnabled(createdEvent.id, 'tournament', true);
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'El evento se creó, pero el torneo quedó pendiente. Actívalo desde Editar evento. ($e)',
-                ),
-              ),
-            );
-          }
-        }
+        setState(() => _pendingTournamentEventId = createdEvent.id);
+        await _activateTournamentAndOpen(context, createdEvent.id);
+        return;
       }
-      // If user selected a local image, upload it as cover for the created event (the newly created event will be first in list)
       if (_localImageBytes != null && _localImageBytes!.isNotEmpty) {
-        final createdEvent =
-            controller.events.isNotEmpty ? controller.events.first : null;
-        if (createdEvent != null) {
-          await _uploadCoverForEvent(context, createdEvent.id);
-          // Ensure UI reflects the new cover immediately
-          await controller.refresh();
-        }
+        await _uploadCoverForEvent(context, createdEvent.id);
+        if (!mounted || !context.mounted) return;
+        await controller.refresh();
       }
       if (context.mounted) Navigator.of(context).pop();
     } on DioException catch (e) {
@@ -1168,6 +1170,65 @@ class _CreateEventPageState extends State<CreateEventPage> {
       }
       rethrow;
     }
+  }
+
+  Future<void> _activateTournamentAndOpen(
+    BuildContext context,
+    String eventId,
+  ) async {
+    if (_activatingTournament) return;
+    setState(() => _activatingTournament = true);
+
+    try {
+      if (_localImageBytes != null && _localImageBytes!.isNotEmpty) {
+        await _uploadCoverForEvent(context, eventId);
+        if (!mounted || !context.mounted) return;
+        await context.read<EventsController>().refresh();
+      }
+
+      if (!mounted || !context.mounted) return;
+      final complements = context.read<EventComplementsApiRepository>();
+      for (var attempt = 0; attempt < 3; attempt++) {
+        try {
+          await complements.setEnabled(eventId, 'tournament', true);
+          if (!mounted || !context.mounted) return;
+
+          setState(() => _pendingTournamentEventId = null);
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute<void>(
+              builder: (_) => EventDetailPage(
+                eventId: eventId,
+                openTournamentTab: true,
+              ),
+            ),
+          );
+          return;
+        } catch (error) {
+          if (attempt == 2 || !_isRetryableActivationError(error)) rethrow;
+          await Future<void>.delayed(Duration(milliseconds: 250 << attempt));
+        }
+      }
+    } catch (_) {
+      if (!mounted || !context.mounted) return;
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'El evento ya se creó, pero no se pudo activar el torneo. '
+              'Pulsa Reintentar para continuar; no se duplicará el evento.',
+            ),
+          ),
+        );
+    } finally {
+      if (mounted) setState(() => _activatingTournament = false);
+    }
+  }
+
+  bool _isRetryableActivationError(Object error) {
+    if (error is! DioException) return false;
+    final status = error.response?.statusCode;
+    return status == null || status == 404 || status == 429 || status >= 500;
   }
 
   Future<void> _generateCover(

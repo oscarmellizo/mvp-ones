@@ -58,11 +58,13 @@ class EventDetailPage extends StatefulWidget {
 
   final String eventId;
   final String? initialPhotoId;
+  final bool openTournamentTab;
 
   const EventDetailPage({
     super.key,
     required this.eventId,
     this.initialPhotoId,
+    this.openTournamentTab = false,
   });
 
   @override
@@ -153,7 +155,10 @@ class _EventDetailPageState extends State<EventDetailPage> {
     super.initState();
     _purgeFlutterImageCache();
     _lastLanguage = context.read<TranslationsService>().getCurrentLanguage();
-    if (widget.initialPhotoId != null &&
+    if (widget.openTournamentTab) {
+      _tabIndex = 2;
+      _tournamentEnabled = true;
+    } else if (widget.initialPhotoId != null &&
         widget.initialPhotoId!.trim().isNotEmpty) {
       _tabIndex = 0;
     }
@@ -228,12 +233,15 @@ class _EventDetailPageState extends State<EventDetailPage> {
       );
       if (!mounted) return;
       setState(() {
-        _tournamentEnabled = enabled;
-        if (!enabled && _tabIndex == 2) _tabIndex = 1;
+        _tournamentEnabled = enabled || widget.openTournamentTab;
+        if (!_tournamentEnabled && _tabIndex == 2) _tabIndex = 1;
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _tournamentEnabled = false);
+      setState(() {
+        _tournamentEnabled = widget.openTournamentTab;
+        if (!_tournamentEnabled && _tabIndex == 2) _tabIndex = 1;
+      });
     }
   }
 
