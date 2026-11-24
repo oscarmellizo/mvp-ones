@@ -18,17 +18,6 @@ class EventComplementsApiRepository {
         .toList(growable: false);
   }
 
-  Future<void> setEnabled(
-    String eventId,
-    String complementId,
-    bool enabled,
-  ) async {
-    await _secureDio().put(
-      '/v1/events/$eventId/complements/$complementId',
-      data: {'enabled': enabled},
-    );
-  }
-
   Dio _secureDio() {
     final dio = _apiFactory.create(idToken: _idToken).dio;
     dio.options.extra['secure'] = const [

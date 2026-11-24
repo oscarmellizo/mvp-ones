@@ -398,8 +398,9 @@ class EventsApiRepository implements EventsRepository {
     String? coverReservationId,
     List<String> inviteeEmails,
     bool allowGuestInvites,
-    List<String> frameIds,
-  ) async {
+    List<String> frameIds, {
+    bool includeTournament = false,
+  }) async {
     final dio = _apiFactory.create(idToken: _idToken).dio;
     final payload = <String, dynamic>{
       'title': title,
@@ -411,6 +412,7 @@ class EventsApiRepository implements EventsRepository {
       'inviteeEmails': inviteeEmails,
       'allowGuestInvites': allowGuestInvites,
       'frameIds': frameIds,
+      'includeTournament': includeTournament,
     };
 
     final response = await dio.post(

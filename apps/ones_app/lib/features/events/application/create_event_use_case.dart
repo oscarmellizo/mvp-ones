@@ -15,8 +15,9 @@ class CreateEventUseCase {
     String? coverReservationId,
     List<String> inviteeEmails,
     bool allowGuestInvites,
-    List<String> frameIds,
-  ) {
+    List<String> frameIds, {
+    bool includeTournament = false,
+  }) {
     return repository.createEvent(
       title,
       objective,
@@ -27,6 +28,7 @@ class CreateEventUseCase {
       inviteeEmails,
       allowGuestInvites,
       frameIds,
+      includeTournament: includeTournament,
     );
   }
 }
