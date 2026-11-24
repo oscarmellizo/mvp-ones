@@ -33,7 +33,8 @@ public class EventComplementsService {
 
     public List<EventComplementView> list(String eventId) {
         Map<String, DynamoEventComplementItem> enabled = repository.listByEventId(eventId).stream()
-                .filter(DynamoEventComplementItem::isEnabled)
+                // Older rows may lack this attribute; their existence means the complement was enabled.
+                .filter(item -> !Boolean.FALSE.equals(item.getEnabled()))
                 .collect(Collectors.toMap(DynamoEventComplementItem::getComplementId, Function.identity()));
 
         return modules.values().stream()

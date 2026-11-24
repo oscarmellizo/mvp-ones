@@ -39,10 +39,6 @@ public class DynamoEventComplementItem {
         this.enabled = enabled;
     }
 
-    public boolean isEnabled() {
-        return Boolean.TRUE.equals(enabled);
-    }
-
     public String getTabLabel() {
         return tabLabel;
     }
