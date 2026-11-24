@@ -21,6 +21,7 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
       List.generate(4, (_) => TextEditingController());
   final Map<String, TextEditingController> _homeScores = {};
   final Map<String, TextEditingController> _awayScores = {};
+  final Map<String, Future<String>> _logoUrls = {};
   final Map<String, TextEditingController> _actualHomeScores = {};
   final Map<String, TextEditingController> _actualAwayScores = {};
   final Map<String, String> _penaltyWinners = {};
@@ -156,6 +157,8 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
     return '$request (HTTP ${status ?? 'sin respuesta'})';
   }
 
+  String _actionError(Object error) => _loadErrorMessage(error);
+
   void _setScoreField(String id, dynamic data) {
     if (data is! Map) return;
     final score = Map<String, dynamic>.from(data);
@@ -171,7 +174,12 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
 
   Map<String, dynamic> _scores() {
     final result = <String, dynamic>{};
+    final roundRobinIds = _matches
+        .where((match) => match['phase'] == 'ROUND_ROBIN')
+        .map((match) => match['id'] as String)
+        .toSet();
     for (final entry in _homeScores.entries) {
+      if (!roundRobinIds.contains(entry.key)) continue;
       final home = int.tryParse(entry.value.text);
       final away = int.tryParse(_awayScores[entry.key]?.text ?? '');
       if (home != null && away != null) {
@@ -287,11 +295,16 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
       withData: true,
     );
     if (result == null || result.files.single.bytes == null) return;
-    await _previewLogo(
-      teamId,
-      await _api!
-          .uploadLogo(widget.eventId, teamId, result.files.single.bytes!),
-    );
+    setState(() => _busy = true);
+    try {
+      final preview = await _api!
+          .uploadLogo(widget.eventId, teamId, result.files.single.bytes!);
+      await _previewLogo(teamId, preview);
+    } catch (e) {
+      _toast('No se pudo cargar el logo: ${_actionError(e)}');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _generateLogo(String teamId) async {
@@ -299,7 +312,7 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
     final prompt = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Generar logo con AWS'),
+        title: const Text('Generar logo con IA'),
         content: TextField(
           controller: promptController,
           maxLength: 300,
@@ -327,7 +340,7 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
           await _api!.generateLogo(widget.eventId, teamId, prompt.trim());
       if (mounted) await _previewLogo(teamId, preview);
     } catch (e) {
-      _toast('No se pudo generar el logo: $e');
+      _toast('No se pudo generar el logo: ${_actionError(e)}');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -368,7 +381,9 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
         teamId,
         preview['previewKey'] as String,
       );
+      _logoUrls.remove(teamId);
       await _load();
+      _toast('Logo aplicado al equipo.');
     }
   }
 
@@ -427,7 +442,7 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
       await _load();
       _toast('Pronósticos guardados.');
     } catch (e) {
-      _toast('No se pudieron guardar los pronósticos: $e');
+      _toast('No se pudieron guardar los pronósticos: ${_actionError(e)}');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -685,6 +700,10 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
               for (var i = 0; i < 4; i++)
                 Row(
                   children: [
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _teamLogo(teams, i),
+                    ),
                     Expanded(
                       child: TextField(
                         controller: _teamNames[i],
@@ -692,7 +711,6 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
                         decoration: InputDecoration(
                           labelText:
                               '${_t('tournament.team', 'Equipo')} ${i + 1}',
-                          prefixIcon: const Icon(Icons.shield_outlined),
                         ),
                       ),
                     ),
@@ -731,6 +749,52 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
           ),
         ),
       );
+
+  Widget _teamLogo(List<Map<String, dynamic>> teams, int index) {
+    if (index >= teams.length || teams[index]['id'] == null) {
+      return const SizedBox(
+        width: 44,
+        height: 44,
+        child: Icon(Icons.shield_outlined),
+      );
+    }
+    final teamId = teams[index]['id'] as String;
+    if (teams[index]['logoKey'] == null || _api == null) {
+      return const SizedBox(
+        width: 44,
+        height: 44,
+        child: Icon(Icons.shield_outlined),
+      );
+    }
+
+    final url = _logoUrls.putIfAbsent(
+      teamId,
+      () => _api!.logoUrl(widget.eventId, teamId),
+    );
+    return FutureBuilder<String>(
+      future: url,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox(
+            width: 44,
+            height: 44,
+            child: Icon(Icons.shield_outlined),
+          );
+        }
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            snapshot.data!,
+            width: 44,
+            height: 44,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) =>
+                const Icon(Icons.broken_image_outlined),
+          ),
+        );
+      },
+    );
+  }
 
   Widget _delegatesCard() => Card(
         child: ExpansionTile(
