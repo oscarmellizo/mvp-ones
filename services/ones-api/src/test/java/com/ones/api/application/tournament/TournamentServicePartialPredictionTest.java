@@ -1,10 +1,16 @@
 package com.ones.api.application.tournament;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -18,6 +24,7 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.ones.api.adapters.outbound.dynamodb.DynamoDbTournamentRepository;
 import com.ones.api.application.tournament.ports.TournamentScoringQueue;
@@ -33,6 +40,47 @@ import com.ones.api.domain.tournament.TournamentModels.TournamentState;
 import com.ones.api.domain.tournament.TournamentModels.UserPrediction;
 
 class TournamentServicePartialPredictionTest {
+
+    @Test
+    void managerCanQueueOneDistributedScoreRecalculation() {
+        DynamoDbTournamentRepository repository = mock(DynamoDbTournamentRepository.class);
+        TournamentScoringQueue queue = mock(TournamentScoringQueue.class);
+        TournamentService service = new TournamentService(
+                repository, queue, Clock.fixed(Instant.EPOCH, ZoneOffset.UTC));
+        PredictionPeriod closed = new PredictionPeriod(
+                PredictionStatus.CLOSED, Instant.EPOCH, "owner", Instant.EPOCH, "owner");
+        TournamentState state = new TournamentState(
+                "event-1", "owner", "Torneo", List.of(), List.of(), List.of("delegate-1"),
+                List.of(), List.of(), closed, closed, true, 4, Instant.EPOCH);
+        when(repository.findState("event-1")).thenReturn(Optional.of(state));
+        when(repository.claimScoreRecalculation("event-1", 4, 0, -60_000))
+                .thenReturn(true, false);
+
+        assertTrue(service.recalculateScores("event-1", "delegate-1"));
+        assertFalse(service.recalculateScores("event-1", "delegate-1"));
+
+        verify(repository, times(2)).claimScoreRecalculation("event-1", 4, 0, -60_000);
+        verify(queue, times(1)).enqueueRecalculation("event-1");
+    }
+
+    @Test
+    void rejectsScoreRecalculationFromNonManagers() {
+        DynamoDbTournamentRepository repository = mock(DynamoDbTournamentRepository.class);
+        TournamentScoringQueue queue = mock(TournamentScoringQueue.class);
+        TournamentService service = new TournamentService(
+                repository, queue, Clock.fixed(Instant.EPOCH, ZoneOffset.UTC));
+        PredictionPeriod closed = new PredictionPeriod(
+                PredictionStatus.CLOSED, Instant.EPOCH, "owner", Instant.EPOCH, "owner");
+        TournamentState state = new TournamentState(
+                "event-1", "owner", "Torneo", List.of(), List.of(), List.of(),
+                List.of(), List.of(), closed, closed, true, 4, Instant.EPOCH);
+        when(repository.findState("event-1")).thenReturn(Optional.of(state));
+
+        assertThrows(ResponseStatusException.class, () -> service.recalculateScores("event-1", "guest"));
+
+        verify(repository, never()).claimScoreRecalculation(any(), anyLong(), anyLong(), anyLong());
+        verify(queue, never()).enqueueRecalculation(any());
+    }
 
     @Test
     void omitsPartialAndMissingScoresButKeepsExplicitZeroScores() {

@@ -34,6 +34,7 @@ import com.ones.api.domain.tournament.TournamentModels.UserPrediction;
 @Service
 public class TournamentService {
 
+    private static final long SCORE_RECALCULATION_COOLDOWN_MILLIS = 60_000;
     private final DynamoDbTournamentRepository repository;
     private final TournamentScoringQueue scoringQueue;
     private final Clock clock;
@@ -238,6 +239,29 @@ public class TournamentService {
         savePeriodState(current, next);
         scoringQueue.enqueue(eventId);
         return next;
+    }
+
+    public boolean recalculateScores(String eventId, String requesterId) {
+        TournamentState state = requireManager(getState(eventId), requesterId);
+        long requestedAt = Instant.now(clock).toEpochMilli();
+        if (!repository.claimScoreRecalculation(
+                eventId,
+                state.version(),
+                requestedAt,
+                requestedAt - SCORE_RECALCULATION_COOLDOWN_MILLIS)) {
+            return false;
+        }
+        try {
+            scoringQueue.enqueueRecalculation(eventId);
+            return true;
+        } catch (RuntimeException e) {
+            try {
+                repository.releaseScoreRecalculation(eventId, state.version(), requestedAt);
+            } catch (RuntimeException releaseError) {
+                e.addSuppressed(releaseError);
+            }
+            throw e;
+        }
     }
 
     public UserPrediction savePrediction(

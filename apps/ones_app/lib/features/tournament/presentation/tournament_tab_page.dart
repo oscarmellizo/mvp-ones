@@ -468,6 +468,43 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
     }
   }
 
+  Future<void> _recalculateScores() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Recalcular puntajes'),
+        content: const Text(
+          'Se volverán a calcular los puntos de todos los invitados usando '
+          'los resultados oficiales. El ranking puede tardar unos momentos en actualizarse.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Recalcular'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      final queued = await _api!.recalculateScores(widget.eventId);
+      _toast(
+        queued
+            ? 'Recálculo solicitado. Actualiza el ranking en unos momentos.'
+            : 'Ya hay un recálculo reciente en proceso. Espera antes de solicitar otro.',
+      );
+    } catch (e) {
+      _toast('No se pudo solicitar el recálculo: ${_actionError(e)}');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _toggleDelegate(String userId, bool value) async {
     setState(() {
       if (value) {
@@ -820,6 +857,13 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
                 onPressed: _busy ? null : _closePredictions,
                 icon: const Icon(Icons.lock_outline),
                 label: const Text('Cerrar pronósticos'),
+              ),
+            if (_view?['forecastsRevealed'] == true &&
+                _matches.any((match) => match['status'] == 'FINISHED'))
+              OutlinedButton.icon(
+                onPressed: _busy ? null : _recalculateScores,
+                icon: const Icon(Icons.calculate_outlined),
+                label: const Text('Recalcular puntos'),
               ),
           ],
         ),
