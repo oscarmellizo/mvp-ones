@@ -49,10 +49,12 @@ class TournamentEngineTest {
     }
 
     @Test
-    void matchScoringUsesExactThenPartialThenOutcomeRules() {
+    void matchScoringAwardsOnlyExactOrOneTeamGoalHits() {
         assertEquals(10, TournamentEngine.scoreMatch(new MatchScore(2, 1), 2, 1));
         assertEquals(5, TournamentEngine.scoreMatch(new MatchScore(2, 0), 2, 1));
-        assertEquals(3, TournamentEngine.scoreMatch(new MatchScore(3, 1), 2, 0));
+        assertEquals(5, TournamentEngine.scoreMatch(new MatchScore(0, 2), 1, 2));
+        assertEquals(0, TournamentEngine.scoreMatch(new MatchScore(3, 3), 1, 1));
+        assertEquals(0, TournamentEngine.scoreMatch(new MatchScore(2, 1), 1, 0));
         assertEquals(0, TournamentEngine.scoreMatch(new MatchScore(0, 2), 2, 1));
         assertEquals(0, TournamentEngine.scoreMatch(new MatchScore(null, 1), 2, 1));
     }
