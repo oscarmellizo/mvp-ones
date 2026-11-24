@@ -174,19 +174,25 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
 
   Map<String, dynamic> _scores() {
     final result = <String, dynamic>{};
-    for (final match
-        in _matches.where((match) => match['phase'] == 'ROUND_ROBIN')) {
-      final id = match['id'] as String;
-      final home = int.tryParse(_homeScores[id]?.text ?? '') ?? 0;
-      final away = int.tryParse(_awayScores[id]?.text ?? '') ?? 0;
-      result[id] = {'homeGoals': home, 'awayGoals': away};
+    final roundRobinIds = _matches
+        .where((match) => match['phase'] == 'ROUND_ROBIN')
+        .map((match) => match['id'] as String)
+        .toSet();
+    for (final entry in _homeScores.entries) {
+      if (!roundRobinIds.contains(entry.key)) continue;
+      final home = int.tryParse(entry.value.text);
+      final away = int.tryParse(_awayScores[entry.key]?.text ?? '');
+      if (home != null && away != null) {
+        result[entry.key] = {'homeGoals': home, 'awayGoals': away};
+      }
     }
     return result;
   }
 
-  Map<String, dynamic> _scoreFor(String id) {
-    final home = int.tryParse(_homeScores[id]?.text ?? '') ?? 0;
-    final away = int.tryParse(_awayScores[id]?.text ?? '') ?? 0;
+  Map<String, dynamic>? _scoreFor(String id) {
+    final home = int.tryParse(_homeScores[id]?.text ?? '');
+    final away = int.tryParse(_awayScores[id]?.text ?? '');
+    if (home == null || away == null) return null;
     return {'homeGoals': home, 'awayGoals': away};
   }
 
@@ -213,6 +219,7 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
     for (final match in matches.where((m) => m['phase'] == 'ROUND_ROBIN')) {
       final id = match['id'] as String;
       final score = _scoreFor(id);
+      if (score == null) continue;
       final home = rows[match['homeTeamId']];
       final away = rows[match['awayTeamId']];
       if (home == null || away == null) continue;

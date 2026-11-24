@@ -1,6 +1,7 @@
 package com.ones.api.application.tournament;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -34,7 +35,7 @@ import com.ones.api.domain.tournament.TournamentModels.UserPrediction;
 class TournamentServicePartialPredictionTest {
 
     @Test
-    void normalizesPartialScoresAndMissingMatchesToZero() {
+    void omitsPartialAndMissingScoresButKeepsExplicitZeroScores() {
         DynamoDbTournamentRepository repository = mock(DynamoDbTournamentRepository.class);
         TournamentService service = new TournamentService(
                 repository,
@@ -62,18 +63,18 @@ class TournamentServicePartialPredictionTest {
                 "event-1",
                 "user-1",
                 "Participant",
-                Map.of("rr-1", new MatchScore(2, null), "rr-3", new MatchScore(null, 1)),
-                null,
+                Map.of(
+                        "rr-1", new MatchScore(2, null),
+                        "rr-3", new MatchScore(null, 1),
+                        "rr-4", new MatchScore(0, 0)),
+                new MatchScore(1, null),
                 null);
 
         ArgumentCaptor<UserPrediction> predictionCaptor = ArgumentCaptor.forClass(UserPrediction.class);
         verify(repository).savePredictionIfOpen(predictionCaptor.capture(), eq(0L));
         UserPrediction prediction = predictionCaptor.getValue();
-        assertEquals(6, prediction.roundRobinScores().size());
-        assertEquals(new MatchScore(2, 0), prediction.roundRobinScores().get("rr-1"));
-        assertEquals(new MatchScore(0, 0), prediction.roundRobinScores().get("rr-2"));
-        assertEquals(new MatchScore(0, 1), prediction.roundRobinScores().get("rr-3"));
-        assertEquals(new MatchScore(0, 0), prediction.finalScore());
-        assertEquals(new MatchScore(0, 0), prediction.thirdPlaceScore());
+        assertEquals(Map.of("rr-4", new MatchScore(0, 0)), prediction.roundRobinScores());
+        assertNull(prediction.finalScore());
+        assertNull(prediction.thirdPlaceScore());
     }
 }

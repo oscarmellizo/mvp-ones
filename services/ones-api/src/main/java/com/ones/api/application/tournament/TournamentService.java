@@ -256,9 +256,9 @@ public class TournamentService {
         }
         validatePredictionScores(roundRobinScores, finalScore, thirdPlaceScore);
         Map<String, MatchScore> normalizedRoundRobinScores =
-                normalizeRoundRobinScores(state, roundRobinScores);
-        MatchScore normalizedFinalScore = scoreMissingGoalsAsZero(finalScore);
-        MatchScore normalizedThirdPlaceScore = scoreMissingGoalsAsZero(thirdPlaceScore);
+                completedRoundRobinScores(state, roundRobinScores);
+        MatchScore normalizedFinalScore = completeScoreOrNull(finalScore);
+        MatchScore normalizedThirdPlaceScore = completeScoreOrNull(thirdPlaceScore);
         UserPrediction previous = repository.findPrediction(eventId, userId).orElse(null);
         if (previous != null
                 && Objects.equals(previous.roundRobinScores(), normalizedRoundRobinScores)
@@ -287,24 +287,30 @@ public class TournamentService {
         return scored;
     }
 
-    static Map<String, MatchScore> normalizeRoundRobinScores(
+    static Map<String, MatchScore> completedRoundRobinScores(
             TournamentState state,
             Map<String, MatchScore> scores
     ) {
-        Map<String, MatchScore> normalized = new HashMap<>();
+        Set<String> validMatchIds = new HashSet<>();
         for (Match match : state.matches()) {
             if (match.phase() == MatchPhase.ROUND_ROBIN) {
-                normalized.put(match.id(), scoreMissingGoalsAsZero(
-                        scores == null ? null : scores.get(match.id())));
+                validMatchIds.add(match.id());
             }
         }
-        return Map.copyOf(normalized);
+        if (scores == null || scores.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, MatchScore> completed = new HashMap<>();
+        scores.forEach((matchId, score) -> {
+            if (validMatchIds.contains(matchId) && score != null && score.complete()) {
+                completed.put(matchId, score);
+            }
+        });
+        return Map.copyOf(completed);
     }
 
-    private static MatchScore scoreMissingGoalsAsZero(MatchScore score) {
-        return new MatchScore(
-                score == null || score.homeGoals() == null ? 0 : score.homeGoals(),
-                score == null || score.awayGoals() == null ? 0 : score.awayGoals());
+    private static MatchScore completeScoreOrNull(MatchScore score) {
+        return score != null && score.complete() ? score : null;
     }
 
     public TournamentState startMatch(String eventId, String requesterId, String matchId) {
