@@ -54,7 +54,7 @@ public class TournamentController {
     }
 
     @GetMapping
-    public TournamentView get(Authentication authentication, @PathVariable String eventId) {
+    public TournamentView get(Authentication authentication, @PathVariable("eventId") String eventId) {
         requireEvent(authentication, eventId);
         return tournamentService.view(eventId, authentication.getName());
     }
@@ -62,7 +62,7 @@ public class TournamentController {
     @PutMapping("/setup")
     public TournamentState setup(
             Authentication authentication,
-            @PathVariable String eventId,
+            @PathVariable("eventId") String eventId,
             @Valid @RequestBody SetupRequest request
     ) {
         Event event = requireEvent(authentication, eventId);
@@ -72,8 +72,8 @@ public class TournamentController {
     @PostMapping("/teams/{teamId}/logos/upload")
     public TournamentLogoService.LogoPreview uploadLogo(
             Authentication authentication,
-            @PathVariable String eventId,
-            @PathVariable String teamId,
+            @PathVariable("eventId") String eventId,
+            @PathVariable("teamId") String teamId,
             @Valid @RequestBody LogoUploadRequest request
     ) {
         requireEvent(authentication, eventId);
@@ -83,8 +83,8 @@ public class TournamentController {
     @PostMapping("/teams/{teamId}/logos/generate")
     public TournamentLogoService.LogoPreview generateLogo(
             Authentication authentication,
-            @PathVariable String eventId,
-            @PathVariable String teamId,
+            @PathVariable("eventId") String eventId,
+            @PathVariable("teamId") String teamId,
             @Valid @RequestBody LogoGenerateRequest request
     ) {
         requireEvent(authentication, eventId);
@@ -94,8 +94,8 @@ public class TournamentController {
     @PostMapping("/teams/{teamId}/logos/accept")
     public LogoAcceptedResponse acceptLogo(
             Authentication authentication,
-            @PathVariable String eventId,
-            @PathVariable String teamId,
+            @PathVariable("eventId") String eventId,
+            @PathVariable("teamId") String teamId,
             @Valid @RequestBody LogoAcceptRequest request
     ) {
         requireEvent(authentication, eventId);
@@ -106,8 +106,8 @@ public class TournamentController {
     @GetMapping("/teams/{teamId}/logo")
     public LogoUrlResponse logoUrl(
             Authentication authentication,
-            @PathVariable String eventId,
-            @PathVariable String teamId
+            @PathVariable("eventId") String eventId,
+            @PathVariable("teamId") String teamId
     ) {
         requireEvent(authentication, eventId);
         return new LogoUrlResponse(logoService.logoUrl(eventId, teamId).toString());
@@ -116,7 +116,7 @@ public class TournamentController {
     @PutMapping("/delegates")
     public TournamentState setDelegates(
             Authentication authentication,
-            @PathVariable String eventId,
+            @PathVariable("eventId") String eventId,
             @Valid @RequestBody DelegatesRequest request
     ) {
         Event event = requireEvent(authentication, eventId);
@@ -139,7 +139,7 @@ public class TournamentController {
     @PutMapping("/schedule")
     public TournamentState schedule(
             Authentication authentication,
-            @PathVariable String eventId,
+            @PathVariable("eventId") String eventId,
             @Valid @RequestBody ScheduleRequest request
     ) {
         requireEvent(authentication, eventId);
@@ -147,13 +147,13 @@ public class TournamentController {
     }
 
     @PostMapping("/predictions/start")
-    public TournamentState startPredictions(Authentication authentication, @PathVariable String eventId) {
+    public TournamentState startPredictions(Authentication authentication, @PathVariable("eventId") String eventId) {
         requireEvent(authentication, eventId);
         return tournamentService.startPredictions(eventId, authentication.getName());
     }
 
     @PostMapping("/predictions/close")
-    public TournamentState closePredictions(Authentication authentication, @PathVariable String eventId) {
+    public TournamentState closePredictions(Authentication authentication, @PathVariable("eventId") String eventId) {
         requireEvent(authentication, eventId);
         return tournamentService.closePredictions(eventId, authentication.getName());
     }
@@ -161,7 +161,7 @@ public class TournamentController {
     @PutMapping("/predictions")
     public UserPrediction savePredictions(
             Authentication authentication,
-            @PathVariable String eventId,
+            @PathVariable("eventId") String eventId,
             @Valid @RequestBody PredictionRequest request
     ) {
         requireEvent(authentication, eventId);
@@ -178,8 +178,8 @@ public class TournamentController {
     @PostMapping("/matches/{matchId}/start")
     public TournamentState startMatch(
             Authentication authentication,
-            @PathVariable String eventId,
-            @PathVariable String matchId
+            @PathVariable("eventId") String eventId,
+            @PathVariable("matchId") String matchId
     ) {
         requireEvent(authentication, eventId);
         return tournamentService.startMatch(eventId, authentication.getName(), matchId);
@@ -188,8 +188,8 @@ public class TournamentController {
     @PutMapping("/matches/{matchId}/result")
     public TournamentState finishMatch(
             Authentication authentication,
-            @PathVariable String eventId,
-            @PathVariable String matchId,
+            @PathVariable("eventId") String eventId,
+            @PathVariable("matchId") String matchId,
             @Valid @RequestBody ResultRequest request
     ) {
         requireEvent(authentication, eventId);
@@ -206,7 +206,7 @@ public class TournamentController {
     @PutMapping("/standings/tie-break")
     public TournamentState setTieBreakOrder(
             Authentication authentication,
-            @PathVariable String eventId,
+            @PathVariable("eventId") String eventId,
             @Valid @RequestBody TieBreakRequest request
     ) {
         requireEvent(authentication, eventId);
@@ -217,7 +217,7 @@ public class TournamentController {
     @GetMapping("/predictions/leaderboard")
     public List<com.ones.api.domain.tournament.TournamentModels.LeaderboardEntry> leaderboard(
             Authentication authentication,
-            @PathVariable String eventId
+            @PathVariable("eventId") String eventId
     ) {
         requireEvent(authentication, eventId);
         return tournamentService.leaderboard(eventId);
@@ -226,8 +226,8 @@ public class TournamentController {
     @GetMapping("/predictions/revealed")
     public List<UserPrediction> revealedPredictions(
             Authentication authentication,
-            @PathVariable String eventId,
-            @RequestParam(defaultValue = "100") int limit
+            @PathVariable("eventId") String eventId,
+            @RequestParam(name = "limit", defaultValue = "100") int limit
     ) {
         requireEvent(authentication, eventId);
         return tournamentService.forecastsForMembers(eventId, Math.min(500, Math.max(1, limit)));

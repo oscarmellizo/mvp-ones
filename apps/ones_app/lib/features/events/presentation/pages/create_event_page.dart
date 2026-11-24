@@ -22,7 +22,6 @@ import '../../../tutorial/presentation/tutorial_keys.dart';
 import '../../../tutorial/presentation/tutorial_controller.dart';
 import '../../../tutorial/presentation/tutorial_store.dart';
 import '../../adapters/api/event_covers_api_repository.dart';
-import 'event_detail_page.dart';
 
 class CreateEventPage extends StatefulWidget {
   static const routeName = '/events/create';
@@ -1133,17 +1132,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
         await controller.refresh();
       }
       if (!mounted || !context.mounted) return;
-      if (_includeTournament) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute<void>(
-            builder: (_) => EventDetailPage(
-              eventId: createdEvent.id,
-              openTournamentTab: true,
-            ),
-          ),
-        );
-        return;
-      }
       Navigator.of(context).pop();
     } on DioException catch (e) {
       final status = e.response?.statusCode;
