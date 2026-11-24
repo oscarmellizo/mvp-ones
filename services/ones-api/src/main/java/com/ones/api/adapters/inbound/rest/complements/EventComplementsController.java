@@ -36,7 +36,10 @@ public class EventComplementsController {
     }
 
     @GetMapping
-    public List<EventComplementView> list(Authentication authentication, @PathVariable String eventId) {
+    public List<EventComplementView> list(
+            Authentication authentication,
+            @PathVariable("eventId") String eventId
+    ) {
         Event event = requireEventAccess(authentication, eventId);
         return complementsService.list(event.getEventId());
     }
@@ -44,8 +47,8 @@ public class EventComplementsController {
     @PutMapping("/{complementId}")
     public EventComplementView setEnabled(
             Authentication authentication,
-            @PathVariable String eventId,
-            @PathVariable String complementId,
+            @PathVariable("eventId") String eventId,
+            @PathVariable("complementId") String complementId,
             @Valid @RequestBody SetComplementRequest request
     ) {
         Event event = requireEventAccess(authentication, eventId);
