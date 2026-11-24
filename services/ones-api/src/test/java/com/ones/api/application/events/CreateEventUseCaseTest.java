@@ -3,6 +3,8 @@ package com.ones.api.application.events;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -12,6 +14,7 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
+import com.ones.api.application.complements.EventComplementsService;
 import com.ones.api.application.events.ports.EventsRepository;
 import com.ones.api.domain.events.Event;
 
@@ -21,10 +24,12 @@ class CreateEventUseCaseTest {
     void createsEventWithOwnerAndTitle() {
         EventsRepository repo = new InMemoryEventsRepository();
         Clock clock = Clock.fixed(Instant.parse("2025-01-01T00:00:00Z"), ZoneOffset.UTC);
-        CreateEventUseCase useCase = new CreateEventUseCase(repo, null, null, clock, null, null, null);
+        CreateEventUseCase useCase = new CreateEventUseCase(repo, null, null, clock, null, null, null, null);
         Instant startAt = Instant.parse("2025-01-01T18:00:00Z");
         Instant endAt = Instant.parse("2025-01-01T22:00:00Z");
-        Event created = useCase.execute("user-123", "Hello", "birthday", "San Jose, CR", startAt, endAt, null, List.of(), true, List.of());
+        Event created = useCase.execute(
+                "user-123", "Hello", "birthday", "San Jose, CR", startAt, endAt,
+                null, List.of(), true, List.of(), false);
 
         assertNotNull(created.getEventId());
         assertNotNull(created.getEventCode());
@@ -37,6 +42,23 @@ class CreateEventUseCaseTest {
         assertEquals(startAt, created.getStartAt());
         assertEquals(endAt, created.getEndAt());
         assertEquals(null, created.getCoverKey());
+    }
+
+    @Test
+    void initializesTournamentAsPartOfEventCreationWhenRequested() {
+        EventsRepository repo = new InMemoryEventsRepository();
+        EventComplementsService complements = mock(EventComplementsService.class);
+        Clock clock = Clock.fixed(Instant.parse("2025-01-01T00:00:00Z"), ZoneOffset.UTC);
+        CreateEventUseCase useCase =
+                new CreateEventUseCase(repo, null, null, clock, null, null, null, complements);
+
+        Event created = useCase.execute(
+                "user-123", "Hello", "birthday", "San Jose, CR",
+                Instant.parse("2025-01-01T18:00:00Z"),
+                Instant.parse("2025-01-01T22:00:00Z"),
+                null, List.of(), true, List.of(), true);
+
+        verify(complements).setEnabled(created.getEventId(), "user-123", "tournament", true);
     }
 
     private static class InMemoryEventsRepository implements EventsRepository {

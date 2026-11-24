@@ -15,6 +15,7 @@ public record CreateEventRequest(
         String coverReservationId,
         List<String> inviteeEmails,
         Boolean allowGuestInvites,
-        List<String> frameIds
+        List<String> frameIds,
+        Boolean includeTournament
 ) {
 }
