@@ -2327,6 +2327,11 @@ Resources:
                 Resource:
                   - !GetAtt PhotosTable.Arn
                   - !GetAtt TournamentsTable.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:ConditionCheckItem
+                Resource:
+                  - !GetAtt TournamentsTable.Arn
         - PolicyName: ones-photos-ws
           PolicyDocument:
             Version: '2012-10-17'
