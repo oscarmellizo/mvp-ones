@@ -67,6 +67,20 @@ void main() {
       expect(partial.awayScoreCorrect, isFalse);
     });
 
+    test('identifies an away-goal partial hit independently', () {
+      final partial = PredictionFeedback.evaluate(
+        predictedHome: 0,
+        predictedAway: 1,
+        actualHome: 2,
+        actualAway: 1,
+        matchFinished: true,
+      );
+
+      expect(partial.type, PredictionFeedbackType.partialScore);
+      expect(partial.homeScoreCorrect, isFalse);
+      expect(partial.awayScoreCorrect, isTrue);
+    });
+
     test('recognizes a correct outcome even when both goals differ', () {
       final feedback = PredictionFeedback.evaluate(
         predictedHome: 3,
@@ -101,6 +115,7 @@ void main() {
       expect(missed.type, PredictionFeedbackType.missed);
       expect(fixtureMismatch.type, PredictionFeedbackType.fixtureMismatch);
       expect(fixtureMismatch.homeScoreCorrect, isNull);
+      expect(fixtureMismatch.awayScoreCorrect, isNull);
     });
   });
 }

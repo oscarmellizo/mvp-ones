@@ -8,6 +8,8 @@ import '../../../core/i18n/translations_service.dart';
 import '../adapters/api/tournament_api_repository.dart';
 import 'leaderboard_rows.dart';
 import 'prediction_feedback.dart';
+import 'prediction_result_summary.dart';
+import 'prediction_score_field.dart';
 
 class TournamentTabPage extends StatefulWidget {
   final String eventId;
@@ -1796,11 +1798,11 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
       spacing: 12,
       runSpacing: 8,
       children: [
-        _predictionLegendItem(Colors.green.shade700, 'Marcador acertado'),
+        _predictionLegendItem(Colors.green.shade700, 'Ese marcador coincide'),
         _predictionLegendItem(Colors.orange.shade800, 'Acierto parcial'),
-        _predictionLegendItem(colors.error, 'Marcador errado'),
+        _predictionLegendItem(colors.error, 'Ese marcador no coincide'),
         _predictionLegendItem(colors.tertiary, 'Resultado acertado'),
-        _predictionLegendItem(colors.outline, 'Sin evaluar'),
+        _predictionLegendItem(colors.outline, 'Pendiente / sin evaluar'),
       ],
     );
   }
@@ -1875,13 +1877,23 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
                 ),
               ),
               _predictionFeedbackBadge(
-                feedback.type,
+                feedback,
                 color: badgeColor,
                 enabled: enabled,
               ),
             ],
           ),
           const SizedBox(height: 10),
+          Text(
+            'TU PRONÓSTICO',
+            style: TextStyle(
+              color: colors.onSurfaceVariant,
+              fontSize: 9,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.6,
+            ),
+          ),
+          const SizedBox(height: 5),
           Row(
             children: [
               Expanded(
@@ -1931,6 +1943,21 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          PredictionResultSummary(
+            actualHomeName: _teamName(actualMatch?['homeTeamId']),
+            actualAwayName: _teamName(actualMatch?['awayTeamId']),
+            actualHomeGoals:
+                int.tryParse(actualMatch?['homeGoals']?.toString() ?? ''),
+            actualAwayGoals:
+                int.tryParse(actualMatch?['awayGoals']?.toString() ?? ''),
+            matchExists: actualMatch != null,
+            finished: actualMatch?['status'] == 'FINISHED',
+            feedback: feedback,
+            predictedHomeName: homeTeamName,
+            predictedAwayName: awayTeamName,
+            compareFixture: compareFixture,
+          ),
         ],
       ),
     );
@@ -1942,8 +1969,8 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
       PredictionFeedbackType.exact => Colors.green.shade700,
       PredictionFeedbackType.partialScore => Colors.orange.shade800,
       PredictionFeedbackType.correctOutcome => colors.tertiary,
-      PredictionFeedbackType.missed ||
-      PredictionFeedbackType.fixtureMismatch => colors.error,
+      PredictionFeedbackType.missed => colors.error,
+      PredictionFeedbackType.fixtureMismatch => colors.onSurfaceVariant,
       _ => colors.onSurfaceVariant,
     };
   }
@@ -1957,10 +1984,10 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
     PredictionFeedbackType.incomplete =>
       enabled ? 'Completa ambos marcadores' : 'Pronóstico incompleto',
     PredictionFeedbackType.exact => 'Marcador exacto',
-    PredictionFeedbackType.partialScore => 'Un marcador acertado',
+    PredictionFeedbackType.partialScore => 'Acierto parcial',
     PredictionFeedbackType.correctOutcome => 'Acertaste el resultado',
-    PredictionFeedbackType.missed => 'Pronóstico no acertado',
-    PredictionFeedbackType.fixtureMismatch => 'Cruce no acertado',
+    PredictionFeedbackType.missed => 'Ningún marcador acertado',
+    PredictionFeedbackType.fixtureMismatch => 'Cruce distinto',
   };
 
   IconData _predictionFeedbackIcon(PredictionFeedbackType type) =>
@@ -1976,31 +2003,34 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
       };
 
   Widget _predictionFeedbackBadge(
-    PredictionFeedbackType type, {
+    PredictionFeedback feedback, {
     required Color color,
     required bool enabled,
-  }) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.10),
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(_predictionFeedbackIcon(type), size: 14, color: color),
-        const SizedBox(width: 4),
-        Text(
-          _predictionFeedbackLabel(type, enabled: enabled),
-          style: TextStyle(
-            color: color,
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
+  }) {
+    final type = feedback.type;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(_predictionFeedbackIcon(type), size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            _predictionFeedbackLabel(type, enabled: enabled),
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 
   Map<String, dynamic>? _matchForPhase(
     List<Map<String, dynamic>> matches,
@@ -2016,57 +2046,12 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
     TextEditingController controller, {
     required bool enabled,
     required bool? scoreCorrect,
-  }) {
-    final colors = Theme.of(context).colorScheme;
-    final markColor = scoreCorrect == null
-        ? null
-        : scoreCorrect
-        ? Colors.green.shade700
-        : colors.error;
-    final borderColor = markColor ?? colors.outlineVariant;
-    return SizedBox(
-      width: 52,
-      child: TextField(
-        controller: controller,
-        enabled: enabled,
-        keyboardType: TextInputType.number,
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        textAlign: TextAlign.center,
-        style: TextStyle(fontWeight: FontWeight.w800, color: markColor),
-        decoration: InputDecoration(
-          counterText: '',
-          hintText: '–',
-          filled: true,
-          fillColor:
-              markColor?.withValues(alpha: 0.08) ??
-              colors.surfaceContainerHighest,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(color: borderColor),
-          ),
-          disabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(color: borderColor),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(
-              color: markColor ?? colors.primary,
-              width: 1.6,
-            ),
-          ),
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(
-            vertical: 9,
-            horizontal: 6,
-          ),
-        ),
-        maxLength: 2,
-        onChanged: (_) => setState(() {}),
-      ),
-    );
-  }
+  }) => PredictionScoreField(
+    controller: controller,
+    enabled: enabled,
+    scoreCorrect: scoreCorrect,
+    onChanged: (_) => setState(() {}),
+  );
 
   Widget _leaderboardCard(dynamic value) {
     final entries = (value as List? ?? const [])
