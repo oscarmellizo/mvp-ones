@@ -387,50 +387,7 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
     }
   }
 
-  Future<void> _savePrediction(List<Map<String, dynamic>> teams) async {
-    final prediction = _view?['myPrediction'] as Map?;
-    final oldProjection = (_view?['myProjection'] as Map?) ?? const {};
-    final projected = _projectedTable(teams, _matches);
-    final finalHome = projected.isNotEmpty ? projected.first['id'] : null;
-    final finalAway = projected.length > 1 ? projected[1]['id'] : null;
-    final thirdHome = projected.length > 2 ? projected[2]['id'] : null;
-    final thirdAway = projected.length > 3 ? projected[3]['id'] : null;
-    final projectionChanged = oldProjection['finalHomeTeamId'] != finalHome ||
-        oldProjection['finalAwayTeamId'] != finalAway ||
-        oldProjection['thirdHomeTeamId'] != thirdHome ||
-        oldProjection['thirdAwayTeamId'] != thirdAway;
-    final hasKnockoutScores = _scoreFor('final') != null ||
-        _scoreFor('third-place') != null ||
-        (prediction?['finalScore'] != null) ||
-        (prediction?['thirdPlaceScore'] != null);
-    if (projectionChanged && hasKnockoutScores) {
-      final decision = await showDialog<String>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Cambian los clasificados'),
-          content: const Text(
-            'Al cambiar la proyección se borrarán los marcadores de final y tercer puesto. ¿Continuar?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, 'keep'),
-              child: const Text('Conservar marcadores'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, 'clear'),
-              child: const Text('Borrar marcadores'),
-            ),
-          ],
-        ),
-      );
-      if (decision == null) return;
-      if (decision == 'clear') {
-        _homeScores['final']?.clear();
-        _awayScores['final']?.clear();
-        _homeScores['third-place']?.clear();
-        _awayScores['third-place']?.clear();
-      }
-    }
+  Future<void> _savePrediction() async {
     setState(() => _busy = true);
     try {
       await _api!.savePredictions(
@@ -1076,9 +1033,34 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
   }
 
   Widget _standingsCard(dynamic actual, List<Map<String, dynamic>> projected) {
-    final rows = (actual as List? ?? const [])
+    final actualRows = (actual as List? ?? const [])
         .whereType<Map>()
         .map((item) => Map<String, dynamic>.from(item))
+        .map<Map<String, dynamic>>((item) => {
+              'teamName': item['teamName'] ?? '-',
+              'played': item['played'] ?? 0,
+              'wins': item['wins'] ?? 0,
+              'draws': item['draws'] ?? 0,
+              'losses': item['losses'] ?? 0,
+              'goalsFor': item['goalsFor'] ?? 0,
+              'goalsAgainst': item['goalsAgainst'] ?? 0,
+              'goalDifference': item['goalDifference'] ?? 0,
+              'points': item['points'] ?? 0,
+            })
+        .toList();
+    final projectedRows = projected
+        .map<Map<String, dynamic>>((item) => {
+              'teamName': item['name'] ?? '-',
+              'played': item['played'] ?? 0,
+              'wins': item['wins'] ?? 0,
+              'draws': item['draws'] ?? 0,
+              'losses': item['losses'] ?? 0,
+              'goalsFor': item['gf'] ?? 0,
+              'goalsAgainst': item['ga'] ?? 0,
+              'goalDifference':
+                  (item['gf'] as int? ?? 0) - (item['ga'] as int? ?? 0),
+              'points': item['points'] ?? 0,
+            })
         .toList();
     return Card(
       child: Padding(
@@ -1086,23 +1068,128 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(_t('tournament.actual_standings', 'Tabla real'),
-                style:
-                    const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
-            for (var i = 0; i < rows.length; i++)
-              Text(
-                  '${i + 1}. ${rows[i]['teamName']}  •  ${rows[i]['points']} pts  •  DG ${rows[i]['goalDifference']}'),
+            _standingsTable(
+              _t('tournament.actual_standings', 'Tabla real'),
+              actualRows,
+            ),
             const Divider(),
-            const Text('Tu proyección',
-                style: TextStyle(fontWeight: FontWeight.w800)),
-            for (var i = 0; i < projected.length; i++)
-              Text(
-                  '${i + 1}. ${projected[i]['name']}  •  ${projected[i]['points']} pts  •  DG ${(projected[i]['gf'] as int) - (projected[i]['ga'] as int)}'),
+            _standingsTable('Tu proyección', projectedRows),
           ],
         ),
       ),
     );
   }
+
+  Widget _standingsTable(String title, List<Map<String, dynamic>> rows) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(title,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              const Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(left: 32),
+                  child: Text('Equipo'),
+                ),
+              ),
+              _standingsMetric('PJ', 30, header: true),
+              _standingsMetric('G-E-P', 54, header: true),
+              _standingsMetric('GF-GC', 48, header: true),
+              _standingsMetric('DG', 34, header: true),
+              _standingsMetric('Pts', 38, header: true),
+            ],
+          ),
+        ),
+        for (var i = 0; i < rows.length; i++) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 24,
+                        height: 24,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                        child: Text(
+                          '${i + 1}',
+                          style: TextStyle(
+                            color: theme.colorScheme.onPrimaryContainer,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          rows[i]['teamName']?.toString() ?? '-',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _standingsMetric('${rows[i]['played']}', 30),
+                _standingsMetric(
+                    '${rows[i]['wins']}-${rows[i]['draws']}-${rows[i]['losses']}',
+                    54),
+                _standingsMetric(
+                    '${rows[i]['goalsFor']}-${rows[i]['goalsAgainst']}', 48),
+                _standingsMetric('${rows[i]['goalDifference']}', 34),
+                _standingsMetric('${rows[i]['points']}', 38, highlight: true),
+              ],
+            ),
+          ),
+          if (i < rows.length - 1) const Divider(height: 1),
+        ],
+        if (rows.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: Text('Aún no hay resultados para mostrar.'),
+          ),
+      ],
+    );
+  }
+
+  Widget _standingsMetric(
+    String value,
+    double width, {
+    bool header = false,
+    bool highlight = false,
+  }) =>
+      SizedBox(
+        width: width,
+        child: Text(
+          value,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: header ? 10 : 11,
+            fontWeight:
+                header || highlight ? FontWeight.w800 : FontWeight.w500,
+            color: header
+                ? Theme.of(context).colorScheme.onSurfaceVariant
+                : null,
+          ),
+        ),
+      );
 
   Widget _predictionCard(
     List<Map<String, dynamic>> teams,
@@ -1140,7 +1227,7 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
               Align(
                 alignment: Alignment.centerRight,
                 child: FilledButton(
-                  onPressed: _busy ? null : () => _savePrediction(teams),
+                  onPressed: _busy ? null : _savePrediction,
                   child: const Text('Guardar pronósticos'),
                 ),
               ),
