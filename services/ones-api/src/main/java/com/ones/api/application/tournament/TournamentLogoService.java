@@ -200,26 +200,37 @@ public class TournamentLogoService {
 
     private void consumeDailyGenerationQuota(String requesterId) {
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
-        int shard = Math.floorMod(requesterId.hashCode(), 16);
-        long expiresAt = today.plusDays(2).atStartOfDay().toEpochSecond(ZoneOffset.UTC);
         try {
-            dynamoDb.updateItem(UpdateItemRequest.builder()
-                    .tableName(tournamentsTable)
-                    .key(Map.of(
-                            "pk", AttributeValue.fromS("LOGOQUOTA#" + today + "#" + String.format("%02d", shard)),
-                            "sk", AttributeValue.fromS("USER#" + requesterId)))
-                    .updateExpression("SET expiresAt = :expiry ADD usage :one")
-                    .conditionExpression("attribute_not_exists(usage) OR usage < :limit")
-                    .expressionAttributeValues(Map.of(
-                            ":expiry", AttributeValue.fromN(Long.toString(expiresAt)),
-                            ":one", AttributeValue.fromN("1"),
-                            ":limit", AttributeValue.fromN(Integer.toString(dailyGenerationQuota))))
-                    .build());
+            dynamoDb.updateItem(quotaUpdateRequest(
+                    tournamentsTable, requesterId, today, dailyGenerationQuota));
         } catch (ConditionalCheckFailedException e) {
             throw new org.springframework.web.server.ResponseStatusException(
                     org.springframework.http.HttpStatus.TOO_MANY_REQUESTS,
                     "Daily team-logo generation quota reached");
         }
+    }
+
+    static UpdateItemRequest quotaUpdateRequest(
+            String tableName,
+            String requesterId,
+            LocalDate today,
+            int dailyGenerationQuota
+    ) {
+        int shard = Math.floorMod(requesterId.hashCode(), 16);
+        long expiresAt = today.plusDays(2).atStartOfDay().toEpochSecond(ZoneOffset.UTC);
+        return UpdateItemRequest.builder()
+                .tableName(tableName)
+                .key(Map.of(
+                        "pk", AttributeValue.fromS("LOGOQUOTA#" + today + "#" + String.format("%02d", shard)),
+                        "sk", AttributeValue.fromS("USER#" + requesterId)))
+                .updateExpression("SET expiresAt = :expiry ADD #usage :one")
+                .conditionExpression("attribute_not_exists(#usage) OR #usage < :limit")
+                .expressionAttributeNames(Map.of("#usage", "usage"))
+                .expressionAttributeValues(Map.of(
+                        ":expiry", AttributeValue.fromN(Long.toString(expiresAt)),
+                        ":one", AttributeValue.fromN("1"),
+                        ":limit", AttributeValue.fromN(Integer.toString(dailyGenerationQuota))))
+                .build();
     }
 
     private static byte[] normalize(byte[] imageBytes) {
