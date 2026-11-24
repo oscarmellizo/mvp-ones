@@ -117,7 +117,7 @@ public class TournamentLogoService {
                     .body(SdkBytes.fromUtf8String(body))
                     .build());
             JsonNode payload = objectMapper.readTree(response.body().asUtf8String());
-            String image = payload.path("artifacts").path(0).path("base64").asText();
+            String image = extractImage(payload);
             if (image.isBlank()) {
                 throw new IllegalStateException("Bedrock returned no image");
             }
@@ -125,6 +125,13 @@ public class TournamentLogoService {
         } catch (Exception e) {
             throw new IllegalStateException("Unable to generate the team logo with Bedrock", e);
         }
+    }
+
+    static String extractImage(JsonNode payload) {
+        String image = payload.path("images").path(0).asText();
+        return image.isBlank()
+                ? payload.path("artifacts").path(0).path("base64").asText()
+                : image;
     }
 
     public String accept(String eventId, String requesterId, String teamId, String previewKey) {
