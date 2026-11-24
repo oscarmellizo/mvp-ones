@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -34,6 +35,7 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
   bool _loading = true;
   bool _busy = false;
   bool _initializedFields = false;
+  bool _membersLoadError = false;
 
   @override
   void didChangeDependencies() {
@@ -67,6 +69,7 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
     setState(() {
       _loading = true;
       _error = null;
+      _membersLoadError = false;
     });
     try {
       final value = await _api!.get(widget.eventId);
@@ -113,7 +116,14 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
         }
       }
       if (value['owner'] == true) {
-        _members = await _api!.acceptedMembers(widget.eventId);
+        try {
+          _members = await _api!.acceptedMembers(widget.eventId);
+          _membersLoadError = false;
+        } on DioException {
+          // Loading delegates is optional; it must not block tournament setup.
+          _members = const [];
+          _membersLoadError = true;
+        }
         _delegates
           ..clear()
           ..addAll(
@@ -127,10 +137,23 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = _loadErrorMessage(e);
         _loading = false;
       });
     }
+  }
+
+  String _loadErrorMessage(Object error) {
+    if (error is! DioException) return error.toString();
+
+    final body = error.response?.data;
+    final message = body is Map ? body['message']?.toString() : null;
+    final status = error.response?.statusCode;
+    final request = '${error.requestOptions.method} ${error.requestOptions.path}';
+    if (message != null && message.isNotEmpty) {
+      return '$message\n$request (HTTP ${status ?? 'sin respuesta'})';
+    }
+    return '$request (HTTP ${status ?? 'sin respuesta'})';
   }
 
   void _setScoreField(String id, dynamic data) {
@@ -713,8 +736,12 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
         child: ExpansionTile(
           title: Text(_t('tournament.delegates', 'Delegados'),
               style: const TextStyle(fontWeight: FontWeight.w800)),
-          subtitle: Text(_t('tournament.accepted_members_only',
-              'Solo personas que ya aceptaron el evento.')),
+          subtitle: Text(
+            _membersLoadError
+                ? 'No se pudieron cargar los invitados; puedes configurar el torneo y volver a intentarlo más tarde.'
+                : _t('tournament.accepted_members_only',
+                    'Solo personas que ya aceptaron el evento.'),
+          ),
           children: [
             for (final member in _members)
               if (member['userId'] != null)
