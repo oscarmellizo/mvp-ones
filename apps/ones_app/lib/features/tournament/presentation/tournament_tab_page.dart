@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/i18n/translations_service.dart';
 import '../adapters/api/tournament_api_repository.dart';
+import 'prediction_feedback.dart';
 
 class TournamentTabPage extends StatefulWidget {
   final String eventId;
@@ -601,7 +602,6 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
               if (teams.length == 4) ...[
                 _standingsCard(_view?['standings'], projected),
                 _predictionCard(
-                  teams,
                   matches,
                   projected,
                   groupStatus.toString() == 'OPEN',
@@ -1559,43 +1559,182 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
       );
 
   Widget _predictionCard(
-    List<Map<String, dynamic>> teams,
     List<Map<String, dynamic>> matches,
     List<Map<String, dynamic>> projected,
     bool open,
   ) {
-    final mayEdit = open && (_view?['myPrediction'] != null || open);
+    final groupMatches = matches
+        .where((match) => match['phase'] == 'ROUND_ROBIN')
+        .toList();
+    final registered = groupMatches
+        .where((match) => _scoreFor(match['id'].toString()) != null)
+        .length;
+    final finalMatch = _matchForPhase(matches, 'FINAL');
+    final thirdPlaceMatch = _matchForPhase(matches, 'THIRD_PLACE');
+    final finalHomeId = projected.isNotEmpty
+        ? projected[0]['id']?.toString()
+        : null;
+    final finalAwayId = projected.length > 1
+        ? projected[1]['id']?.toString()
+        : null;
+    final thirdHomeId = projected.length > 2
+        ? projected[2]['id']?.toString()
+        : null;
+    final thirdAwayId = projected.length > 3
+        ? projected[3]['id']?.toString()
+        : null;
+    final colors = Theme.of(context).colorScheme;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              open ? 'Tus pronósticos · abiertos' : 'Pronósticos · cerrados',
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: colors.primaryContainer,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    Icons.edit_note_rounded,
+                    color: colors.onPrimaryContainer,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _t('tournament.my_predictions', 'Tus pronósticos'),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        open
+                            ? 'Completa ambos marcadores; los vacíos no son cero. Los colores son una vista previa.'
+                            : 'Pronósticos cerrados. Los colores reflejan el resultado oficial.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _predictionPeriodBadge(open),
+              ],
             ),
-            const SizedBox(height: 4),
-            Text(_t(
-              'tournament.enter_group_scores',
-              'Completa los seis marcadores del todos contra todos.',
-            )),
-            for (final match
-                in matches.where((m) => m['phase'] == 'ROUND_ROBIN'))
-              _predictionMatch(match),
-            const Divider(),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: colors.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.checklist_rounded,
+                        size: 19,
+                        color: colors.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text('Partidos de grupos registrados'),
+                      ),
+                      Text(
+                        '$registered de ${groupMatches.length}',
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 9),
+                  LinearProgressIndicator(
+                    value: groupMatches.isEmpty
+                        ? 0
+                        : registered / groupMatches.length,
+                    minHeight: 5,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            _predictionLegend(),
+            const SizedBox(height: 12),
+            for (final match in groupMatches)
+              _predictionFixtureRow(
+                id: match['id'].toString(),
+                phaseLabel: 'Todos contra todos',
+                homeTeamName: _teamName(match['homeTeamId']),
+                awayTeamName: _teamName(match['awayTeamId']),
+                actualMatch: match,
+                enabled: open,
+              ),
+            const Divider(height: 24),
             Text(
-                'Final: ${projected.isNotEmpty ? projected[0]['name'] : '-'} vs ${projected.length > 1 ? projected[1]['name'] : '-'}'),
-            _scoreInputs('final', enabled: mayEdit),
-            Text(
-                'Tercer puesto: ${projected.length > 2 ? projected[2]['name'] : '-'} vs ${projected.length > 3 ? projected[3]['name'] : '-'}'),
-            _scoreInputs('third-place', enabled: mayEdit),
+              'Fase final',
+              style: TextStyle(
+                color: colors.onSurfaceVariant,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.6,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _predictionFixtureRow(
+              id: 'final',
+              phaseLabel: 'Final',
+              homeTeamName: finalHomeId == null
+                  ? 'Por definir'
+                  : projected[0]['name']?.toString() ?? 'Por definir',
+              awayTeamName: finalAwayId == null
+                  ? 'Por definir'
+                  : projected[1]['name']?.toString() ?? 'Por definir',
+              actualMatch: finalMatch,
+              expectedHomeTeamId: finalHomeId,
+              expectedAwayTeamId: finalAwayId,
+              compareFixture: true,
+              enabled: open,
+            ),
+            _predictionFixtureRow(
+              id: 'third-place',
+              phaseLabel: 'Tercer puesto',
+              homeTeamName: thirdHomeId == null
+                  ? 'Por definir'
+                  : projected[2]['name']?.toString() ?? 'Por definir',
+              awayTeamName: thirdAwayId == null
+                  ? 'Por definir'
+                  : projected[3]['name']?.toString() ?? 'Por definir',
+              actualMatch: thirdPlaceMatch,
+              expectedHomeTeamId: thirdHomeId,
+              expectedAwayTeamId: thirdAwayId,
+              compareFixture: true,
+              enabled: open,
+            ),
             if (open)
-              Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton(
-                  onPressed: _busy ? null : _savePrediction,
-                  child: const Text('Guardar pronósticos'),
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _busy ? null : _savePrediction,
+                    icon: const Icon(Icons.save_outlined),
+                    label: const Text('Guardar pronósticos'),
+                  ),
                 ),
               ),
           ],
@@ -1604,88 +1743,731 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
     );
   }
 
-  Widget _predictionMatch(Map<String, dynamic> match) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                '${_teamName(match['homeTeamId'])} vs ${_teamName(match['awayTeamId'])}',
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            _scoreField(_controller(_homeScores, match['id']),
-                enabled: _isOpen),
-            const Text(' - '),
-            _scoreField(_controller(_awayScores, match['id']),
-                enabled: _isOpen),
-          ],
-        ),
-      );
-
-  bool get _isOpen =>
-      ((_tournament?['groupPredictionPeriod'] as Map?)?['status'] ?? '') ==
-      'OPEN';
-
-  Widget _scoreInputs(String id, {required bool enabled}) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 5),
-        child: Row(
-          children: [
-            const Spacer(),
-            _scoreField(_controller(_homeScores, id), enabled: enabled),
-            const Text(' - '),
-            _scoreField(_controller(_awayScores, id), enabled: enabled),
-          ],
-        ),
-      );
-
-  Widget _scoreField(TextEditingController controller,
-          {required bool enabled}) =>
-      SizedBox(
-        width: 54,
-        child: TextField(
-          controller: controller,
-          enabled: enabled,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          textAlign: TextAlign.center,
-          decoration: const InputDecoration(
-            counterText: '',
-            border: OutlineInputBorder(),
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(vertical: 9, horizontal: 6),
+  Widget _predictionPeriodBadge(bool open) {
+    final colors = Theme.of(context).colorScheme;
+    final color = open ? colors.primary : colors.onSurfaceVariant;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            open ? Icons.lock_open_rounded : Icons.lock_outline_rounded,
+            size: 14,
+            color: color,
           ),
-          maxLength: 2,
-          onChanged: (_) => setState(() {}),
+          const SizedBox(width: 4),
+          Text(
+            open ? 'Abiertos' : 'Cerrados',
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _predictionLegend() {
+    final colors = Theme.of(context).colorScheme;
+    return Wrap(
+      spacing: 12,
+      runSpacing: 8,
+      children: [
+        _predictionLegendItem(Colors.green.shade700, 'Marcador acertado'),
+        _predictionLegendItem(Colors.orange.shade800, 'Acierto parcial'),
+        _predictionLegendItem(colors.error, 'Marcador errado'),
+        _predictionLegendItem(colors.tertiary, 'Resultado acertado'),
+        _predictionLegendItem(colors.outline, 'Sin evaluar'),
+      ],
+    );
+  }
+
+  Widget _predictionLegendItem(Color color, String label) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        width: 9,
+        height: 9,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(3),
         ),
-      );
+      ),
+      const SizedBox(width: 5),
+      Text(label, style: Theme.of(context).textTheme.labelSmall),
+    ],
+  );
+
+  Widget _predictionFixtureRow({
+    required String id,
+    required String phaseLabel,
+    required String homeTeamName,
+    required String awayTeamName,
+    required Map<String, dynamic>? actualMatch,
+    required bool enabled,
+    String? expectedHomeTeamId,
+    String? expectedAwayTeamId,
+    bool compareFixture = false,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    final homeController = _controller(_homeScores, id);
+    final awayController = _controller(_awayScores, id);
+    final fixtureMatches =
+        !compareFixture ||
+        (expectedHomeTeamId != null &&
+            expectedAwayTeamId != null &&
+            expectedHomeTeamId == actualMatch?['homeTeamId']?.toString() &&
+            expectedAwayTeamId == actualMatch?['awayTeamId']?.toString());
+    final feedback = PredictionFeedback.evaluate(
+      predictedHome: int.tryParse(homeController.text),
+      predictedAway: int.tryParse(awayController.text),
+      actualHome: int.tryParse(actualMatch?['homeGoals']?.toString() ?? ''),
+      actualAway: int.tryParse(actualMatch?['awayGoals']?.toString() ?? ''),
+      matchFinished: actualMatch?['status'] == 'FINISHED',
+      fixtureMatches: fixtureMatches,
+    );
+    final badgeColor = _feedbackColor(feedback.type);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  phaseLabel,
+                  style: TextStyle(
+                    color: colors.onSurfaceVariant,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              _predictionFeedbackBadge(
+                feedback.type,
+                color: badgeColor,
+                enabled: enabled,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  homeTeamName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Tooltip(
+                message: 'Marcador de $homeTeamName',
+                child: _scoreField(
+                  homeController,
+                  enabled: enabled,
+                  scoreCorrect: feedback.homeScoreCorrect,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  '–',
+                  style: TextStyle(
+                    color: colors.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Tooltip(
+                message: 'Marcador de $awayTeamName',
+                child: _scoreField(
+                  awayController,
+                  enabled: enabled,
+                  scoreCorrect: feedback.awayScoreCorrect,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  awayTeamName,
+                  textAlign: TextAlign.end,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _feedbackColor(PredictionFeedbackType type) {
+    final colors = Theme.of(context).colorScheme;
+    return switch (type) {
+      PredictionFeedbackType.exact => Colors.green.shade700,
+      PredictionFeedbackType.partialScore => Colors.orange.shade800,
+      PredictionFeedbackType.correctOutcome => colors.tertiary,
+      PredictionFeedbackType.missed ||
+      PredictionFeedbackType.fixtureMismatch => colors.error,
+      _ => colors.onSurfaceVariant,
+    };
+  }
+
+  String _predictionFeedbackLabel(
+    PredictionFeedbackType type, {
+    required bool enabled,
+  }) => switch (type) {
+    PredictionFeedbackType.waiting => 'Esperando resultado oficial',
+    PredictionFeedbackType.missing => 'Sin pronóstico',
+    PredictionFeedbackType.incomplete =>
+      enabled ? 'Completa ambos marcadores' : 'Pronóstico incompleto',
+    PredictionFeedbackType.exact => 'Marcador exacto',
+    PredictionFeedbackType.partialScore => 'Un marcador acertado',
+    PredictionFeedbackType.correctOutcome => 'Acertaste el resultado',
+    PredictionFeedbackType.missed => 'Pronóstico no acertado',
+    PredictionFeedbackType.fixtureMismatch => 'Cruce no acertado',
+  };
+
+  IconData _predictionFeedbackIcon(PredictionFeedbackType type) =>
+      switch (type) {
+        PredictionFeedbackType.waiting => Icons.schedule_rounded,
+        PredictionFeedbackType.missing => Icons.edit_note_rounded,
+        PredictionFeedbackType.incomplete => Icons.more_horiz_rounded,
+        PredictionFeedbackType.exact => Icons.check_circle_rounded,
+        PredictionFeedbackType.partialScore => Icons.adjust_rounded,
+        PredictionFeedbackType.correctOutcome => Icons.thumb_up_alt_rounded,
+        PredictionFeedbackType.missed => Icons.cancel_rounded,
+        PredictionFeedbackType.fixtureMismatch => Icons.swap_horiz_rounded,
+      };
+
+  Widget _predictionFeedbackBadge(
+    PredictionFeedbackType type, {
+    required Color color,
+    required bool enabled,
+  }) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.10),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(_predictionFeedbackIcon(type), size: 14, color: color),
+        const SizedBox(width: 4),
+        Text(
+          _predictionFeedbackLabel(type, enabled: enabled),
+          style: TextStyle(
+            color: color,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Map<String, dynamic>? _matchForPhase(
+    List<Map<String, dynamic>> matches,
+    String phase,
+  ) {
+    for (final match in matches) {
+      if (match['phase'] == phase) return match;
+    }
+    return null;
+  }
+
+  Widget _scoreField(
+    TextEditingController controller, {
+    required bool enabled,
+    required bool? scoreCorrect,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    final markColor = scoreCorrect == null
+        ? null
+        : scoreCorrect
+        ? Colors.green.shade700
+        : colors.error;
+    final borderColor = markColor ?? colors.outlineVariant;
+    return SizedBox(
+      width: 52,
+      child: TextField(
+        controller: controller,
+        enabled: enabled,
+        keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        textAlign: TextAlign.center,
+        style: TextStyle(fontWeight: FontWeight.w800, color: markColor),
+        decoration: InputDecoration(
+          counterText: '',
+          hintText: '–',
+          filled: true,
+          fillColor:
+              markColor?.withValues(alpha: 0.08) ??
+              colors.surfaceContainerHighest,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: borderColor),
+          ),
+          disabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: borderColor),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(
+              color: markColor ?? colors.primary,
+              width: 1.6,
+            ),
+          ),
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 9,
+            horizontal: 6,
+          ),
+        ),
+        maxLength: 2,
+        onChanged: (_) => setState(() {}),
+      ),
+    );
+  }
 
   Widget _leaderboardCard(dynamic value) {
     final rows = (value as List? ?? const [])
         .whereType<Map>()
         .map((item) => Map<String, dynamic>.from(item))
         .toList();
+    final currentPrediction = _view?['myPrediction'] is Map
+        ? Map<String, dynamic>.from(_view!['myPrediction'] as Map)
+        : null;
+    final currentUserId = currentPrediction?['userId']?.toString();
+    final colors = Theme.of(context).colorScheme;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(_t('tournament.leaderboard', 'Ranking'),
-                style:
-                    const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
-            if (rows.isEmpty)
-              const Text(
-                  'El ranking se está calculando. Desliza para actualizar.')
-            else
-              for (final row in rows)
-                ListTile(
-                  dense: true,
-                  leading: CircleAvatar(child: Text('${row['place']}')),
-                  title: Text(row['displayName']?.toString() ?? 'Participante'),
-                  trailing: Text('${row['points']} pts'),
+            Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: colors.primaryContainer,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    Icons.emoji_events_rounded,
+                    color: colors.onPrimaryContainer,
+                  ),
                 ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _t('tournament.leaderboard', 'Ranking del torneo'),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                        ),
+                      ),
+                      Text(
+                        'Puntos por resultado, marcadores exactos y parciales.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (currentPrediction != null) ...[
+              const SizedBox(height: 14),
+              _myLeaderboardSummary(currentPrediction),
+            ],
+            if (rows.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 14),
+                child: Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: colors.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.hourglass_empty_rounded,
+                        size: 28,
+                        color: colors.onSurfaceVariant,
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Todavía no hay pronósticos con puntos registrados.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'El ranking se actualizará al procesarse los resultados. Desliza para refrescar.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.only(top: 14),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final wide = constraints.maxWidth >= 520;
+                    final podium = rows.take(3).toList();
+                    final entryWidth = wide
+                        ? (constraints.maxWidth - 8 * (podium.length - 1)) /
+                              podium.length
+                        : constraints.maxWidth;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final row in podium)
+                              SizedBox(
+                                width: entryWidth,
+                                child: _leaderboardTopEntry(
+                                  row,
+                                  currentUserId: currentUserId,
+                                  compact: !wide,
+                                ),
+                              ),
+                          ],
+                        ),
+                        if (rows.length > 3) ...[
+                          const Divider(height: 24),
+                          const Text(
+                            'Clasificación general',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          for (final row in rows.skip(3))
+                            _leaderboardRow(row, currentUserId: currentUserId),
+                        ],
+                      ],
+                    );
+                  },
+                ),
+              ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _myLeaderboardSummary(Map<String, dynamic> prediction) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.primaryContainer,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.person_pin_circle_outlined,
+            color: colors.onPrimaryContainer,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Tu puntaje procesado',
+                  style: TextStyle(
+                    color: colors.onPrimaryContainer,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  '${prediction['exactCount'] ?? 0} exactos · '
+                  '${prediction['fivePointCount'] ?? 0} parciales',
+                  style: TextStyle(
+                    color: colors.onPrimaryContainer,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '${prediction['points'] ?? 0} pts',
+            style: TextStyle(
+              color: colors.onPrimaryContainer,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _leaderboardTopEntry(
+    Map<String, dynamic> row, {
+    required String? currentUserId,
+    required bool compact,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    final place = int.tryParse(row['place']?.toString() ?? '') ?? 0;
+    final userId = row['userId']?.toString();
+    final isMine = userId != null && userId == currentUserId;
+    final rankColor = switch (place) {
+      1 => Colors.amber.shade800,
+      2 => colors.secondary,
+      3 => colors.tertiary,
+      _ => colors.primary,
+    };
+    final background = place == 1
+        ? colors.primaryContainer
+        : colors.surfaceContainerHighest;
+    final name = row['displayName']?.toString() ?? 'Participante';
+    final score = '${row['points'] ?? 0} pts';
+    final details =
+        '${row['exactCount'] ?? 0} exactos · ${row['fivePointCount'] ?? 0} parciales';
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isMine ? colors.primary : rankColor.withValues(alpha: 0.25),
+          width: isMine ? 1.5 : 1,
+        ),
+      ),
+      child: compact
+          ? Row(
+              children: [
+                _rankMedal(place, rankColor),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          if (isMine) _youBadge(),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        details,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  score,
+                  style: TextStyle(
+                    color: colors.primary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            )
+          : Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _rankMedal(place, rankColor),
+                    if (isMine) ...[const SizedBox(width: 6), _youBadge()],
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  score,
+                  style: TextStyle(
+                    color: colors.primary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(
+                  details,
+                  maxLines: 2,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _leaderboardRow(
+    Map<String, dynamic> row, {
+    required String? currentUserId,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    final place = int.tryParse(row['place']?.toString() ?? '') ?? 0;
+    final userId = row['userId']?.toString();
+    final isMine = userId != null && userId == currentUserId;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: isMine
+            ? colors.primaryContainer.withValues(alpha: 0.55)
+            : colors.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+        border: isMine
+            ? Border.all(color: colors.primary.withValues(alpha: 0.45))
+            : null,
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 30,
+            child: Text(
+              '$place',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: isMine ? colors.primary : colors.onSurfaceVariant,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        row['displayName']?.toString() ?? 'Participante',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    if (isMine) _youBadge(),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${row['exactCount'] ?? 0} exactos · '
+                  '${row['fivePointCount'] ?? 0} parciales',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '${row['points'] ?? 0} pts',
+            style: TextStyle(
+              color: colors.primary,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _rankMedal(int place, Color color) => Container(
+    width: 34,
+    height: 34,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.14),
+      shape: BoxShape.circle,
+    ),
+    child: Text(
+      '$place',
+      style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 14),
+    ),
+  );
+
+  Widget _youBadge() {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: colors.primary,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        'TÚ',
+        style: TextStyle(
+          color: colors.onPrimary,
+          fontSize: 9,
+          fontWeight: FontWeight.w900,
         ),
       ),
     );
