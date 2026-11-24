@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/i18n/translations_service.dart';
 import '../adapters/api/tournament_api_repository.dart';
+import 'leaderboard_rows.dart';
 import 'prediction_feedback.dart';
 
 class TournamentTabPage extends StatefulWidget {
@@ -32,12 +33,14 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
   TournamentApiRepository? _api;
   Map<String, dynamic>? _view;
   List<Map<String, dynamic>> _members = const [];
+  List<Map<String, dynamic>> _participants = const [];
   final Set<String> _delegates = {};
   String? _error;
   bool _loading = true;
   bool _busy = false;
   bool _initializedFields = false;
   bool _membersLoadError = false;
+  bool _participantsLoaded = false;
 
   @override
   void didChangeDependencies() {
@@ -109,31 +112,44 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
       for (final match in matches) {
         final id = match['id'] as String;
         if (match['homeGoals'] != null) {
-          _controller(_actualHomeScores, id).text =
-              match['homeGoals'].toString();
+          _controller(_actualHomeScores, id).text = match['homeGoals']
+              .toString();
         }
         if (match['awayGoals'] != null) {
-          _controller(_actualAwayScores, id).text =
-              match['awayGoals'].toString();
+          _controller(_actualAwayScores, id).text = match['awayGoals']
+              .toString();
+        }
+      }
+      final shouldLoadParticipants =
+          value['owner'] == true || value['forecastsRevealed'] == true;
+      var participantsLoaded = false;
+      var participantsLoadError = false;
+      List<Map<String, dynamic>> participants = const [];
+      if (shouldLoadParticipants) {
+        try {
+          participants = await _api!.eventMembers(widget.eventId);
+          participantsLoaded = true;
+        } on DioException {
+          participantsLoadError = true;
+          participants = const [];
         }
       }
       if (value['owner'] == true) {
-        try {
-          _members = await _api!.acceptedMembers(widget.eventId);
-          _membersLoadError = false;
-        } on DioException {
-          // Loading delegates is optional; it must not block tournament setup.
-          _members = const [];
-          _membersLoadError = true;
-        }
+        _members = participants
+            .where((member) => member['status'] == 'accepted')
+            .toList(growable: false);
         _delegates
           ..clear()
           ..addAll(
-              List<String>.from(tournament['delegateUserIds'] ?? const []));
+            List<String>.from(tournament['delegateUserIds'] ?? const []),
+          );
       }
       if (!mounted) return;
       setState(() {
         _view = value;
+        _participants = participants;
+        _participantsLoaded = participantsLoaded;
+        _membersLoadError = participantsLoadError;
         _loading = false;
       });
     } catch (e) {
@@ -2053,7 +2069,7 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
   }
 
   Widget _leaderboardCard(dynamic value) {
-    final rows = (value as List? ?? const [])
+    final entries = (value as List? ?? const [])
         .whereType<Map>()
         .map((item) => Map<String, dynamic>.from(item))
         .toList();
@@ -2061,6 +2077,17 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
         ? Map<String, dynamic>.from(_view!['myPrediction'] as Map)
         : null;
     final currentUserId = currentPrediction?['userId']?.toString();
+    final rows = buildTournamentRankingRows(
+      leaderboard: entries,
+      participants: _participants,
+      participantsLoaded: _participantsLoaded,
+      myPrediction: currentPrediction,
+    );
+    final nameCounts = <String, int>{};
+    for (final row in rows) {
+      final key = row.displayName.trim().toLowerCase();
+      nameCounts.update(key, (count) => count + 1, ifAbsent: () => 1);
+    }
     final colors = Theme.of(context).colorScheme;
 
     return Card(
@@ -2096,7 +2123,7 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
                         ),
                       ),
                       Text(
-                        'Puntos por resultado, marcadores exactos y parciales.',
+                        'Puntajes procesados de las personas del evento.',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: colors.onSurfaceVariant,
                         ),
@@ -2106,366 +2133,199 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
                 ),
               ],
             ),
-            if (currentPrediction != null) ...[
-              const SizedBox(height: 14),
-              _myLeaderboardSummary(currentPrediction),
-            ],
+            const SizedBox(height: 16),
             if (rows.isEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 14),
-                child: Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: colors.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.hourglass_empty_rounded,
-                        size: 28,
-                        color: colors.onSurfaceVariant,
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Todavía no hay pronósticos con puntos registrados.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'El ranking se actualizará al procesarse los resultados. Desliza para refrescar.',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colors.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: colors.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Text(
+                  'Aún no hay participantes disponibles para mostrar.',
+                  textAlign: TextAlign.center,
                 ),
               )
             else
-              Padding(
-                padding: const EdgeInsets.only(top: 14),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final wide = constraints.maxWidth >= 520;
-                    final podium = rows.take(3).toList();
-                    final entryWidth = wide
-                        ? (constraints.maxWidth - 8 * (podium.length - 1)) /
-                              podium.length
-                        : constraints.maxWidth;
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final row in podium)
-                              SizedBox(
-                                width: entryWidth,
-                                child: _leaderboardTopEntry(
-                                  row,
-                                  currentUserId: currentUserId,
-                                  compact: !wide,
-                                ),
-                              ),
-                          ],
-                        ),
-                        if (rows.length > 3) ...[
-                          const Divider(height: 24),
-                          const Text(
-                            'Clasificación general',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          for (final row in rows.skip(3))
-                            _leaderboardRow(row, currentUserId: currentUserId),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 380;
+                  return Table(
+                    columnWidths: {
+                      0: FixedColumnWidth(compact ? 36 : 44),
+                      1: const FlexColumnWidth(3.8),
+                      2: const FlexColumnWidth(2),
+                      3: FixedColumnWidth(compact ? 58 : 68),
+                    },
+                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                    border: TableBorder(
+                      horizontalInside: BorderSide(
+                        color: colors.outlineVariant.withValues(alpha: 0.65),
+                      ),
+                    ),
+                    children: [
+                      TableRow(
+                        children: [
+                          _rankingHeaderCell('Pos.'),
+                          _rankingHeaderCell('Participante'),
+                          _rankingHeaderCell('Aciertos'),
+                          _rankingHeaderCell('Puntos', align: TextAlign.end),
                         ],
-                      ],
-                    );
-                  },
+                      ),
+                      for (final row in rows)
+                        _rankingDataRow(
+                          row,
+                          currentUserId: currentUserId,
+                          duplicateName:
+                              nameCounts[row.displayName
+                                  .trim()
+                                  .toLowerCase()]! >
+                              1,
+                          colors: colors,
+                        ),
+                    ],
+                  );
+                },
+              ),
+            if (rows.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                'Quien aún no registra pronósticos aparece sin puesto. '
+                'Tu fila está marcada como TÚ.',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colors.onSurfaceVariant,
                 ),
               ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _myLeaderboardSummary(Map<String, dynamic> prediction) {
+  Widget _rankingHeaderCell(String label, {TextAlign align = TextAlign.start}) {
     final colors = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colors.primaryContainer,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.person_pin_circle_outlined,
-            color: colors.onPrimaryContainer,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Tu puntaje procesado',
-                  style: TextStyle(
-                    color: colors.onPrimaryContainer,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  '${prediction['exactCount'] ?? 0} exactos · '
-                  '${prediction['fivePointCount'] ?? 0} parciales',
-                  style: TextStyle(
-                    color: colors.onPrimaryContainer,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            '${prediction['points'] ?? 0} pts',
-            style: TextStyle(
-              color: colors.onPrimaryContainer,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _leaderboardTopEntry(
-    Map<String, dynamic> row, {
-    required String? currentUserId,
-    required bool compact,
-  }) {
-    final colors = Theme.of(context).colorScheme;
-    final place = int.tryParse(row['place']?.toString() ?? '') ?? 0;
-    final userId = row['userId']?.toString();
-    final isMine = userId != null && userId == currentUserId;
-    final rankColor = switch (place) {
-      1 => Colors.amber.shade800,
-      2 => colors.secondary,
-      3 => colors.tertiary,
-      _ => colors.primary,
-    };
-    final background = place == 1
-        ? colors.primaryContainer
-        : colors.surfaceContainerHighest;
-    final name = row['displayName']?.toString() ?? 'Participante';
-    final score = '${row['points'] ?? 0} pts';
-    final details =
-        '${row['exactCount'] ?? 0} exactos · ${row['fivePointCount'] ?? 0} parciales';
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isMine ? colors.primary : rankColor.withValues(alpha: 0.25),
-          width: isMine ? 1.5 : 1,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 10),
+      child: Text(
+        label,
+        textAlign: align,
+        style: TextStyle(
+          color: colors.onSurfaceVariant,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
         ),
       ),
-      child: compact
-          ? Row(
-              children: [
-                _rankMedal(place, rankColor),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                          if (isMine) _youBadge(),
-                        ],
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        details,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: colors.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  score,
-                  style: TextStyle(
-                    color: colors.primary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            )
-          : Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _rankMedal(place, rankColor),
-                    if (isMine) ...[const SizedBox(width: 6), _youBadge()],
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  score,
-                  style: TextStyle(
-                    color: colors.primary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                Text(
-                  details,
-                  maxLines: 2,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: colors.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
     );
   }
 
-  Widget _leaderboardRow(
-    Map<String, dynamic> row, {
+  TableRow _rankingDataRow(
+    TournamentRankingRow row, {
     required String? currentUserId,
+    required bool duplicateName,
+    required ColorScheme colors,
   }) {
-    final colors = Theme.of(context).colorScheme;
-    final place = int.tryParse(row['place']?.toString() ?? '') ?? 0;
-    final userId = row['userId']?.toString();
-    final isMine = userId != null && userId == currentUserId;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+    final isMine = row.userId == currentUserId;
+    final isFirst = row.place == 1;
+    final textColor = isFirst ? colors.onPrimaryContainer : colors.onSurface;
+    final secondaryColor = isFirst
+        ? colors.onPrimaryContainer.withValues(alpha: 0.82)
+        : colors.onSurfaceVariant;
+    final background = isFirst
+        ? colors.primaryContainer
+        : isMine
+        ? colors.primaryContainer.withValues(alpha: 0.28)
+        : colors.surface;
+
+    Widget cell(Widget child) => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 11),
+      child: child,
+    );
+
+    return TableRow(
       decoration: BoxDecoration(
-        color: isMine
-            ? colors.primaryContainer.withValues(alpha: 0.55)
-            : colors.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
-        border: isMine
-            ? Border.all(color: colors.primary.withValues(alpha: 0.45))
-            : null,
+        color: background,
+        borderRadius: BorderRadius.circular(10),
       ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 30,
-            child: Text(
-              '$place',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: isMine ? colors.primary : colors.onSurfaceVariant,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
+      children: [
+        cell(
+          Text(
+            row.place?.toString() ?? '—',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: textColor, fontWeight: FontWeight.w900),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        row['displayName']?.toString() ?? 'Participante',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        cell(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      row.displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: textColor,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                    if (isMine) _youBadge(),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${row['exactCount'] ?? 0} exactos · '
-                  '${row['fivePointCount'] ?? 0} parciales',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: colors.onSurfaceVariant,
                   ),
+                  if (isMine) _youBadge(onDark: isFirst),
+                ],
+              ),
+              if (!row.hasPrediction)
+                Text(
+                  'Sin pronósticos',
+                  style: TextStyle(color: secondaryColor, fontSize: 10),
+                )
+              else if (duplicateName && row.email != null)
+                Text(
+                  row.email!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: secondaryColor, fontSize: 10),
                 ),
-              ],
-            ),
+            ],
           ),
-          const SizedBox(width: 8),
+        ),
+        cell(
           Text(
-            '${row['points'] ?? 0} pts',
+            row.hasPrediction
+                ? '${row.exactCount} exactos\n${row.fivePointCount} parciales'
+                : '—',
             style: TextStyle(
-              color: colors.primary,
-              fontWeight: FontWeight.w900,
+              color: secondaryColor,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
             ),
           ),
-        ],
-      ),
+        ),
+        cell(
+          Text(
+            '${row.points} pts',
+            textAlign: TextAlign.end,
+            style: TextStyle(color: textColor, fontWeight: FontWeight.w900),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _rankMedal(int place, Color color) => Container(
-    width: 34,
-    height: 34,
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.14),
-      shape: BoxShape.circle,
-    ),
-    child: Text(
-      '$place',
-      style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 14),
-    ),
-  );
-
-  Widget _youBadge() {
+  Widget _youBadge({required bool onDark}) {
     final colors = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        color: colors.primary,
+        color: onDark ? colors.onPrimaryContainer : colors.primary,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
         'TÚ',
         style: TextStyle(
-          color: colors.onPrimary,
+          color: onDark ? colors.primaryContainer : colors.onPrimary,
           fontSize: 9,
           fontWeight: FontWeight.w900,
         ),
