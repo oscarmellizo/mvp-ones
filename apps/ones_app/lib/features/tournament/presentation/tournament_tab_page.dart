@@ -921,112 +921,479 @@ class _TournamentTabPageState extends State<TournamentTabPage> {
     }
   }
 
-  Widget _matchesCard(List<Map<String, dynamic>> matches, bool manager) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                  _t('tournament.actual_matches',
-                      'Partidos y resultados reales'),
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w800, fontSize: 18)),
-              for (final match in matches) _matchRow(match, manager),
-            ],
-          ),
+  Widget _matchesCard(List<Map<String, dynamic>> matches, bool manager) {
+    final theme = Theme.of(context);
+    final finished = matches
+        .where((match) => match['status'] == 'FINISHED')
+        .length;
+    final progress = matches.isEmpty ? 0.0 : finished / matches.length;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    Icons.sports_soccer_outlined,
+                    color: theme.colorScheme.onPrimaryContainer,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _t(
+                          'tournament.actual_matches',
+                          'Partidos y resultados reales',
+                        ),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        manager
+                            ? 'Registra los marcadores oficiales del torneo.'
+                            : 'El owner o delegado registra los resultados oficiales.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.flag_outlined,
+                        size: 18,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(child: Text('Avance del torneo')),
+                      Text(
+                        '$finished de ${matches.length}',
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 9),
+                  LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 5,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            if (matches.isEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 24,
+                  horizontal: 16,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.event_note_outlined,
+                      size: 30,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Los partidos aparecerán aquí cuando se configuren los cuatro equipos.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+            )
+            else
+              for (var i = 0; i < matches.length; i++)
+                _matchRow(matches[i], manager),
+          ],
         ),
-      );
+      ),
+    );
+  }
 
   Widget _matchRow(Map<String, dynamic> match, bool manager) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     final id = match['id'] as String;
     final home = _teamName(match['homeTeamId']);
     final away = _teamName(match['awayTeamId']);
     final status = match['status']?.toString() ?? 'PENDING';
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 8,
-        runSpacing: 4,
-        children: [
-          SizedBox(width: 140, child: Text('$home vs $away')),
-          TextField(
-            controller: _controller(_actualHomeScores, id),
-            enabled: manager &&
-                (status == 'IN_PROGRESS' || _editingResults.contains(id)),
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration:
-                const InputDecoration(labelText: 'Local', isDense: true),
-            textAlign: TextAlign.center,
-            maxLength: 2,
-          ),
-          const Text('-'),
-          TextField(
-            controller: _controller(_actualAwayScores, id),
-            enabled: manager &&
-                (status == 'IN_PROGRESS' || _editingResults.contains(id)),
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration:
-                const InputDecoration(labelText: 'Visita', isDense: true),
-            textAlign: TextAlign.center,
-            maxLength: 2,
-          ),
-          if (manager && status == 'PENDING' && home != 'Por definir')
-            OutlinedButton(
-              onPressed: _busy ? null : () => _startMatch(id),
-              child: const Text('Iniciar'),
-            ),
-          if (manager &&
-              (status == 'IN_PROGRESS' || _editingResults.contains(id)))
-            FilledButton(
-              onPressed: _busy ? null : () => _finishMatch(match),
-              child: Text(
-                  status == 'FINISHED' ? 'Guardar corrección' : 'Finalizar'),
-            ),
-          if (status == 'IN_PROGRESS' &&
-              match['phase'] != 'ROUND_ROBIN' &&
-              _actualHomeScores[id]?.text == _actualAwayScores[id]?.text &&
-              _actualHomeScores[id]?.text.isNotEmpty == true)
-            DropdownButton<String>(
-              value: _penaltyWinners[id],
-              hint: const Text('Ganador penales'),
-              items: [
-                if (match['homeTeamId'] != null)
-                  DropdownMenuItem<String>(
-                    value: match['homeTeamId'] as String,
-                    child: Text(home),
+    final editing = _editingResults.contains(id);
+    final canEditResult = manager && (status == 'IN_PROGRESS' || editing);
+    final canStart = manager && status == 'PENDING' && home != 'Por definir';
+    final isFinished = status == 'FINISHED' && !editing;
+    final scoreTied =
+        _actualHomeScores[id]?.text == _actualAwayScores[id]?.text &&
+        _actualHomeScores[id]?.text.isNotEmpty == true;
+    final needsPenaltyWinner =
+        manager &&
+        status == 'IN_PROGRESS' &&
+        match['phase'] != 'ROUND_ROBIN' &&
+        scoreTied;
+    final statusColor = switch (status) {
+      'FINISHED' => colors.primary,
+      'IN_PROGRESS' => colors.tertiary,
+      _ => colors.outline,
+    };
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: statusColor.withValues(alpha: 0.28)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
                   ),
-                if (match['awayTeamId'] != null)
-                  DropdownMenuItem<String>(
-                    value: match['awayTeamId'] as String,
-                    child: Text(away),
+                  decoration: BoxDecoration(
+                    color: colors.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
                   ),
+                  child: Text(
+                    _matchPhaseLabel(match),
+                    style: TextStyle(
+                      color: colors.onSurfaceVariant,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                _matchStatusBadge(status, statusColor),
               ],
-              onChanged: (value) => setState(() {
-                if (value == null) {
-                  _penaltyWinners.remove(id);
-                } else {
-                  _penaltyWinners[id] = value;
-                }
-              }),
             ),
-          if (status == 'FINISHED') ...[
-            Text('${match['homeGoals']} - ${match['awayGoals']}'),
-            if (manager && !_editingResults.contains(id))
-              TextButton(
-                onPressed: () => setState(() {
-                  _editingResults.add(id);
-                  _actualHomeScores[id]?.text =
-                      match['homeGoals']?.toString() ?? '';
-                  _actualAwayScores[id]?.text =
-                      match['awayGoals']?.toString() ?? '';
-                }),
-                child: const Text('Corregir'),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    home,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (canEditResult) ...[
+                  _actualScoreField(id, homeSide: true),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 5),
+                    child: Text(
+                      '–',
+                      style: TextStyle(
+                        color: colors.onSurfaceVariant,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  _actualScoreField(id, homeSide: false),
+                ] else if (isFinished)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 9,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colors.primaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${match['homeGoals']} – ${match['awayGoals']}',
+                      style: TextStyle(
+                        color: colors.onPrimaryContainer,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      'VS',
+                      style: TextStyle(
+                        color: colors.outline,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    away,
+                    textAlign: TextAlign.end,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (needsPenaltyWinner) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colors.tertiaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          size: 18,
+                          color: colors.onTertiaryContainer,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'El partido está empatado. Selecciona quién gana por penales.',
+                            style: TextStyle(
+                              color: colors.onTertiaryContainer,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    DropdownButton<String>(
+                      value: _penaltyWinners[id],
+                      isExpanded: true,
+                      hint: const Text('Elegir ganador por penales'),
+                      items: [
+                        if (match['homeTeamId'] != null)
+                          DropdownMenuItem<String>(
+                            value: match['homeTeamId'] as String,
+                            child: Text(home),
+                          ),
+                        if (match['awayTeamId'] != null)
+                          DropdownMenuItem<String>(
+                            value: match['awayTeamId'] as String,
+                            child: Text(away),
+                          ),
+                      ],
+                      onChanged: (value) => setState(() {
+                        if (value == null) {
+                          _penaltyWinners.remove(id);
+                        } else {
+                          _penaltyWinners[id] = value;
+                        }
+                      }),
+                    ),
+                  ],
+                ),
               ),
+            ],
+            if (canStart ||
+                (manager && (status == 'IN_PROGRESS' || editing)) ||
+                (manager && status == 'FINISHED' && !editing)) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.end,
+                children: [
+                  if (canStart)
+                    FilledButton.tonalIcon(
+                      onPressed: _busy ? null : () => _startMatch(id),
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: const Text('Iniciar partido'),
+                    ),
+                  if (manager && (status == 'IN_PROGRESS' || editing))
+                    FilledButton.icon(
+                      onPressed: _busy ? null : () => _finishMatch(match),
+                      icon: Icon(
+                        editing
+                            ? Icons.save_outlined
+                            : Icons.sports_score_outlined,
+                      ),
+                      label: Text(
+                        editing ? 'Guardar corrección' : 'Finalizar partido',
+                      ),
+                    ),
+                  if (manager && status == 'FINISHED' && !editing)
+                    TextButton.icon(
+                      onPressed: () => setState(() {
+                        _editingResults.add(id);
+                        _actualHomeScores[id]?.text =
+                            match['homeGoals']?.toString() ?? '';
+                        _actualAwayScores[id]?.text =
+                            match['awayGoals']?.toString() ?? '';
+                      }),
+                      icon: const Icon(Icons.edit_outlined),
+                      label: const Text('Corregir resultado'),
+                    ),
+                  if (manager && editing)
+                    TextButton(
+                      onPressed: () => setState(() {
+                        _editingResults.remove(id);
+                        _actualHomeScores[id]?.text =
+                            match['homeGoals']?.toString() ?? '';
+                        _actualAwayScores[id]?.text =
+                            match['awayGoals']?.toString() ?? '';
+                      }),
+                      child: const Text('Cancelar'),
+                    ),
+                ],
+              ),
+            ],
+            if (status == 'PENDING' && home == 'Por definir') ...[
+              const SizedBox(height: 10),
+              Text(
+                'Los equipos se asignarán al cerrar la fase de todos contra todos.',
+                style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+              ),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+
+  String _matchPhaseLabel(Map<String, dynamic> match) =>
+      switch (match['phase']) {
+        'FINAL' => 'Final',
+        'THIRD_PLACE' => 'Tercer puesto',
+        _ => 'Todos contra todos',
+      };
+
+  Widget _matchStatusBadge(String status, Color color) {
+    final (label, icon) = switch (status) {
+      'FINISHED' => ('Finalizado', Icons.check_circle_outline),
+      'IN_PROGRESS' => ('En juego', Icons.play_circle_outline),
+      _ => ('Pendiente', Icons.schedule_outlined),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _actualScoreField(String matchId, {required bool homeSide}) {
+    final colors = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: 52,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            homeSide ? 'LOCAL' : 'VISITA',
+            style: TextStyle(
+              color: colors.onSurfaceVariant,
+              fontSize: 8,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: 4),
+          SizedBox(
+            height: 44,
+            child: TextField(
+              controller: _controller(
+                homeSide ? _actualHomeScores : _actualAwayScores,
+                matchId,
+              ),
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              textAlign: TextAlign.center,
+              maxLength: 2,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              decoration: InputDecoration(
+                counterText: '',
+                filled: true,
+                fillColor: colors.surfaceContainerHighest,
+                contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(11),
+                  borderSide: BorderSide(color: colors.outlineVariant),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(11),
+                  borderSide: BorderSide(color: colors.primary, width: 1.6),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
