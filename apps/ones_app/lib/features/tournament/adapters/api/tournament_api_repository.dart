@@ -124,11 +124,17 @@ class TournamentApiRepository {
   }
 
   Future<List<Map<String, dynamic>>> acceptedMembers(String eventId) async {
+    final members = await eventMembers(eventId);
+    return members
+        .where((item) => item['status'] == 'accepted')
+        .toList(growable: false);
+  }
+
+  Future<List<Map<String, dynamic>>> eventMembers(String eventId) async {
     final response = await _secureDio().get('/v1/events/$eventId/guests/v2');
     return (response.data as List)
         .whereType<Map>()
         .map((item) => Map<String, dynamic>.from(item))
-        .where((item) => item['status'] == 'accepted')
         .toList(growable: false);
   }
 
