@@ -179,9 +179,10 @@ public class DynamoDbTournamentRepository {
                 ? "attribute_not_exists(#pk)"
                 : "#version = :expected";
         var forecastNames = new java.util.HashMap<String, String>();
-        forecastNames.put("#pk", "pk");
         var forecastValueMap = new java.util.HashMap<String, AttributeValue>();
-        if (expectedPredictionVersion != 0) {
+        if (expectedPredictionVersion == 0) {
+            forecastNames.put("#pk", "pk");
+        } else {
             forecastNames.put("#version", "version");
             forecastValueMap.put(":expected", AttributeValue.fromN(Long.toString(expectedPredictionVersion)));
         }

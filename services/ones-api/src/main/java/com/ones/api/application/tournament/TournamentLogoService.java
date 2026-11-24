@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ones.api.application.events.AiImageGenerationException;
 import com.ones.api.application.events.ports.ObjectStorage;
 import com.ones.api.application.events.ports.ObjectStoragePresigner;
 import com.ones.api.domain.tournament.TournamentModels.Team;
@@ -123,7 +124,7 @@ public class TournamentLogoService {
             }
             return savePreview(eventId, teamId, normalize(Base64.getDecoder().decode(image)));
         } catch (Exception e) {
-            throw new IllegalStateException("Unable to generate the team logo with Bedrock", e);
+            throw new AiImageGenerationException("Unable to generate the team logo with Bedrock", e);
         }
     }
 
