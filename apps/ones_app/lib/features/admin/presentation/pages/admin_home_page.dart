@@ -15,7 +15,7 @@ class AdminHomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return AdminGate(
       child: Scaffold(
-        backgroundColor: OnesColors.background,
+        backgroundColor: OnesColors.surfaceWarm,
         appBar: AppBar(
           title: const Text('Admin'),
         ),
@@ -44,7 +44,7 @@ class AdminHomePage extends StatelessWidget {
                             foregroundColor: OnesColors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.zero,
+                              borderRadius: const BorderRadius.all(Radius.circular(12)),
                             ),
                           ),
                           onPressed: () {
@@ -83,7 +83,7 @@ class AdminHomePage extends StatelessWidget {
                             foregroundColor: OnesColors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.zero,
+                              borderRadius: const BorderRadius.all(Radius.circular(12)),
                             ),
                           ),
                           onPressed: () {
@@ -122,7 +122,7 @@ class AdminHomePage extends StatelessWidget {
                             foregroundColor: OnesColors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.zero,
+                              borderRadius: const BorderRadius.all(Radius.circular(12)),
                             ),
                           ),
                           onPressed: () {
@@ -161,7 +161,7 @@ class AdminHomePage extends StatelessWidget {
                             foregroundColor: OnesColors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.zero,
+                              borderRadius: const BorderRadius.all(Radius.circular(12)),
                             ),
                           ),
                           onPressed: () {

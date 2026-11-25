@@ -47,7 +47,7 @@ class _InvitationsSheetState extends State<_InvitationsSheet> {
         child: Container(
           decoration: const BoxDecoration(
             color: OnesColors.white,
-            borderRadius: BorderRadius.zero,
+            borderRadius: const BorderRadius.all(Radius.circular(12)),
           ),
           child: ConstrainedBox(
             constraints: BoxConstraints(
@@ -181,7 +181,7 @@ class _InvitationRow extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: chipColor,
-                borderRadius: BorderRadius.zero,
+                borderRadius: const BorderRadius.all(Radius.circular(12)),
               ),
               child: Text(
                 chipText,

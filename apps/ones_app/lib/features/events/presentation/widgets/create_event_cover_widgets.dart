@@ -44,17 +44,18 @@ class CreateEventCoverPicker extends StatelessWidget {
           child: Container(
             width: double.infinity,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.zero,
-              color: OnesColors.yellowPale.withOpacity(0.55),
+              borderRadius: const BorderRadius.all(Radius.circular(12)),
+              color: OnesColors.surfaceMuted,
             ),
             child: Stack(
               children: [
                 Positioned.fill(
                   child: ClipRRect(
-                    borderRadius: BorderRadius.zero,
+                    borderRadius: const BorderRadius.all(Radius.circular(12)),
                     child: () {
                       if (localImageBytes != null) {
-                        return Image.memory(localImageBytes!, fit: BoxFit.cover);
+                        return Image.memory(localImageBytes!,
+                            fit: BoxFit.cover);
                       }
                       if (imageUrl != null) {
                         return Image.network(imageUrl!, fit: BoxFit.cover);
@@ -66,7 +67,7 @@ class CreateEventCoverPicker extends StatelessWidget {
                 Positioned.fill(
                   child: Container(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.zero,
+                      borderRadius: const BorderRadius.all(Radius.circular(12)),
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
@@ -94,7 +95,7 @@ class CreateEventCoverPicker extends StatelessWidget {
                             width: 48,
                             height: 48,
                             decoration: const BoxDecoration(
-                              color: OnesColors.yellowPale,
+                              color: OnesColors.surfaceMuted,
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(

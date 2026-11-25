@@ -19,7 +19,8 @@ class AdminTranslationEditPage extends StatefulWidget {
   });
 
   @override
-  State<AdminTranslationEditPage> createState() => _AdminTranslationEditPageState();
+  State<AdminTranslationEditPage> createState() =>
+      _AdminTranslationEditPageState();
 }
 
 class _AdminTranslationEditPageState extends State<AdminTranslationEditPage> {
@@ -55,14 +56,16 @@ class _AdminTranslationEditPageState extends State<AdminTranslationEditPage> {
         translationKey: widget.translationKey!,
         languageCode: widget.languageCode,
         value: _valueController.text,
-        context: _contextController.text.isEmpty ? null : _contextController.text,
+        context:
+            _contextController.text.isEmpty ? null : _contextController.text,
       );
     } else {
       await ctrl.create(
         translationKey: _keyController.text,
         languageCode: widget.languageCode,
         value: _valueController.text,
-        context: _contextController.text.isEmpty ? null : _contextController.text,
+        context:
+            _contextController.text.isEmpty ? null : _contextController.text,
       );
     }
 
@@ -77,7 +80,7 @@ class _AdminTranslationEditPageState extends State<AdminTranslationEditPage> {
     final isEditing = widget.translationKey != null;
 
     return Scaffold(
-      backgroundColor: OnesColors.background,
+      backgroundColor: OnesColors.surfaceWarm,
       appBar: AppBar(
         title: Text(isEditing ? 'Edit Translation' : 'Add Translation'),
       ),
@@ -148,7 +151,7 @@ class _AdminTranslationEditPageState extends State<AdminTranslationEditPage> {
                       foregroundColor: OnesColors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero,
+                        borderRadius: const BorderRadius.all(Radius.circular(12)),
                       ),
                     ),
                     child: Text(

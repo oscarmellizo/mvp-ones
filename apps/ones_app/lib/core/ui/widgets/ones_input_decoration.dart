@@ -18,7 +18,7 @@ class OnesInputDecoration {
     final side =
         borderSide ?? BorderSide(color: OnesColors.black.withOpacity(0.12));
     final baseBorder = OutlineInputBorder(
-      borderRadius: borderRadius ?? BorderRadius.zero,
+      borderRadius: borderRadius ?? const BorderRadius.all(Radius.circular(12)),
       borderSide: side,
     );
 

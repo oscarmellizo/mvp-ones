@@ -21,7 +21,7 @@ class LiveEventsSelector extends StatelessWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: OnesColors.background,
+      backgroundColor: OnesColors.surfaceWarm,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),

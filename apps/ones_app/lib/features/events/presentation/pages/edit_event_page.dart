@@ -622,9 +622,9 @@ class _EditEventPageState extends State<EditEventPage> {
         : '${formatShortMonthDay(start)} • ${TimeOfDay.fromDateTime(start).format(context)} → ${formatShortMonthDay(end)} • ${TimeOfDay.fromDateTime(end).format(context)}';
 
     return Scaffold(
-      backgroundColor: OnesColors.background,
+      backgroundColor: OnesColors.surfaceWarm,
       appBar: AppBar(
-        backgroundColor: OnesColors.background,
+        backgroundColor: OnesColors.surfaceWarm,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(

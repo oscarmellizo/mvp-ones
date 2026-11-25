@@ -13,7 +13,7 @@ class AdminAdminsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return AdminGate(
       child: Scaffold(
-        backgroundColor: OnesColors.background,
+        backgroundColor: OnesColors.surfaceWarm,
         appBar: AppBar(
           title: const Text('Administrators'),
           actions: [
@@ -82,7 +82,8 @@ class _BodyState extends State<_Body> {
                 textInputAction: TextInputAction.done,
                 decoration: const InputDecoration(
                   hintText: 'email@domain.com',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+                  border: OutlineInputBorder(
+                      borderRadius: const BorderRadius.all(Radius.circular(12))),
                 ),
                 onSubmitted: (_) => _onAdd(context),
               ),
@@ -95,7 +96,7 @@ class _BodyState extends State<_Body> {
                     foregroundColor: OnesColors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.zero,
+                      borderRadius: const BorderRadius.all(Radius.circular(12)),
                     ),
                   ),
                   onPressed: ctrl.loading ? null : () => _onAdd(context),

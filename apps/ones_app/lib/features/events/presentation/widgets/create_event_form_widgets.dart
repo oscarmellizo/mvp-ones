@@ -81,7 +81,7 @@ class CreateEventDateTimeRow extends StatelessWidget {
           height: 44,
           decoration: BoxDecoration(
             color: OnesColors.purpleBright.withOpacity(0.12),
-            borderRadius: BorderRadius.zero,
+            borderRadius: const BorderRadius.all(Radius.circular(12)),
           ),
           child: Icon(icon, color: OnesColors.purpleMid),
         ),
@@ -154,12 +154,12 @@ class CreateEventMiniField extends StatelessWidget {
         const SizedBox(height: 6),
         InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.zero,
+          borderRadius: const BorderRadius.all(Radius.circular(12)),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
               color: OnesColors.white.withOpacity(0.75),
-              borderRadius: BorderRadius.zero,
+              borderRadius: const BorderRadius.all(Radius.circular(12)),
               border: Border.all(color: OnesColors.black.withOpacity(0.06)),
             ),
             child: Row(

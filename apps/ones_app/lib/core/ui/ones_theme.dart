@@ -22,7 +22,7 @@ class OnesTheme {
     final base = ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: OnesColors.background,
+      scaffoldBackgroundColor: OnesColors.surfaceWarm,
       fontFamilyFallback: OnesTypography.bodyFallbacks,
     );
 
@@ -89,18 +89,107 @@ class OnesTheme {
 
     return base.copyWith(
       textTheme: textTheme,
-      inputDecorationTheme: InputDecorationTheme(
-        hintStyle: TextStyle(
-          fontFamilyFallback: OnesTypography.bodyFallbacks,
-          color: OnesColors.black.withOpacity(0.38),
-          fontWeight: FontWeight.w500,
-        ),
-      ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: OnesColors.background,
+        backgroundColor: OnesColors.surfaceWarm,
         foregroundColor: OnesColors.purpleDeep,
         elevation: 0,
         scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+      ),
+      cardTheme: CardThemeData(
+        color: OnesColors.white,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: OnesColors.black.withOpacity(0.06)),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: OnesColors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: OnesColors.white,
+        surfaceTintColor: Colors.transparent,
+        modalBackgroundColor: OnesColors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: OnesColors.white,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+        hintStyle: TextStyle(
+          fontFamilyFallback: OnesTypography.bodyFallbacks,
+          color: OnesColors.inkSoft.withOpacity(0.8),
+          fontWeight: FontWeight.w500,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: const BorderRadius.all(Radius.circular(12)),
+          borderSide: BorderSide(color: OnesColors.black.withOpacity(0.10)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: const BorderRadius.all(Radius.circular(12)),
+          borderSide: BorderSide(color: OnesColors.black.withOpacity(0.10)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: const BorderRadius.all(Radius.circular(12)),
+          borderSide: const BorderSide(color: OnesColors.purpleMid, width: 1.6),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: const BorderRadius.all(Radius.circular(12)),
+          borderSide: const BorderSide(color: OnesColors.danger),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: const BorderRadius.all(Radius.circular(12)),
+          borderSide: const BorderSide(color: OnesColors.danger, width: 1.6),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: OnesColors.purpleMid,
+          foregroundColor: OnesColors.white,
+          minimumSize: const Size(48, 48),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: OnesColors.purpleMid,
+          foregroundColor: OnesColors.white,
+          minimumSize: const Size(48, 48),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: OnesColors.purpleMid,
+          minimumSize: const Size(48, 48),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          side: BorderSide(color: OnesColors.purpleMid.withOpacity(0.35)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      ),
+      chipTheme: base.chipTheme.copyWith(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        side: BorderSide(color: OnesColors.black.withOpacity(0.08)),
+        selectedColor: OnesColors.purpleMid.withOpacity(0.12),
+        backgroundColor: OnesColors.white,
+        labelStyle: const TextStyle(color: OnesColors.black),
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: OnesColors.purpleMid,

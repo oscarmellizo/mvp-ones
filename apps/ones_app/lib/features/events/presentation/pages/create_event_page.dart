@@ -698,9 +698,9 @@ class _CreateEventPageState extends State<CreateEventPage> {
     final isKeyboardOpen = bottomInset > 0;
 
     return Scaffold(
-      backgroundColor: OnesColors.background,
+      backgroundColor: OnesColors.surfaceWarm,
       appBar: AppBar(
-        backgroundColor: OnesColors.background,
+        backgroundColor: OnesColors.surfaceWarm,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
@@ -1026,7 +1026,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         disabledBackgroundColor:
                             OnesColors.purpleMid.withOpacity(0.5),
                         shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.zero,
+                          borderRadius: const BorderRadius.all(Radius.circular(12)),
                         ),
                       ),
                       onPressed: (controller.loading || !_isFormReady)

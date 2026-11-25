@@ -120,7 +120,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final pictureUrl = user?.pictureUrl;
 
     return Scaffold(
-      backgroundColor: OnesColors.background,
+      backgroundColor: OnesColors.surfaceWarm,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -200,7 +200,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             controller: _preferredNameController,
                             hintText: translationsService
                                 .translate('profile.preferred_name_label'),
-                            fillColor: OnesColors.yellowLight.withOpacity(0.35),
+                            fillColor: OnesColors.white,
                             borderSide: BorderSide.none,
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 12,
@@ -227,7 +227,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                 padding:
                                     const EdgeInsets.symmetric(vertical: 12),
                                 shape: const RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.zero,
+                                  borderRadius: const BorderRadius.all(Radius.circular(12)),
                                 ),
                               ),
                               onPressed: auth.isLoading
@@ -305,7 +305,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                   padding:
                                       const EdgeInsets.symmetric(vertical: 12),
                                   shape: const RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.zero,
+                                    borderRadius: const BorderRadius.all(Radius.circular(12)),
                                   ),
                                 ),
                                 onPressed: auth.isLoading
@@ -349,7 +349,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           backgroundColor: OnesColors.purpleMid,
                           foregroundColor: OnesColors.white,
                           shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.zero,
+                            borderRadius: const BorderRadius.all(Radius.circular(12)),
                           ),
                         ),
                         onPressed: auth.isLoading
@@ -392,7 +392,6 @@ class _ProfilePageState extends State<ProfilePage> {
   if (parts.length == 1) return (parts[0], '');
   return (parts.first, parts.sublist(1).join(' '));
 }
-
 
 class _Card extends StatelessWidget {
   final String title;

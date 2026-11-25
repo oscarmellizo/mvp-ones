@@ -49,9 +49,9 @@ class _LegalMarkdownPageState extends State<LegalMarkdownPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: OnesColors.background,
+      backgroundColor: OnesColors.surfaceWarm,
       appBar: AppBar(
-        backgroundColor: OnesColors.background,
+        backgroundColor: OnesColors.surfaceWarm,
         elevation: 0,
         foregroundColor: OnesColors.black,
         title: Text(widget.title),

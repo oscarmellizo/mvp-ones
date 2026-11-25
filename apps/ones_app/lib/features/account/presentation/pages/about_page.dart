@@ -32,9 +32,9 @@ class _AboutPageState extends State<AboutPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: OnesColors.background,
+      backgroundColor: OnesColors.surfaceWarm,
       appBar: AppBar(
-        backgroundColor: OnesColors.background,
+        backgroundColor: OnesColors.surfaceWarm,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -64,12 +64,18 @@ class _AboutPageState extends State<AboutPage> {
                 style: TextStyle(fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 6),
-              const Text('• No más memoria llena: todo se almacena en la nube de forma segura.'),
-              const Text('• Sin pérdida de calidad: conservamos tus fotos y videos con su nitidez original.'),
-              const Text('• Compartir es fácil: crea un evento y todos pueden subir y ver contenido.'),
-              const Text('• Todo organizado: tus recuerdos quedan ordenados cronológicamente por evento.'),
-              const Text('• Acceso desde cualquier dispositivo: móvil o web, cuando lo necesites.'),
-              const Text('• Respaldo seguro: evita pérdidas si cambias de equipo o lo extravías.'),
+              const Text(
+                  '• No más memoria llena: todo se almacena en la nube de forma segura.'),
+              const Text(
+                  '• Sin pérdida de calidad: conservamos tus fotos y videos con su nitidez original.'),
+              const Text(
+                  '• Compartir es fácil: crea un evento y todos pueden subir y ver contenido.'),
+              const Text(
+                  '• Todo organizado: tus recuerdos quedan ordenados cronológicamente por evento.'),
+              const Text(
+                  '• Acceso desde cualquier dispositivo: móvil o web, cuando lo necesites.'),
+              const Text(
+                  '• Respaldo seguro: evita pérdidas si cambias de equipo o lo extravías.'),
               const SizedBox(height: 16),
               Text('Versión: ${_version.isEmpty ? '—' : _version}'),
             ],
