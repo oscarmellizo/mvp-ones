@@ -33,7 +33,8 @@ class _RegisterPageState extends State<RegisterPage> {
   /// Proveedor cuyo inicio de sesión está en curso: solo ese botón muestra "Conectando...".
   String? _pending;
 
-  Future<void> _startWith(String provider, Future<AuthNextStep> Function() action) async {
+  Future<void> _startWith(
+      String provider, Future<AuthNextStep> Function() action) async {
     final auth = context.read<AuthController>();
     setState(() => _pending = provider);
     final AuthNextStep step;
@@ -54,10 +55,13 @@ class _RegisterPageState extends State<RegisterPage> {
         }
         return;
       case AuthNextStep.needsRegistration:
-        final seed = auth.preferredName ?? _guessPreferredName(auth.user?.displayName);
+        final seed =
+            auth.preferredName ?? _guessPreferredName(auth.user?.displayName);
         setState(() {
           _showValidation = false;
-          if (_preferredNameController.text.trim().isEmpty && seed != null && seed.trim().isNotEmpty) {
+          if (_preferredNameController.text.trim().isEmpty &&
+              seed != null &&
+              seed.trim().isNotEmpty) {
             _preferredNameController.text = seed.trim();
           }
         });
@@ -67,7 +71,6 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   void initState() {
     super.initState();
-
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -148,9 +151,9 @@ class _RegisterPageState extends State<RegisterPage> {
     final preferredNameError = _preferredNameError();
 
     return Scaffold(
-      backgroundColor: OnesColors.background,
+      backgroundColor: OnesColors.surfaceWarm,
       appBar: AppBar(
-        backgroundColor: OnesColors.background,
+        backgroundColor: OnesColors.surfaceWarm,
         elevation: 0,
         foregroundColor: OnesColors.black,
         title: const Text('Crea tu cuenta'),
@@ -193,21 +196,26 @@ class _RegisterPageState extends State<RegisterPage> {
                   ],
                   OnesCard(
                     padding: const EdgeInsets.all(16),
-                    borderRadius: BorderRadius.zero,
+                    borderRadius: const BorderRadius.all(Radius.circular(12)),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         if (user == null) ...[
                           GoogleSignInButton(
                             busy: _pending == 'google',
-                            onPressed: auth.isLoading ? null : () => _startWith('google', auth.beginRegistration),
+                            onPressed: auth.isLoading
+                                ? null
+                                : () => _startWith(
+                                    'google', auth.beginRegistration),
                           ),
                           if (appleSignInAvailable) ...[
                             const SizedBox(height: 12),
                             AppleSignInButton(
                               busy: _pending == 'apple',
-                              onPressed:
-                                  auth.isLoading ? null : () => _startWith('apple', auth.beginRegistrationWithApple),
+                              onPressed: auth.isLoading
+                                  ? null
+                                  : () => _startWith(
+                                      'apple', auth.beginRegistrationWithApple),
                             ),
                           ],
                           const SizedBox(height: 12),
@@ -217,8 +225,8 @@ class _RegisterPageState extends State<RegisterPage> {
                             busy: auth.isLoading,
                             isRegistration: true,
                             fieldFill: OnesColors.black.withOpacity(0.04),
-                            onSubmit: (email, password) =>
-                                _startWith('email', () => auth.registerWithEmail(email, password)),
+                            onSubmit: (email, password) => _startWith('email',
+                                () => auth.registerWithEmail(email, password)),
                           ),
                         ] else ...[
                           Row(
@@ -226,7 +234,7 @@ class _RegisterPageState extends State<RegisterPage> {
                             children: [
                               CircleAvatar(
                                 radius: 26,
-                                backgroundColor: OnesColors.yellowLight,
+                                backgroundColor: OnesColors.surfaceMuted,
                                 backgroundImage: (user.pictureUrl != null &&
                                         user.pictureUrl!.trim().isNotEmpty)
                                     ? NetworkImage(user.pictureUrl!)
@@ -285,7 +293,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           OnesTextField(
                             controller: _preferredNameController,
                             hintText: 'Nombre preferido',
-                            fillColor: OnesColors.yellowLight.withOpacity(0.35),
+                            fillColor: OnesColors.white,
                             borderSide: BorderSide.none,
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 12,
@@ -366,24 +374,22 @@ class _RegisterPageState extends State<RegisterPage> {
                                               decoration:
                                                   TextDecoration.underline,
                                             ),
-                                            recognizer:
-                                                TapGestureRecognizer()
-                                                  ..onTap = () {
-                                                    Navigator.of(context).push(
-                                                      MaterialPageRoute(
-                                                        builder: (_) =>
-                                                            const LegalMarkdownPage(
-                                                          title:
-                                                              'Términos y privacidad',
-                                                          assetPath:
-                                                              'assets/legal/terms_and_privacy.md',
-                                                        ),
-                                                      ),
-                                                    );
-                                                  },
+                                            recognizer: TapGestureRecognizer()
+                                              ..onTap = () {
+                                                Navigator.of(context).push(
+                                                  MaterialPageRoute(
+                                                    builder: (_) =>
+                                                        const LegalMarkdownPage(
+                                                      title:
+                                                          'Términos y privacidad',
+                                                      assetPath:
+                                                          'assets/legal/terms_and_privacy.md',
+                                                    ),
+                                                  ),
+                                                );
+                                              },
                                           ),
-                                          const TextSpan(
-                                              text: ' y la '),
+                                          const TextSpan(text: ' y la '),
                                           TextSpan(
                                             text: 'Política de privacidad',
                                             style: const TextStyle(
@@ -392,21 +398,20 @@ class _RegisterPageState extends State<RegisterPage> {
                                               decoration:
                                                   TextDecoration.underline,
                                             ),
-                                            recognizer:
-                                                TapGestureRecognizer()
-                                                  ..onTap = () {
-                                                    Navigator.of(context).push(
-                                                      MaterialPageRoute(
-                                                        builder: (_) =>
-                                                            const LegalMarkdownPage(
-                                                          title:
-                                                              'Términos y privacidad',
-                                                          assetPath:
-                                                              'assets/legal/terms_and_privacy.md',
-                                                        ),
-                                                      ),
-                                                    );
-                                                  },
+                                            recognizer: TapGestureRecognizer()
+                                              ..onTap = () {
+                                                Navigator.of(context).push(
+                                                  MaterialPageRoute(
+                                                    builder: (_) =>
+                                                        const LegalMarkdownPage(
+                                                      title:
+                                                          'Términos y privacidad',
+                                                      assetPath:
+                                                          'assets/legal/terms_and_privacy.md',
+                                                    ),
+                                                  ),
+                                                );
+                                              },
                                           ),
                                           const TextSpan(text: '.'),
                                         ],
@@ -427,7 +432,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                 padding:
                                     const EdgeInsets.symmetric(vertical: 12),
                                 shape: const RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.zero,
+                                  borderRadius: const BorderRadius.all(Radius.circular(12)),
                                 ),
                               ),
                               onPressed: auth.isLoading || !_termsAccepted
@@ -473,10 +478,13 @@ class _RegisterPageState extends State<RegisterPage> {
                             const SizedBox(height: 8),
                             TextButton(
                               key: const Key('register.logout'),
-                              onPressed: auth.isLoading ? null : () => auth.logout(),
+                              onPressed:
+                                  auth.isLoading ? null : () => auth.logout(),
                               child: const Text(
                                 'Usar otra cuenta',
-                                style: TextStyle(color: OnesColors.purpleDeep, fontWeight: FontWeight.w700),
+                                style: TextStyle(
+                                    color: OnesColors.purpleDeep,
+                                    fontWeight: FontWeight.w700),
                               ),
                             ),
                           ],

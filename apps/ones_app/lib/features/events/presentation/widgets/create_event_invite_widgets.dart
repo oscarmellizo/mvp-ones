@@ -91,7 +91,7 @@ class CreateEventInviteGuestsCard extends StatelessWidget {
                 foregroundColor: OnesColors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.zero,
+                  borderRadius: const BorderRadius.all(Radius.circular(12)),
                 ),
               ),
               onPressed: () {

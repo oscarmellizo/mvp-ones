@@ -15,7 +15,7 @@ class AdminGate extends StatelessWidget {
 
     if (!auth.isSignedIn) {
       return Scaffold(
-        backgroundColor: OnesColors.background,
+        backgroundColor: OnesColors.surfaceWarm,
         appBar: AppBar(
           title: const Text('Admin'),
         ),
@@ -30,7 +30,7 @@ class AdminGate extends StatelessWidget {
 
     if (auth.isLoading) {
       return Scaffold(
-        backgroundColor: OnesColors.background,
+        backgroundColor: OnesColors.surfaceWarm,
         appBar: AppBar(
           title: const Text('Admin'),
         ),
@@ -44,7 +44,7 @@ class AdminGate extends StatelessWidget {
 
     if (!auth.isAdmin) {
       return Scaffold(
-        backgroundColor: OnesColors.background,
+        backgroundColor: OnesColors.surfaceWarm,
         appBar: AppBar(
           title: const Text('Admin'),
         ),

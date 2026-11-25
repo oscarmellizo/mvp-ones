@@ -17,9 +17,9 @@ class AccountPage extends StatelessWidget {
     final account = context.watch<AccountController>();
 
     return Scaffold(
-      backgroundColor: OnesColors.background,
+      backgroundColor: OnesColors.surfaceWarm,
       appBar: AppBar(
-        backgroundColor: OnesColors.background,
+        backgroundColor: OnesColors.surfaceWarm,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -39,12 +39,14 @@ class AccountPage extends StatelessWidget {
                   children: [
                     const Text(
                       'Desactivar cuenta',
-                      style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                      style:
+                          TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
                     ),
                     const SizedBox(height: 10),
                     Text(
                       'Tu cuenta se desactivará ahora. Si vuelves a iniciar sesión dentro de los próximos 30 días, se reactivará automáticamente. Pasados 30 días te enviaremos tus fotos por correo; el enlace dura 8 días y después borraremos tu cuenta y todo su contenido definitivamente.',
-                      style: TextStyle(color: OnesColors.black.withOpacity(0.6)),
+                      style:
+                          TextStyle(color: OnesColors.black.withOpacity(0.6)),
                     ),
                     const SizedBox(height: 12),
                     SizedBox(
@@ -53,7 +55,8 @@ class AccountPage extends StatelessWidget {
                         style: FilledButton.styleFrom(
                           backgroundColor: OnesColors.danger,
                           foregroundColor: OnesColors.white,
-                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                          shape: const RoundedRectangleBorder(
+                              borderRadius: const BorderRadius.all(Radius.circular(12))),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                         onPressed: account.loading
@@ -67,11 +70,13 @@ class AccountPage extends StatelessWidget {
                                         'Tu cuenta se desactivará ahora. Si vuelves a iniciar sesión dentro de los próximos 30 días, se reactivará automáticamente. Pasados 30 días te enviaremos tus fotos por correo; el enlace dura 8 días y después borraremos tu cuenta y todo su contenido definitivamente. ¿Deseas continuar?'),
                                     actions: [
                                       TextButton(
-                                        onPressed: () => Navigator.of(ctx).pop(false),
+                                        onPressed: () =>
+                                            Navigator.of(ctx).pop(false),
                                         child: const Text('Cancelar'),
                                       ),
                                       FilledButton(
-                                        onPressed: () => Navigator.of(ctx).pop(true),
+                                        onPressed: () =>
+                                            Navigator.of(ctx).pop(true),
                                         child: const Text('Darse de baja'),
                                       )
                                     ],
@@ -81,31 +86,41 @@ class AccountPage extends StatelessWidget {
                                 final confirmed2 = await showDialog<bool>(
                                   context: context,
                                   builder: (ctx) => AlertDialog(
-                                    title: const Text('Confirmar desactivación'),
-                                    content: const Text('¿Confirmas desactivar tu cuenta? Se cerrará tu sesión.'),
+                                    title:
+                                        const Text('Confirmar desactivación'),
+                                    content: const Text(
+                                        '¿Confirmas desactivar tu cuenta? Se cerrará tu sesión.'),
                                     actions: [
                                       TextButton(
-                                        onPressed: () => Navigator.of(ctx).pop(false),
+                                        onPressed: () =>
+                                            Navigator.of(ctx).pop(false),
                                         child: const Text('Cancelar'),
                                       ),
                                       FilledButton(
-                                        onPressed: () => Navigator.of(ctx).pop(true),
+                                        onPressed: () =>
+                                            Navigator.of(ctx).pop(true),
                                         child: const Text('Confirmar'),
                                       )
                                     ],
                                   ),
                                 );
                                 if (confirmed2 != true) return;
-                                final result = await context.read<AccountController>().deactivateAndSignOut(auth);
+                                final result = await context
+                                    .read<AccountController>()
+                                    .deactivateAndSignOut(auth);
                                 if (!context.mounted) return;
-                                if (result == DeactivationResult.cancelled) return;
+                                if (result == DeactivationResult.cancelled)
+                                  return;
                                 if (result == DeactivationResult.failed) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('No fue posible desactivar la cuenta. Intenta de nuevo.')),
+                                    const SnackBar(
+                                        content: Text(
+                                            'No fue posible desactivar la cuenta. Intenta de nuevo.')),
                                   );
                                   return;
                                 }
-                                Navigator.of(context).popUntil((route) => route.isFirst);
+                                Navigator.of(context)
+                                    .popUntil((route) => route.isFirst);
                               },
                         child: account.loading
                             ? const Text('Procesando…')
@@ -122,4 +137,3 @@ class AccountPage extends StatelessWidget {
     );
   }
 }
-

@@ -45,7 +45,7 @@ class _EventInviteLinkPageState extends State<EventInviteLinkPage> {
     final auth = context.watch<AuthController>();
 
     return Scaffold(
-      backgroundColor: OnesColors.background,
+      backgroundColor: OnesColors.surfaceWarm,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -60,7 +60,8 @@ class _EventInviteLinkPageState extends State<EventInviteLinkPage> {
 
                     if (snapshot.hasError || snapshot.data == null) {
                       String title = 'Invite link is not available.';
-                      String message = 'This link may be invalid, disabled, or expired.';
+                      String message =
+                          'This link may be invalid, disabled, or expired.';
                       final error = snapshot.error;
                       if (error is DioException) {
                         final status = error.response?.statusCode;
@@ -72,7 +73,8 @@ class _EventInviteLinkPageState extends State<EventInviteLinkPage> {
                         }
                         if (status == 410 || code == 'invite_link_expired') {
                           title = 'Invite link expired.';
-                          message = 'Este enlace de invitación ha expirado; era válido hasta una semana después del evento.';
+                          message =
+                              'Este enlace de invitación ha expirado; era válido hasta una semana después del evento.';
                         }
                       }
                       return Column(
@@ -103,7 +105,7 @@ class _EventInviteLinkPageState extends State<EventInviteLinkPage> {
                               foregroundColor: OnesColors.white,
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.zero,
+                                borderRadius: const BorderRadius.all(Radius.circular(12)),
                               ),
                             ),
                             onPressed: () => Navigator.of(context).pop(),
@@ -229,7 +231,7 @@ class _EventInviteLinkPageState extends State<EventInviteLinkPage> {
                             foregroundColor: OnesColors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.zero,
+                              borderRadius: const BorderRadius.all(Radius.circular(12)),
                             ),
                           ),
                           onPressed: _accepting

@@ -33,7 +33,7 @@ class _AdminEventTemplatesPageState extends State<AdminEventTemplatesPage> {
     final ctrl = context.watch<AdminEventTemplatesController>();
 
     return Scaffold(
-      backgroundColor: OnesColors.background,
+      backgroundColor: OnesColors.surfaceWarm,
       appBar: AppBar(
         title: const Text('Event Templates'),
         actions: [
@@ -60,7 +60,7 @@ class _AdminEventTemplatesPageState extends State<AdminEventTemplatesPage> {
                       foregroundColor: OnesColors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero,
+                        borderRadius: const BorderRadius.all(Radius.circular(12)),
                       ),
                     ),
                     child: const Text(

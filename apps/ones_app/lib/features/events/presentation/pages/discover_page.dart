@@ -103,7 +103,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
     }).toList(growable: false);
 
     return Scaffold(
-      backgroundColor: OnesColors.background,
+      backgroundColor: OnesColors.surfaceWarm,
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 120),
@@ -207,21 +207,21 @@ class _TemplateCard extends StatelessWidget {
     final t = context.watch<TranslationsService>();
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.zero,
+      borderRadius: const BorderRadius.all(Radius.circular(12)),
       child: Ink(
         padding: const EdgeInsets.all(12),
         decoration: const BoxDecoration(
           color: OnesColors.white,
-          borderRadius: BorderRadius.zero,
+          borderRadius: const BorderRadius.all(Radius.circular(12)),
         ),
         child: Row(
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.zero,
+              borderRadius: const BorderRadius.all(Radius.circular(12)),
               child: Container(
                 width: 56,
                 height: 56,
-                color: OnesColors.yellowLight,
+                color: OnesColors.surfaceMuted,
                 child: const Icon(Icons.event, color: OnesColors.purpleDark),
               ),
             ),
@@ -247,7 +247,7 @@ class _TemplateCard extends StatelessWidget {
                             horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
                           color: OnesColors.green.withOpacity(0.25),
-                          borderRadius: BorderRadius.zero,
+                          borderRadius: const BorderRadius.all(Radius.circular(12)),
                         ),
                         child: Text(
                           t.translate('discover.public'),
@@ -302,8 +302,8 @@ class _TemplateDetailsSheet extends StatelessWidget {
       builder: (context, scrollController) {
         return Container(
           decoration: BoxDecoration(
-            color: OnesColors.yellowLight.withOpacity(0.35),
-            borderRadius: BorderRadius.zero,
+            color: OnesColors.white,
+            borderRadius: const BorderRadius.all(Radius.circular(12)),
           ),
           child: ListView(
             controller: scrollController,
@@ -315,16 +315,16 @@ class _TemplateDetailsSheet extends StatelessWidget {
                   height: 5,
                   decoration: BoxDecoration(
                     color: OnesColors.black.withOpacity(0.12),
-                    borderRadius: BorderRadius.zero,
+                    borderRadius: const BorderRadius.all(Radius.circular(12)),
                   ),
                 ),
               ),
               const SizedBox(height: 14),
               ClipRRect(
-                borderRadius: BorderRadius.zero,
+                borderRadius: const BorderRadius.all(Radius.circular(12)),
                 child: Container(
                   height: 160,
-                  color: OnesColors.yellow,
+                  color: OnesColors.surfaceMuted,
                   child: const Icon(
                     Icons.event,
                     size: 80,
@@ -381,7 +381,7 @@ class _TemplateDetailsSheet extends StatelessWidget {
                                   child: AspectRatio(
                                     aspectRatio: 9 / 16,
                                     child: ClipRRect(
-                                      borderRadius: BorderRadius.zero,
+                                      borderRadius: const BorderRadius.all(Radius.circular(12)),
                                       child: Image.network(
                                         f.verticalUrl!,
                                         fit: BoxFit.cover,
@@ -396,7 +396,7 @@ class _TemplateDetailsSheet extends StatelessWidget {
                                   child: AspectRatio(
                                     aspectRatio: 16 / 9,
                                     child: ClipRRect(
-                                      borderRadius: BorderRadius.zero,
+                                      borderRadius: const BorderRadius.all(Radius.circular(12)),
                                       child: Image.network(
                                         f.horizontalUrl!,
                                         fit: BoxFit.cover,
@@ -425,7 +425,7 @@ class _TemplateDetailsSheet extends StatelessWidget {
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.zero,
+                          borderRadius: const BorderRadius.all(Radius.circular(12)),
                         ),
                       ),
                       child: Text(t.translate('discover.not_now')),
@@ -440,7 +440,7 @@ class _TemplateDetailsSheet extends StatelessWidget {
                         foregroundColor: OnesColors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.zero,
+                          borderRadius: const BorderRadius.all(Radius.circular(12)),
                         ),
                       ),
                       child: Text(

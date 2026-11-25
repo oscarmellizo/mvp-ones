@@ -18,7 +18,7 @@ InputDecoration authFieldDecoration({
   Color fillColor = OnesColors.white,
 }) {
   const errorBorder = OutlineInputBorder(
-    borderRadius: BorderRadius.zero,
+    borderRadius: const BorderRadius.all(Radius.circular(12)),
     borderSide: BorderSide(color: authErrorColor, width: 1.4),
   );
   return OnesInputDecoration.build(
@@ -28,12 +28,15 @@ InputDecoration authFieldDecoration({
     fillColor: fillColor,
   ).copyWith(
     helperText: helper,
-    helperStyle: TextStyle(color: OnesColors.black.withOpacity(0.75), fontWeight: FontWeight.w600),
+    helperStyle: TextStyle(
+        color: OnesColors.black.withOpacity(0.75), fontWeight: FontWeight.w600),
     hoverColor: Colors.transparent,
     suffixIconColor: OnesColors.black.withOpacity(0.6),
-    errorStyle: const TextStyle(color: authErrorColor, fontWeight: FontWeight.w700),
+    errorStyle:
+        const TextStyle(color: authErrorColor, fontWeight: FontWeight.w700),
     errorBorder: errorBorder,
-    focusedErrorBorder: errorBorder.copyWith(borderSide: const BorderSide(color: authErrorColor, width: 1.8)),
+    focusedErrorBorder: errorBorder.copyWith(
+        borderSide: const BorderSide(color: authErrorColor, width: 1.8)),
   );
 }
 
@@ -66,7 +69,8 @@ class EmailAuthSection extends StatefulWidget {
   State<EmailAuthSection> createState() => _EmailAuthSectionState();
 }
 
-class _EmailAuthSectionState extends State<EmailAuthSection> with WidgetsBindingObserver {
+class _EmailAuthSectionState extends State<EmailAuthSection>
+    with WidgetsBindingObserver {
   static final _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
   final _formKey = GlobalKey<FormState>();
@@ -120,14 +124,16 @@ class _EmailAuthSectionState extends State<EmailAuthSection> with WidgetsBinding
     });
   }
 
-  static void _hideKeyboard(PointerDownEvent _) => FocusManager.instance.primaryFocus?.unfocus();
+  static void _hideKeyboard(PointerDownEvent _) =>
+      FocusManager.instance.primaryFocus?.unfocus();
 
   Future<void> _submit() async {
     if (widget.busy || !(_formKey.currentState?.validate() ?? false)) return;
     await widget.onSubmit(_email.text.trim(), _password.text);
   }
 
-  InputDecoration _decoration(String hint, IconData icon, {Widget? suffix, String? helper}) {
+  InputDecoration _decoration(String hint, IconData icon,
+      {Widget? suffix, String? helper}) {
     return authFieldDecoration(
       hintText: hint,
       icon: icon,
@@ -141,7 +147,8 @@ class _EmailAuthSectionState extends State<EmailAuthSection> with WidgetsBinding
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.of(context).disableAnimations;
     return AnimatedSize(
-      duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 220),
+      duration:
+          reduceMotion ? Duration.zero : const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
       alignment: Alignment.topCenter,
       onEnd: () {
@@ -154,7 +161,8 @@ class _EmailAuthSectionState extends State<EmailAuthSection> with WidgetsBinding
   Widget _toggle() {
     return AuthOptionButton(
       key: const Key('auth.emailToggle'),
-      logo: const Icon(Icons.mail_outline, size: 20, color: OnesColors.purpleDeep),
+      logo: const Icon(Icons.mail_outline,
+          size: 20, color: OnesColors.purpleDeep),
       label: widget.toggleLabel,
       onPressed: widget.busy ? null : () => setState(() => _expanded = true),
       background: Colors.transparent,
@@ -189,7 +197,9 @@ class _EmailAuthSectionState extends State<EmailAuthSection> with WidgetsBinding
               autofillHints: const [AutofillHints.email],
               textInputAction: TextInputAction.next,
               decoration: _decoration('Correo', Icons.mail_outline),
-              validator: (v) => _emailPattern.hasMatch((v ?? '').trim()) ? null : 'Escribe un correo válido.',
+              validator: (v) => _emailPattern.hasMatch((v ?? '').trim())
+                  ? null
+                  : 'Escribe un correo válido.',
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -199,7 +209,11 @@ class _EmailAuthSectionState extends State<EmailAuthSection> with WidgetsBinding
               onTapOutside: _hideKeyboard,
               style: fieldStyle,
               obscureText: _obscure,
-              autofillHints: [widget.isRegistration ? AutofillHints.newPassword : AutofillHints.password],
+              autofillHints: [
+                widget.isRegistration
+                    ? AutofillHints.newPassword
+                    : AutofillHints.password
+              ],
               textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) => _submit(),
               decoration: _decoration(
@@ -207,15 +221,19 @@ class _EmailAuthSectionState extends State<EmailAuthSection> with WidgetsBinding
                 Icons.lock_outline,
                 helper: widget.isRegistration ? 'Mínimo 8 caracteres.' : null,
                 suffix: IconButton(
-                  tooltip: _obscure ? 'Mostrar contraseña' : 'Ocultar contraseña',
-                  icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                  tooltip:
+                      _obscure ? 'Mostrar contraseña' : 'Ocultar contraseña',
+                  icon: Icon(_obscure
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined),
                   onPressed: () => setState(() => _obscure = !_obscure),
                 ),
               ),
               validator: (v) {
                 final value = v ?? '';
                 if (value.isEmpty) return 'Escribe tu contraseña.';
-                if (widget.isRegistration && value.length < 8) return 'Usa al menos 8 caracteres.';
+                if (widget.isRegistration && value.length < 8)
+                  return 'Usa al menos 8 caracteres.';
                 return null;
               },
             ),
@@ -226,7 +244,8 @@ class _EmailAuthSectionState extends State<EmailAuthSection> with WidgetsBinding
                 minimumSize: const Size.fromHeight(54),
                 backgroundColor: OnesColors.purpleMid,
                 foregroundColor: OnesColors.white,
-                shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                shape: const RoundedRectangleBorder(
+                    borderRadius: const BorderRadius.all(Radius.circular(12))),
               ),
               onPressed: widget.busy ? null : _submit,
               child: Text(

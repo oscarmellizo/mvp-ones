@@ -37,7 +37,7 @@ class _AdminTranslationsPageState extends State<AdminTranslationsPage> {
     final ctrl = context.watch<AdminTranslationsController>();
 
     return Scaffold(
-      backgroundColor: OnesColors.background,
+      backgroundColor: OnesColors.surfaceWarm,
       appBar: AppBar(
         title: const Text('Traducciones'),
         actions: [
@@ -97,7 +97,7 @@ class _AdminTranslationsPageState extends State<AdminTranslationsPage> {
                       foregroundColor: OnesColors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero,
+                        borderRadius: const BorderRadius.all(Radius.circular(12)),
                       ),
                     ),
                     child: const Text(
@@ -142,7 +142,8 @@ class _AdminTranslationsPageState extends State<AdminTranslationsPage> {
                                       await Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (context) => AdminTranslationEditPage(
+                                          builder: (context) =>
+                                              AdminTranslationEditPage(
                                             languageCode: _selectedLanguage,
                                             translationKey: t.translationKey,
                                             currentValue: t.value,
@@ -158,7 +159,8 @@ class _AdminTranslationsPageState extends State<AdminTranslationsPage> {
                               onPressed: ctrl.loading
                                   ? null
                                   : () async {
-                                      final confirmed = await _confirmDelete(context);
+                                      final confirmed =
+                                          await _confirmDelete(context);
                                       if (confirmed && mounted) {
                                         await ctrl.delete(
                                           t.translationKey,
@@ -187,7 +189,8 @@ class _AdminTranslationsPageState extends State<AdminTranslationsPage> {
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Delete translation'),
-            content: const Text('Are you sure you want to delete this translation?'),
+            content:
+                const Text('Are you sure you want to delete this translation?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),

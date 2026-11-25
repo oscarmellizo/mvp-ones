@@ -32,7 +32,7 @@ class _AdminFramesPageState extends State<AdminFramesPage> {
     final ctrl = context.watch<AdminFramesController>();
 
     return Scaffold(
-      backgroundColor: OnesColors.background,
+      backgroundColor: OnesColors.surfaceWarm,
       appBar: AppBar(
         title: const Text('Frames'),
         actions: [
@@ -64,7 +64,7 @@ class _AdminFramesPageState extends State<AdminFramesPage> {
                       foregroundColor: OnesColors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero,
+                        borderRadius: const BorderRadius.all(Radius.circular(12)),
                       ),
                     ),
                     child: const Text(

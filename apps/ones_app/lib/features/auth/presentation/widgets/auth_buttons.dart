@@ -5,7 +5,8 @@ import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/ones_typography.dart';
 
 /// Sign in with Apple solo se ofrece en iOS.
-bool get appleSignInAvailable => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+bool get appleSignInAvailable =>
+    !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
 /// Botón de método de acceso: todos comparten alto, ancho y esquinas rectas;
 /// solo cambian fondo, borde y logo.
@@ -39,7 +40,8 @@ class AuthOptionButton extends StatelessWidget {
         disabledBackgroundColor: background,
         disabledForegroundColor: foreground.withOpacity(0.5),
         side: BorderSide(color: border, width: 1.5),
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        shape: const RoundedRectangleBorder(
+            borderRadius: const BorderRadius.all(Radius.circular(12))),
         textStyle: const TextStyle(
           fontFamilyFallback: OnesTypography.bodyFallbacks,
           fontSize: 15,
@@ -49,7 +51,9 @@ class AuthOptionButton extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          ExcludeSemantics(child: SizedBox.square(dimension: 24, child: Center(child: logo))),
+          ExcludeSemantics(
+              child:
+                  SizedBox.square(dimension: 24, child: Center(child: logo))),
           const SizedBox(width: 12),
           Flexible(child: Text(label, textAlign: TextAlign.center)),
         ],
@@ -62,14 +66,16 @@ class GoogleSignInButton extends StatelessWidget {
   final bool busy;
   final VoidCallback? onPressed;
 
-  const GoogleSignInButton({super.key, required this.busy, required this.onPressed});
+  const GoogleSignInButton(
+      {super.key, required this.busy, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
     return AuthOptionButton(
       key: const Key('auth.google'),
       // Logo oficial sin modificar; borde y colores según las guías de marca de Google.
-      logo: Image.asset('assets/auth/google_g.png', width: 20, height: 20, filterQuality: FilterQuality.medium),
+      logo: Image.asset('assets/auth/google_g.png',
+          width: 20, height: 20, filterQuality: FilterQuality.medium),
       label: busy ? 'Conectando...' : 'Continuar con Google',
       onPressed: onPressed,
       background: OnesColors.white,
@@ -83,14 +89,16 @@ class AppleSignInButton extends StatelessWidget {
   final bool busy;
   final VoidCallback? onPressed;
 
-  const AppleSignInButton({super.key, this.busy = false, required this.onPressed});
+  const AppleSignInButton(
+      {super.key, this.busy = false, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
     return AuthOptionButton(
       key: const Key('auth.apple'),
       // Logo oficial de Apple (no el ícono de Material): lo exige la guía de Sign in with Apple.
-      logo: Image.asset('assets/auth/apple_logo.png', width: 20, height: 24, filterQuality: FilterQuality.medium),
+      logo: Image.asset('assets/auth/apple_logo.png',
+          width: 20, height: 24, filterQuality: FilterQuality.medium),
       label: busy ? 'Conectando...' : 'Continuar con Apple',
       onPressed: onPressed,
       background: OnesColors.black,

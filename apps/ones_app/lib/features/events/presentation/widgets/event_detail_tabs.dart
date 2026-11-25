@@ -23,12 +23,12 @@ class EventDetailTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.watch<TranslationsService>();
-    final bg = OnesColors.background;
+    final bg = OnesColors.surfaceWarm;
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: Color.alphaBlend(OnesColors.black.withOpacity(0.04), bg),
-        borderRadius: BorderRadius.zero,
+        borderRadius: const BorderRadius.all(Radius.circular(12)),
       ),
       child: Row(
         children: [
@@ -85,14 +85,14 @@ class _TabButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.zero,
+      borderRadius: const BorderRadius.all(Radius.circular(12)),
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
           color: selected ? OnesColors.white : Colors.transparent,
-          borderRadius: BorderRadius.zero,
+          borderRadius: const BorderRadius.all(Radius.circular(12)),
           boxShadow: selected
               ? [
                   BoxShadow(
