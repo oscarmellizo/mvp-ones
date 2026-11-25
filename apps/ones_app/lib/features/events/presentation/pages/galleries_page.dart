@@ -4,12 +4,15 @@ import 'package:provider/provider.dart';
 import '../../../../core/utils/datetime_formatters.dart';
 import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/ui/ones_colors.dart';
-import '../../../../core/ui/widgets/ones_card.dart';
+import '../../../../core/ui/widgets/event_card.dart';
+import '../../../../core/ui/widgets/event_card_skeleton.dart';
+import '../../../../core/ui/widgets/ones_empty_state.dart';
 import '../../../../core/ui/widgets/ones_search_field.dart';
 import '../../domain/event.dart';
 import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
 import '../widgets/gallery_grid_layout.dart';
+import 'create_event_page.dart';
 import 'event_detail_page.dart';
 
 const String _defaultEventCoverAsset = 'assets/branding/ones-logo.png';
@@ -35,9 +38,13 @@ class _GalleriesPageState extends State<GalleriesPage> {
     'galleries.filter_last_30_days',
     'galleries.filter_this_year',
     'galleries.no_past_events_yet',
+    'galleries.empty_title',
+    'galleries.empty_message',
     'galleries.no_results_for',
     'galleries.today',
     'galleries.yesterday',
+    'galleries.empty_cta_create',
+    'common.clear',
   };
 
   @override
@@ -67,6 +74,8 @@ class _GalleriesPageState extends State<GalleriesPage> {
 
   void _onSearchChanged() => setState(() {});
 
+  void _clearSearch() => _searchController.clear();
+
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<EventsController>();
@@ -86,15 +95,19 @@ class _GalleriesPageState extends State<GalleriesPage> {
     }
 
     final q = _searchController.text.trim().toLowerCase();
+    final searching = q.isNotEmpty;
 
     final now = DateTime.now();
+    // Only events that already started (past or live) belong in Galerías.
     final filteredEvents = controller.events.where((e) {
       final localStart = e.startAt.toLocal();
+      if (localStart.isAfter(now)) return false;
       if (!_filter.accepts(eventStartLocal: localStart, nowLocal: now)) {
         return false;
       }
       if (q.isEmpty) return true;
-      return e.title.toLowerCase().contains(q);
+      return e.title.toLowerCase().contains(q) ||
+          e.location.toLowerCase().contains(q);
     }).toList(growable: false)
       ..sort((a, b) => b.startAt.toLocal().compareTo(a.startAt.toLocal()));
 
@@ -109,8 +122,15 @@ class _GalleriesPageState extends State<GalleriesPage> {
     final orderedDays = groups.keys.toList(growable: false)
       ..sort((a, b) => b.compareTo(a));
 
+    final chips = [
+      (t.translate('galleries.filter_all'), _QuickFilter.all),
+      (t.translate('galleries.filter_last_7_days'), _QuickFilter.last7Days),
+      (t.translate('galleries.filter_last_30_days'), _QuickFilter.last30Days),
+      (t.translate('galleries.filter_this_year'), _QuickFilter.thisYear),
+    ];
+
     return Scaffold(
-      backgroundColor: OnesColors.background,
+      backgroundColor: OnesColors.surfaceWarm,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () => context.read<EventsController>().refresh(),
@@ -120,57 +140,100 @@ class _GalleriesPageState extends State<GalleriesPage> {
               OnesSearchField(
                 controller: _searchController,
                 hintText: t.translate('galleries.search_past_events'),
+                borderRadius: BorderRadius.circular(14),
+                suffixIcon: searching
+                    ? IconButton(
+                        tooltip: t.translate(
+                          'common.clear',
+                          fallback: 'Limpiar',
+                        ),
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: _clearSearch,
+                      )
+                    : null,
               ),
               const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  ChoiceChip(
-                    label: Text(t.translate('galleries.filter_all')),
-                    selected: _filter == _QuickFilter.all,
-                    onSelected: (_) => setState(() {
-                      _filter = _QuickFilter.all;
-                    }),
-                  ),
-                  ChoiceChip(
-                    label: Text(t.translate('galleries.filter_last_7_days')),
-                    selected: _filter == _QuickFilter.last7Days,
-                    onSelected: (_) => setState(() {
-                      _filter = _QuickFilter.last7Days;
-                    }),
-                  ),
-                  ChoiceChip(
-                    label: Text(t.translate('galleries.filter_last_30_days')),
-                    selected: _filter == _QuickFilter.last30Days,
-                    onSelected: (_) => setState(() {
-                      _filter = _QuickFilter.last30Days;
-                    }),
-                  ),
-                  ChoiceChip(
-                    label: Text(t.translate('galleries.filter_this_year')),
-                    selected: _filter == _QuickFilter.thisYear,
-                    onSelected: (_) => setState(() {
-                      _filter = _QuickFilter.thisYear;
-                    }),
-                  ),
-                ],
+              SizedBox(
+                height: 40,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: chips.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, i) {
+                    final (label, value) = chips[i];
+                    return ChoiceChip(
+                      label: Text(label),
+                      selected: _filter == value,
+                      onSelected: (_) => setState(() => _filter = value),
+                    );
+                  },
+                ),
               ),
               const SizedBox(height: 14),
               if (controller.loading && controller.events.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.only(top: 40),
-                  child: Center(child: CircularProgressIndicator()),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final contentWidth = galleryGridWidth(constraints.maxWidth);
+                    final columns = galleryCardColumns(contentWidth);
+                    final cardWidth =
+                        (contentWidth - (columns - 1) * 12.0) / columns;
+                    return Center(
+                      child: SizedBox(
+                        width: contentWidth,
+                        child: GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          padding: EdgeInsets.zero,
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: columns,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            mainAxisExtent: EventCard.extentForWidth(cardWidth),
+                          ),
+                          itemCount: 4,
+                          itemBuilder: (_, __) => const EventCardSkeleton(),
+                        ),
+                      ),
+                    );
+                  },
                 )
               else if (orderedDays.isEmpty)
-                OnesCard(
-                  child: Text(
-                    q.isEmpty
-                        ? t.translate('galleries.no_past_events_yet')
-                        : '${t.translate('galleries.no_results_for')} "$q".',
-                    style: TextStyle(color: OnesColors.black.withOpacity(0.6)),
-                  ),
-                )
+                searching
+                    ? OnesEmptyState(
+                        icon: Icons.search_off_outlined,
+                        title:
+                            '${t.translate('galleries.no_results_for')} "$q"',
+                        action: FilledButton.tonal(
+                          onPressed: _clearSearch,
+                          child: Text(
+                            t.translate('common.clear', fallback: 'Limpiar'),
+                          ),
+                        ),
+                      )
+                    : OnesEmptyState(
+                        icon: Icons.photo_library_outlined,
+                        title: t.translate(
+                          'galleries.empty_title',
+                          fallback: 'Aún no hay galerías',
+                        ),
+                        message: t.translate(
+                          'galleries.empty_message',
+                          fallback:
+                              'Cuando pase un evento, sus fotos aparecerán aquí.',
+                        ),
+                        action: FilledButton.tonalIcon(
+                          onPressed: () => Navigator.of(context)
+                              .pushNamed(CreateEventPage.routeName),
+                          icon: const Icon(Icons.event_outlined, size: 18),
+                          label: Text(
+                            t.translate(
+                              'galleries.empty_cta_create',
+                              fallback: 'Crear evento',
+                            ),
+                          ),
+                        ),
+                      )
               else
                 LayoutBuilder(
                   builder: (context, constraints) {
@@ -179,6 +242,15 @@ class _GalleriesPageState extends State<GalleriesPage> {
                       constraints.maxWidth,
                     );
                     final columns = galleryCardColumns(contentWidth);
+                    final cardWidth =
+                        (contentWidth - (columns - 1) * 12.0) / columns;
+                    final gridDelegate =
+                        SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: columns,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      mainAxisExtent: EventCard.extentForWidth(cardWidth),
+                    );
                     if (columns > 1) {
                       return Center(
                         child: SizedBox(
@@ -187,18 +259,13 @@ class _GalleriesPageState extends State<GalleriesPage> {
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             padding: EdgeInsets.zero,
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: columns,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                              childAspectRatio: 16 / 9,
-                            ),
+                            gridDelegate: gridDelegate,
                             itemCount: filteredEvents.length,
                             itemBuilder: (context, index) => _buildEventCard(
                               context,
                               filteredEvents[index],
                               coverUrls,
+                              lang,
                             ),
                           ),
                         ),
@@ -215,7 +282,7 @@ class _GalleriesPageState extends State<GalleriesPage> {
                         Padding(
                           padding: const EdgeInsets.only(top: 6, bottom: 10),
                           child: Text(
-                            _friendlyDayHeader(day, now, t),
+                            _friendlyDayHeader(day, now, t, lang),
                             style: const TextStyle(
                               fontWeight: FontWeight.w900,
                               color: OnesColors.black,
@@ -232,18 +299,13 @@ class _GalleriesPageState extends State<GalleriesPage> {
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
                               padding: EdgeInsets.zero,
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: columns,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 12,
-                                childAspectRatio: 16 / 9,
-                              ),
+                              gridDelegate: gridDelegate,
                               itemCount: dayEvents.length,
                               itemBuilder: (context, index) => _buildEventCard(
                                 context,
                                 dayEvents[index],
                                 coverUrls,
+                                lang,
                               ),
                             ),
                           ),
@@ -268,14 +330,10 @@ class _GalleriesPageState extends State<GalleriesPage> {
     BuildContext context,
     Event event,
     EventCoverUrlsController coverUrls,
+    String lang,
   ) {
     final when = event.startAt.toLocal();
     final end = event.endAt.toLocal();
-    final sameDay =
-        when.year == end.year && when.month == end.month && when.day == end.day;
-    final dateText = sameDay
-        ? formatMonthDayYear(when)
-        : '${formatShortMonthDay(when)}–${formatShortMonthDay(end)} ${end.year}';
 
     return FutureBuilder<String?>(
       future: coverUrls.getUrlIfAny(
@@ -284,15 +342,15 @@ class _GalleriesPageState extends State<GalleriesPage> {
       ),
       builder: (context, snapshot) {
         final url = snapshot.data;
-        return _UpcomingCard(
+        return EventCard(
           title: event.title,
           location: event.location,
           imageUrl: (url != null && url.isNotEmpty) ? url : null,
           fallbackAsset: _defaultEventCoverAsset,
-          dateText: dateText,
-          timeText: '${_formatTimeOfDay(when)} - ${_formatTimeOfDay(end)}',
+          dateText: formatEventDateRangeLocalized(when, end, lang),
+          timeText:
+              '${formatTimeOfDayLocalized(when, lang)} - ${formatTimeOfDayLocalized(end, lang)}',
           badgeText: null,
-          width: null,
           onTap: () => Navigator.of(context).pushNamed(
             EventDetailPage.routeName,
             arguments: event.id,
@@ -302,209 +360,23 @@ class _GalleriesPageState extends State<GalleriesPage> {
     );
   }
 
-  String _friendlyDayHeader(DateTime day, DateTime now, TranslationsService t) {
+  String _friendlyDayHeader(
+    DateTime day,
+    DateTime now,
+    TranslationsService t,
+    String lang,
+  ) {
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
 
     if (_isSameDay(day, today)) {
-      return '${t.translate('galleries.today')} · ${formatMonthDayYear(day)}';
+      return '${t.translate('galleries.today')} · ${formatDateLocalized(day, lang)}';
     }
     if (_isSameDay(day, yesterday)) {
-      return '${t.translate('galleries.yesterday')} · ${formatMonthDayYear(day)}';
+      return '${t.translate('galleries.yesterday')} · ${formatDateLocalized(day, lang)}';
     }
-    return formatMonthDayYear(day);
+    return formatDateLocalized(day, lang);
   }
-}
-
-class _UpcomingCard extends StatelessWidget {
-  final String title;
-  final String location;
-  final String? imageUrl;
-  final String fallbackAsset;
-  final String? badgeText;
-  final String? dateText;
-  final String timeText;
-  final double? width;
-  final VoidCallback onTap;
-
-  const _UpcomingCard({
-    required this.title,
-    required this.location,
-    required this.imageUrl,
-    required this.fallbackAsset,
-    required this.timeText,
-    required this.badgeText,
-    required this.dateText,
-    required this.width,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    Widget buildFallback() {
-      return ColoredBox(
-        color: OnesColors.white,
-        child: Center(
-          child: Image.asset(
-            fallbackAsset,
-            width: 84,
-            height: 84,
-            fit: BoxFit.contain,
-          ),
-        ),
-      );
-    }
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.zero,
-      child: Ink(
-        width: width,
-        decoration: const BoxDecoration(borderRadius: BorderRadius.zero),
-        child: Stack(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.zero,
-              child: SizedBox(
-                width: double.infinity,
-                height: double.infinity,
-                child: (imageUrl != null)
-                    ? Image.network(
-                        imageUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => buildFallback(),
-                      )
-                    : buildFallback(),
-              ),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.zero,
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    OnesColors.black.withOpacity(0.05),
-                    OnesColors.black.withOpacity(0.65),
-                  ],
-                ),
-              ),
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (badgeText != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: OnesColors.white.withOpacity(0.25),
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Text(
-                        badgeText!,
-                        style: const TextStyle(
-                          color: OnesColors.black,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  const Spacer(),
-                  Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: OnesColors.white,
-                          letterSpacing: 0.6,
-                          height: 1.05,
-                        ),
-                  ),
-                  const SizedBox(height: 6),
-                  if (dateText != null) ...[
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.calendar_today,
-                          size: 16,
-                          color: OnesColors.white,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            dateText!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: OnesColors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                  ],
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.access_time,
-                        size: 16,
-                        color: OnesColors.white,
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          timeText,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: OnesColors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.location_on,
-                        size: 16,
-                        color: OnesColors.white,
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          location,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: OnesColors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-String _formatTimeOfDay(DateTime dt) {
-  final hh = dt.hour.toString().padLeft(2, '0');
-  final mm = dt.minute.toString().padLeft(2, '0');
-  return '$hh:$mm';
 }
 
 bool _isSameDay(DateTime a, DateTime b) {

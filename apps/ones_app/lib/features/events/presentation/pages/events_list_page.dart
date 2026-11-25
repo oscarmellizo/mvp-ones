@@ -4,11 +4,17 @@ import 'package:provider/provider.dart';
 import '../../../../core/utils/datetime_formatters.dart';
 import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/ui/ones_colors.dart';
+import '../../../../core/ui/widgets/event_card.dart';
+import '../../../../core/ui/widgets/event_card_skeleton.dart';
+import '../../../../core/ui/widgets/ones_empty_state.dart';
 import '../../../../core/ui/widgets/ones_search_field.dart';
 import '../../../../core/ui/widgets/ones_section_header.dart';
+import '../../domain/event.dart';
 import '../event_cover_urls_controller.dart';
 import '../events_controller.dart';
+import 'create_event_page.dart';
 import 'event_detail_page.dart';
+import 'event_join_code_page.dart';
 import '../../../invitations/presentation/widgets/invitations_sheet.dart';
 import '../../../invitations/presentation/invitations_controller.dart';
 import '../../../tutorial/presentation/tutorial_controller.dart';
@@ -26,8 +32,7 @@ class EventsListPage extends StatefulWidget {
 }
 
 class _EventsListPageState extends State<EventsListPage> {
-  static const _bg = OnesColors.background;
-  static const _divider = OnesColors.orange;
+  static const _bg = OnesColors.surfaceWarm;
 
   String? _lastLanguage;
 
@@ -40,7 +45,17 @@ class _EventsListPageState extends State<EventsListPage> {
     'home.next_events',
     'home.live_now',
     'home.no_upcoming_events',
+    'home.empty_today_title',
+    'home.empty_today_message',
+    'home.empty_next',
+    'home.no_results_for',
+    'home.action_create_event',
+    'home.action_enter_event_code',
+    'home.empty_today_cta_create',
+    'home.empty_today_cta_join',
     'common.error',
+    'common.clear',
+    'common.retry',
   };
 
   final _searchController = TextEditingController();
@@ -57,12 +72,26 @@ class _EventsListPageState extends State<EventsListPage> {
       context.read<EventsController>().refresh();
       context.read<InvitationsController>().refresh();
     });
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged() => setState(() {});
+
+  void _clearSearch() {
+    _searchController.clear();
+  }
+
+  bool _matchesQuery(Event e, String q) {
+    if (q.isEmpty) return true;
+    return e.title.toLowerCase().contains(q) ||
+        e.location.toLowerCase().contains(q);
   }
 
   @override
@@ -83,7 +112,10 @@ class _EventsListPageState extends State<EventsListPage> {
       });
     }
 
-    final events = controller.events;
+    final q = _searchController.text.trim().toLowerCase();
+    final searching = q.isNotEmpty;
+
+    final events = controller.events.where((e) => _matchesQuery(e, q));
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
     final tomorrowStart = todayStart.add(const Duration(days: 1));
@@ -108,6 +140,11 @@ class _EventsListPageState extends State<EventsListPage> {
         (a, b) => a.startAt.toLocal().compareTo(b.startAt.toLocal()),
       );
 
+    final noResults = searching &&
+        !controller.loading &&
+        todayCards.isEmpty &&
+        nextEvents.isEmpty;
+
     return ColoredBox(
       color: _bg,
       child: SafeArea(
@@ -128,182 +165,277 @@ class _EventsListPageState extends State<EventsListPage> {
                 child: OnesSearchField(
                   controller: _searchController,
                   hintText: t.translate('home.search_events'),
-                  borderRadius: BorderRadius.zero,
+                  borderRadius: BorderRadius.circular(14),
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                   prefixIcon: const Icon(Icons.search),
+                  suffixIcon: searching
+                      ? IconButton(
+                          tooltip: t.translate(
+                            'common.clear',
+                            fallback: 'Limpiar',
+                          ),
+                          icon: const Icon(Icons.close, size: 18),
+                          onPressed: _clearSearch,
+                        )
+                      : null,
                   key: TutorialKeys.homeSearch,
                 ),
               ),
               const SizedBox(height: 18),
-              OnesSectionHeader(
-                key: TutorialKeys.homeHeaderToday,
-                title: t.translate('home.today'),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 260,
-                child: controller.loading
-                    ? const Center(child: CircularProgressIndicator())
-                    : ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: todayCards.isEmpty ? 1 : todayCards.length,
-                        separatorBuilder: (_, __) => const SizedBox(
-                          width: 1,
-                          child: ColoredBox(color: _divider),
-                        ),
-                        itemBuilder: (context, index) {
-                          if (todayCards.isEmpty) {
-                            return const _EmptyCard();
-                          }
-
-                          final e = todayCards[index];
-                          final start = e.startAt.toLocal();
-                          final end = e.endAt.toLocal();
-
-                          final displayStart =
-                              start.isBefore(todayStart) ? todayStart : start;
-                          final displayEnd =
-                              end.isAfter(tomorrowStart) ? tomorrowStart : end;
-
-                          final isLiveNow = (now.isAfter(start) ||
-                                  now.isAtSameMomentAs(start)) &&
-                              now.isBefore(end);
-
-                          return FutureBuilder<String?>(
-                            future: coverUrls.getUrlIfAny(
-                              eventId: e.id,
-                              coverKey: e.coverKey,
+              if (controller.loading ||
+                  !searching ||
+                  todayCards.isNotEmpty) ...[
+                OnesSectionHeader(
+                  key: TutorialKeys.homeHeaderToday,
+                  title: t.translate('home.today'),
+                ),
+                const SizedBox(height: 12),
+                if (controller.loading)
+                  SizedBox(
+                    height: EventCard.extentForWidth(240),
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: 3,
+                      separatorBuilder: (_, __) => const SizedBox(width: 12),
+                      itemBuilder: (_, __) =>
+                          const EventCardSkeleton(width: 240),
+                    ),
+                  )
+                else if (todayCards.isEmpty)
+                  searching
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: _TodayEmptyCard(
+                            onCreate: () => Navigator.of(context)
+                                .pushNamed(CreateEventPage.routeName),
+                            onJoin: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const EventJoinCodePage(),
+                              ),
                             ),
-                            builder: (context, snapshot) {
-                              final url = snapshot.data;
-                              return _UpcomingCard(
-                                title: e.title,
-                                location: e.location,
-                                imageUrl: (url != null && url.isNotEmpty)
-                                    ? url
-                                    : null,
-                                fallbackAsset: _defaultEventCoverAsset,
-                                dateText: null,
-                                timeText:
-                                    '${_formatTimeOfDay(displayStart)} - ${_formatTimeOfDay(displayEnd)}',
-                                badgeText: isLiveNow
-                                    ? t.translate('home.live_now')
-                                    : null,
-                                width: 260,
-                                onTap: () => Navigator.of(context).pushNamed(
-                                  EventDetailPage.routeName,
-                                  arguments: e.id,
-                                ),
-                              );
-                            },
-                          );
-                        },
-                      ),
-              ),
+                          ),
+                        )
+                else
+                  SizedBox(
+                    height: EventCard.extentForWidth(240),
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: todayCards.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 12),
+                      itemBuilder: (context, index) {
+                        final e = todayCards[index];
+                        final start = e.startAt.toLocal();
+                        final end = e.endAt.toLocal();
+
+                        final displayStart =
+                            start.isBefore(todayStart) ? todayStart : start;
+                        final displayEnd =
+                            end.isAfter(tomorrowStart) ? tomorrowStart : end;
+
+                        final isLiveNow = (now.isAfter(start) ||
+                                now.isAtSameMomentAs(start)) &&
+                            now.isBefore(end);
+
+                        return FutureBuilder<String?>(
+                          future: coverUrls.getUrlIfAny(
+                            eventId: e.id,
+                            coverKey: e.coverKey,
+                          ),
+                          builder: (context, snapshot) {
+                            final url = snapshot.data;
+                            return EventCard(
+                              title: e.title,
+                              location: e.location,
+                              imageUrl:
+                                  (url != null && url.isNotEmpty) ? url : null,
+                              fallbackAsset: _defaultEventCoverAsset,
+                              dateText: null,
+                              timeText:
+                                  '${formatTimeOfDayLocalized(displayStart, lang)} - ${formatTimeOfDayLocalized(displayEnd, lang)}',
+                              badgeText: isLiveNow
+                                  ? t.translate('home.live_now')
+                                  : null,
+                              width: 240,
+                              onTap: () => Navigator.of(context).pushNamed(
+                                EventDetailPage.routeName,
+                                arguments: e.id,
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+              ],
               const SizedBox(height: 22),
-              OnesSectionHeader(
-                key: TutorialKeys.homeHeaderNext,
-                title: t.translate('home.next_events'),
-              ),
-              const SizedBox(height: 12),
+              if (controller.loading ||
+                  !searching ||
+                  nextEvents.isNotEmpty) ...[
+                OnesSectionHeader(
+                  key: TutorialKeys.homeHeaderNext,
+                  title: t.translate('home.next_events'),
+                ),
+                const SizedBox(height: 12),
+              ],
               if (controller.error != null) ...[
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: OnesColors.white.withOpacity(0.6),
-                    borderRadius: BorderRadius.zero,
+                    color: OnesColors.white,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text(
-                    '${t.translate('common.error')}: ${controller.error}',
-                    style: const TextStyle(color: OnesColors.danger),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${t.translate('common.error')}: ${controller.error}',
+                        style: const TextStyle(color: OnesColors.danger),
+                      ),
+                      const SizedBox(height: 8),
+                      FilledButton.tonal(
+                        onPressed: controller.refresh,
+                        child: Text(
+                          t.translate('common.retry', fallback: 'Reintentar'),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 12),
               ],
-              if (!controller.loading)
+              if (noResults)
+                OnesEmptyState(
+                  icon: Icons.search_off_outlined,
+                  title:
+                      '${t.translate('home.no_results_for', fallback: 'Sin resultados para')} "$q"',
+                  message: t.translate(
+                    'home.empty_next',
+                    fallback: 'Prueba con otro nombre o lugar.',
+                  ),
+                  action: FilledButton.tonal(
+                    onPressed: _clearSearch,
+                    child: Text(
+                      t.translate('common.clear', fallback: 'Limpiar'),
+                    ),
+                  ),
+                )
+              else if (!controller.loading)
+                nextEvents.isEmpty
+                    ? (searching
+                        ? const SizedBox.shrink()
+                        : OnesEmptyState(
+                            icon: Icons.event_available_outlined,
+                            title: t.translate(
+                              'home.empty_next',
+                              fallback: 'Sin próximos eventos por ahora',
+                            ),
+                          ))
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          const spacing = 14.0;
+                          const minCardWidth = 170.0;
+
+                          final availableWidth = constraints.maxWidth - 32;
+                          final crossAxisCount = ((availableWidth + spacing) /
+                                  (minCardWidth + spacing))
+                              .floor()
+                              .clamp(1, 10);
+
+                          final computedCardWidth = (availableWidth -
+                                  (spacing * (crossAxisCount - 1))) /
+                              crossAxisCount;
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: nextEvents.length,
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: crossAxisCount,
+                                crossAxisSpacing: spacing,
+                                mainAxisSpacing: spacing,
+                                mainAxisExtent: EventCard.extentForWidth(
+                                  computedCardWidth,
+                                ),
+                              ),
+                              itemBuilder: (context, i) {
+                                final e = nextEvents[i];
+                                final when = e.startAt.toLocal();
+                                final end = e.endAt.toLocal();
+
+                                return FutureBuilder<String?>(
+                                  future: coverUrls.getUrlIfAny(
+                                    eventId: e.id,
+                                    coverKey: e.coverKey,
+                                  ),
+                                  builder: (context, snapshot) {
+                                    final url = snapshot.data;
+                                    return EventCard(
+                                      title: e.title,
+                                      location: e.location,
+                                      imageUrl: (url != null && url.isNotEmpty)
+                                          ? url
+                                          : null,
+                                      fallbackAsset: _defaultEventCoverAsset,
+                                      dateText: formatEventDateRangeLocalized(
+                                        when,
+                                        end,
+                                        lang,
+                                      ),
+                                      timeText:
+                                          '${formatTimeOfDayLocalized(when, lang)} - ${formatTimeOfDayLocalized(end, lang)}',
+                                      badgeText: null,
+                                      onTap: () =>
+                                          Navigator.of(context).pushNamed(
+                                        EventDetailPage.routeName,
+                                        arguments: e.id,
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          );
+                        },
+                      ),
+              if (controller.loading)
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    const spacing = 1.0;
+                    const spacing = 14.0;
                     const minCardWidth = 170.0;
-
-                    final availableWidth = constraints.maxWidth;
+                    final availableWidth = constraints.maxWidth - 32;
                     final crossAxisCount =
                         ((availableWidth + spacing) / (minCardWidth + spacing))
                             .floor()
                             .clamp(1, 10);
-
                     final computedCardWidth =
                         (availableWidth - (spacing * (crossAxisCount - 1))) /
                             crossAxisCount;
-
-                    final childAspectRatio = computedCardWidth <= 220
-                        ? 1.05
-                        : computedCardWidth <= 320
-                            ? 1.15
-                            : 1.25;
-
-                    return ColoredBox(
-                      color: _divider,
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        itemCount: nextEvents.length,
+                        itemCount: 4,
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: crossAxisCount,
                           crossAxisSpacing: spacing,
                           mainAxisSpacing: spacing,
-                          childAspectRatio: childAspectRatio,
+                          mainAxisExtent: EventCard.extentForWidth(
+                            computedCardWidth,
+                          ),
                         ),
-                        itemBuilder: (context, i) {
-                          final e = nextEvents[i];
-                          final when = e.startAt.toLocal();
-                          final end = e.endAt.toLocal();
-
-                          return FutureBuilder<String?>(
-                            future: coverUrls.getUrlIfAny(
-                              eventId: e.id,
-                              coverKey: e.coverKey,
-                            ),
-                            builder: (context, snapshot) {
-                              final url = snapshot.data;
-                              final sameDay = when.year == end.year &&
-                                  when.month == end.month &&
-                                  when.day == end.day;
-                              final dateText = sameDay
-                                  ? _formatMonthDayYear(when)
-                                  : '${formatShortMonthDay(when)}–${formatShortMonthDay(end)} ${end.year}';
-                              return _UpcomingCard(
-                                title: e.title,
-                                location: e.location,
-                                imageUrl: (url != null && url.isNotEmpty)
-                                    ? url
-                                    : null,
-                                fallbackAsset: _defaultEventCoverAsset,
-                                dateText: dateText,
-                                timeText:
-                                    '${_formatTimeOfDay(when)} - ${_formatTimeOfDay(end)}',
-                                badgeText: null,
-                                width: null,
-                                onTap: () => Navigator.of(context).pushNamed(
-                                  EventDetailPage.routeName,
-                                  arguments: e.id,
-                                ),
-                              );
-                            },
-                          );
-                        },
+                        itemBuilder: (_, __) => const EventCardSkeleton(),
                       ),
                     );
                   },
-                ),
-              if (controller.loading)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: CircularProgressIndicator(),
-                  ),
                 ),
               const SizedBox(height: 80),
             ],
@@ -405,185 +537,55 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _EmptyCard extends StatelessWidget {
-  const _EmptyCard();
+class _TodayEmptyCard extends StatelessWidget {
+  final VoidCallback onCreate;
+  final VoidCallback onJoin;
+
+  const _TodayEmptyCard({required this.onCreate, required this.onJoin});
 
   @override
   Widget build(BuildContext context) {
     final t = context.watch<TranslationsService>();
     return Container(
-      width: 260,
+      width: double.infinity,
       decoration: BoxDecoration(
-        color: OnesColors.white.withOpacity(0.60),
-        borderRadius: BorderRadius.zero,
-      ),
-      child: Center(child: Text(t.translate('home.no_upcoming_events'))),
-    );
-  }
-}
-
-class _UpcomingCard extends StatelessWidget {
-  final String title;
-  final String location;
-  final String? imageUrl;
-  final String fallbackAsset;
-  final String? badgeText;
-  final String? dateText;
-  final String timeText;
-  final double? width;
-  final VoidCallback onTap;
-
-  const _UpcomingCard({
-    required this.title,
-    required this.location,
-    required this.imageUrl,
-    required this.fallbackAsset,
-    required this.timeText,
-    required this.badgeText,
-    required this.dateText,
-    required this.width,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    Widget buildFallback() {
-      return ColoredBox(
         color: OnesColors.white,
-        child: Center(
-          child: Image.asset(
-            fallbackAsset,
-            width: 84,
-            height: 84,
-            fit: BoxFit.contain,
-          ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: OnesEmptyState(
+        icon: Icons.event_outlined,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        title: t.translate(
+          'home.empty_today_title',
+          fallback: 'Nada por aquí… todavía',
         ),
-      );
-    }
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.zero,
-      child: Ink(
-        width: width ?? 260,
-        decoration: const BoxDecoration(borderRadius: BorderRadius.zero),
-        child: Stack(
+        message: t.translate(
+          'home.empty_today_message',
+          fallback: 'No tienes eventos hoy. Crea uno o únete con un código.',
+        ),
+        action: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          alignment: WrapAlignment.center,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.zero,
-              child: SizedBox(
-                width: double.infinity,
-                height: double.infinity,
-                child: (imageUrl != null)
-                    ? Image.network(
-                        imageUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => buildFallback(),
-                      )
-                    : buildFallback(),
-              ),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.zero,
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    OnesColors.black.withOpacity(0.05),
-                    OnesColors.black.withOpacity(0.65),
-                  ],
+            FilledButton.tonalIcon(
+              onPressed: onCreate,
+              icon: const Icon(Icons.event_outlined, size: 18),
+              label: Text(
+                t.translate(
+                  'home.empty_today_cta_create',
+                  fallback: 'Crear evento',
                 ),
               ),
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (badgeText != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: OnesColors.white.withOpacity(0.25),
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Text(
-                        badgeText!,
-                        style: const TextStyle(
-                          color: OnesColors.black,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  const Spacer(),
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: OnesColors.white,
-                          letterSpacing: 0.6,
-                          height: 1.05,
-                        ),
-                  ),
-                  const SizedBox(height: 6),
-                  if (dateText != null) ...[
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.calendar_today,
-                          size: 16,
-                          color: OnesColors.white,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          dateText!,
-                          style: const TextStyle(
-                            color: OnesColors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                  ],
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.access_time,
-                        size: 16,
-                        color: OnesColors.white,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        timeText,
-                        style: const TextStyle(
-                          color: OnesColors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.location_on,
-                        size: 16,
-                        color: OnesColors.white,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        location,
-                        style: const TextStyle(
-                          color: OnesColors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+            ),
+            OutlinedButton.icon(
+              onPressed: onJoin,
+              icon: const Icon(Icons.key_outlined, size: 18),
+              label: Text(
+                t.translate(
+                  'home.empty_today_cta_join',
+                  fallback: 'Ingresar código',
+                ),
               ),
             ),
           ],
@@ -592,7 +594,3 @@ class _UpcomingCard extends StatelessWidget {
     );
   }
 }
-
-String _formatTimeOfDay(DateTime dt) => formatTimeOfDay(dt);
-
-String _formatMonthDayYear(DateTime dt) => formatMonthDayYear(dt);
