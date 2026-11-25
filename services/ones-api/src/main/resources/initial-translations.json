@@ -689,6 +689,46 @@
     "en": "Failed to update event.",
     "pt": "Não foi possível atualizar o evento."
   },
+  "edit_event.complements_title": {
+    "es": "Complementos",
+    "en": "Add-ons",
+    "pt": "Complementos"
+  },
+  "edit_event.tournament_title": {
+    "es": "Torneo 4 Equipos",
+    "en": "4-Team Tournament",
+    "pt": "Torneio de 4 equipes"
+  },
+  "edit_event.tournament_subtitle": {
+    "es": "Agrega pronósticos y tabla de posiciones al evento.",
+    "en": "Add predictions and standings to the event.",
+    "pt": "Adicione palpites e classificação ao evento."
+  },
+  "edit_event.tournament_already_enabled": {
+    "es": "Este complemento ya está activo para el evento.",
+    "en": "This add-on is already active for the event.",
+    "pt": "Este complemento já está ativo para o evento."
+  },
+  "edit_event.complements_loading": {
+    "es": "Cargando complementos...",
+    "en": "Loading add-ons...",
+    "pt": "Carregando complementos..."
+  },
+  "edit_event.complements_load_failed": {
+    "es": "No se pudieron cargar los complementos del evento.",
+    "en": "The event add-ons could not be loaded.",
+    "pt": "Não foi possível carregar os complementos do evento."
+  },
+  "edit_event.complements_retry": {
+    "es": "Reintentar",
+    "en": "Retry",
+    "pt": "Tentar novamente"
+  },
+  "edit_event.tournament_enable_failed": {
+    "es": "El evento se actualizó, pero no se pudo activar el torneo.",
+    "en": "The event was updated, but the tournament could not be enabled.",
+    "pt": "O evento foi atualizado, mas não foi possível ativar o torneio."
+  },
   "event_detail.no_event": {
     "es": "Evento no encontrado",
     "en": "Event not found",
