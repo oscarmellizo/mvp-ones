@@ -497,6 +497,24 @@ void main() {
       expect(repo.signOutCalls, 0);
     });
 
+    test('distingue un API no disponible de la falta de internet', () async {
+      repo.current = fakeUser();
+      when(() => getPrefs.execute(any())).thenThrow(apiError(503));
+
+      await auth.restoreSessionIfPossible();
+
+      expect(auth.needsConnection, isTrue);
+      expect(auth.serviceUnavailable, isTrue);
+      expect(auth.isSignedIn, isTrue);
+
+      when(() => getPrefs.execute(any()))
+          .thenAnswer((_) async => registeredPrefs);
+      await auth.retryConnection();
+
+      expect(auth.needsConnection, isFalse);
+      expect(auth.serviceUnavailable, isFalse);
+    });
+
     test('al reintentar con conexión entra normalmente', () async {
       repo.current = fakeUser();
       when(() => getPrefs.execute(any())).thenThrow(offline());

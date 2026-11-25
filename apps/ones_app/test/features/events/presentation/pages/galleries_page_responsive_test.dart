@@ -40,6 +40,7 @@ void main() {
     when(() => events.events).thenReturn([
       _event('event-1', 'Galeria uno', DateTime(2025, 11, 19, 18)),
       _event('event-2', 'Galeria dos', DateTime(2025, 11, 18, 18)),
+      _event('event-3', 'Evento futuro', DateTime(2999, 1, 1, 18)),
     ]);
     when(() => events.loading).thenReturn(false);
     when(() => events.refresh()).thenAnswer((_) async {});
@@ -88,5 +89,13 @@ void main() {
     final firstTop = tester.getTopLeft(find.text('Galeria uno')).dy;
     final secondTop = tester.getTopLeft(find.text('Galeria dos')).dy;
     expect(secondTop, greaterThan(firstTop));
+  });
+
+  testWidgets('gallery hides events that have not started yet',
+      (tester) async {
+    await pumpGalleries(tester, const Size(390, 844));
+
+    expect(find.text('Evento futuro'), findsNothing);
+    expect(find.text('Galeria uno'), findsOneWidget);
   });
 }

@@ -13,10 +13,12 @@ class AdminEventTemplateEditPage extends StatefulWidget {
   const AdminEventTemplateEditPage({super.key, this.eventTemplateId});
 
   @override
-  State<AdminEventTemplateEditPage> createState() => _AdminEventTemplateEditPageState();
+  State<AdminEventTemplateEditPage> createState() =>
+      _AdminEventTemplateEditPageState();
 }
 
-class _AdminEventTemplateEditPageState extends State<AdminEventTemplateEditPage> {
+class _AdminEventTemplateEditPageState
+    extends State<AdminEventTemplateEditPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _sortOrderController = TextEditingController();
@@ -108,7 +110,7 @@ class _AdminEventTemplateEditPageState extends State<AdminEventTemplateEditPage>
     final framesCtrl = context.watch<AdminFramesController>();
 
     return Scaffold(
-      backgroundColor: OnesColors.background,
+      backgroundColor: OnesColors.surfaceWarm,
       appBar: AppBar(
         title: Text(widget.eventTemplateId != null
             ? 'Edit Event Template'
@@ -232,7 +234,8 @@ class _AdminEventTemplateEditPageState extends State<AdminEventTemplateEditPage>
                         width: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : Text(widget.eventTemplateId != null ? 'Update' : 'Create'),
+                    : Text(
+                        widget.eventTemplateId != null ? 'Update' : 'Create'),
               ),
             ),
           ],

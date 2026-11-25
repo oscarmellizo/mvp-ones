@@ -9,6 +9,7 @@ class EventDetailTabs extends StatelessWidget {
   final ValueChanged<int> onChanged;
   final Key? galleryKey;
   final Key? detailsKey;
+  final bool showTournament;
 
   const EventDetailTabs({
     super.key,
@@ -16,17 +17,18 @@ class EventDetailTabs extends StatelessWidget {
     required this.onChanged,
     this.galleryKey,
     this.detailsKey,
+    this.showTournament = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final t = context.watch<TranslationsService>();
-    final bg = OnesColors.background;
+    final bg = OnesColors.surfaceWarm;
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: Color.alphaBlend(OnesColors.black.withOpacity(0.04), bg),
-        borderRadius: BorderRadius.zero,
+        borderRadius: const BorderRadius.all(Radius.circular(12)),
       ),
       child: Row(
         children: [
@@ -52,6 +54,16 @@ class EventDetailTabs extends StatelessWidget {
               onTap: () => onChanged(1),
             ),
           ),
+          if (showTournament) ...[
+            const SizedBox(width: 4),
+            Expanded(
+              child: _TabButton(
+                label: 'Torneo',
+                selected: index == 2,
+                onTap: () => onChanged(2),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -73,14 +85,14 @@ class _TabButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.zero,
+      borderRadius: const BorderRadius.all(Radius.circular(12)),
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
           color: selected ? OnesColors.white : Colors.transparent,
-          borderRadius: BorderRadius.zero,
+          borderRadius: const BorderRadius.all(Radius.circular(12)),
           boxShadow: selected
               ? [
                   BoxShadow(

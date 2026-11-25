@@ -441,6 +441,9 @@ Resources:
                   - lambda:InvokeFunction
                   - lambda:GetFunction
                   - lambda:GetFunctionConfiguration
+                  - lambda:GetFunctionConcurrency
+                  - lambda:PutFunctionConcurrency
+                  - lambda:DeleteFunctionConcurrency
                   - lambda:UpdateFunctionCode
                   - lambda:UpdateFunctionConfiguration
                   - lambda:AddPermission
@@ -496,6 +499,7 @@ Resources:
                     iam:AWSServiceName:
                       - elasticloadbalancing.amazonaws.com
                       - ecs.amazonaws.com
+                      - ecs.application-autoscaling.amazonaws.com
 
 Outputs:
   GitHubActionsDeployRoleArn:

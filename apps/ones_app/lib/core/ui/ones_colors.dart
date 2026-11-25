@@ -21,5 +21,11 @@ class OnesColors {
 
   static const danger = Color(0xFFE25555);
 
+  // Neutral warm surfaces for the home/galleries redesign.
+  static const surfaceWarm = Color(0xFFFBF8F2);
+  static const surfaceMuted = Color(0xFFF1ECE3);
+  static const inkSoft = Color(0xFF6F6675);
+  static const live = Color(0xFFE24B4B);
+
   static const background = yellow;
 }

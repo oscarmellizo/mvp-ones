@@ -5,6 +5,7 @@ import java.time.Clock;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import com.ones.api.application.complements.EventComplementsService;
 import com.ones.api.application.invitations.InvitationsService;
 import com.ones.api.application.invitations.ports.InvitationsRepository;
 import com.ones.api.application.invitations.email.InvitationActionTokenService;
@@ -59,7 +60,8 @@ public class ApplicationConfig {
             Clock clock,
             EventCoversService coversService,
             InvitationEmailService invitationEmailService,
-            EventQrService eventQrService
+            EventQrService eventQrService,
+            EventComplementsService eventComplementsService
     ) {
         return new CreateEventUseCase(
                 repository,
@@ -68,7 +70,8 @@ public class ApplicationConfig {
                 clock,
                 coversService,
                 invitationEmailService,
-                eventQrService
+                eventQrService,
+                eventComplementsService
         );
     }
 

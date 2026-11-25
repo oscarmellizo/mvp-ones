@@ -38,6 +38,7 @@ class AuthController extends ChangeNotifier {
   bool _isLoading = false;
   bool _isRestoring = false;
   bool _needsConnection = false;
+  bool _serviceUnavailable = false;
   Object? _error;
 
   Future<void>? _restoreInFlight;
@@ -70,6 +71,7 @@ class AuthController extends ChangeNotifier {
 
   /// Hay sesión pero no se pudo hablar con el API al abrir la app (sin internet o servicio caído).
   bool get needsConnection => _needsConnection;
+  bool get serviceUnavailable => _serviceUnavailable;
   Object? get error => _error;
 
   Future<void> signIn() async {
@@ -112,6 +114,7 @@ class AuthController extends ChangeNotifier {
   Future<void> _restoreSessionInternal() async {
     _isRestoring = true;
     _needsConnection = false;
+    _serviceUnavailable = false;
     try {
       await authRepository.clearSessionIfFreshInstall();
     } catch (_) {
@@ -148,6 +151,8 @@ class AuthController extends ChangeNotifier {
       if (_isTransient(e)) {
         // Sesión válida pero sin conexión: no se saca al usuario; se le ofrece reintentar.
         _needsConnection = true;
+        _serviceUnavailable =
+            e is DioException && (e.response?.statusCode ?? 0) >= 500;
       } else {
         _clearSession();
       }
@@ -552,6 +557,7 @@ class AuthController extends ChangeNotifier {
     _isRegistered = false;
     _needsEmailVerification = false;
     _needsConnection = false;
+    _serviceUnavailable = false;
   }
 
   static String? _errorCode(Object e) {

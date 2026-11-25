@@ -64,7 +64,21 @@ Parameters:
 
   BackendDesiredCount:
     Type: Number
-    Default: 0
+    Default: 1
+    MinValue: 1
+    MaxValue: 10
+
+  BackendMinCapacity:
+    Type: Number
+    Default: 1
+    MinValue: 1
+    MaxValue: 50
+
+  BackendMaxCapacity:
+    Type: Number
+    Default: 10
+    MinValue: 1
+    MaxValue: 100
 
   UsePhotoThumbnailsImage:
     Type: String
@@ -134,6 +148,16 @@ Parameters:
     Type: String
     Default: ''
 
+  TournamentScoringWorkerZipS3Key:
+    Type: String
+    Default: ''
+
+  TournamentScoringMaxConcurrency:
+    Type: Number
+    Default: 2
+    MinValue: 2
+    MaxValue: 1000
+
   GrafanaDesiredCount:
     Type: Number
     Default: 1
@@ -195,6 +219,8 @@ Resources:
         EmailLogoUrl: !Ref EmailLogoUrl
         PublicBaseUrl: !Ref PublicBaseUrl
         BackendDesiredCount: !Ref BackendDesiredCount
+        BackendMinCapacity: !Ref BackendMinCapacity
+        BackendMaxCapacity: !Ref BackendMaxCapacity
         UsePhotoThumbnailsImage: !Ref UsePhotoThumbnailsImage
         PhotoThumbnailsMaxConcurrency: !Ref PhotoThumbnailsMaxConcurrency
         PhotoThumbnailsMaxReceiveCount: !Ref PhotoThumbnailsMaxReceiveCount
@@ -207,6 +233,8 @@ Resources:
         PhotoDateResolverCacheTtlSeconds: !Ref PhotoDateResolverCacheTtlSeconds
         PhotoDateResolverMonthlyBudgetUsd: !Ref PhotoDateResolverMonthlyBudgetUsd
         PhotoDateResolverZipS3Key: !Ref PhotoDateResolverZipS3Key
+        TournamentScoringWorkerZipS3Key: !Ref TournamentScoringWorkerZipS3Key
+        TournamentScoringMaxConcurrency: !Ref TournamentScoringMaxConcurrency
         GrafanaDesiredCount: !Ref GrafanaDesiredCount
         CdnPhotosEnabled: !Ref CdnPhotosEnabled
         CdnPhotosSigningPublicKeyPem: !Ref CdnPhotosSigningPublicKeyPem

@@ -101,7 +101,8 @@ public class EventsController {
                 request.coverReservationId(),
                 request.inviteeEmails(),
                 allowGuestInvites,
-                request.frameIds()
+                request.frameIds(),
+                Boolean.TRUE.equals(request.includeTournament())
         );
         return ResponseEntity.created(URI.create("/v1/events/" + created.getEventId())).body(toResponse(created));
     }

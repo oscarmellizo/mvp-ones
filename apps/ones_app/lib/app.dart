@@ -29,6 +29,8 @@ import 'features/events/adapters/api/event_templates_api_repository.dart';
 import 'features/events/adapters/api/frames_api_repository.dart';
 import 'features/events/adapters/api/events_api_repository.dart';
 import 'features/events/adapters/api/events_metadata_api_repository.dart';
+import 'features/events/adapters/api/event_complements_api_repository.dart';
+import 'features/tournament/adapters/api/tournament_api_repository.dart';
 import 'features/events/application/create_event_use_case.dart';
 import 'features/events/application/get_event_use_case.dart';
 import 'features/events/application/list_events_use_case.dart';
@@ -88,9 +90,12 @@ String? invitationRouteForLink(Uri? link, {bool allowDevHost = false}) {
   }
   final tokens = link.queryParametersAll['token'];
   final actions = link.queryParametersAll['action'];
-  if (tokens == null || tokens.length != 1 || tokens.single.trim().isEmpty ||
-      (actions != null && (actions.length != 1 ||
-          !const {'accept', 'reject'}.contains(actions.single)))) {
+  if (tokens == null ||
+      tokens.length != 1 ||
+      tokens.single.trim().isEmpty ||
+      (actions != null &&
+          (actions.length != 1 ||
+              !const {'accept', 'reject'}.contains(actions.single)))) {
     return null;
   }
   return Uri(
@@ -136,6 +141,9 @@ class OnesApp extends StatelessWidget {
     final updateEvent = UpdateEventUseCase(eventsRepository);
 
     final eventsMetadataRepository = EventsMetadataApiRepository(apiFactory);
+    final eventComplementsRepository =
+        EventComplementsApiRepository(apiFactory);
+    final tournamentRepository = TournamentApiRepository(apiFactory);
     final eventCoversRepository = EventCoversApiRepository(apiFactory);
     final eventCoverUrlsRepository = EventCoverUrlsApiRepository(apiFactory);
     final invitationsRepository = InvitationsApiRepository(apiFactory);
@@ -165,7 +173,8 @@ class OnesApp extends StatelessWidget {
               updateUserPreferences: updateUserPreferences,
               lookupUserByEmailUseCase: lookupUserByEmail,
               getAdminMe: getAdminMe,
-              reactivateAccount: (token) async => (await accountRepository.reactivate(token)) != null,
+              reactivateAccount: (token) async =>
+                  (await accountRepository.reactivate(token)) != null,
             );
             ctrl.restoreSessionIfPossible();
             return ctrl;
@@ -174,9 +183,22 @@ class OnesApp extends StatelessWidget {
         ProxyProvider<AuthController, EventsRepository>(
           update: (_, auth, __) {
             apiFactory.setTokenRefresher(auth.refreshIdToken);
-            apiFactory.setAccountBlockedHandler(auth.signOutBecauseAccountBlocked);
+            apiFactory
+                .setAccountBlockedHandler(auth.signOutBecauseAccountBlocked);
             eventsRepository.setIdToken(auth.idToken);
             return eventsRepository;
+          },
+        ),
+        ProxyProvider<AuthController, EventComplementsApiRepository>(
+          update: (_, auth, __) {
+            eventComplementsRepository.setIdToken(auth.idToken);
+            return eventComplementsRepository;
+          },
+        ),
+        ProxyProvider<AuthController, TournamentApiRepository>(
+          update: (_, auth, __) {
+            tournamentRepository.setIdToken(auth.idToken);
+            return tournamentRepository;
           },
         ),
         ChangeNotifierProxyProvider<AuthController, TranslationsService>(
@@ -206,13 +228,15 @@ class OnesApp extends StatelessWidget {
         ChangeNotifierProxyProvider<AuthController, AccountController>(
           create: (_) => AccountController(apiFactory: apiFactory),
           update: (_, auth, ctrl) {
-            final controller = ctrl ?? AccountController(apiFactory: apiFactory);
+            final controller =
+                ctrl ?? AccountController(apiFactory: apiFactory);
             controller.setIdToken(auth.idToken);
             final token = auth.idToken;
             if (token != null && token.isNotEmpty) {
               controller.ensureReactivatedIfEligible(
                 sessionKey: auth.user?.userId,
-                onClosed: () => auth.signOutBecauseAccountBlocked(AccountBlock.closed),
+                onClosed: () =>
+                    auth.signOutBecauseAccountBlocked(AccountBlock.closed),
               );
             }
             return controller;
@@ -406,81 +430,82 @@ class OnesApp extends StatelessWidget {
       child: AppLinkHandler(
         child: Builder(
           builder: (context) {
-            final lang = context.watch<TranslationsService>().getCurrentLanguage();
+            final lang =
+                context.watch<TranslationsService>().getCurrentLanguage();
             return MaterialApp(
-            title: 'Ones',
-            theme: OnesTheme.light(),
-            locale: Locale(lang),
-            supportedLocales: const [
-              Locale('es'),
-              Locale('en'),
-              Locale('pt'),
-            ],
-            localizationsDelegates: const [
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
-            navigatorKey: onesNavigatorKey,
-            home: const _RootRouter(),
-            routes: {
-              EventsListPage.routeName: (_) => const EventsListPage(),
-              CreateEventPage.routeName: (_) => const CreateEventPage(),
-            },
-            onGenerateRoute: (settings) {
-              final name = settings.name;
-              if (name == null || name.isEmpty) return null;
+              title: 'Ones',
+              theme: OnesTheme.light(),
+              locale: Locale(lang),
+              supportedLocales: const [
+                Locale('es'),
+                Locale('en'),
+                Locale('pt'),
+              ],
+              localizationsDelegates: const [
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+              navigatorKey: onesNavigatorKey,
+              home: const _RootRouter(),
+              routes: {
+                EventsListPage.routeName: (_) => const EventsListPage(),
+                CreateEventPage.routeName: (_) => const CreateEventPage(),
+              },
+              onGenerateRoute: (settings) {
+                final name = settings.name;
+                if (name == null || name.isEmpty) return null;
 
-              final uri = Uri.parse(name);
-              if (uri.path == InvitationLinkPage.routeName) {
-                final token = uri.queryParameters['token'];
-                if (token == null || token.trim().isEmpty) {
-                  return null;
+                final uri = Uri.parse(name);
+                if (uri.path == InvitationLinkPage.routeName) {
+                  final token = uri.queryParameters['token'];
+                  if (token == null || token.trim().isEmpty) {
+                    return null;
+                  }
+                  final action = uri.queryParameters['action'];
+                  return MaterialPageRoute(
+                    settings: settings,
+                    builder: (_) => InvitationLinkPage(
+                      token: token,
+                      action: action,
+                    ),
+                  );
                 }
-                final action = uri.queryParameters['action'];
-                return MaterialPageRoute(
-                  settings: settings,
-                  builder: (_) => InvitationLinkPage(
-                    token: token,
-                    action: action,
-                  ),
-                );
-              }
-              if (uri.path == EventInviteLinkPage.routeName) {
-                final eventId = uri.queryParameters['eventId'];
-                final sig = uri.queryParameters['sig'];
-                if (eventId == null || eventId.trim().isEmpty) {
-                  return null;
+                if (uri.path == EventInviteLinkPage.routeName) {
+                  final eventId = uri.queryParameters['eventId'];
+                  final sig = uri.queryParameters['sig'];
+                  if (eventId == null || eventId.trim().isEmpty) {
+                    return null;
+                  }
+                  if (sig == null || sig.trim().isEmpty) {
+                    return null;
+                  }
+                  return MaterialPageRoute(
+                    builder: (_) => EventInviteLinkPage(
+                      eventId: eventId,
+                      sig: sig,
+                    ),
+                  );
                 }
-                if (sig == null || sig.trim().isEmpty) {
-                  return null;
-                }
-                return MaterialPageRoute(
-                  builder: (_) => EventInviteLinkPage(
-                    eventId: eventId,
-                    sig: sig,
-                  ),
-                );
-              }
-              if (uri.path == EventDetailPage.routeName) {
-                final eventId = eventIdForRoute(name, Uri.base) ??
-                    (settings.arguments as String?);
-                if (eventId == null || eventId.isEmpty) {
-                  return null;
-                }
+                if (uri.path == EventDetailPage.routeName) {
+                  final eventId = eventIdForRoute(name, Uri.base) ??
+                      (settings.arguments as String?);
+                  if (eventId == null || eventId.isEmpty) {
+                    return null;
+                  }
 
-                final initialPhotoId = uri.queryParameters['photoId'];
-                return MaterialPageRoute(
-                  settings: settings,
-                  builder: (_) => EventDetailPage(
-                    eventId: eventId,
-                    initialPhotoId: initialPhotoId,
-                  ),
-                );
-              }
-              return null;
-            },
-            debugShowCheckedModeBanner: false,
+                  final initialPhotoId = uri.queryParameters['photoId'];
+                  return MaterialPageRoute(
+                    settings: settings,
+                    builder: (_) => EventDetailPage(
+                      eventId: eventId,
+                      initialPhotoId: initialPhotoId,
+                    ),
+                  );
+                }
+                return null;
+              },
+              debugShowCheckedModeBanner: false,
             );
           },
         ),
@@ -533,7 +558,8 @@ class _AppLinkHandlerState extends State<AppLinkHandler> {
     if (invitationRoute != null) {
       final recentlyOpened = _lastOpenedRoute == invitationRoute &&
           _lastOpenedAt != null &&
-          DateTime.now().difference(_lastOpenedAt!) < const Duration(seconds: 2);
+          DateTime.now().difference(_lastOpenedAt!) <
+              const Duration(seconds: 2);
       if (recentlyOpened || _pendingInvitationRoute == invitationRoute) return;
       setState(() => _pendingInvitationRoute = invitationRoute);
       return;
@@ -649,10 +675,12 @@ class _RootRouterState extends State<_RootRouter> with WidgetsBindingObserver {
 
   void _navigateToEvent(String eventId, bool openCamera) {
     final nav = Navigator.of(context);
-    nav.pushNamed(
+    nav
+        .pushNamed(
       EventDetailPage.routeName,
       arguments: eventId,
-    ).then((_) {
+    )
+        .then((_) {
       if (openCamera && mounted) {
         final events = context.read<EventsController>().events;
         final event = events.where((e) => e.id == eventId).firstOrNull;

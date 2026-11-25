@@ -149,17 +149,25 @@ class _HomeShellPageState extends State<HomeShellPage> {
       body: Stack(
         children: [
           _pages[_index],
-          if (_isFabMenuExpanded)
-            Positioned.fill(
+          Positioned.fill(
+            child: IgnorePointer(
+              ignoring: !_isFabMenuExpanded,
               child: Semantics(
                 excludeSemantics: true,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => setState(() => _isFabMenuExpanded = false),
-                  child: const SizedBox.expand(),
+                child: AnimatedOpacity(
+                  opacity: _isFabMenuExpanded ? 1 : 0,
+                  duration: const Duration(milliseconds: 180),
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => setState(() => _isFabMenuExpanded = false),
+                    child: ColoredBox(
+                      color: OnesColors.black.withOpacity(0.32),
+                    ),
+                  ),
                 ),
               ),
             ),
+          ),
         ],
       ),
       floatingActionButton: AnimatedSize(
@@ -172,6 +180,7 @@ class _HomeShellPageState extends State<HomeShellPage> {
           children: [
             if (_isFabMenuExpanded) ...[
               _buildFabMenuAction(
+                animationIndex: 0,
                 icon: Icons.event,
                 label: translationsService.translate(
                   'home.action_create_event',
@@ -183,6 +192,7 @@ class _HomeShellPageState extends State<HomeShellPage> {
                 },
               ),
               _buildFabMenuAction(
+                animationIndex: 1,
                 icon: Icons.qr_code_scanner,
                 label: translationsService.translate(
                   'home.action_scan_event_qr',
@@ -198,6 +208,7 @@ class _HomeShellPageState extends State<HomeShellPage> {
                 },
               ),
               _buildFabMenuAction(
+                animationIndex: 2,
                 icon: Icons.dialpad,
                 label: translationsService.translate(
                   'home.action_enter_event_code',
@@ -274,6 +285,7 @@ class _HomeShellPageState extends State<HomeShellPage> {
   }
 
   Widget _buildFabMenuAction({
+    required int animationIndex,
     required IconData icon,
     required String label,
     required VoidCallback onTap,
@@ -281,32 +293,49 @@ class _HomeShellPageState extends State<HomeShellPage> {
     final borderRadius = BorderRadius.circular(28);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: ConstrainedBox(
-        constraints:
-            BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width - 32),
-        child: Material(
-          color: Theme.of(context).colorScheme.surface,
-          elevation: 6,
-          borderRadius: borderRadius,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: borderRadius,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, color: OnesColors.purpleMid),
-                  const SizedBox(width: 12),
-                  Flexible(
-                    child: Text(
-                      label,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelLarge,
-                    ),
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: Duration(milliseconds: 160 + (animationIndex * 60)),
+        curve: Curves.easeOut,
+        builder: (context, value, child) => Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, 10 * (1 - value)),
+            child: child,
+          ),
+        ),
+        child: Semantics(
+          button: true,
+          label: label,
+          child: ConstrainedBox(
+            constraints:
+                BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width - 32),
+            child: Material(
+              color: Theme.of(context).colorScheme.surface,
+              elevation: 6,
+              borderRadius: borderRadius,
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: borderRadius,
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, color: OnesColors.purpleMid),
+                      const SizedBox(width: 12),
+                      Flexible(
+                        child: Text(
+                          label,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),

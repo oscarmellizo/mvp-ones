@@ -43,7 +43,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         minimumSize: const Size.fromHeight(54),
         backgroundColor: OnesColors.purpleMid,
         foregroundColor: OnesColors.white,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        shape: const RoundedRectangleBorder(
+            borderRadius: const BorderRadius.all(Radius.circular(12))),
       );
 
   @override
@@ -54,7 +55,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         ?.copyWith(color: OnesColors.black.withOpacity(0.75), height: 1.35);
 
     return Scaffold(
-      backgroundColor: OnesColors.background,
+      backgroundColor: OnesColors.surfaceWarm,
       appBar: AppBar(title: const Text('Restablecer contraseña')),
       body: SafeArea(
         child: Center(
@@ -73,7 +74,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           child: PolaroidFrame(
                             angle: 0.03,
                             child: const ColoredBox(
-                              color: OnesColors.yellowLight,
+                              color: OnesColors.surfaceMuted,
                               child: Center(
                                   child: Icon(Icons.lock_reset,
                                       size: 72, color: OnesColors.purpleDeep)),
@@ -126,7 +127,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           controller: _email,
                           // Ver EmailAuthSection: en web el foco automático no llega al navegador.
                           autofocus: !kIsWeb,
-                          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+                          onTapOutside: (_) =>
+                              FocusManager.instance.primaryFocus?.unfocus(),
                           keyboardType: TextInputType.emailAddress,
                           autofillHints: const [AutofillHints.email],
                           textInputAction: TextInputAction.send,

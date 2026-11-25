@@ -15,6 +15,7 @@ import 'package:file_picker/file_picker.dart';
 
 import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/utils/datetime_formatters.dart';
+import '../../../../core/utils/share_utils.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/widgets/ones_text_field.dart';
@@ -31,6 +32,8 @@ import '../../../photos/adapters/local/photo_storage.dart';
 import '../../../photos/presentation/pages/photo_import_web_sheet.dart';
 import '../../../photos/presentation/pages/photo_import_mobile_sheet.dart';
 import '../event_cover_urls_controller.dart';
+import '../../adapters/api/event_complements_api_repository.dart';
+import '../../../tournament/presentation/tournament_tab_page.dart';
 import '../events_controller.dart';
 import '../widgets/gallery_grid_layout.dart';
 import '../widgets/event_detail_details_widgets.dart';
@@ -55,11 +58,13 @@ class EventDetailPage extends StatefulWidget {
 
   final String eventId;
   final String? initialPhotoId;
+  final bool openTournamentTab;
 
   const EventDetailPage({
     super.key,
     required this.eventId,
     this.initialPhotoId,
+    this.openTournamentTab = false,
   });
 
   @override
@@ -68,6 +73,7 @@ class EventDetailPage extends StatefulWidget {
 
 class _EventDetailPageState extends State<EventDetailPage> {
   int _tabIndex = 0;
+  bool _tournamentEnabled = false;
   final _searchController = TextEditingController();
   bool _openedInitialPhoto = false;
   bool _gallerySelecting = false;
@@ -149,7 +155,10 @@ class _EventDetailPageState extends State<EventDetailPage> {
     super.initState();
     _purgeFlutterImageCache();
     _lastLanguage = context.read<TranslationsService>().getCurrentLanguage();
-    if (widget.initialPhotoId != null &&
+    if (widget.openTournamentTab) {
+      _tabIndex = 2;
+      _tournamentEnabled = true;
+    } else if (widget.initialPhotoId != null &&
         widget.initialPhotoId!.trim().isNotEmpty) {
       _tabIndex = 0;
     }
@@ -162,6 +171,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<EventsController>().select(widget.eventId);
+      _loadEventComplements();
       context.read<TranslationsService>().ensurePageTranslations(
             page: 'event_detail',
             requiredKeys: _eventDetailRequiredKeys,
@@ -207,9 +217,35 @@ class _EventDetailPageState extends State<EventDetailPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<EventsController>().select(widget.eventId);
+      _loadEventComplements();
       prev?.dispose();
       next.refresh(eventId: widget.eventId);
     });
+  }
+
+  Future<void> _loadEventComplements({
+    bool tournamentEnabledHint = false,
+  }) async {
+    try {
+      final complements = await context
+          .read<EventComplementsApiRepository>()
+          .list(widget.eventId);
+      final enabled = complements.any(
+        (item) => item['id'] == 'tournament' && item['enabled'] == true,
+      );
+      if (!mounted) return;
+      setState(() {
+        _tournamentEnabled =
+            enabled || tournamentEnabledHint || widget.openTournamentTab;
+        if (!_tournamentEnabled && _tabIndex == 2) _tabIndex = 1;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _tournamentEnabled = tournamentEnabledHint || widget.openTournamentTab;
+        if (!_tournamentEnabled && _tabIndex == 2) _tabIndex = 1;
+      });
+    }
   }
 
   @override
@@ -259,79 +295,89 @@ class _EventDetailPageState extends State<EventDetailPage> {
               photos.currentEventId == widget.eventId && photos.loadedOnce;
 
           return Scaffold(
-            backgroundColor: OnesColors.background,
-            floatingActionButton: AnimatedPadding(
-              duration: const Duration(milliseconds: 200),
-              padding: EdgeInsets.only(bottom: _gallerySelecting ? 68.0 : 0.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Upload/import photos FAB (top)
-                  FloatingActionButton(
-                    heroTag: 'event-photo-import',
-                    backgroundColor: OnesColors.purpleMid,
-                    foregroundColor: OnesColors.white,
-                    onPressed: event == null || !eventReady || !photosReady
-                        ? null
-                        : () async {
-                            final result = await showModalBottomSheet<bool>(
-                              context: context,
-                              isScrollControlled: true,
-                              builder: (ctx) {
-                                final content = kIsWeb
-                                    ? PhotoImportWebSheet(eventId: event.id)
-                                    : PhotoImportMobileSheet(eventId: event.id);
-                                return SafeArea(child: content);
-                              },
-                            );
-                            if (result == true && context.mounted) {
-                              await context
-                                  .read<PhotosUploadController>()
-                                  .refreshActiveForEvent(eventId: event.id);
-                              if (!context.mounted) return;
-                              await context
-                                  .read<PhotosGalleryController>()
-                                  .refresh(eventId: event.id);
-                            }
-                          },
-                    child: const Icon(Icons.file_upload_outlined),
+            backgroundColor: OnesColors.surfaceWarm,
+            floatingActionButton: _tabIndex == 2 && _tournamentEnabled
+                ? null
+                : AnimatedPadding(
+                    duration: const Duration(milliseconds: 200),
+                    padding:
+                        EdgeInsets.only(bottom: _gallerySelecting ? 68.0 : 0.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Upload/import photos FAB (top)
+                        FloatingActionButton(
+                          heroTag: 'event-photo-import',
+                          backgroundColor: OnesColors.purpleMid,
+                          foregroundColor: OnesColors.white,
+                          onPressed:
+                              event == null || !eventReady || !photosReady
+                                  ? null
+                                  : () async {
+                                      final result =
+                                          await showModalBottomSheet<bool>(
+                                        context: context,
+                                        isScrollControlled: true,
+                                        builder: (ctx) {
+                                          final content = kIsWeb
+                                              ? PhotoImportWebSheet(
+                                                  eventId: event.id)
+                                              : PhotoImportMobileSheet(
+                                                  eventId: event.id);
+                                          return SafeArea(child: content);
+                                        },
+                                      );
+                                      if (result == true && context.mounted) {
+                                        await context
+                                            .read<PhotosUploadController>()
+                                            .refreshActiveForEvent(
+                                                eventId: event.id);
+                                        if (!context.mounted) return;
+                                        await context
+                                            .read<PhotosGalleryController>()
+                                            .refresh(eventId: event.id);
+                                      }
+                                    },
+                          child: const Icon(Icons.file_upload_outlined),
+                        ),
+                        const SizedBox(height: 12),
+                        // Camera capture FAB (bottom)
+                        FloatingActionButton(
+                          heroTag: 'event-photo-camera',
+                          backgroundColor: OnesColors.purpleMid,
+                          foregroundColor: OnesColors.white,
+                          onPressed: event == null ||
+                                  !eventReady ||
+                                  !photosReady
+                              ? null
+                              : () async {
+                                  await Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => kIsWeb
+                                          ? PhotoCaptureWebPage(
+                                              eventId: event.id,
+                                              frameIds: event.frameIds,
+                                            )
+                                          : PhotoCapturePage(
+                                              eventId: event.id,
+                                              frameIds: event.frameIds,
+                                            ),
+                                    ),
+                                  );
+                                  if (!context.mounted) return;
+                                  await context
+                                      .read<PhotosUploadController>()
+                                      .refreshActiveForEvent(eventId: event.id);
+                                  if (!context.mounted) return;
+                                  await context
+                                      .read<PhotosGalleryController>()
+                                      .refresh(eventId: event.id);
+                                },
+                          child: const Icon(Icons.photo_camera),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  // Camera capture FAB (bottom)
-                  FloatingActionButton(
-                    heroTag: 'event-photo-camera',
-                    backgroundColor: OnesColors.purpleMid,
-                    foregroundColor: OnesColors.white,
-                    onPressed: event == null || !eventReady || !photosReady
-                        ? null
-                        : () async {
-                            await Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => kIsWeb
-                                    ? PhotoCaptureWebPage(
-                                        eventId: event.id,
-                                        frameIds: event.frameIds,
-                                      )
-                                    : PhotoCapturePage(
-                                        eventId: event.id,
-                                        frameIds: event.frameIds,
-                                      ),
-                              ),
-                            );
-                            if (!context.mounted) return;
-                            await context
-                                .read<PhotosUploadController>()
-                                .refreshActiveForEvent(eventId: event.id);
-                            if (!context.mounted) return;
-                            await context
-                                .read<PhotosGalleryController>()
-                                .refresh(eventId: event.id);
-                          },
-                    child: const Icon(Icons.photo_camera),
-                  ),
-                ],
-              ),
-            ),
             body: SafeArea(
               child: event == null
                   ? controller.selectedError == null
@@ -366,7 +412,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                       : Column(
                           children: [
                             ColoredBox(
-                              color: OnesColors.background,
+                              color: OnesColors.surfaceWarm,
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -392,6 +438,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                                       index: _tabIndex,
                                       onChanged: (i) =>
                                           setState(() => _tabIndex = i),
+                                      showTournament: _tournamentEnabled,
                                       galleryKey: TutorialKeys.eventTabGallery,
                                       detailsKey: TutorialKeys.eventTabDetails,
                                     ),
@@ -427,27 +474,37 @@ class _EventDetailPageState extends State<EventDetailPage> {
                                           });
                                         },
                                       )
-                                    : Padding(
-                                        padding: EdgeInsets.symmetric(
-                                            horizontal: horizontalPadding),
-                                        child: _DetailsTab(
-                                          eventId: event.id,
-                                          coverKey: event.coverKey,
-                                          title: event.title,
-                                          eventType: event.objective,
-                                          startAt: event.startAt,
-                                          endAt: event.endAt,
-                                          location: event.location,
-                                          frameIds: event.frameIds,
-                                          isOwner: auth.user?.userId ==
-                                              event.ownerId,
-                                          allowGuestInvites:
-                                              event.allowGuestInvites,
-                                          inviteLinkEnabled:
-                                              event.inviteLinkEnabled,
-                                          eventCode: event.eventCode,
-                                        ),
-                                      ),
+                                    : _tabIndex == 2 && _tournamentEnabled
+                                        ? TournamentTabPage(
+                                            key: ValueKey(
+                                                'tournament:${widget.eventId}'),
+                                            eventId: widget.eventId,
+                                          )
+                                        : Padding(
+                                            padding: EdgeInsets.symmetric(
+                                                horizontal: horizontalPadding),
+                                            child: _DetailsTab(
+                                              eventId: event.id,
+                                              reloadComplements: (enabled) =>
+                                                  _loadEventComplements(
+                                                tournamentEnabledHint: enabled,
+                                              ),
+                                              coverKey: event.coverKey,
+                                              title: event.title,
+                                              eventType: event.objective,
+                                              startAt: event.startAt,
+                                              endAt: event.endAt,
+                                              location: event.location,
+                                              frameIds: event.frameIds,
+                                              isOwner: auth.user?.userId ==
+                                                  event.ownerId,
+                                              allowGuestInvites:
+                                                  event.allowGuestInvites,
+                                              inviteLinkEnabled:
+                                                  event.inviteLinkEnabled,
+                                              eventCode: event.eventCode,
+                                            ),
+                                          ),
                               ),
                             ),
                           ],
@@ -1305,7 +1362,7 @@ class _GalleryTabState extends State<_GalleryTab> {
         Column(
           children: [
             ColoredBox(
-              color: OnesColors.background,
+              color: OnesColors.surfaceWarm,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
                 child: _selecting
@@ -1314,7 +1371,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                             horizontal: 8, vertical: 6),
                         decoration: BoxDecoration(
                           color: OnesColors.white,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: const BorderRadius.all(Radius.circular(12)),
                         ),
                         child:
                             _buildTopSelectionActionsBar(context, controller),
@@ -1639,7 +1696,7 @@ class _GalleryTabState extends State<_GalleryTab> {
               child: RefreshIndicator(
                 onRefresh: () => controller.refresh(eventId: widget.eventId),
                 child: Container(
-                  color: OnesColors.background,
+                  color: OnesColors.surfaceWarm,
                   child: NotificationListener<ScrollNotification>(
                     onNotification: (notification) {
                       if (notification.metrics.axis != Axis.vertical) {
@@ -1852,7 +1909,7 @@ class _GalleryTabState extends State<_GalleryTab> {
                               ),
                             );
                           },
-                          borderRadius: BorderRadius.zero,
+                          borderRadius: const BorderRadius.all(Radius.circular(12)),
                           child: Stack(
                             fit: StackFit.expand,
                             children: [
@@ -2460,6 +2517,7 @@ class _GalleryTabState extends State<_GalleryTab> {
 
 class _DetailsTab extends StatefulWidget {
   final String eventId;
+  final Future<void> Function(bool tournamentEnabledHint) reloadComplements;
   final String? coverKey;
   final String title;
   final String eventType;
@@ -2474,6 +2532,7 @@ class _DetailsTab extends StatefulWidget {
 
   const _DetailsTab({
     required this.eventId,
+    required this.reloadComplements,
     required this.coverKey,
     required this.title,
     required this.eventType,
@@ -2718,7 +2777,7 @@ class _DetailsTabState extends State<_DetailsTab> {
             final url = snapshot.data;
 
             return ClipRRect(
-              borderRadius: BorderRadius.zero,
+              borderRadius: const BorderRadius.all(Radius.circular(12)),
               child: SizedBox(
                 height: 160,
                 width: double.infinity,
@@ -2911,16 +2970,21 @@ class _DetailsTabState extends State<_DetailsTab> {
                     final current = events.selected;
                     if (current == null) return;
 
-                    final saved = await Navigator.of(context).push<bool>(
+                    final result =
+                        await Navigator.of(context).push<EditEventResult>(
                       MaterialPageRoute(
                         builder: (_) => EditEventPage(initial: current),
                       ),
                     );
                     if (!context.mounted) return;
-                    if (saved == true) {
+                    if (result?.saved == true) {
                       await context
                           .read<EventsController>()
                           .select(widget.eventId);
+                      if (!context.mounted) return;
+                      await widget.reloadComplements(
+                        result?.tournamentEnabled ?? false,
+                      );
                       if (!context.mounted) return;
                       _refreshFrameNames();
                     }
@@ -3116,11 +3180,11 @@ class _DetailsTabState extends State<_DetailsTab> {
                     );
                   }
 
-                  Future<void> onShare() async {
-                    await Share.share(link.url);
+                  Future<void> onShare(Rect origin) async {
+                    await Share.share(link.url, sharePositionOrigin: origin);
                   }
 
-                  Future<void> onShareQr() async {
+                  Future<void> onShareQr(Rect origin) async {
                     if (_sharingQr) return;
                     setState(() {
                       _sharingQr = true;
@@ -3134,7 +3198,8 @@ class _DetailsTabState extends State<_DetailsTab> {
                       final qrUrl =
                           qr.urlLarge.isNotEmpty ? qr.urlLarge : qr.urlLatest;
                       final file = await _downloadQrToXFile(qrUrl);
-                      await Share.shareXFiles([file]);
+                      await Share.shareXFiles([file],
+                          sharePositionOrigin: origin);
                     } catch (error, stackTrace) {
                       debugPrint('Failed to share event QR: $error');
                       debugPrintStack(stackTrace: stackTrace);
@@ -3237,7 +3302,7 @@ class _DetailsTabState extends State<_DetailsTab> {
                                   padding:
                                       const EdgeInsets.symmetric(vertical: 12),
                                   shape: const RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.zero,
+                                    borderRadius: const BorderRadius.all(Radius.circular(12)),
                                   ),
                                 ),
                                 onPressed: canUseLink ? onCopy : null,
@@ -3254,24 +3319,29 @@ class _DetailsTabState extends State<_DetailsTab> {
                             ),
                             const SizedBox(width: 10),
                             Expanded(
-                              child: FilledButton(
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: OnesColors.yellowSoft,
-                                  foregroundColor: OnesColors.black,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 12),
-                                  shape: const RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.zero,
+                              child: Builder(
+                                builder: (buttonContext) => FilledButton(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: OnesColors.surfaceMuted,
+                                    foregroundColor: OnesColors.black,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 12),
+                                    shape: const RoundedRectangleBorder(
+                                      borderRadius: const BorderRadius.all(Radius.circular(12)),
+                                    ),
                                   ),
-                                ),
-                                onPressed: canUseLink ? onShare : null,
-                                child: Text(
-                                  t.translate(
-                                    'event_detail.share_link',
-                                    fallback: 'Share',
-                                  ),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w900,
+                                  onPressed: canUseLink
+                                      ? () => onShare(
+                                          shareOriginRect(buttonContext))
+                                      : null,
+                                  child: Text(
+                                    t.translate(
+                                      'event_detail.share_link',
+                                      fallback: 'Share',
+                                    ),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -3396,13 +3466,19 @@ class _DetailsTabState extends State<_DetailsTab> {
                                                     fallback:
                                                         'Ver tamaño completo')),
                                               ),
-                                              OutlinedButton(
-                                                onPressed: _sharingQr
-                                                    ? null
-                                                    : onShareQr,
-                                                child: Text(t.translate(
-                                                    'event_detail.share_qr',
-                                                    fallback: 'Compartir QR')),
+                                              Builder(
+                                                builder: (buttonContext) =>
+                                                    OutlinedButton(
+                                                  onPressed: _sharingQr
+                                                      ? null
+                                                      : () => onShareQr(
+                                                          shareOriginRect(
+                                                              buttonContext)),
+                                                  child: Text(t.translate(
+                                                      'event_detail.share_qr',
+                                                      fallback:
+                                                          'Compartir QR')),
+                                                ),
                                               ),
                                             ],
                                           ),
@@ -3441,7 +3517,7 @@ class _DetailsTabState extends State<_DetailsTab> {
                 textInputAction: TextInputAction.done,
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                fillColor: OnesColors.yellowLight.withOpacity(0.35),
+                fillColor: OnesColors.white,
                 borderSide: BorderSide.none,
                 onSubmitted: (_) {
                   _addInvitee();
@@ -3466,7 +3542,7 @@ class _DetailsTabState extends State<_DetailsTab> {
                     foregroundColor: OnesColors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.zero,
+                      borderRadius: const BorderRadius.all(Radius.circular(12)),
                     ),
                   ),
                   onPressed: () {

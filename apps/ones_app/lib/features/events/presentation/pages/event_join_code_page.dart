@@ -30,17 +30,20 @@ class _EventJoinCodePageState extends State<EventJoinCodePage> {
   Future<AuthController?> _ensureRegisteredUser(BuildContext context) async {
     final authController = context.read<AuthController>();
     try {
-      if (!authController.isSignedIn || (authController.idToken ?? '').isEmpty) {
+      if (!authController.isSignedIn ||
+          (authController.idToken ?? '').isEmpty) {
         final step = await authController.signInExisting();
         if (!mounted) return null;
         if (step == AuthNextStep.needsRegistration) {
           await Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const RegisterPage(popToRootOnComplete: false)),
+            MaterialPageRoute(
+                builder: (_) => const RegisterPage(popToRootOnComplete: false)),
           );
         }
       } else if (!authController.isRegistered) {
         await Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const RegisterPage(popToRootOnComplete: false)),
+          MaterialPageRoute(
+              builder: (_) => const RegisterPage(popToRootOnComplete: false)),
         );
       }
     } catch (e) {
@@ -104,7 +107,8 @@ class _EventJoinCodePageState extends State<EventJoinCodePage> {
       if (status == 404 || code == 'code_not_found') {
         message = 'Código inválido. Verifica el código e inténtalo de nuevo.';
       } else if (status == 410 || code == 'code_expired') {
-        message = 'Este código ha expirado. Era válido hasta una semana después del evento.';
+        message =
+            'Este código ha expirado. Era válido hasta una semana después del evento.';
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
@@ -115,7 +119,8 @@ class _EventJoinCodePageState extends State<EventJoinCodePage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo unir al evento con ese código.')), 
+        const SnackBar(
+            content: Text('No se pudo unir al evento con ese código.')),
       );
       setState(() {
         _joining = false;
@@ -126,9 +131,9 @@ class _EventJoinCodePageState extends State<EventJoinCodePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: OnesColors.background,
+      backgroundColor: OnesColors.surfaceWarm,
       appBar: AppBar(
-        backgroundColor: OnesColors.background,
+        backgroundColor: OnesColors.surfaceWarm,
         foregroundColor: OnesColors.black,
         title: const Text('Ingresar código de evento'),
       ),
@@ -153,7 +158,8 @@ class _EventJoinCodePageState extends State<EventJoinCodePage> {
                 decoration: const InputDecoration(
                   counterText: '',
                   hintText: 'Código de 6 dígitos',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+                  border: OutlineInputBorder(
+                      borderRadius: const BorderRadius.all(Radius.circular(12))),
                   filled: true,
                   fillColor: Colors.white,
                 ),
@@ -178,7 +184,7 @@ class _EventJoinCodePageState extends State<EventJoinCodePage> {
                     foregroundColor: OnesColors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.zero,
+                      borderRadius: const BorderRadius.all(Radius.circular(12)),
                     ),
                   ),
                   child: _joining

@@ -16,7 +16,7 @@ class VerifyEmailPage extends StatelessWidget {
     final text = Theme.of(context).textTheme;
 
     return Scaffold(
-      backgroundColor: OnesColors.background,
+      backgroundColor: OnesColors.surfaceWarm,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -29,7 +29,7 @@ class VerifyEmailPage extends StatelessWidget {
                   Center(
                     child: PolaroidFrame(
                       child: const ColoredBox(
-                        color: OnesColors.yellowLight,
+                        color: OnesColors.surfaceMuted,
                         child: Center(
                           child: Icon(Icons.mark_email_unread_outlined,
                               size: 72, color: OnesColors.purpleDeep),
@@ -76,7 +76,7 @@ class VerifyEmailPage extends StatelessWidget {
                       backgroundColor: OnesColors.purpleMid,
                       foregroundColor: OnesColors.white,
                       shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.zero),
+                          borderRadius: const BorderRadius.all(Radius.circular(12))),
                     ),
                     onPressed: auth.isLoading
                         ? null
@@ -93,7 +93,7 @@ class VerifyEmailPage extends StatelessWidget {
                       side: const BorderSide(
                           color: OnesColors.purpleDeep, width: 1.5),
                       shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.zero),
+                          borderRadius: const BorderRadius.all(Radius.circular(12))),
                     ),
                     onPressed: auth.isLoading
                         ? null

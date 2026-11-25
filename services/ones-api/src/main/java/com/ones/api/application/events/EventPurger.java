@@ -6,6 +6,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.ones.api.application.events.ports.EventsRepository;
@@ -13,6 +14,8 @@ import com.ones.api.application.events.ports.ObjectStorage;
 import com.ones.api.application.invitations.ports.InvitationsRepository;
 import com.ones.api.application.photos.ports.PhotoLikesRepository;
 import com.ones.api.application.photos.ports.PhotosRepository;
+import com.ones.api.adapters.outbound.dynamodb.DynamoDbEventComplementsRepository;
+import com.ones.api.adapters.outbound.dynamodb.DynamoDbTournamentRepository;
 import com.ones.api.domain.events.Event;
 import com.ones.api.domain.photos.Photo;
 
@@ -31,16 +34,21 @@ public class EventPurger {
     private final PhotoLikesRepository photoLikesRepository;
     private final InvitationsRepository invitationsRepository;
     private final ObjectStorage objectStorage;
+    private final DynamoDbEventComplementsRepository complementsRepository;
+    private final DynamoDbTournamentRepository tournamentRepository;
 
     private final String photosBucket;
     private final String coversFinalBucket;
 
+    @Autowired
     public EventPurger(
             EventsRepository eventsRepository,
             PhotosRepository photosRepository,
             PhotoLikesRepository photoLikesRepository,
             InvitationsRepository invitationsRepository,
             ObjectStorage objectStorage,
+            DynamoDbEventComplementsRepository complementsRepository,
+            DynamoDbTournamentRepository tournamentRepository,
             @Value("${ones.s3.events.photos.bucket}") String photosBucket,
             @Value("${ones.s3.events.covers.final-bucket}") String coversFinalBucket
     ) {
@@ -49,6 +57,28 @@ public class EventPurger {
         this.photoLikesRepository = photoLikesRepository;
         this.invitationsRepository = invitationsRepository;
         this.objectStorage = objectStorage;
+        this.complementsRepository = complementsRepository;
+        this.tournamentRepository = tournamentRepository;
+        this.photosBucket = photosBucket;
+        this.coversFinalBucket = coversFinalBucket;
+    }
+
+    public EventPurger(
+            EventsRepository eventsRepository,
+            PhotosRepository photosRepository,
+            PhotoLikesRepository photoLikesRepository,
+            InvitationsRepository invitationsRepository,
+            ObjectStorage objectStorage,
+            String photosBucket,
+            String coversFinalBucket
+    ) {
+        this.eventsRepository = eventsRepository;
+        this.photosRepository = photosRepository;
+        this.photoLikesRepository = photoLikesRepository;
+        this.invitationsRepository = invitationsRepository;
+        this.objectStorage = objectStorage;
+        this.complementsRepository = null;
+        this.tournamentRepository = null;
         this.photosBucket = photosBucket;
         this.coversFinalBucket = coversFinalBucket;
     }
@@ -86,6 +116,10 @@ public class EventPurger {
         }
 
         invitationsRepository.deleteAllByEventId(event.getEventId());
+        if (tournamentRepository != null) {
+            tournamentRepository.deleteByEventId(event.getEventId());
+        }
+        if (complementsRepository != null) complementsRepository.deleteByEventId(event.getEventId());
         eventsRepository.deleteById(event.getEventId());
         return all.size();
     }

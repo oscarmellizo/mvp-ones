@@ -71,6 +71,10 @@ jobs:
         id: deploy_cfn
         run: |
           stackName="${STACK_PREFIX}-bootstrap-oidc-${{ inputs.environment }}"
+          githubBranch="develop"
+          if [ "${{ inputs.environment }}" = "prod" ]; then
+            githubBranch="main"
+          fi
 
           optionalExistingOidc=""
           if [ "${{ vars.EXISTING_OIDC_PROVIDER_ARN }}" != "" ]; then
@@ -86,7 +90,8 @@ jobs:
               ${optionalExistingOidc} \
               GitHubOrg=${{ vars.ONES_GH_ORG }} \
               GitHubRepo=${{ vars.ONES_GH_REPO }} \
-              GitHubBranch=${{ vars.ONES_GH_BRANCH }} \
+              GitHubBranch="${githubBranch}" \
+              StackPrefix="${STACK_PREFIX}" \
             --no-cli-pager
 
       - name: Debug CloudFormation (on failure)

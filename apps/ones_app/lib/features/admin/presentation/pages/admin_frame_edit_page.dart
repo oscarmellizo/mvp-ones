@@ -113,7 +113,7 @@ class _AdminFrameEditPageState extends State<AdminFrameEditPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: OnesColors.background,
+      backgroundColor: OnesColors.surfaceWarm,
       appBar: AppBar(
         title: Text('Editar frame: ${_frameName ?? widget.frameId}'),
       ),

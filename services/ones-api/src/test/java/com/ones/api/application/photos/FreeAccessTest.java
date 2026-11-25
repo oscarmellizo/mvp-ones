@@ -22,9 +22,9 @@ class FreeAccessTest {
     void createsEventWithoutSubscriptionOrPlan() {
         var events = mock(EventsRepository.class);
         when(events.save(any())).thenAnswer(call -> call.getArgument(0));
-        var service = new CreateEventUseCase(events, null, null, clock, null, null, null);
+        var service = new CreateEventUseCase(events, null, null, clock, null, null, null, null);
         Event event = service.execute("owner", "Free event", "birthday", "Bogota", Instant.now(),
-                Instant.now().plusSeconds(3600), null, List.of(), true, List.of());
+                Instant.now().plusSeconds(3600), null, List.of(), true, List.of(), false);
         assertEquals("owner", event.getOwnerId());
         verify(events, never()).countByOwnerId(any());
     }

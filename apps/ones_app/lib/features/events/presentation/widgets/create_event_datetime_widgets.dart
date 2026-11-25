@@ -36,7 +36,7 @@ class CreateEventDateTimeCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: const BoxDecoration(
         color: OnesColors.white,
-        borderRadius: BorderRadius.zero,
+        borderRadius: const BorderRadius.all(Radius.circular(12)),
       ),
       child: Column(
         children: [

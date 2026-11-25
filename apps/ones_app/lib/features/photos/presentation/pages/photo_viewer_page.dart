@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/i18n/translations_service.dart';
+import '../../../../core/utils/share_utils.dart';
 import '../photos_gallery_controller.dart';
 import '../../domain/event_photo.dart';
 
@@ -155,6 +156,7 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
       variant: 'medium',
     );
 
+    final origin = shareOriginRect(context);
     final safePhotoId =
         currentItem.photoId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
     final fileName = 'ones_$safePhotoId.jpg';
@@ -163,6 +165,7 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
     await Share.shareXFiles(
       [xf],
       text: link.shortUrl,
+      sharePositionOrigin: origin,
     );
   }
 
@@ -370,37 +373,42 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
                                 ),
                               ),
                               const SizedBox(width: 6),
-                              IconButton(
-                                onPressed: (currentItem == null || _shareBusy)
-                                    ? null
-                                    : () async {
-                                        setState(() {
-                                          _shareBusy = true;
-                                        });
-                                        try {
-                                          await _shareCurrentPhoto(
-                                              context, gallery, currentItem);
-                                        } catch (e) {
-                                          if (!context.mounted) return;
-                                          ScaffoldMessenger.of(context)
-                                            ..clearSnackBars()
-                                            ..showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                    '${t.translate('photo_viewer.error_share_failed', fallback: 'No se pudo compartir la foto')}: $e'),
-                                              ),
-                                            );
-                                        } finally {
-                                          if (mounted) {
-                                            setState(() {
-                                              _shareBusy = false;
-                                            });
-                                          }
-                                        }
-                                      },
-                                icon: const Icon(
-                                  Icons.share_outlined,
-                                  color: Colors.white,
+                              Builder(
+                                builder: (buttonContext) => IconButton(
+                                  onPressed:
+                                      (currentItem == null || _shareBusy)
+                                          ? null
+                                          : () async {
+                                              setState(() {
+                                                _shareBusy = true;
+                                              });
+                                              try {
+                                                await _shareCurrentPhoto(
+                                                    buttonContext,
+                                                    gallery,
+                                                    currentItem);
+                                              } catch (e) {
+                                                if (!context.mounted) return;
+                                                ScaffoldMessenger.of(context)
+                                                  ..clearSnackBars()
+                                                  ..showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                          '${t.translate('photo_viewer.error_share_failed', fallback: 'No se pudo compartir la foto')}: $e'),
+                                                    ),
+                                                  );
+                                              } finally {
+                                                if (mounted) {
+                                                  setState(() {
+                                                    _shareBusy = false;
+                                                  });
+                                                }
+                                              }
+                                            },
+                                  icon: const Icon(
+                                    Icons.share_outlined,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
                             ],

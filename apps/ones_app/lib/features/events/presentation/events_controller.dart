@@ -179,7 +179,7 @@ class EventsController extends ChangeNotifier {
     }
   }
 
-  Future<void> createNew(
+  Future<Event> createNew(
     String title,
     String objective,
     String location,
@@ -188,8 +188,9 @@ class EventsController extends ChangeNotifier {
     String? coverReservationId,
     List<String> inviteeEmails,
     bool allowGuestInvites,
-    List<String> frameIds,
-  ) async {
+    List<String> frameIds, {
+    bool includeTournament = false,
+  }) async {
     final session = _sessionEpoch;
     _activeLoads++;
     _setLoading(true);
@@ -205,8 +206,10 @@ class EventsController extends ChangeNotifier {
         inviteeEmails,
         allowGuestInvites,
         frameIds,
+        includeTournament: includeTournament,
       );
       if (session == _sessionEpoch) _events = [created, ..._events];
+      return created;
     } catch (e) {
       if (session == _sessionEpoch) _error = e;
       rethrow;

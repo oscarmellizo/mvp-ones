@@ -10,6 +10,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.ones.api.application.complements.EventComplementsService;
 import com.ones.api.application.events.ports.EventsRepository;
 import com.ones.api.application.invitations.ports.InvitationsRepository;
 import com.ones.api.application.invitations.email.InvitationEmailService;
@@ -29,6 +30,7 @@ public class CreateEventUseCase {
     private final EventCoversService coversService;
     private final InvitationEmailService invitationEmailService;
     private final EventQrService eventQrService;
+    private final EventComplementsService eventComplementsService;
 
     public CreateEventUseCase(
             EventsRepository repository,
@@ -37,7 +39,8 @@ public class CreateEventUseCase {
             Clock clock,
             EventCoversService coversService,
             InvitationEmailService invitationEmailService,
-            EventQrService eventQrService
+            EventQrService eventQrService,
+            EventComplementsService eventComplementsService
     ) {
         this.repository = repository;
         this.invitationsRepository = invitationsRepository;
@@ -46,6 +49,7 @@ public class CreateEventUseCase {
         this.coversService = coversService;
         this.invitationEmailService = invitationEmailService;
         this.eventQrService = eventQrService;
+        this.eventComplementsService = eventComplementsService;
     }
 
     public Event execute(
@@ -55,11 +59,11 @@ public class CreateEventUseCase {
             String location,
             Instant startAt,
             Instant endAt,
-            String coverReservationId
-            ,
+            String coverReservationId,
             List<String> inviteeEmails,
             boolean allowGuestInvites,
-            List<String> frameIds
+            List<String> frameIds,
+            boolean includeTournament
     ) {
         String eventId = UUID.randomUUID().toString();
         Instant createdAt = Instant.now(clock);
@@ -76,6 +80,14 @@ public class CreateEventUseCase {
 
         Event event = new Event(eventId, ownerId, createdAt, title, objective, location, startAt, endAt, coverKey, allowGuestInvites, true, frameIds, eventCode);
         Event saved = repository.save(event);
+
+        if (includeTournament) {
+            if (eventComplementsService == null) {
+                throw new IllegalStateException("EventComplementsService is not configured");
+            }
+            eventComplementsService.setEnabled(eventId, ownerId, "tournament", true);
+            log.info("Automatically initialized tournament for eventId={} ownerId={}", eventId, ownerId);
+        }
 
         if (inviteeEmails != null && !inviteeEmails.isEmpty()) {
             for (String rawEmail : inviteeEmails) {

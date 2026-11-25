@@ -170,7 +170,7 @@ class _InvitationLinkPageState extends State<InvitationLinkPage> {
         return AlertDialog(
           backgroundColor: OnesColors.white,
           shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.zero,
+            borderRadius: const BorderRadius.all(Radius.circular(12)),
           ),
           titlePadding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
           contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -261,14 +261,14 @@ class _InvitationLinkPageState extends State<InvitationLinkPage> {
   Widget build(BuildContext context) {
     if (_loading) {
       return const Scaffold(
-        backgroundColor: OnesColors.background,
+        backgroundColor: OnesColors.surfaceWarm,
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_error != null) {
       return Scaffold(
-        backgroundColor: OnesColors.background,
+        backgroundColor: OnesColors.surfaceWarm,
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -291,13 +291,13 @@ class _InvitationLinkPageState extends State<InvitationLinkPage> {
 
     if (widget.action?.trim().toLowerCase() == 'reject') {
       return const Scaffold(
-        backgroundColor: OnesColors.background,
+        backgroundColor: OnesColors.surfaceWarm,
         body: Center(child: Text('Invitación rechazada.')),
       );
     }
 
     return const Scaffold(
-      backgroundColor: OnesColors.background,
+      backgroundColor: OnesColors.surfaceWarm,
       body: Center(child: Text('Invitación procesada.')),
     );
   }

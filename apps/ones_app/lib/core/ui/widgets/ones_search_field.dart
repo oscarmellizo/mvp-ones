@@ -11,16 +11,18 @@ class OnesSearchField extends StatelessWidget {
   final BorderRadius borderRadius;
   final EdgeInsetsGeometry contentPadding;
   final Widget? prefixIcon;
+  final Widget? suffixIcon;
 
   const OnesSearchField({
     super.key,
     required this.controller,
     required this.hintText,
     this.onChanged,
-    this.borderRadius = BorderRadius.zero,
+    this.borderRadius = const BorderRadius.all(Radius.circular(12)),
     this.contentPadding =
         const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     this.prefixIcon,
+    this.suffixIcon,
   });
 
   @override
@@ -36,6 +38,7 @@ class OnesSearchField extends StatelessWidget {
       decoration: OnesInputDecoration.build(
         hintText: hintText,
         prefixIcon: prefixIcon ?? const Icon(Icons.search),
+        suffixIcon: suffixIcon,
         fillColor: OnesColors.white,
         borderSide: BorderSide.none,
         contentPadding: contentPadding,

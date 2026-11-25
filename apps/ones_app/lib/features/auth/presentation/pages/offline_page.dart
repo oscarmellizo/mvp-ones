@@ -13,9 +13,14 @@ class OfflinePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
     final text = Theme.of(context).textTheme;
+    final title =
+        auth.serviceUnavailable ? 'Servicio no disponible' : 'Sin conexión';
+    final message = auth.serviceUnavailable
+        ? 'El servicio de Ones no está disponible temporalmente. Tu sesión sigue abierta; inténtalo de nuevo en unos minutos.'
+        : 'No pudimos conectar con Ones. Revisa tu conexión a internet e inténtalo de nuevo; tu sesión sigue abierta.';
 
     return Scaffold(
-      backgroundColor: OnesColors.background,
+      backgroundColor: OnesColors.surfaceWarm,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -29,22 +34,28 @@ class OfflinePage extends StatelessWidget {
                     child: PolaroidFrame(
                       angle: 0.03,
                       child: ColoredBox(
-                        color: OnesColors.yellowLight,
-                        child: Center(child: Icon(Icons.wifi_off_rounded, size: 72, color: OnesColors.purpleDeep)),
+                        color: OnesColors.surfaceMuted,
+                        child: Center(
+                            child: Icon(Icons.wifi_off_rounded,
+                                size: 72, color: OnesColors.purpleDeep)),
                       ),
                     ),
                   ),
                   const SizedBox(height: 32),
                   Text(
-                    'Sin conexión',
+                    title,
                     textAlign: TextAlign.center,
-                    style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: OnesColors.black),
+                    style: text.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w800, color: OnesColors.black),
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'No pudimos conectar con Ones. Revisa tu internet e inténtalo de nuevo; tu sesión sigue abierta.',
+                    message,
                     textAlign: TextAlign.center,
-                    style: text.bodyMedium?.copyWith(color: OnesColors.black.withOpacity(0.75), height: 1.35),
+                    style: text.bodyMedium?.copyWith(
+                      color: OnesColors.black.withValues(alpha: 0.75),
+                      height: 1.35,
+                    ),
                   ),
                   const SizedBox(height: 24),
                   FilledButton(
@@ -53,9 +64,11 @@ class OfflinePage extends StatelessWidget {
                       minimumSize: const Size.fromHeight(54),
                       backgroundColor: OnesColors.purpleMid,
                       foregroundColor: OnesColors.white,
-                      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                      shape: const RoundedRectangleBorder(
+                          borderRadius: const BorderRadius.all(Radius.circular(12))),
                     ),
-                    onPressed: auth.isLoading ? null : () => auth.retryConnection(),
+                    onPressed:
+                        auth.isLoading ? null : () => auth.retryConnection(),
                     child: Text(
                       auth.isLoading ? 'Conectando...' : 'Reintentar',
                       style: const TextStyle(fontWeight: FontWeight.w900),
@@ -67,7 +80,9 @@ class OfflinePage extends StatelessWidget {
                     onPressed: auth.isLoading ? null : () => auth.logout(),
                     child: const Text(
                       'Usar otra cuenta',
-                      style: TextStyle(color: OnesColors.purpleDeep, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                          color: OnesColors.purpleDeep,
+                          fontWeight: FontWeight.w700),
                     ),
                   ),
                 ],

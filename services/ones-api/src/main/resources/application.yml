@@ -75,6 +75,7 @@ ones:
   sqs:
     photo-processing-queue-url: ${ONES_PHOTO_PROCESSING_QUEUE_URL:}
     photo-date-resolution-queue-url: ${ONES_PHOTO_DATE_RESOLUTION_QUEUE_URL:}
+    tournament-scoring-queue-url: ${ONES_TOURNAMENT_SCORING_QUEUE_URL:}
   events:
     metadata:
       categories:
@@ -263,6 +264,8 @@ ones:
     user-subscriptions-table-name: ${ONES_USER_SUBSCRIPTIONS_TABLE:ones-user-subscriptions}
     payment-profiles-table-name: ${ONES_PAYMENT_PROFILES_TABLE:ones-payment-profiles}
     subscription-payments-table-name: ${ONES_SUBSCRIPTION_PAYMENTS_TABLE:ones-subscription-payments}
+    event-complements-table-name: ${ONES_EVENT_COMPLEMENTS_TABLE_NAME:ones-dev-event-complements}
+    tournaments-table-name: ${ONES_TOURNAMENTS_TABLE_NAME:ones-dev-tournaments}
     endpoint: ${DYNAMODB_ENDPOINT:}
 
   mercadopago:

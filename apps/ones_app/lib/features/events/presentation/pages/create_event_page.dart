@@ -143,6 +143,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
   String? _localImageContentType; // image/png or image/jpeg
 
   bool _allowGuestInvites = true;
+  bool _includeTournament = false;
 
   List<String> _frameIds = const [];
 
@@ -324,7 +325,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
     }
   }
 
-  Future<void> _uploadCoverForEvent(BuildContext context, String eventId) async {
+  Future<void> _uploadCoverForEvent(
+      BuildContext context, String eventId) async {
     final coversRepo = context.read<EventCoversApiRepository>();
     final dio = Dio();
     final bytes = _localImageBytes;
@@ -350,7 +352,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
     );
 
     // 3) Confirm setFromUpload
-    await coversRepo.setFromUpload(eventId: eventId, uploadKey: presign.uploadKey);
+    await coversRepo.setFromUpload(
+        eventId: eventId, uploadKey: presign.uploadKey);
 
     // 4) Clear local selection
     setState(() {
@@ -695,9 +698,9 @@ class _CreateEventPageState extends State<CreateEventPage> {
     final isKeyboardOpen = bottomInset > 0;
 
     return Scaffold(
-      backgroundColor: OnesColors.background,
+      backgroundColor: OnesColors.surfaceWarm,
       appBar: AppBar(
-        backgroundColor: OnesColors.background,
+        backgroundColor: OnesColors.surfaceWarm,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
@@ -998,6 +1001,19 @@ class _CreateEventPageState extends State<CreateEventPage> {
                     ],
                   ),
                 ),
+                CreateEventFormSection(
+                  title: 'Complementos',
+                  child: SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: _includeTournament,
+                    onChanged: (value) =>
+                        setState(() => _includeTournament = value),
+                    title: const Text('Torneo 4 Equipos'),
+                    subtitle: const Text(
+                      'Agrega pronósticos y tabla de posiciones al evento.',
+                    ),
+                  ),
+                ),
                 if (!isKeyboardOpen) ...[
                   const SizedBox(height: 20),
                   SizedBox(
@@ -1010,7 +1026,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         disabledBackgroundColor:
                             OnesColors.purpleMid.withOpacity(0.5),
                         shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.zero,
+                          borderRadius: const BorderRadius.all(Radius.circular(12)),
                         ),
                       ),
                       onPressed: (controller.loading || !_isFormReady)
@@ -1054,7 +1070,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
         ..showSnackBar(
           SnackBar(
             content: Text(
-                t.translate('create_event.error_complete_required_fields')),
+              t.translate('create_event.error_complete_required_fields'),
+            ),
           ),
         );
       return;
@@ -1096,7 +1113,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
     final endAt = endLocal.toUtc();
 
     try {
-      await controller.createNew(
+      final createdEvent = await controller.createNew(
         _nameController.text.trim(),
         objective,
         _resolveLocation(),
@@ -1106,17 +1123,16 @@ class _CreateEventPageState extends State<CreateEventPage> {
         _invitees.map((i) => i.email).toList(growable: false),
         _allowGuestInvites,
         _frameIds,
+        includeTournament: _includeTournament,
       );
-      // If user selected a local image, upload it as cover for the created event (the newly created event will be first in list)
+      if (!mounted || !context.mounted) return;
       if (_localImageBytes != null && _localImageBytes!.isNotEmpty) {
-        final createdEvent = controller.events.isNotEmpty ? controller.events.first : null;
-        if (createdEvent != null) {
-          await _uploadCoverForEvent(context, createdEvent.id);
-          // Ensure UI reflects the new cover immediately
-          await controller.refresh();
-        }
+        await _uploadCoverForEvent(context, createdEvent.id);
+        if (!mounted || !context.mounted) return;
+        await controller.refresh();
       }
-      if (context.mounted) Navigator.of(context).pop();
+      if (!mounted || !context.mounted) return;
+      Navigator.of(context).pop();
     } on DioException catch (e) {
       final status = e.response?.statusCode;
       if (status == 401) {

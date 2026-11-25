@@ -12,7 +12,7 @@ class OnesCard extends StatelessWidget {
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(16),
-    this.borderRadius = BorderRadius.zero,
+    this.borderRadius = const BorderRadius.all(Radius.circular(16)),
     this.color,
   });
 
@@ -23,6 +23,14 @@ class OnesCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: color ?? OnesColors.white,
         borderRadius: borderRadius,
+        border: Border.all(color: OnesColors.black.withOpacity(0.05)),
+        boxShadow: [
+          BoxShadow(
+            color: OnesColors.black.withOpacity(0.035),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: child,
     );
