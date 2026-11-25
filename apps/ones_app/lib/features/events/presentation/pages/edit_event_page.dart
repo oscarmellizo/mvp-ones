@@ -6,12 +6,24 @@ import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../core/ui/ones_typography.dart';
 import '../../../../core/utils/datetime_formatters.dart';
+import '../../adapters/api/event_complements_api_repository.dart';
 import '../../domain/event.dart';
 import '../event_covers_controller.dart';
 import '../events_controller.dart';
 import '../widgets/create_event_cover_widgets.dart';
 import '../widgets/create_event_datetime_widgets.dart';
+import '../widgets/create_event_form_widgets.dart';
 import '../widgets/frame_picker_sheet.dart';
+
+class EditEventResult {
+  final bool saved;
+  final bool tournamentEnabled;
+
+  const EditEventResult({
+    required this.saved,
+    required this.tournamentEnabled,
+  });
+}
 
 class EditEventPage extends StatefulWidget {
   final Event initial;
@@ -40,6 +52,12 @@ class _EditEventPageState extends State<EditEventPage> {
 
   List<String> _frameIds = const [];
 
+  bool _isLoadingComplements = true;
+  bool _complementsLoadFailed = false;
+  bool _tournamentEnabled = false;
+  bool _tournamentSelected = false;
+  bool _isSaving = false;
+
   String? _coverReservationId;
 
   String? _lastLanguage;
@@ -48,6 +66,14 @@ class _EditEventPageState extends State<EditEventPage> {
     'edit_event.title',
     'edit_event.action_save',
     'edit_event.error_update_failed',
+    'edit_event.complements_title',
+    'edit_event.tournament_title',
+    'edit_event.tournament_subtitle',
+    'edit_event.tournament_already_enabled',
+    'edit_event.complements_loading',
+    'edit_event.complements_load_failed',
+    'edit_event.complements_retry',
+    'edit_event.tournament_enable_failed',
     'create_event.date_time_select_start_end',
     'create_event.error_select_start_end',
     'create_event.error_min_duration',
@@ -107,6 +133,7 @@ class _EditEventPageState extends State<EditEventPage> {
       setState(() {
         _coverReservationId = null;
       });
+      _loadComplements();
     });
   }
 
@@ -210,7 +237,7 @@ class _EditEventPageState extends State<EditEventPage> {
 
     return base.copyWith(
       colorScheme: scheme,
-      dialogBackgroundColor: OnesColors.white,
+      dialogTheme: base.dialogTheme.copyWith(backgroundColor: OnesColors.white),
       textTheme: pickerTextTheme,
       datePickerTheme: base.datePickerTheme.copyWith(
         headerHeadlineStyle: pickerTextTheme.headlineMedium?.copyWith(
@@ -326,6 +353,34 @@ class _EditEventPageState extends State<EditEventPage> {
     });
   }
 
+  Future<void> _loadComplements() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingComplements = true;
+      _complementsLoadFailed = false;
+    });
+    try {
+      final complements = await context
+          .read<EventComplementsApiRepository>()
+          .list(widget.initial.id);
+      final enabled = complements.any(
+        (item) => item['id'] == 'tournament' && item['enabled'] == true,
+      );
+      if (!mounted) return;
+      setState(() {
+        _tournamentEnabled = enabled;
+        _tournamentSelected = enabled;
+        _isLoadingComplements = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingComplements = false;
+        _complementsLoadFailed = true;
+      });
+    }
+  }
+
   Future<void> _generateCover() async {
     final covers = context.read<EventCoversController>();
     final t = context.read<TranslationsService>();
@@ -354,6 +409,7 @@ class _EditEventPageState extends State<EditEventPage> {
 
   Future<void> _submit() async {
     final t = context.read<TranslationsService>();
+    if (_isSaving || _isLoadingComplements) return;
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context)
         ..clearSnackBars()
@@ -378,7 +434,10 @@ class _EditEventPageState extends State<EditEventPage> {
     if (startLocal == null || endLocal == null) return;
 
     final controller = context.read<EventsController>();
+    final complementsRepository = context.read<EventComplementsApiRepository>();
+    var eventUpdated = false;
 
+    setState(() => _isSaving = true);
     try {
       await controller.updateEvent(
         eventId: widget.initial.id,
@@ -393,21 +452,142 @@ class _EditEventPageState extends State<EditEventPage> {
         allowGuestInvites: widget.initial.allowGuestInvites,
         frameIds: _frameIds,
       );
+      eventUpdated = true;
+      if (_tournamentSelected && !_tournamentEnabled) {
+        await complementsRepository.setEnabled(
+          eventId: widget.initial.id,
+          complementId: 'tournament',
+          enabled: true,
+        );
+      }
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+      Navigator.of(context).pop(
+        EditEventResult(
+          saved: true,
+          tournamentEnabled: _tournamentSelected,
+        ),
+      );
     } on DioException catch (e) {
+      if (!mounted) return;
       final status = e.response?.statusCode;
       ScaffoldMessenger.of(context)
         ..clearSnackBars()
         ..showSnackBar(
-            SnackBar(content: Text('Failed to update (${status ?? '-'})')));
-      rethrow;
+          SnackBar(
+            content: Text(
+              eventUpdated
+                  ? '${t.translate('edit_event.tournament_enable_failed', fallback: 'El evento se actualizó, pero no se pudo activar el torneo.')} (${status ?? '-'})'
+                  : '${t.translate('edit_event.error_update_failed', fallback: 'No se pudo actualizar el evento.')} (${status ?? '-'})',
+            ),
+          ),
+        );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..clearSnackBars()
-        ..showSnackBar(SnackBar(content: Text('Failed to update: $e')));
-      rethrow;
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              eventUpdated
+                  ? t.translate(
+                      'edit_event.tournament_enable_failed',
+                      fallback:
+                          'El evento se actualizó, pero no se pudo activar el torneo.',
+                    )
+                  : t.translate(
+                      'edit_event.error_update_failed',
+                      fallback: 'No se pudo actualizar el evento.',
+                    ),
+            ),
+          ),
+        );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
+  }
+
+  Widget _complementsSection(TranslationsService translations) {
+    final title = translations.translate(
+      'edit_event.complements_title',
+      fallback: 'Complementos',
+    );
+    if (_isLoadingComplements) {
+      return CreateEventFormSection(
+        title: title,
+        child: Row(
+          children: [
+            const SizedBox.square(
+              dimension: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              translations.translate(
+                'edit_event.complements_loading',
+                fallback: 'Cargando complementos...',
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    if (_complementsLoadFailed) {
+      return CreateEventFormSection(
+        title: title,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              translations.translate(
+                'edit_event.complements_load_failed',
+                fallback: 'No se pudieron cargar los complementos del evento.',
+              ),
+            ),
+            TextButton.icon(
+              onPressed: _loadComplements,
+              icon: const Icon(Icons.refresh),
+              label: Text(
+                translations.translate(
+                  'edit_event.complements_retry',
+                  fallback: 'Reintentar',
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return CreateEventFormSection(
+      title: title,
+      child: Material(
+        color: Colors.transparent,
+        child: SwitchListTile(
+          key: const Key('edit_event.tournament_complement'),
+          contentPadding: EdgeInsets.zero,
+          value: _tournamentSelected,
+          onChanged: _tournamentEnabled
+              ? null
+              : (value) => setState(() => _tournamentSelected = value),
+          title: Text(
+            translations.translate(
+              'edit_event.tournament_title',
+              fallback: 'Torneo 4 Equipos',
+            ),
+          ),
+          subtitle: Text(
+            translations.translate(
+              _tournamentEnabled
+                  ? 'edit_event.tournament_already_enabled'
+                  : 'edit_event.tournament_subtitle',
+              fallback: _tournamentEnabled
+                  ? 'Este complemento ya está activo para el evento.'
+                  : 'Agrega pronósticos y tabla de posiciones al evento.',
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -449,7 +629,9 @@ class _EditEventPageState extends State<EditEventPage> {
         scrolledUnderElevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close, color: OnesColors.purpleDeep),
-          onPressed: () => Navigator.of(context).pop(false),
+          onPressed: () => Navigator.of(context).pop(
+            const EditEventResult(saved: false, tournamentEnabled: false),
+          ),
         ),
         title: Text(
           context.read<TranslationsService>().translate(
@@ -464,7 +646,7 @@ class _EditEventPageState extends State<EditEventPage> {
         centerTitle: true,
         actions: [
           TextButton(
-            onPressed: _submit,
+            onPressed: _isSaving || _isLoadingComplements ? null : _submit,
             child: Text(
               context.read<TranslationsService>().translate(
                     'edit_event.action_save',
@@ -489,7 +671,7 @@ class _EditEventPageState extends State<EditEventPage> {
                 Text(
                   dateSummary,
                   style: TextStyle(
-                    color: OnesColors.black.withOpacity(0.7),
+                    color: OnesColors.black.withValues(alpha: 0.7),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -550,6 +732,8 @@ class _EditEventPageState extends State<EditEventPage> {
                   onPickEndTime: _pickEndTime,
                 ),
                 const SizedBox(height: 14),
+                _complementsSection(t),
+                const SizedBox(height: 14),
                 CreateEventCoverPicker(
                   imageUrl: coversController.preview?.previewUrl,
                   loading: coversController.loading,
@@ -597,7 +781,7 @@ class _EditEventPageState extends State<EditEventPage> {
                     );
                   }(),
                   style: TextStyle(
-                    color: OnesColors.black.withOpacity(0.7),
+                    color: OnesColors.black.withValues(alpha: 0.7),
                     fontWeight: FontWeight.w700,
                   ),
                 ),

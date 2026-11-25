@@ -223,7 +223,9 @@ class _EventDetailPageState extends State<EventDetailPage> {
     });
   }
 
-  Future<void> _loadEventComplements() async {
+  Future<void> _loadEventComplements({
+    bool tournamentEnabledHint = false,
+  }) async {
     try {
       final complements = await context
           .read<EventComplementsApiRepository>()
@@ -233,13 +235,15 @@ class _EventDetailPageState extends State<EventDetailPage> {
       );
       if (!mounted) return;
       setState(() {
-        _tournamentEnabled = enabled || widget.openTournamentTab;
+        _tournamentEnabled =
+            enabled || tournamentEnabledHint || widget.openTournamentTab;
         if (!_tournamentEnabled && _tabIndex == 2) _tabIndex = 1;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _tournamentEnabled = widget.openTournamentTab;
+        _tournamentEnabled =
+            tournamentEnabledHint || widget.openTournamentTab;
         if (!_tournamentEnabled && _tabIndex == 2) _tabIndex = 1;
       });
     }
@@ -475,6 +479,10 @@ class _EventDetailPageState extends State<EventDetailPage> {
                                                 horizontal: horizontalPadding),
                                             child: _DetailsTab(
                                               eventId: event.id,
+                                              reloadComplements: (enabled) =>
+                                                  _loadEventComplements(
+                                                tournamentEnabledHint: enabled,
+                                              ),
                                               coverKey: event.coverKey,
                                               title: event.title,
                                               eventType: event.objective,
@@ -2503,6 +2511,8 @@ class _GalleryTabState extends State<_GalleryTab> {
 
 class _DetailsTab extends StatefulWidget {
   final String eventId;
+  final Future<void> Function(bool tournamentEnabledHint)
+      reloadComplements;
   final String? coverKey;
   final String title;
   final String eventType;
@@ -2517,6 +2527,7 @@ class _DetailsTab extends StatefulWidget {
 
   const _DetailsTab({
     required this.eventId,
+    required this.reloadComplements,
     required this.coverKey,
     required this.title,
     required this.eventType,
@@ -2954,16 +2965,21 @@ class _DetailsTabState extends State<_DetailsTab> {
                     final current = events.selected;
                     if (current == null) return;
 
-                    final saved = await Navigator.of(context).push<bool>(
+                    final result =
+                        await Navigator.of(context).push<EditEventResult>(
                       MaterialPageRoute(
                         builder: (_) => EditEventPage(initial: current),
                       ),
                     );
                     if (!context.mounted) return;
-                    if (saved == true) {
+                    if (result?.saved == true) {
                       await context
                           .read<EventsController>()
                           .select(widget.eventId);
+                      if (!context.mounted) return;
+                      await widget.reloadComplements(
+                        result?.tournamentEnabled ?? false,
+                      );
                       if (!context.mounted) return;
                       _refreshFrameNames();
                     }
