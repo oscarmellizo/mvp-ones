@@ -1,6 +1,3 @@
-import 'dart:convert';
-import 'dart:typed_data';
-
 import 'package:dio/dio.dart';
 
 import '../../../../core/http/ones_api_factory.dart';
@@ -27,47 +24,6 @@ class TournamentApiRepository {
       data: {'teams': teams},
     );
     return Map<String, dynamic>.from(response.data as Map);
-  }
-
-  Future<Map<String, dynamic>> uploadLogo(
-    String eventId,
-    String teamId,
-    Uint8List bytes,
-  ) async {
-    final response = await _secureDio().post(
-      '/v1/events/$eventId/tournament/teams/$teamId/logos/upload',
-      data: {'imageBase64': base64Encode(bytes)},
-    );
-    return Map<String, dynamic>.from(response.data as Map);
-  }
-
-  Future<Map<String, dynamic>> generateLogo(
-    String eventId,
-    String teamId,
-    String prompt,
-  ) async {
-    final response = await _secureDio().post(
-      '/v1/events/$eventId/tournament/teams/$teamId/logos/generate',
-      data: {'prompt': prompt},
-    );
-    return Map<String, dynamic>.from(response.data as Map);
-  }
-
-  Future<void> acceptLogo(
-    String eventId,
-    String teamId,
-    String previewKey,
-  ) async {
-    await _secureDio().post(
-      '/v1/events/$eventId/tournament/teams/$teamId/logos/accept',
-      data: {'previewKey': previewKey},
-    );
-  }
-
-  Future<String> logoUrl(String eventId, String teamId) async {
-    final response = await _secureDio()
-        .get('/v1/events/$eventId/tournament/teams/$teamId/logo');
-    return response.data['url'] as String;
   }
 
   Future<Map<String, dynamic>> startPredictions(String eventId) async {

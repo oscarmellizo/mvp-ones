@@ -543,7 +543,6 @@ paths:
                     properties:
                       id: { type: string }
                       name: { type: string, maxLength: 80 }
-                      logoKey: { type: string }
                       members:
                         type: array
                         items: { type: string }
@@ -652,78 +651,6 @@ paths:
       responses:
         '200':
           description: Delegates updated
-  /v1/events/{eventId}/tournament/teams/{teamId}/logos/upload:
-    post:
-      operationId: uploadTournamentTeamLogo
-      summary: Upload and normalize an owner-provided logo preview
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/EventId'
-        - name: teamId
-          in: path
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [imageBase64]
-              properties:
-                imageBase64: { type: string, maxLength: 5600000 }
-      responses:
-        '200':
-          description: Logo preview URL and key, normalized to 512x512
-  /v1/events/{eventId}/tournament/teams/{teamId}/logos/generate:
-    post:
-      operationId: generateTournamentTeamLogo
-      summary: Generate a 512x512 logo preview using AWS Bedrock
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/EventId'
-        - name: teamId
-          in: path
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [prompt]
-              properties:
-                prompt: { type: string, minLength: 1, maxLength: 300 }
-      responses:
-        '200':
-          description: Generated preview; generation is rate-limited per owner
-  /v1/events/{eventId}/tournament/teams/{teamId}/logos/accept:
-    post:
-      operationId: acceptTournamentTeamLogo
-      summary: Accept a preview as the team's active logo
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/EventId'
-        - name: teamId
-          in: path
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [previewKey]
-              properties:
-                previewKey: { type: string }
-      responses:
-        '200':
-          description: Accepted team logo key
   /v1/events/{eventId}/tournament/standings/tie-break:
     put:
       operationId: resolveTournamentTieBreak
@@ -793,21 +720,6 @@ paths:
       responses:
         '200':
           description: Match result recorded and score recalculation queued
-  /v1/events/{eventId}/tournament/teams/{teamId}/logo:
-    get:
-      operationId: getTournamentTeamLogoUrl
-      summary: Get a short-lived URL for the active team logo
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/EventId'
-        - name: teamId
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Presigned logo URL
   /v1/events/{id}/invitees:
     post:
       operationId: inviteEventGuests

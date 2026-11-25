@@ -17,7 +17,6 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sesv2.SesV2Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
-import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
 
 @Configuration
 public class AwsConfig {
@@ -81,15 +80,6 @@ public class AwsConfig {
     SesV2Client sesV2Client(Region awsRegion) {
         return SesV2Client.builder()
                 .region(awsRegion)
-                .build();
-    }
-
-    @Bean
-    BedrockRuntimeClient bedrockImageRuntimeClient(
-            @Value("${ones.ai.bedrock.image-region:us-west-2}") String imageRegion
-    ) {
-        return BedrockRuntimeClient.builder()
-                .region(Region.of(imageRegion))
                 .build();
     }
 

@@ -15,6 +15,7 @@ import java.util.function.UnaryOperator;
 
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.ones.api.adapters.outbound.dynamodb.DynamoDbTournamentRepository;
 import com.ones.api.application.tournament.ports.TournamentScoringQueue;
 import com.ones.api.domain.tournament.TournamentEngine;
@@ -120,7 +121,7 @@ public class TournamentService {
             String id = input.id() == null || input.id().isBlank()
                     ? UUID.randomUUID().toString()
                     : input.id().trim();
-            teams.add(new Team(id, name, input.logoKey(), normalizedMembers(input.members())));
+            teams.add(new Team(id, name, normalizedMembers(input.members())));
         }
 
         List<Match> matches = new ArrayList<>(TournamentEngine.createRoundRobinMatches(teams));
@@ -133,29 +134,6 @@ public class TournamentService {
                 List.copyOf(teams), List.copyOf(matches), current.delegateUserIds(), current.delegateEmails(),
                 List.of(), current.groupPredictionPeriod(), current.knockoutPredictionPeriod(),
                 configured, current.version() + 1, Instant.now(clock));
-        saveVersion(current, next);
-        return next;
-    }
-
-    public TournamentState setTeamLogo(String eventId, String requesterId, String teamId, String logoKey) {
-        TournamentState current = requireOwner(getState(eventId), requesterId);
-        if (logoKey == null || !logoKey.startsWith("tournament/" + eventId + "/teams/" + teamId + "/")) {
-            throw new IllegalArgumentException("Logo key is outside the tournament team namespace");
-        }
-        List<Team> teams = current.teams().stream()
-                .map(team -> team.id().equals(teamId)
-                        ? new Team(team.id(), team.name(), logoKey, team.members())
-                        : team)
-                .toList();
-        if (teams.stream().noneMatch(team -> team.id().equals(teamId))) {
-            throw new IllegalArgumentException("Unknown team");
-        }
-        boolean configured = teams.size() == 4
-                && teams.stream().allMatch(team -> team.name() != null && !team.name().isBlank());
-        TournamentState next = copy(
-                current, teams, current.matches(), current.delegateUserIds(), current.delegateEmails(),
-                current.manualTieOrder(), current.groupPredictionPeriod(), current.knockoutPredictionPeriod(),
-                configured);
         saveVersion(current, next);
         return next;
     }
@@ -623,7 +601,8 @@ public class TournamentService {
         return result.isEmpty() ? "Torneo" : result.substring(0, Math.min(result.length(), 24));
     }
 
-    public record TeamInput(String id, String name, String logoKey, List<String> members) {
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record TeamInput(String id, String name, List<String> members) {
     }
 
     public record TournamentView(
