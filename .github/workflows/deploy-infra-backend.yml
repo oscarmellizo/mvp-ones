@@ -8,9 +8,9 @@ on:
         required: false
         default: 'dev'
       backendDesiredCount:
-        description: 'ECS desired count for ones-api service'
+        description: 'ECS desired count (default: 1 dev, 2 prod; min 1 dev / 2 prod)'
         required: false
-        default: '0'
+        default: ''
       usePhotoThumbnailsImage:
         description: 'Use container-image Lambda for photo thumbnails (true/false)'
         required: false
@@ -85,8 +85,24 @@ jobs:
         id: deploy_cfn
         env:
           AWS_DEFAULT_REGION: us-east-1
+          DEPLOYMENT_ENV: ${{ inputs.environment }}
+          REQUESTED_BACKEND_DESIRED_COUNT: ${{ inputs.backendDesiredCount }}
         run: |
           set -euo pipefail
+
+          minBackendDesiredCount=1
+          if [ "${DEPLOYMENT_ENV}" = "prod" ]; then
+            minBackendDesiredCount=2
+          fi
+          backendDesiredCount="${REQUESTED_BACKEND_DESIRED_COUNT:-}"
+          if [ -z "${backendDesiredCount}" ]; then
+            backendDesiredCount="${minBackendDesiredCount}"
+          fi
+          if ! [[ "${backendDesiredCount}" =~ ^[1-9][0-9]*$ ]] ||
+            (( backendDesiredCount < minBackendDesiredCount || backendDesiredCount > 10 )); then
+            echo "ERROR: Backend desired count must be between ${minBackendDesiredCount} and 10 for '${DEPLOYMENT_ENV}'."
+            exit 1
+          fi
 
           apiPublicBaseUrl=""
           if [ "${{ inputs.environment }}" = "dev" ]; then
@@ -276,7 +292,7 @@ jobs:
               EmailFrom="donotreply@ones.events" \
               EmailLogoUrl="${appBaseUrl}/assets/assets/branding/ones-logo.png" \
               PublicBaseUrl="${appBaseUrl}" \
-              BackendDesiredCount="${{ inputs.backendDesiredCount }}" \
+              BackendDesiredCount="${backendDesiredCount}" \
               BackendMinCapacity="${{ inputs.environment == 'prod' && '2' || '1' }}" \
               BackendMaxCapacity="10" \
               UsePhotoThumbnailsImage="${usePhotoThumbnailsImage}" \
@@ -543,7 +559,7 @@ jobs:
               EmailFrom="donotreply@ones.events" \
               EmailLogoUrl="${appBaseUrl}/assets/assets/branding/ones-logo.png" \
               PublicBaseUrl="${appBaseUrl}" \
-              BackendDesiredCount="${{ inputs.backendDesiredCount }}" \
+              BackendDesiredCount="${backendDesiredCount}" \
               BackendMinCapacity="${{ inputs.environment == 'prod' && '2' || '1' }}" \
               BackendMaxCapacity="10" \
               UsePhotoThumbnailsImage="true" \

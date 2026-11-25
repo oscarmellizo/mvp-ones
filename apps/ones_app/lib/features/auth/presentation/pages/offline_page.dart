@@ -13,6 +13,11 @@ class OfflinePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
     final text = Theme.of(context).textTheme;
+    final title =
+        auth.serviceUnavailable ? 'Servicio no disponible' : 'Sin conexión';
+    final message = auth.serviceUnavailable
+        ? 'El servicio de Ones no está disponible temporalmente. Tu sesión sigue abierta; inténtalo de nuevo en unos minutos.'
+        : 'No pudimos conectar con Ones. Revisa tu conexión a internet e inténtalo de nuevo; tu sesión sigue abierta.';
 
     return Scaffold(
       backgroundColor: OnesColors.background,
@@ -36,15 +41,18 @@ class OfflinePage extends StatelessWidget {
                   ),
                   const SizedBox(height: 32),
                   Text(
-                    'Sin conexión',
+                    title,
                     textAlign: TextAlign.center,
                     style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: OnesColors.black),
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'No pudimos conectar con Ones. Revisa tu internet e inténtalo de nuevo; tu sesión sigue abierta.',
+                    message,
                     textAlign: TextAlign.center,
-                    style: text.bodyMedium?.copyWith(color: OnesColors.black.withOpacity(0.75), height: 1.35),
+                    style: text.bodyMedium?.copyWith(
+                      color: OnesColors.black.withValues(alpha: 0.75),
+                      height: 1.35,
+                    ),
                   ),
                   const SizedBox(height: 24),
                   FilledButton(

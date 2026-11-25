@@ -65,7 +65,9 @@ Parameters:
     Default: ''
   BackendDesiredCount:
     Type: Number
-    Default: 0
+    Default: 1
+    MinValue: 1
+    MaxValue: 10
 
   BackendMinCapacity:
     Type: Number
