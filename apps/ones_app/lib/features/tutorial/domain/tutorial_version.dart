@@ -1,1 +1,1 @@
-const int kTutorialVersion = 1;
+const int kTutorialVersion = 2;

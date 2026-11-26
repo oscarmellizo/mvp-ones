@@ -1182,14 +1182,15 @@ public class PhotosService {
             throw new IllegalArgumentException("Invalid photo upload key");
         }
 
-        Event event = eventsRepository.findById(eventId.trim()).orElse(null);
-        if (event == null) {
+        boolean collectionOwner = eventId.trim().startsWith("COLLECTION#");
+        Event event = collectionOwner ? null : eventsRepository.findById(eventId.trim()).orElse(null);
+        if (!collectionOwner && event == null) {
             throw new IllegalArgumentException("Missing event");
         }
 
         Instant now = Instant.now(clock);
         return photosRepository.markReadyInternal(
-                event.getEventId(),
+                eventId.trim(),
                 photoId,
                 s3KeyOriginal.trim(),
                 s3KeyMedium,
@@ -1214,7 +1215,8 @@ public class PhotosService {
                     null
             );
         }
-        if (eventsRepository.findById(eventId.trim()).isEmpty()) {
+        if (!eventId.trim().startsWith("COLLECTION#")
+                && eventsRepository.findById(eventId.trim()).isEmpty()) {
             return new PhotosRepository.ProcessingClaim(
                     PhotosRepository.ProcessingClaimStatus.NOT_FOUND,
                     null
@@ -1412,6 +1414,21 @@ public class PhotosService {
     private static boolean matchesOriginalKey(String eventId, String photoId, String key) {
         if (key == null || key.isBlank()) return false;
         String[] parts = key.trim().split("/");
+        if (eventId != null && eventId.startsWith("COLLECTION#")) {
+            String[] ownerParts = eventId.split("#", 3);
+            if (ownerParts.length != 3) return false;
+            String collectionId = ownerParts[1];
+            String expectedPartition = com.ones.api.domain.photos.PhotoOwner
+                    .collection(collectionId).storagePartitionId(photoId);
+            return expectedPartition.equals(eventId.trim())
+                    && parts.length == 6
+                    && "colecciones".equals(parts[0])
+                    && collectionId.equals(parts[1])
+                    && "guests".equals(parts[2])
+                    && !parts[3].isBlank()
+                    && "private".equals(parts[4])
+                    && (photoId.trim() + ".jpg").equals(parts[5]);
+        }
         return parts.length == 6
                 && "eventos".equals(parts[0])
                 && eventId.trim().equals(parts[1])

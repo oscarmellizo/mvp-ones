@@ -67,6 +67,8 @@ dependencies:
   app_links: ^6.3.3
   tutorial_coach_mark: ^1.3.3
   mobile_scanner: ^6.0.2
+  qr_flutter: ^4.1.0
+  flutter_timezone: ^5.1.1
 
   ones_api_client:
     path: ../../packages/ones_api_client

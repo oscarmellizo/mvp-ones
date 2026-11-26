@@ -32,6 +32,21 @@ class TutorialSteps {
       bodyKey: 'Escribe para encontrar rápidamente tus eventos.',
     ),
     TutorialStep(
+      id: 'home_collections_tab',
+      routeName: homeRoute,
+      targetKey: () => TutorialKeys.homeTabCollections,
+      titleKey: 'tutorial.home.collections.title',
+      bodyKey: 'tutorial.home.collections.body',
+      align: ContentAlign.top,
+    ),
+    TutorialStep(
+      id: 'home_collections_search',
+      routeName: homeRoute,
+      targetKey: () => TutorialKeys.homeCollectionsSearch,
+      titleKey: 'tutorial.home.collections.search.title',
+      bodyKey: 'tutorial.home.collections.search.body',
+    ),
+    TutorialStep(
       id: 'home_today',
       routeName: homeRoute,
       targetKey: () => TutorialKeys.homeHeaderToday,

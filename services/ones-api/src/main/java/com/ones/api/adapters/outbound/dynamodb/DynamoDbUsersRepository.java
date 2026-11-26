@@ -94,6 +94,14 @@ public class DynamoDbUsersRepository implements UsersRepository {
                 .map(DynamoDbUsersRepository::toDomain);
     }
 
+    @Override
+    public Optional<String> findTimeZoneByEmail(String email) {
+        if (email == null || email.isBlank()) return Optional.empty();
+        return findByEmailUsingIndex(email.trim().toLowerCase())
+                .map(User::getTimeZone)
+                .filter(value -> value != null && !value.isBlank());
+    }
+
     private Optional<User> findByEmailUsingIndex(String normalizedEmail) {
         try {
             DynamoDbIndex<DynamoUserItem> index = table.index("byEmail");
@@ -206,6 +214,8 @@ public class DynamoDbUsersRepository implements UsersRepository {
         item.setPicture(u.getPicture());
         item.setPreferredName(u.getPreferredName());
         item.setProvider(u.getProvider());
+        item.setLanguagePreference(u.getLanguagePreference());
+        item.setTimeZone(u.getTimeZone());
         item.setTermsAccepted(u.isTermsAccepted());
         item.setCreatedAt(u.getCreatedAt().toString());
         item.setUpdatedAt(u.getUpdatedAt().toString());
@@ -240,7 +250,7 @@ public class DynamoDbUsersRepository implements UsersRepository {
                 item.getPicture(),
                 item.getPreferredName(),
                 item.getProvider(),
-                null, // languagePreference - will be added to DynamoUserItem later
+                item.getLanguagePreference(),
                 item.isTermsAccepted(),
                 created,
                 updated,
@@ -250,7 +260,8 @@ public class DynamoDbUsersRepository implements UsersRepository {
                 closed,
                 item.getExportToken(),
                 item.getExportKey(),
-                closing
+                closing,
+                item.getTimeZone()
         );
     }
 }

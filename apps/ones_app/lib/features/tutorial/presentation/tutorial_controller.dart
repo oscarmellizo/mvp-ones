@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
+import 'package:provider/provider.dart';
 
+import '../../../core/i18n/translations_service.dart';
 import '../domain/tutorial_steps.dart';
 import '../domain/tutorial_step.dart';
 import 'tutorial_store.dart';
@@ -62,7 +64,7 @@ class TutorialController {
 
     final coachMark = TutorialCoachMark(
       targets: targets,
-      colorShadow: Colors.black.withOpacity(0.6),
+      colorShadow: Colors.black.withValues(alpha: 0.6),
       textSkip: 'Saltar',
       pulseEnable: true,
       hideSkip: false,
@@ -85,6 +87,7 @@ class TutorialController {
       onSkip: () { _store.markSeen(routeName: seenRouteName ?? currentRoute); return true; },
     );
 
+    if (!context.mounted) return;
     coachMark.show(context: context);
   }
 
@@ -95,6 +98,11 @@ class TutorialController {
     TutorialCoachMarkController controller,
   ) {
     final theme = Theme.of(context);
+    final translations = context.read<TranslationsService>();
+    final resolvedTitle =
+        title == null ? null : translations.translate(title, fallback: title);
+    final resolvedBody =
+        body == null ? null : translations.translate(body, fallback: body);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -106,10 +114,10 @@ class TutorialController {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (title != null && title.isNotEmpty)
-            Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-          if (title != null && title.isNotEmpty) const SizedBox(height: 8),
-          if (body != null && body.isNotEmpty) Text(body),
+          if (resolvedTitle != null && resolvedTitle.isNotEmpty)
+            Text(resolvedTitle, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          if (resolvedTitle != null && resolvedTitle.isNotEmpty) const SizedBox(height: 8),
+          if (resolvedBody != null && resolvedBody.isNotEmpty) Text(resolvedBody),
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,

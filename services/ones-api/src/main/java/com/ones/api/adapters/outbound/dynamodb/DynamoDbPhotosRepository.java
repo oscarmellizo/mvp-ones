@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Repository;
 
 import com.ones.api.application.photos.ports.PhotosRepository;
 import com.ones.api.domain.photos.Photo;
+import com.ones.api.domain.photos.PhotoOwner;
 
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbIndex;
@@ -63,37 +65,100 @@ public class DynamoDbPhotosRepository implements PhotosRepository {
     }
 
     @Override
-    public Photo completeUpload(Photo photo) {
-        Map<String, String> names = new HashMap<>(Map.of(
-                "#photoId", "photoId",
+    public boolean updateVisibility(Photo current, Photo updated) {
+        Map<String, String> names = Map.of(
                 "#eventId", "eventId",
-                "#eventSortKey", "eventSortKey",
-                "#guestId", "guestId",
-                "#createdAt", "createdAt",
-                "#uploadedAt", "uploadedAt",
-                "#status", "status",
                 "#s3KeyOriginal", "s3KeyOriginal",
+                "#s3KeyMedium", "s3KeyMedium",
+                "#s3KeySmall", "s3KeySmall",
                 "#shared", "shared",
-                "#sharedByUserId", "sharedByUserId"
-        ));
+                "#sharedByUserId", "sharedByUserId",
+                "#sharedByName", "sharedByName"
+        );
         Map<String, AttributeValue> values = new HashMap<>(Map.of(
-                ":eventId", AttributeValue.fromS(photo.getEventId()),
-                ":eventSortKey", AttributeValue.fromS(eventSortKey(photo.getCreatedAt(), photo.getPhotoId())),
-                ":guestId", AttributeValue.fromS(photo.getGuestId()),
-                ":internal", AttributeValue.fromS("internal"),
-                ":createdAt", AttributeValue.fromS(photo.getCreatedAt().toString()),
-                ":uploadedAt", AttributeValue.fromS(photo.getUploadedAt().toString()),
-                ":status", AttributeValue.fromS(photo.getStatus()),
-                ":s3KeyOriginal", AttributeValue.fromS(photo.getS3KeyOriginal()),
-                ":shared", AttributeValue.fromBool(true),
-                ":sharedByUserId", AttributeValue.fromS(photo.getSharedByUserId())
+                ":eventId", AttributeValue.fromS(current.getStoragePartitionId()),
+                ":oldOriginal", AttributeValue.fromS(current.getS3KeyOriginal()),
+                ":oldShared", AttributeValue.fromBool(current.isShared()),
+                ":newOriginal", AttributeValue.fromS(updated.getS3KeyOriginal()),
+                ":newMedium", AttributeValue.fromS(updated.getS3KeyMedium()),
+                ":newSmall", AttributeValue.fromS(updated.getS3KeySmall()),
+                ":newShared", AttributeValue.fromBool(updated.isShared())
+        ));
+        StringBuilder expression = new StringBuilder(
+                "SET #s3KeyOriginal = :newOriginal, #s3KeyMedium = :newMedium, "
+                        + "#s3KeySmall = :newSmall, #shared = :newShared"
+        );
+        if (updated.getSharedByUserId() == null) {
+            expression.append(" REMOVE #sharedByUserId, #sharedByName");
+        } else {
+            values.put(":newSharedByUserId", AttributeValue.fromS(updated.getSharedByUserId()));
+            expression.append(", #sharedByUserId = :newSharedByUserId");
+            if (updated.getSharedByName() == null) {
+                expression.append(" REMOVE #sharedByName");
+            } else {
+                values.put(":newSharedByName", AttributeValue.fromS(updated.getSharedByName()));
+                expression.append(", #sharedByName = :newSharedByName");
+            }
+        }
+        try {
+            dynamoDbClient.updateItem(UpdateItemRequest.builder()
+                    .tableName(tableName)
+                    .key(Map.of("photoId", AttributeValue.fromS(current.getPhotoId())))
+                    .updateExpression(expression.toString())
+                    .conditionExpression("#eventId = :eventId AND #s3KeyOriginal = :oldOriginal "
+                            + "AND #shared = :oldShared")
+                    .expressionAttributeNames(names)
+                    .expressionAttributeValues(values)
+                    .build());
+            return true;
+        } catch (ConditionalCheckFailedException e) {
+            return false;
+        }
+    }
+
+    @Override
+    public Photo completeUpload(Photo photo) {
+        Map<String, String> names = new HashMap<>(Map.ofEntries(
+                Map.entry("#photoId", "photoId"),
+                Map.entry("#eventId", "eventId"),
+                Map.entry("#eventSortKey", "eventSortKey"),
+                Map.entry("#ownerType", "ownerType"),
+                Map.entry("#ownerId", "ownerId"),
+                Map.entry("#guestId", "guestId"),
+                Map.entry("#createdAt", "createdAt"),
+                Map.entry("#uploadedAt", "uploadedAt"),
+                Map.entry("#status", "status"),
+                Map.entry("#s3KeyOriginal", "s3KeyOriginal"),
+                Map.entry("#shared", "shared"),
+                Map.entry("#sharedByUserId", "sharedByUserId")
+        ));
+        Map<String, AttributeValue> values = new HashMap<>(Map.ofEntries(
+                Map.entry(":eventId", AttributeValue.fromS(photo.getStoragePartitionId())),
+                Map.entry(":eventSortKey", AttributeValue.fromS(eventSortKey(photo.getCreatedAt(), photo.getPhotoId()))),
+                Map.entry(":ownerType", AttributeValue.fromS(photo.getOwnerType())),
+                Map.entry(":ownerId", AttributeValue.fromS(photo.getOwnerId())),
+                Map.entry(":guestId", AttributeValue.fromS(photo.getGuestId())),
+                Map.entry(":internal", AttributeValue.fromS("internal")),
+                Map.entry(":createdAt", AttributeValue.fromS(photo.getCreatedAt().toString())),
+                Map.entry(":uploadedAt", AttributeValue.fromS(photo.getUploadedAt().toString())),
+                Map.entry(":status", AttributeValue.fromS(photo.getStatus())),
+                Map.entry(":s3KeyOriginal", AttributeValue.fromS(photo.getS3KeyOriginal())),
+                Map.entry(":shared", AttributeValue.fromBool(photo.isShared()))
         ));
         StringBuilder updateExpression = new StringBuilder(
-                "SET #eventId = :eventId, #eventSortKey = :eventSortKey, #guestId = :guestId, "
+                "SET #eventId = :eventId, #eventSortKey = :eventSortKey, "
+                        + "#ownerType = :ownerType, #ownerId = :ownerId, #guestId = :guestId, "
                         + "#createdAt = :createdAt, #uploadedAt = if_not_exists(#uploadedAt, :uploadedAt), "
                         + "#status = if_not_exists(#status, :status), #s3KeyOriginal = :s3KeyOriginal, "
-                        + "#shared = :shared, #sharedByUserId = :sharedByUserId"
+                        + "#shared = :shared"
         );
+        List<String> attributesToRemove = new ArrayList<>();
+        if (photo.getSharedByUserId() != null && !photo.getSharedByUserId().isBlank()) {
+            values.put(":sharedByUserId", AttributeValue.fromS(photo.getSharedByUserId()));
+            updateExpression.append(", #sharedByUserId = :sharedByUserId");
+        } else {
+            attributesToRemove.add("#sharedByUserId");
+        }
         if (photo.getOwnerName() != null && !photo.getOwnerName().isBlank()) {
             names.put("#ownerName", "ownerName");
             values.put(":ownerName", AttributeValue.fromS(photo.getOwnerName()));
@@ -103,6 +168,12 @@ public class DynamoDbPhotosRepository implements PhotosRepository {
             names.put("#sharedByName", "sharedByName");
             values.put(":sharedByName", AttributeValue.fromS(photo.getSharedByName()));
             updateExpression.append(", #sharedByName = :sharedByName");
+        } else {
+            names.put("#sharedByName", "sharedByName");
+            attributesToRemove.add("#sharedByName");
+        }
+        if (!attributesToRemove.isEmpty()) {
+            updateExpression.append(" REMOVE ").append(String.join(", ", attributesToRemove));
         }
 
         UpdateItemRequest request = UpdateItemRequest.builder()
@@ -126,7 +197,7 @@ public class DynamoDbPhotosRepository implements PhotosRepository {
         } catch (ConditionalCheckFailedException e) {
             Photo existing = findByIdConsistent(photo.getPhotoId()).orElse(null);
             if (existing == null
-                    || !photo.getEventId().equals(existing.getEventId())
+                    || !photo.getStoragePartitionId().equals(existing.getStoragePartitionId())
                     || !photo.getGuestId().equals(existing.getGuestId())
                     || !photo.getS3KeyOriginal().equals(existing.getS3KeyOriginal())) {
                 throw new IllegalStateException("Photo upload conflicts with an existing photo", e);
@@ -300,7 +371,7 @@ public class DynamoDbPhotosRepository implements PhotosRepository {
             if (existing == null) {
                 return new ProcessingClaim(ProcessingClaimStatus.NOT_FOUND, null);
             }
-            if (!eventId.equals(existing.getEventId())
+            if (!eventId.equals(existing.getStoragePartitionId())
                     || !s3KeyOriginal.equals(existing.getS3KeyOriginal())) {
                 return new ProcessingClaim(ProcessingClaimStatus.CONFLICT, existing);
             }
@@ -365,7 +436,7 @@ public class DynamoDbPhotosRepository implements PhotosRepository {
                     : Optional.of(toDomain(fromAttributes(attributes)));
         } catch (ConditionalCheckFailedException e) {
             return findByIdConsistent(photoId)
-                    .filter(photo -> eventId.equals(photo.getEventId()))
+                .filter(photo -> eventId.equals(photo.getStoragePartitionId()))
                     .filter(photo -> s3KeyOriginal.equals(photo.getS3KeyOriginal()))
                     .filter(photo -> "ready".equalsIgnoreCase(photo.getStatus()));
         }
@@ -413,7 +484,7 @@ public class DynamoDbPhotosRepository implements PhotosRepository {
                     : Optional.of(toDomain(fromAttributes(attributes)));
         } catch (ConditionalCheckFailedException e) {
             return findByIdConsistent(photoId)
-                    .filter(photo -> eventId.equals(photo.getEventId()))
+                .filter(photo -> eventId.equals(photo.getStoragePartitionId()))
                     .filter(photo -> s3KeyOriginal.equals(photo.getS3KeyOriginal()))
                     .filter(photo -> "ready".equalsIgnoreCase(photo.getStatus()));
         }
@@ -452,7 +523,7 @@ public class DynamoDbPhotosRepository implements PhotosRepository {
                     : Optional.of(toDomain(fromAttributes(attributes)));
         } catch (ConditionalCheckFailedException e) {
             return findByIdConsistent(photoId)
-                    .filter(photo -> eventId.equals(photo.getEventId()))
+                .filter(photo -> eventId.equals(photo.getStoragePartitionId()))
                     .filter(photo -> "processing".equalsIgnoreCase(photo.getStatus())
                             || "retrying".equalsIgnoreCase(photo.getStatus())
                             || "ready".equalsIgnoreCase(photo.getStatus()));
@@ -476,6 +547,8 @@ public class DynamoDbPhotosRepository implements PhotosRepository {
         item.setPhotoId(s(attributes.get("photoId")));
         item.setEventId(s(attributes.get("eventId")));
         item.setEventSortKey(s(attributes.get("eventSortKey")));
+        item.setOwnerType(s(attributes.get("ownerType")));
+        item.setOwnerId(s(attributes.get("ownerId")));
         item.setGuestId(s(attributes.get("guestId")));
         item.setCreatedAt(s(attributes.get("createdAt")));
         item.setUploadedAt(s(attributes.get("uploadedAt")));
@@ -554,7 +627,7 @@ public class DynamoDbPhotosRepository implements PhotosRepository {
             if (existing == null) {
                 throw new IllegalArgumentException("Photo does not exist", e);
             }
-            if (!eventId.equals(existing.getEventId())
+            if (!eventId.equals(existing.getStoragePartitionId())
                     || !s3KeyOriginal.trim().equals(existing.getS3KeyOriginal())) {
                 throw new IllegalArgumentException("Photo does not belong to event or original key", e);
             }
@@ -608,6 +681,48 @@ public class DynamoDbPhotosRepository implements PhotosRepository {
         }
 
         return new PageResult<>(out, outNextToken);
+    }
+
+    @Override
+    public PageResult<Photo> listByOwner(PhotoOwner owner, int limit, String nextToken) {
+        if (owner == null || owner.type() == PhotoOwner.Type.EVENT) {
+            return owner == null
+                    ? new PageResult<>(List.of(), null)
+                    : listByEventId(owner.id(), limit, nextToken);
+        }
+        int resolvedLimit = limit <= 0 ? 10 : Math.min(limit, 50);
+        Map<Integer, String> cursors = decodeOwnerCursors(nextToken);
+        Map<Integer, PageResult<Photo>> shardPages = new HashMap<>();
+        List<Photo> candidates = new ArrayList<>();
+        for (int shard = 0; shard < PhotoOwner.COLLECTION_SHARD_COUNT; shard++) {
+            String partitionId = owner.collectionPartitionId(shard);
+            PageResult<Photo> page = listByEventId(
+                    partitionId, resolvedLimit, cursors.get(shard)
+            );
+            shardPages.put(shard, page);
+            candidates.addAll(page.items());
+        }
+
+        candidates.sort(Comparator.comparing(Photo::getCreatedAt)
+                .reversed()
+                .thenComparing(Photo::getPhotoId, Comparator.reverseOrder()));
+        List<Photo> selected = candidates.stream().limit(resolvedLimit).toList();
+        Map<Integer, String> nextCursors = new HashMap<>(cursors);
+        for (Photo photo : selected) {
+            int shard = Math.floorMod(photo.getPhotoId().hashCode(), PhotoOwner.COLLECTION_SHARD_COUNT);
+            String partitionId = owner.collectionPartitionId(shard);
+            nextCursors.put(shard, encodeExclusiveStartKey(Map.of(
+                    "photoId", AttributeValue.fromS(photo.getPhotoId()),
+                    "eventId", AttributeValue.fromS(partitionId),
+                    "eventSortKey", AttributeValue.fromS(eventSortKey(photo.getCreatedAt(), photo.getPhotoId()))
+            )));
+        }
+        boolean hasMore = candidates.size() > selected.size()
+                || shardPages.values().stream().anyMatch(page -> page.nextToken() != null);
+        return new PageResult<>(
+                selected,
+                hasMore ? encodeOwnerCursors(nextCursors) : null
+        );
     }
 
     @Override
@@ -729,6 +844,36 @@ public class DynamoDbPhotosRepository implements PhotosRepository {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(raw.getBytes(StandardCharsets.UTF_8));
     }
 
+    private static String encodeOwnerCursors(Map<Integer, String> cursors) {
+        String raw = cursors.entrySet().stream()
+                .filter(entry -> entry.getValue() != null && !entry.getValue().isBlank())
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> entry.getKey() + "=" + entry.getValue())
+                .collect(java.util.stream.Collectors.joining(";"));
+        return Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static Map<Integer, String> decodeOwnerCursors(String token) {
+        if (token == null || token.isBlank()) return new HashMap<>();
+        try {
+            String raw = new String(Base64.getUrlDecoder().decode(token.trim()), StandardCharsets.UTF_8);
+            Map<Integer, String> cursors = new HashMap<>();
+            for (String entry : raw.split(";")) {
+                String[] pair = entry.split("=", 2);
+                if (pair.length != 2) continue;
+                int shard = Integer.parseInt(pair[0]);
+                if (shard >= 0 && shard < PhotoOwner.COLLECTION_SHARD_COUNT
+                        && !pair[1].isBlank()) {
+                    cursors.put(shard, pair[1]);
+                }
+            }
+            return cursors;
+        } catch (RuntimeException ignored) {
+            return new HashMap<>();
+        }
+    }
+
     private static Map<String, AttributeValue> decodeExclusiveStartKey(String nextToken) {
         if (nextToken == null || nextToken.isBlank()) {
             return null;
@@ -769,7 +914,9 @@ public class DynamoDbPhotosRepository implements PhotosRepository {
     static DynamoPhotoItem toItem(Photo p) {
         DynamoPhotoItem item = new DynamoPhotoItem();
         item.setPhotoId(p.getPhotoId());
-        item.setEventId(p.getEventId());
+        item.setEventId(p.getStoragePartitionId());
+        item.setOwnerType(p.getOwnerType());
+        item.setOwnerId(p.getOwnerId());
         item.setEventSortKey(eventSortKey(p.getCreatedAt(), p.getPhotoId()));
         item.setGuestId(p.getGuestId());
         item.setCreatedAt(p.getCreatedAt().toString());
@@ -795,9 +942,12 @@ public class DynamoDbPhotosRepository implements PhotosRepository {
                 ? Instant.parse(item.getUploadedAt())
                 : null;
 
+        PhotoOwner owner = item.getOwnerType() == null || item.getOwnerId() == null
+                ? PhotoOwner.event(item.getEventId())
+                : new PhotoOwner(PhotoOwner.Type.valueOf(item.getOwnerType()), item.getOwnerId());
         return new Photo(
                 item.getPhotoId(),
-                item.getEventId(),
+                owner,
                 item.getGuestId(),
                 createdAt,
                 uploadedAt,

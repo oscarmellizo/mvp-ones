@@ -5,6 +5,10 @@ class TutorialKeys {
   static final GlobalKey homeHelpIcon = GlobalKey(debugLabel: 'home.help');
   static final GlobalKey homeBellIcon = GlobalKey(debugLabel: 'home.bell');
   static final GlobalKey homeSearch = GlobalKey(debugLabel: 'home.search');
+  static final GlobalKey homeCollectionsSearch =
+      GlobalKey(debugLabel: 'home.collections.search');
+  static final GlobalKey homeTabCollections =
+      GlobalKey(debugLabel: 'home.collections.tab');
   static final GlobalKey homeFabCreate = GlobalKey(debugLabel: 'home.fab');
   static final GlobalKey homeHeaderToday = GlobalKey(debugLabel: 'home.header.today');
   static final GlobalKey homeHeaderNext = GlobalKey(debugLabel: 'home.header.next');

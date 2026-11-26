@@ -1154,6 +1154,216 @@
     "es": "El ranking se esta calculando. Desliza para actualizar.",
     "en": "The leaderboard is being calculated. Pull to refresh.",
     "pt": "A classificacao esta sendo calculada. Puxe para atualizar."
+  },
+  "collections.title": {
+    "es": "Colecciones",
+    "en": "Collections",
+    "pt": "Colecoes"
+  },
+  "collections.search": {
+    "es": "Buscar colecciones",
+    "en": "Search collections",
+    "pt": "Buscar colecoes"
+  },
+  "collections.load_error": {
+    "es": "No pudimos cargar tus colecciones",
+    "en": "We couldn't load your collections",
+    "pt": "Nao foi possivel carregar suas colecoes"
+  },
+  "collections.empty_title": {
+    "es": "Tus recuerdos empiezan aqui",
+    "en": "Your memories start here",
+    "pt": "Suas lembrancas comecam aqui"
+  },
+  "collections.empty_message": {
+    "es": "Crea un espacio para reunir fotos con las personas que elijas.",
+    "en": "Create a space to collect photos with the people you choose.",
+    "pt": "Crie um espaco para reunir fotos com quem voce escolher."
+  },
+  "collections.create": {
+    "es": "Crear coleccion",
+    "en": "Create collection",
+    "pt": "Criar colecao"
+  },
+  "collections.no_results": {
+    "es": "No encontramos esa coleccion",
+    "en": "We couldn't find that collection",
+    "pt": "Nao encontramos essa colecao"
+  },
+  "collections.refresh_error": {
+    "es": "No se pudieron actualizar las colecciones.",
+    "en": "Collections couldn't be refreshed.",
+    "pt": "Nao foi possivel atualizar as colecoes."
+  },
+  "collections.create_intro": {
+    "es": "Un espacio para guardar recuerdos juntos.",
+    "en": "A space to keep your memories together.",
+    "pt": "Um espaco para guardar lembrancas juntos."
+  },
+  "collections.name": {
+    "es": "Nombre",
+    "en": "Name",
+    "pt": "Nome"
+  },
+  "collections.name_hint": {
+    "es": "Ej. Viajes de la familia",
+    "en": "E.g. Family trips",
+    "pt": "Ex.: Viagens em familia"
+  },
+  "collections.name_required": {
+    "es": "Escribe un nombre para continuar.",
+    "en": "Enter a name to continue.",
+    "pt": "Digite um nome para continuar."
+  },
+  "collections.type": {
+    "es": "Tipo de coleccion",
+    "en": "Collection type",
+    "pt": "Tipo de colecao"
+  },
+  "collections.description_optional": {
+    "es": "Descripcion (opcional)",
+    "en": "Description (optional)",
+    "pt": "Descricao (opcional)"
+  },
+  "collections.partner_email": {
+    "es": "Correo de tu pareja",
+    "en": "Your partner's email",
+    "pt": "E-mail do seu parceiro"
+  },
+  "collections.partner_required_help": {
+    "es": "La coleccion Pareja necesita una invitacion para crearse.",
+    "en": "A Couple collection needs an invitation to be created.",
+    "pt": "Uma colecao Casal precisa de um convite para ser criada."
+  },
+  "collections.invitees_optional": {
+    "es": "Invitar por correo (opcional)",
+    "en": "Invite by email (optional)",
+    "pt": "Convidar por e-mail (opcional)"
+  },
+  "collections.invitees_help": {
+    "es": "Puedes invitar mas personas despues de crearla.",
+    "en": "You can invite more people after creating it.",
+    "pt": "Voce pode convidar mais pessoas depois de criar."
+  },
+  "collections.partner_required": {
+    "es": "Agrega el correo de una persona.",
+    "en": "Add one person's email.",
+    "pt": "Adicione o e-mail de uma pessoa."
+  },
+  "collections.email_invalid": {
+    "es": "Revisa los correos ingresados.",
+    "en": "Check the email addresses.",
+    "pt": "Verifique os e-mails informados."
+  },
+  "collections.private_help": {
+    "es": "Solo tu podras entrar. Aun puedes compartir fotos individuales.",
+    "en": "Only you can access it. You can still share individual photos.",
+    "pt": "Somente voce pode acessar. Ainda e possivel compartilhar fotos individuais."
+  },
+  "collections.invite": {
+    "es": "Invitar personas",
+    "en": "Invite people",
+    "pt": "Convidar pessoas"
+  },
+  "collections.send_invite": {
+    "es": "Enviar invitacion",
+    "en": "Send invitation",
+    "pt": "Enviar convite"
+  },
+  "collections.invitation_sent": {
+    "es": "Invitacion enviada.",
+    "en": "Invitation sent.",
+    "pt": "Convite enviado."
+  },
+  "collections.join_qr": {
+    "es": "QR para unirse",
+    "en": "Join QR code",
+    "pt": "QR para entrar"
+  },
+  "collections.qr_rotates": {
+    "es": "Este QR deja de servir cuando lo rotes o desactives.",
+    "en": "This QR stops working when you rotate or disable it.",
+    "pt": "Este QR deixa de funcionar quando voce o renova ou desativa."
+  },
+  "collections.photos": {
+    "es": "Fotos",
+    "en": "Photos",
+    "pt": "Fotos"
+  },
+  "collections.members": {
+    "es": "Personas",
+    "en": "People",
+    "pt": "Pessoas"
+  },
+  "collections.owner": {
+    "es": "Propietario",
+    "en": "Owner",
+    "pt": "Proprietario"
+  },
+  "collections.member": {
+    "es": "Miembro",
+    "en": "Member",
+    "pt": "Membro"
+  },
+  "collections.pending": {
+    "es": "Invitacion pendiente",
+    "en": "Invitation pending",
+    "pt": "Convite pendente"
+  },
+  "collections.administrator": {
+    "es": "Puede administrar esta coleccion",
+    "en": "Can manage this collection",
+    "pt": "Pode administrar esta colecao"
+  },
+  "collections.leave": {
+    "es": "Salir de la coleccion",
+    "en": "Leave collection",
+    "pt": "Sair da colecao"
+  },
+  "collections.photos_coming": {
+    "es": "Tus fotos viviran aqui",
+    "en": "Your photos will live here",
+    "pt": "Suas fotos ficarao aqui"
+  },
+  "collections.photos_help": {
+    "es": "Comparte fotos individuales o invita personas para construir esta galeria juntos.",
+    "en": "Share individual photos or invite people to build this gallery together.",
+    "pt": "Compartilhe fotos individuais ou convide pessoas para criar esta galeria."
+  },
+  "collections.private_photo_share": {
+    "es": "Una coleccion privada puede compartir fotos individuales sin agregar miembros.",
+    "en": "A private collection can share individual photos without adding members.",
+    "pt": "Uma colecao privada pode compartilhar fotos individuais sem adicionar membros."
+  },
+  "collections.scan_qr": {
+    "es": "Escanear QR de coleccion",
+    "en": "Scan collection QR",
+    "pt": "Escanear QR da colecao"
+  },
+  "tutorial.home.collections.title": {
+    "es": "Colecciones",
+    "en": "Collections",
+    "pt": "Colecoes"
+  },
+  "tutorial.home.collections.body": {
+    "es": "Guarda fotos en espacios permanentes y comparte el acceso con las personas que elijas.",
+    "en": "Keep photos in lasting spaces and share access with the people you choose.",
+    "pt": "Guarde fotos em espacos permanentes e compartilhe o acesso com quem voce escolher."
+  },
+  "tutorial.home.collections.search.title": {
+    "es": "Buscar colecciones",
+    "en": "Search collections",
+    "pt": "Buscar colecoes"
+  },
+  "tutorial.home.collections.search.body": {
+    "es": "Encuentra espacios por nombre, descripcion o tipo.",
+    "en": "Find spaces by name, description, or type.",
+    "pt": "Encontre espacos por nome, descricao ou tipo."
+  },
+  "home.events_tab": {
+    "es": "Eventos",
+    "en": "Events",
+    "pt": "Eventos"
   }
 
 }

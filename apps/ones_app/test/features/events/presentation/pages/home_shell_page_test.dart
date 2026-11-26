@@ -6,6 +6,9 @@ import 'package:ones_app/features/events/presentation/event_cover_urls_controlle
 import 'package:ones_app/features/events/presentation/events_controller.dart';
 import 'package:ones_app/features/events/presentation/pages/create_event_page.dart';
 import 'package:ones_app/features/events/presentation/pages/home_shell_page.dart';
+import 'package:ones_app/features/collections/domain/collection.dart';
+import 'package:ones_app/features/collections/presentation/collections_controller.dart';
+import 'package:ones_app/features/tutorial/presentation/tutorial_keys.dart';
 import 'package:ones_app/features/invitations/presentation/invitations_controller.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,11 +21,31 @@ class _CoverUrls extends Mock implements EventCoverUrlsController {}
 
 class _Translations extends Mock implements TranslationsService {}
 
+class _Collections extends ChangeNotifier implements CollectionsController {
+  @override
+  bool get loading => false;
+
+  @override
+  Object? get error => null;
+
+  @override
+  List<OnesCollection> get collections => const [];
+
+  @override
+  Future<void> refresh() async {}
+
+  @override
+  void setIdToken(String? token, {String? userId}) {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({
       'ones.tutorial_seen./events': true,
-      'ones.tutorial_version./events': 1,
+      'ones.tutorial_version./events': 2,
     });
   });
 
@@ -31,7 +54,9 @@ void main() {
     await _pumpHomeShellPage(tester);
 
     expect(find.text('home.action_create_event'), findsNothing);
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.tap(find.text('home.events_tab'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(TutorialKeys.homeFabCreate));
     await tester.pumpAndSettle();
 
     expect(find.text('home.action_create_event'), findsOneWidget);
@@ -43,12 +68,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('home.action_create_event'), findsNothing);
-    expect(find.byIcon(Icons.add), findsOneWidget);
+    expect(find.byKey(TutorialKeys.homeFabCreate), findsOneWidget);
   });
 
   testWidgets('tocar fuera del menú lo cierra', (tester) async {
     await _pumpHomeShellPage(tester);
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.tap(find.text('home.events_tab'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(TutorialKeys.homeFabCreate));
     await tester.pumpAndSettle();
 
     await tester.tapAt(const Offset(8, 40));
@@ -63,7 +90,9 @@ void main() {
     addTearDown(tester.view.reset);
     await _pumpHomeShellPage(tester);
 
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.tap(find.text('home.events_tab'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(TutorialKeys.homeFabCreate));
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
@@ -73,7 +102,9 @@ void main() {
   testWidgets('seleccionar crear evento navega al destino existente',
       (tester) async {
     await _pumpHomeShellPage(tester);
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.tap(find.text('home.events_tab'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(TutorialKeys.homeFabCreate));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('home.action_create_event'));
@@ -108,6 +139,9 @@ Future<void> _pumpHomeShellPage(WidgetTester tester) async {
         ChangeNotifierProvider<InvitationsController>.value(value: invitations),
         ChangeNotifierProvider<EventCoverUrlsController>.value(
           value: _CoverUrls(),
+        ),
+        ChangeNotifierProvider<CollectionsController>.value(
+          value: _Collections(),
         ),
         ChangeNotifierProvider<TranslationsService>.value(value: translations),
       ],

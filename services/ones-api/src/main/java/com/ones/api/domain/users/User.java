@@ -14,6 +14,7 @@ public class User {
     private final String preferredName;
     private final String provider;
     private final String languagePreference;
+    private final String timeZone;
     private final boolean termsAccepted;
     private final Instant createdAt;
     private final Instant updatedAt;
@@ -55,6 +56,7 @@ public class User {
         this.preferredName = preferredName;
         this.provider = Objects.requireNonNull(provider);
         this.languagePreference = languagePreference;
+        this.timeZone = null;
         this.termsAccepted = termsAccepted;
         this.createdAt = Objects.requireNonNull(createdAt);
         this.updatedAt = Objects.requireNonNull(updatedAt);
@@ -135,6 +137,33 @@ public class User {
             String exportKey,
             Instant closingAt
     ) {
+        this(userId, email, name, givenName, familyName, picture, preferredName, provider,
+                languagePreference, termsAccepted, createdAt, updatedAt, status, disabledAt,
+                reactivatedAt, closedAt, exportToken, exportKey, closingAt, null);
+    }
+
+    public User(
+            String userId,
+            String email,
+            String name,
+            String givenName,
+            String familyName,
+            String picture,
+            String preferredName,
+            String provider,
+            String languagePreference,
+            boolean termsAccepted,
+            Instant createdAt,
+            Instant updatedAt,
+            String status,
+            Instant disabledAt,
+            Instant reactivatedAt,
+            Instant closedAt,
+            String exportToken,
+            String exportKey,
+            Instant closingAt,
+            String timeZone
+    ) {
         this.userId = Objects.requireNonNull(userId);
         this.email = email;
         this.name = name;
@@ -144,6 +173,7 @@ public class User {
         this.preferredName = preferredName;
         this.provider = Objects.requireNonNull(provider);
         this.languagePreference = languagePreference;
+        this.timeZone = timeZone;
         this.termsAccepted = termsAccepted;
         this.createdAt = Objects.requireNonNull(createdAt);
         this.updatedAt = Objects.requireNonNull(updatedAt);
@@ -190,6 +220,10 @@ public class User {
 
     public String getLanguagePreference() {
         return languagePreference;
+    }
+
+    public String getTimeZone() {
+        return timeZone;
     }
 
     public boolean isTermsAccepted() {
@@ -243,46 +277,52 @@ public class User {
                             String languagePreference, Instant updatedAt) {
         return new User(userId, email, name, givenName, familyName, picture, preferredName, provider,
                 languagePreference, termsAccepted, createdAt, updatedAt, status, disabledAt, reactivatedAt,
-                closedAt, exportToken, exportKey, closingAt);
+                closedAt, exportToken, exportKey, closingAt, timeZone);
     }
 
     /** Copia con las preferencias del usuario; conserva todo el estado del ciclo de vida. */
     public User withPreferences(String preferredName, String languagePreference, boolean termsAccepted, Instant updatedAt) {
         return new User(userId, email, name, givenName, familyName, picture, preferredName, provider,
                 languagePreference, termsAccepted, createdAt, updatedAt, status, disabledAt, reactivatedAt,
-                closedAt, exportToken, exportKey, closingAt);
+                closedAt, exportToken, exportKey, closingAt, timeZone);
+    }
+
+    public User withTimeZone(String timeZone, Instant updatedAt) {
+        return new User(userId, email, name, givenName, familyName, picture, preferredName, provider,
+                languagePreference, termsAccepted, createdAt, updatedAt, status, disabledAt, reactivatedAt,
+                closedAt, exportToken, exportKey, closingAt, timeZone);
     }
 
     /** Copia con un nuevo estado de activación (desactivar / reactivar); conserva el resto. */
     public User withStatus(String status, Instant disabledAt, Instant reactivatedAt, Instant updatedAt) {
         return new User(userId, email, name, givenName, familyName, picture, preferredName, provider,
                 languagePreference, termsAccepted, createdAt, updatedAt, status, disabledAt, reactivatedAt,
-                closedAt, exportToken, exportKey, closingAt);
+                closedAt, exportToken, exportKey, closingAt, timeZone);
     }
 
     /** Reclamo de la cuenta por una corrida de cierre (DISABLED → CLOSING). */
     public User withClosing(Instant closingAt) {
         return new User(userId, email, name, givenName, familyName, picture, preferredName, provider,
                 languagePreference, termsAccepted, createdAt, updatedAt, STATUS_CLOSING, disabledAt, reactivatedAt,
-                closedAt, exportToken, exportKey, closingAt);
+                closedAt, exportToken, exportKey, closingAt, timeZone);
     }
 
     /** Devuelve a DISABLED una cuenta reclamada cuyo cierre falló, para reintentar en la próxima corrida. */
     public User withClosingReverted() {
         return new User(userId, email, name, givenName, familyName, picture, preferredName, provider,
                 languagePreference, termsAccepted, createdAt, updatedAt, STATUS_DISABLED, disabledAt, reactivatedAt,
-                closedAt, exportToken, exportKey, null);
+                closedAt, exportToken, exportKey, null, timeZone);
     }
 
     public User withLifecycle(String status, Instant closedAt, String exportToken, String exportKey) {
         return new User(userId, email, name, givenName, familyName, picture, preferredName, provider,
                 languagePreference, termsAccepted, createdAt, updatedAt, status, disabledAt, reactivatedAt,
-                closedAt, exportToken, exportKey, closingAt);
+                closedAt, exportToken, exportKey, closingAt, timeZone);
     }
 
     /** Lápida tras el borrado definitivo: sin datos personales, para que un token viejo no recree la cuenta. */
     public User tombstone(Instant now) {
         return new User(userId, null, null, null, null, null, null, provider, null, false, createdAt, now,
-                STATUS_DELETED, disabledAt, reactivatedAt, closedAt, null, null);
+                STATUS_DELETED, disabledAt, reactivatedAt, closedAt, null, null, null, null);
     }
 }

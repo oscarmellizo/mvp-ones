@@ -26,6 +26,10 @@ import com.ones.api.application.events.AiConfigurationException;
 import com.ones.api.application.events.AiImageGenerationException;
 import com.ones.api.application.events.EventCoverNotFoundException;
 import com.ones.api.application.events.EventForbiddenException;
+import com.ones.api.application.collections.CollectionForbiddenException;
+import com.ones.api.application.collections.CollectionNotFoundException;
+import com.ones.api.application.collections.CollectionConflictException;
+import com.ones.api.application.collections.CollectionJoinRateLimitException;
 import com.ones.api.application.events.EventHasGuestPhotosException;
 import com.ones.api.application.events.EventNotFoundException;
 import com.ones.api.application.events.ports.ObjectNotFoundException;
@@ -58,6 +62,38 @@ public class ApiExceptionHandler {
     public ResponseEntity<Map<String, Object>> forbidden(EventForbiddenException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
                 "error", "forbidden",
+                "message", ex.getMessage()
+        ));
+    }
+
+    @ExceptionHandler(CollectionNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> collectionNotFound(CollectionNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "error", "not_found",
+                "message", ex.getMessage()
+        ));
+    }
+
+    @ExceptionHandler(CollectionForbiddenException.class)
+    public ResponseEntity<Map<String, Object>> collectionForbidden(CollectionForbiddenException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                "error", "forbidden",
+                "message", ex.getMessage()
+        ));
+    }
+
+    @ExceptionHandler(CollectionConflictException.class)
+    public ResponseEntity<Map<String, Object>> collectionConflict(CollectionConflictException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                "error", "collection_conflict",
+                "message", ex.getMessage()
+        ));
+    }
+
+    @ExceptionHandler(CollectionJoinRateLimitException.class)
+    public ResponseEntity<Map<String, Object>> collectionJoinRateLimit(CollectionJoinRateLimitException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of(
+                "error", "rate_limited",
                 "message", ex.getMessage()
         ));
     }

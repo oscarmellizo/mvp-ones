@@ -81,10 +81,17 @@ def _call_backend(event_id, photo_id, action, body):
     if not auth:
         raise ProcessingError("backend_unavailable", True)
 
-    url = (
-        f"{base}/internal/events/{urllib.parse.quote(event_id)}"
-        f"/photos/{urllib.parse.quote(photo_id)}/{action}"
-    )
+    if event_id.startswith("COLLECTION#"):
+        collection_id = event_id.split("#", 2)[1]
+        url = (
+            f"{base}/internal/collections/{urllib.parse.quote(collection_id)}"
+            f"/photos/{urllib.parse.quote(photo_id)}/{action}"
+        )
+    else:
+        url = (
+            f"{base}/internal/events/{urllib.parse.quote(event_id)}"
+            f"/photos/{urllib.parse.quote(photo_id)}/{action}"
+        )
     payload = json.dumps(body).encode('utf-8')
     for attempt in range(1, 4):
         req = urllib.request.Request(url, data=payload, method='POST')
@@ -151,6 +158,10 @@ def _ws_client():
 def _publish_photo_ready(event_id: str, photo_id: str):
     if not event_id or not photo_id:
         return
+    subscription_id = (
+        "COLLECTION#" + event_id.split("#", 2)[1]
+        if event_id.startswith("COLLECTION#") else event_id
+    )
     table = _ws_subscriptions_table()
     client = _ws_client()
     if table is None or client is None:
@@ -159,7 +170,7 @@ def _publish_photo_ready(event_id: str, photo_id: str):
 
     payload = json.dumps({
         "type": "photo.ready",
-        "eventId": event_id,
+        "eventId": subscription_id,
         "photoId": photo_id,
     }).encode('utf-8')
 
@@ -167,7 +178,7 @@ def _publish_photo_ready(event_id: str, photo_id: str):
     while True:
         args = {
             'KeyConditionExpression': 'eventId = :eventId',
-            'ExpressionAttributeValues': {':eventId': event_id},
+            'ExpressionAttributeValues': {':eventId': subscription_id},
             'Limit': 100,
         }
         if last_key:
@@ -188,9 +199,9 @@ def _publish_photo_ready(event_id: str, photo_id: str):
                     code = None
 
                 if hasattr(client, 'exceptions') and hasattr(client.exceptions, 'GoneException') and isinstance(e, client.exceptions.GoneException):
-                    table.delete_item(Key={'eventId': event_id, 'connectionId': cid})
+                    table.delete_item(Key={'eventId': subscription_id, 'connectionId': cid})
                 elif code == 410:
-                    table.delete_item(Key={'eventId': event_id, 'connectionId': cid})
+                    table.delete_item(Key={'eventId': subscription_id, 'connectionId': cid})
 
         last_key = res.get('LastEvaluatedKey')
         if not last_key:
@@ -510,14 +521,25 @@ def _parse_key(key: str):
     parts = key.split('/')
     if len(parts) != 6:
         return None, None
-    if parts[0] != 'eventos' or parts[2] != 'guests' or parts[4] != 'private':
+    if parts[2] != 'guests' or parts[4] != 'private':
         return None, None
-    event_id = parts[1]
+    if parts[0] == 'colecciones':
+        photo_id = parts[-1][:-4] if parts[-1].endswith('.jpg') else ''
+        if not photo_id:
+            return None, None
+        java_hash = 0
+        for char in photo_id:
+            java_hash = (31 * java_hash + ord(char)) & 0xFFFFFFFF
+        owner_ref = f"COLLECTION#{parts[1]}#{java_hash % 16:02d}"
+    elif parts[0] == 'eventos':
+        owner_ref = parts[1]
+    else:
+        return None, None
     filename = parts[-1]
     if not parts[3] or not filename.endswith('.jpg'):
         return None, None
     photo_id = filename[:-4]
-    return event_id, photo_id
+    return owner_ref, photo_id
 
 
 def _legacy_handler(event, context):

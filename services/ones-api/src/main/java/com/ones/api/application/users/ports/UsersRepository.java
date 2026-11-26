@@ -13,6 +13,10 @@ public interface UsersRepository {
 
     Optional<User> findByEmail(String email);
 
+    default Optional<String> findTimeZoneByEmail(String email) {
+        return findByEmail(email).map(User::getTimeZone).filter(value -> value != null && !value.isBlank());
+    }
+
     User upsert(User user);
 
     /**

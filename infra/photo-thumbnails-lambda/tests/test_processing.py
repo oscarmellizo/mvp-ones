@@ -4,7 +4,7 @@ import pathlib
 import sys
 import unittest
 from datetime import datetime, timezone
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
@@ -78,6 +78,102 @@ class ThumbnailWorkerTests(unittest.TestCase):
                 self.assertEqual(len(jobs), 1)
                 self.assertEqual(jobs[0]["eventId"], "event-1")
                 self.assertEqual(jobs[0]["photoId"], "photo-1")
+
+    def test_collection_s3_event_parser_uses_java_compatible_shard(self):
+        photo_id = "photo-1"
+        java_hash = 0
+        for char in photo_id:
+            java_hash = (31 * java_hash + ord(char)) & 0xFFFFFFFF
+        expected_owner = f"COLLECTION#collection-1#{java_hash % 16:02d}"
+
+        for handler in HANDLERS:
+            with self.subTest(handler=handler.__name__):
+                jobs = handler._jobs_from_body(s3_event(
+                    "colecciones/collection-1/guests/user-1/private/photo-1.jpg"
+                ))
+
+                self.assertEqual(len(jobs), 1)
+                self.assertEqual(jobs[0]["eventId"], expected_owner)
+                self.assertEqual(jobs[0]["photoId"], photo_id)
+
+    def test_backend_callback_routes_to_owner_type(self):
+        response = MagicMock()
+        response.__enter__.return_value = response
+        response.read.return_value = b'{}'
+
+        for handler in HANDLERS:
+            for owner_ref, expected_path in (
+                (
+                    "COLLECTION#collection-1#03",
+                    "/internal/collections/collection-1/",
+                ),
+                ("event-1", "/internal/events/event-1/"),
+            ):
+                with self.subTest(
+                    handler=handler.__name__, owner_ref=owner_ref
+                ):
+                    with (
+                        patch.dict(handler.os.environ, {
+                            "BACKEND_BASE_URL": "http://backend",
+                        }),
+                        patch.object(
+                            handler, "_internal_basic_auth_cached",
+                            return_value="Basic dXNlcjpwYXNz",
+                        ),
+                        patch.object(
+                            handler.urllib.request,
+                            "urlopen",
+                            return_value=response,
+                        ) as urlopen,
+                    ):
+                        handler._call_backend(
+                            owner_ref, "photo-1", "processing", {}
+                        )
+
+                    request = urlopen.call_args.args[0]
+                    self.assertEqual(
+                        request.full_url,
+                        f"http://backend{expected_path}photos/"
+                        "photo-1/processing",
+                    )
+
+    def test_photo_ready_uses_logical_collection_subscription(self):
+        for handler in HANDLERS:
+            for owner_ref, subscription_id in (
+                ("COLLECTION#collection-1#03", "COLLECTION#collection-1"),
+                ("event-1", "event-1"),
+            ):
+                with self.subTest(
+                    handler=handler.__name__, owner_ref=owner_ref
+                ):
+                    table = MagicMock()
+                    table.query.return_value = {
+                        "Items": [{"connectionId": "connection-1"}],
+                    }
+                    client = MagicMock()
+
+                    with (
+                        patch.object(
+                            handler, "_ws_subscriptions_table", return_value=table
+                        ),
+                        patch.object(handler, "_ws_client", return_value=client),
+                    ):
+                        handler._publish_photo_ready(owner_ref, "photo-1")
+
+                    query_args = table.query.call_args.kwargs
+                    values = query_args.get("ExpressionAttributeValues")
+                    if values is not None:
+                        self.assertEqual(values[":eventId"], subscription_id)
+                    else:
+                        condition_values = query_args[
+                            "KeyConditionExpression"
+                        ]._values
+                        self.assertEqual(condition_values[-1], subscription_id)
+                    payload = json.loads(
+                        client.post_to_connection.call_args.kwargs["Data"]
+                    )
+                    self.assertEqual(payload["type"], "photo.ready")
+                    self.assertEqual(payload["eventId"], subscription_id)
 
     def test_manual_retry_message_is_normalized(self):
         for handler in HANDLERS:

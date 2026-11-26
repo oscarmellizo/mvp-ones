@@ -90,6 +90,42 @@ class DynamoDbPhotosRepositoryTest {
     }
 
     @Test
+    void completeUploadRemovesNullableShareAttributionInsteadOfWritingNull() {
+        DynamoDbClient client = mock(DynamoDbClient.class);
+        DynamoDbEnhancedClient enhanced = DynamoDbEnhancedClient.builder()
+                .dynamoDbClient(client)
+                .build();
+        DynamoDbPhotosRepository repository =
+                new DynamoDbPhotosRepository(enhanced, client, "photos");
+        when(client.updateItem(any(UpdateItemRequest.class)))
+                .thenReturn(UpdateItemResponse.builder().build());
+        Photo privatePhoto = new Photo(
+                "photo-1",
+                "event-1",
+                "uploader-1",
+                CREATED_AT,
+                CREATED_AT,
+                "uploaded",
+                "eventos/event-1/guests/uploader-1/private/photo-1.jpg",
+                null,
+                null,
+                "Uploader",
+                null,
+                null,
+                false
+        );
+
+        repository.completeUpload(privatePhoto);
+
+        ArgumentCaptor<UpdateItemRequest> captor =
+                ArgumentCaptor.forClass(UpdateItemRequest.class);
+        verify(client).updateItem(captor.capture());
+        UpdateItemRequest request = captor.getValue();
+        assertTrue(request.updateExpression().contains("REMOVE #sharedByUserId"));
+        assertFalse(request.expressionAttributeValues().containsKey(":sharedByUserId"));
+    }
+
+    @Test
     void thumbnailUpdateDoesNotOverwriteShareState() {
         DynamoDbClient client = mock(DynamoDbClient.class);
         DynamoDbEnhancedClient enhanced = DynamoDbEnhancedClient.builder()
