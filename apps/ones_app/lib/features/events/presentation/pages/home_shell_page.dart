@@ -14,6 +14,9 @@ import 'event_join_scan_page.dart';
 import 'event_join_code_page.dart';
 import '../../../account/presentation/pages/account_page.dart';
 import '../../../account/presentation/pages/about_page.dart';
+import '../../../collections/presentation/pages/collection_join_qr_page.dart';
+import '../../../collections/presentation/pages/create_collection_page.dart';
+import '../../../collections/presentation/pages/home_collections_events_page.dart';
 
 class HomeShellPage extends StatefulWidget {
   const HomeShellPage({super.key});
@@ -66,6 +69,7 @@ class _MainDrawer extends StatelessWidget {
 
 class _HomeShellPageState extends State<HomeShellPage> {
   int _index = 0;
+  int _homeTabIndex = 0;
   String? _lastLanguage;
   bool _isFabMenuExpanded = false;
 
@@ -80,11 +84,6 @@ class _HomeShellPageState extends State<HomeShellPage> {
     'home.no_upcoming_events',
     'common.error',
   };
-
-  static const _pages = [
-    EventsListPage(),
-    GalleriesPage(),
-  ];
 
   @override
   void initState() {
@@ -148,7 +147,17 @@ class _HomeShellPageState extends State<HomeShellPage> {
       ),
       body: Stack(
         children: [
-          _pages[_index],
+          _index == 0
+              ? HomeCollectionsEventsPage(
+                  onTabChanged: (tab) {
+                    if (_homeTabIndex == tab) return;
+                    setState(() {
+                      _homeTabIndex = tab;
+                      _isFabMenuExpanded = false;
+                    });
+                  },
+                )
+              : const GalleriesPage(),
           Positioned.fill(
             child: IgnorePointer(
               ignoring: !_isFabMenuExpanded,
@@ -178,7 +187,40 @@ class _HomeShellPageState extends State<HomeShellPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            if (_isFabMenuExpanded) ...[
+            if (_isFabMenuExpanded && _index == 0 && _homeTabIndex == 0) ...[
+              _buildFabMenuAction(
+                animationIndex: 0,
+                icon: Icons.collections_bookmark_outlined,
+                label: translationsService.translate(
+                  'collections.create',
+                  fallback: 'Crear colección',
+                ),
+                onTap: () {
+                  setState(() => _isFabMenuExpanded = false);
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const CreateCollectionPage(),
+                    ),
+                  );
+                },
+              ),
+              _buildFabMenuAction(
+                animationIndex: 1,
+                icon: Icons.qr_code_scanner,
+                label: translationsService.translate(
+                  'collections.scan_qr',
+                  fallback: 'Escanear QR de colección',
+                ),
+                onTap: () {
+                  setState(() => _isFabMenuExpanded = false);
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const CollectionJoinQrPage(),
+                    ),
+                  );
+                },
+              ),
+            ] else if (_isFabMenuExpanded) ...[
               _buildFabMenuAction(
                 animationIndex: 0,
                 icon: Icons.event,

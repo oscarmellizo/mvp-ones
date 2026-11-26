@@ -23,10 +23,14 @@ import com.ones.api.application.events.invitelink.PreviewEventInviteLinkUseCase;
 import com.ones.api.application.events.invitelink.SetEventInviteLinkEnabledUseCase;
 import com.ones.api.application.events.invitelink.JoinEventByCodeUseCase;
 import com.ones.api.application.events.ports.EventsRepository;
+import com.ones.api.application.collections.CollectionService;
+import com.ones.api.application.collections.ports.CollectionMembersRepository;
+import com.ones.api.application.collections.ports.CollectionsRepository;
 import com.ones.api.application.users.EnsureUserUseCase;
 import com.ones.api.application.users.GetUserByIdUseCase;
 import com.ones.api.application.users.LookupUserByEmailUseCase;
 import com.ones.api.application.users.UpdateUserPreferencesUseCase;
+import com.ones.api.application.users.UpdateUserTimeZoneUseCase;
 import com.ones.api.application.users.GetAccountUseCase;
 import com.ones.api.application.users.AccountDeactivateUseCase;
 import com.ones.api.application.users.AccountReactivateUseCase;
@@ -50,6 +54,21 @@ public class ApplicationConfig {
     @Bean
     Clock clock() {
         return Clock.systemUTC();
+    }
+
+    @Bean
+    CollectionService collectionService(
+            CollectionsRepository collectionsRepository,
+            CollectionMembersRepository collectionMembersRepository,
+            UsersRepository usersRepository,
+            com.ones.api.application.collections.CollectionJoinTokenService joinTokenService,
+            InvitationEmailService invitationEmailService,
+            Clock clock
+    ) {
+        return new CollectionService(
+                collectionsRepository, collectionMembersRepository, usersRepository,
+                joinTokenService, invitationEmailService, clock
+        );
     }
 
     @Bean
@@ -155,6 +174,11 @@ public class ApplicationConfig {
             Clock clock
     ) {
         return new UpdateUserPreferencesUseCase(repository, preferredNamesCacheRepository, clock);
+    }
+
+    @Bean
+    UpdateUserTimeZoneUseCase updateUserTimeZoneUseCase(UsersRepository usersRepository, Clock clock) {
+        return new UpdateUserTimeZoneUseCase(usersRepository, clock);
     }
 
     @Bean

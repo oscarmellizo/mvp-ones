@@ -1,0 +1,535 @@
+import 'dart:async';
+
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../../../core/ui/ones_colors.dart';
+import '../../../auth/presentation/auth_controller.dart';
+import '../../../photos/adapters/api/event_photos_api.dart';
+import '../../../photos/domain/event_photo.dart';
+import '../../../photos/presentation/pages/photo_import_mobile_sheet.dart';
+import '../../../photos/presentation/pages/photo_import_web_sheet.dart';
+import '../../../photos/presentation/pages/photo_viewer_page.dart';
+import '../../../photos/presentation/photos_gallery_controller.dart';
+import '../../../photos/presentation/photos_upload_controller.dart';
+import '../../../photos/presentation/photos_ws_controller.dart';
+import '../../../events/presentation/pages/photo_capture_page.dart';
+import '../../../events/presentation/pages/photo_capture_web_page.dart';
+import '../../domain/collection.dart';
+
+class CollectionPhotosTab extends StatefulWidget {
+  final OnesCollection collection;
+
+  const CollectionPhotosTab({super.key, required this.collection});
+
+  @override
+  State<CollectionPhotosTab> createState() => _CollectionPhotosTabState();
+}
+
+class _CollectionPhotosTabState extends State<CollectionPhotosTab> {
+  late final String _ownerRef;
+  late final PhotosGalleryController _gallery;
+  late final PhotosUploadController _uploader;
+  final ScrollController _scrollController = ScrollController();
+  final Set<String> _selected = <String>{};
+  PhotosWsController? _ws;
+
+  @override
+  void initState() {
+    super.initState();
+    _ownerRef = 'COLLECTION#${widget.collection.id}';
+    _uploader = context.read<PhotosUploadController>();
+    _gallery = PhotosGalleryController(api: context.read<EventPhotosApi>())
+      ..setIdToken(context.read<AuthController>().idToken)
+      ..prepare(eventId: _ownerRef);
+    _scrollController.addListener(_loadMoreWhenNearEnd);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final ws = context.read<PhotosWsController>();
+      _ws = ws;
+      ws.onPhotoReady = (ownerRef, _) {
+        if (mounted && ownerRef == _ownerRef) {
+          unawaited(_gallery.refresh(eventId: _ownerRef));
+        }
+      };
+      ws.subscribe(eventId: _ownerRef);
+      unawaited(ws.connect());
+      unawaited(_gallery.refresh(eventId: _ownerRef));
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _gallery.setIdToken(context.read<AuthController>().idToken);
+  }
+
+  @override
+  void dispose() {
+    _ws?.unsubscribe(eventId: _ownerRef);
+    _ws?.onPhotoReady = null;
+    _scrollController
+      ..removeListener(_loadMoreWhenNearEnd)
+      ..dispose();
+    _gallery.dispose();
+    super.dispose();
+  }
+
+  void _loadMoreWhenNearEnd() {
+    if (!_scrollController.hasClients ||
+        _gallery.loading ||
+        !_gallery.hasMore ||
+        _scrollController.position.extentAfter > 900) {
+      return;
+    }
+    unawaited(_gallery.loadMore(eventId: _ownerRef));
+  }
+
+  Future<void> _refresh() => _gallery.refresh(eventId: _ownerRef);
+
+  Future<void> _importPhotos() async {
+    final uploaded = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => SafeArea(
+        child: kIsWeb
+            ? PhotoImportWebSheet(eventId: _ownerRef)
+            : PhotoImportMobileSheet(eventId: _ownerRef),
+      ),
+    );
+    if (!mounted || uploaded != true) return;
+    await context
+        .read<PhotosUploadController>()
+        .refreshActiveForEvent(eventId: _ownerRef);
+    await _refresh();
+  }
+
+  Future<void> _takePhoto() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => kIsWeb
+            ? PhotoCaptureWebPage(eventId: _ownerRef, frameIds: const [])
+            : PhotoCapturePage(eventId: _ownerRef, frameIds: const []),
+      ),
+    );
+    if (!mounted) return;
+    await context
+        .read<PhotosUploadController>()
+        .refreshActiveForEvent(eventId: _ownerRef);
+    await _refresh();
+  }
+
+  Future<void> _toggleShare() async {
+    final ids = _selected.toList(growable: false);
+    if (ids.isEmpty) return;
+    final selectedPhotos =
+        _gallery.items.where((photo) => ids.contains(photo.photoId));
+    final shouldUnshare = selectedPhotos.any((photo) => photo.shared);
+    try {
+      if (shouldUnshare) {
+        await _gallery.unsharePhotos(eventId: _ownerRef, photoIds: ids);
+      } else {
+        await _gallery.sharePhotos(eventId: _ownerRef, photoIds: ids);
+      }
+      if (mounted) setState(_selected.clear);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString())),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteSelected() async {
+    final ids = _selected.toList(growable: false);
+    if (ids.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Eliminar fotos'),
+        content: Text('Se eliminarán ${ids.length} fotos de esta colección.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || confirmed != true) return;
+    try {
+      await _gallery.deletePhotos(eventId: _ownerRef, photoIds: ids);
+      if (mounted) setState(_selected.clear);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString())),
+        );
+      }
+    }
+  }
+
+  void _openPhoto(int index) {
+    final currentUserId = context.read<AuthController>().user?.userId;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ChangeNotifierProvider<PhotosGalleryController>.value(
+          value: _gallery,
+          child: PhotoViewerPage(
+            eventId: _ownerRef,
+            initialIndex: index,
+            currentUserId: currentUserId,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _photoTile(EventPhoto photo, int index, String? userId) {
+    final selected = _selected.contains(photo.photoId);
+    final isMine = photo.guestId == userId;
+    final isCollectionOwner = widget.collection.ownerId == userId;
+    final imageUrl = photo.smallUrl ?? photo.mediumUrl ?? photo.originalUrl;
+    return GestureDetector(
+      onLongPress: isMine || isCollectionOwner
+          ? () => setState(() {
+                if (selected) {
+                  _selected.remove(photo.photoId);
+                } else {
+                  _selected.add(photo.photoId);
+                }
+              })
+          : null,
+      onTap: _selected.isNotEmpty
+          ? (isMine || isCollectionOwner
+              ? () => setState(() {
+                    selected
+                        ? _selected.remove(photo.photoId)
+                        : _selected.add(photo.photoId);
+                  })
+              : null)
+          : () => _openPhoto(index),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          ColoredBox(
+            color: OnesColors.surfaceWarm,
+            child: imageUrl == null
+                ? const Center(
+                    child: Icon(Icons.hourglass_top, color: OnesColors.inkSoft),
+                  )
+                : CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => const ColoredBox(
+                      color: OnesColors.surfaceWarm,
+                      child: Center(
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    ),
+                    errorWidget: (_, __, ___) => const Center(
+                      child: Icon(Icons.broken_image_outlined),
+                    ),
+                  ),
+          ),
+          if (photo.shared)
+            const Positioned(
+              top: 6,
+              left: 6,
+              child: Icon(Icons.people, color: Colors.white, size: 18),
+            ),
+          if (photo.status.toLowerCase() == 'failed' &&
+              photo.processingRetryable &&
+              isMine)
+            Positioned(
+              bottom: 6,
+              right: 6,
+              child: Material(
+                color: Colors.black54,
+                shape: const CircleBorder(),
+                child: IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Reintentar procesamiento',
+                  onPressed: () => _gallery.retryProcessing(
+                      eventId: _ownerRef, photo: photo),
+                  icon:
+                      const Icon(Icons.refresh, color: Colors.white, size: 18),
+                ),
+              ),
+            ),
+          if (_selected.isNotEmpty)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Icon(
+                selected ? Icons.check_circle : Icons.circle_outlined,
+                color: selected ? OnesColors.purpleMid : Colors.white,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_gallery, _uploader]),
+      builder: (context, _) {
+        final photos = _gallery.items;
+        final userId = context.read<AuthController>().user?.userId;
+        final pendingUploads = _uploader.activeByEvent(_ownerRef);
+        return RefreshIndicator(
+          onRefresh: _refresh,
+          child: CustomScrollView(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+                  child: Wrap(
+                    spacing: 8,
+                    children: [
+                      _filterChip('Todas', PhotosGalleryFilter.all),
+                      _filterChip('Mías', PhotosGalleryFilter.mine),
+                      _filterChip(
+                          'Compartidas por mí', PhotosGalleryFilter.sharedByMe),
+                    ],
+                  ),
+                ),
+              ),
+              if (pendingUploads.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Card(
+                    margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('${pendingUploads.length} cargas pendientes',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 6),
+                          for (final upload in pendingUploads)
+                            Row(
+                              children: [
+                                const Icon(Icons.cloud_upload_outlined,
+                                    size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    upload.status == 'failed'
+                                        ? 'No se pudo subir una foto'
+                                        : 'Subiendo foto…',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (upload.status == 'failed')
+                                  TextButton(
+                                    onPressed: () =>
+                                        _uploader.retryFailedByPhotoId(
+                                      eventId: _ownerRef,
+                                      photoId: upload.photoId,
+                                    ),
+                                    child: const Text('Reintentar'),
+                                  ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              if (_selected.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Material(
+                    color: OnesColors.white,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Row(
+                        children: [
+                          Text('${_selected.length} seleccionadas'),
+                          const Spacer(),
+                          if (_gallery.items
+                              .where(
+                                  (photo) => _selected.contains(photo.photoId))
+                              .every((photo) => photo.guestId == userId))
+                            IconButton(
+                              tooltip: 'Compartir con la colección',
+                              onPressed: _toggleShare,
+                              icon: const Icon(Icons.people_alt_outlined),
+                            ),
+                          IconButton(
+                            tooltip: 'Eliminar',
+                            onPressed: _deleteSelected,
+                            icon: const Icon(Icons.delete_outline),
+                          ),
+                          IconButton(
+                            tooltip: 'Cancelar selección',
+                            onPressed: () => setState(_selected.clear),
+                            icon: const Icon(Icons.close),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              if (_gallery.error != null && photos.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.cloud_off_outlined, size: 44),
+                        const SizedBox(height: 8),
+                        const Text('No se pudo cargar la galería.'),
+                        TextButton(
+                          onPressed: _refresh,
+                          child: const Text('Reintentar'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else if (photos.isEmpty && _gallery.loading)
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (photos.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(28),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.photo_library_outlined,
+                            size: 60,
+                            color: OnesColors.purpleMid,
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Aún no hay fotos',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Agrega recuerdos o comparte una foto con las personas de esta colección.',
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          FilledButton.icon(
+                            onPressed: _importPhotos,
+                            icon:
+                                const Icon(Icons.add_photo_alternate_outlined),
+                            label: const Text('Agregar fotos'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.all(2),
+                  sliver: SliverGrid(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) =>
+                          _photoTile(photos[index], index, userId),
+                      childCount: photos.length,
+                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      crossAxisSpacing: 2,
+                      mainAxisSpacing: 2,
+                      childAspectRatio: .8,
+                    ),
+                  ),
+                ),
+              if (_gallery.loading && photos.isNotEmpty)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Center(
+                      child: SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  ),
+                ),
+              const SliverToBoxAdapter(child: SizedBox(height: 96)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _filterChip(String label, PhotosGalleryFilter filter) {
+    final selected = _gallery.filter == filter;
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: selected
+          ? null
+          : (_) {
+              _gallery.setFilter(filter);
+              unawaited(_gallery.refresh(eventId: _ownerRef));
+            },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider<PhotosGalleryController>.value(
+      value: _gallery,
+      child: Scaffold(
+        backgroundColor: OnesColors.surfaceWarm,
+        body: _buildBody(),
+        floatingActionButton: _selected.isEmpty
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FloatingActionButton(
+                    heroTag: 'collection-photo-import-${widget.collection.id}',
+                    onPressed: _importPhotos,
+                    tooltip: 'Agregar fotos',
+                    child: const Icon(Icons.file_upload_outlined),
+                  ),
+                  const SizedBox(height: 10),
+                  FloatingActionButton(
+                    heroTag: 'collection-photo-camera-${widget.collection.id}',
+                    onPressed: _takePhoto,
+                    tooltip: 'Tomar foto',
+                    child: const Icon(Icons.photo_camera),
+                  ),
+                ],
+              )
+            : null,
+      ),
+    );
+  }
+}

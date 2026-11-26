@@ -249,6 +249,9 @@ ones:
   dynamodb:
     fail-on-scan-fallback: ${ONES_DYNAMODB_FAIL_ON_SCAN_FALLBACK:true}
     table-name: ${ONES_EVENTS_TABLE:ones-events}
+    collections-table-name: ${ONES_COLLECTIONS_TABLE:ones-collections}
+    collection-members-table-name: ${ONES_COLLECTION_MEMBERS_TABLE:ones-collection-members}
+    collection-join-attempts-table-name: ${ONES_COLLECTION_JOIN_ATTEMPTS_TABLE:ones-collection-join-attempts}
     users-table-name: ${ONES_USERS_TABLE:ones-users}
     invitations-table-name: ${ONES_INVITATIONS_TABLE:ones-invitations}
     cover-previews-table-name: ${ONES_COVER_PREVIEWS_TABLE:ones-cover-previews}

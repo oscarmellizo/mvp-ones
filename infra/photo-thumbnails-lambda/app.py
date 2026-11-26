@@ -69,10 +69,16 @@ def _call_backend(event_id, photo_id, action, body):
     if not auth:
         raise ProcessingError("backend_unavailable", True)
 
-    url = (
-        f"{base}/internal/events/{urllib.parse.quote(event_id)}"
-        f"/photos/{urllib.parse.quote(photo_id)}/{action}"
-    )
+    if event_id.startswith("COLLECTION#"):
+        owner_parts = event_id.split("#", 2)
+        if len(owner_parts) != 3 or not owner_parts[1] or not owner_parts[2].isdigit():
+            raise ProcessingError("invalid_key", False)
+        resource_path = (
+            f"/internal/collections/{urllib.parse.quote(owner_parts[1])}"
+        )
+    else:
+        resource_path = f"/internal/events/{urllib.parse.quote(event_id)}"
+    url = f"{base}{resource_path}/photos/{urllib.parse.quote(photo_id)}/{action}"
     payload = json.dumps(body).encode('utf-8')
 
     for attempt in range(1, 4):
@@ -141,6 +147,12 @@ def _ws_client():
 def _publish_photo_ready(event_id: str, photo_id: str):
     if not event_id or not photo_id:
         return
+    subscription_id = event_id
+    if event_id.startswith("COLLECTION#"):
+        owner_parts = event_id.split("#", 2)
+        if len(owner_parts) != 3 or not owner_parts[1]:
+            return
+        subscription_id = f"COLLECTION#{owner_parts[1]}"
     table = _ws_subscriptions_table()
     client = _ws_client()
     if table is None or client is None:
@@ -148,14 +160,14 @@ def _publish_photo_ready(event_id: str, photo_id: str):
 
     payload = json.dumps({
         "type": "photo.ready",
-        "eventId": event_id,
+        "eventId": subscription_id,
         "photoId": photo_id,
     }).encode('utf-8')
 
     last_key = None
     while True:
         args = {
-            'KeyConditionExpression': Key('eventId').eq(event_id),
+            'KeyConditionExpression': Key('eventId').eq(subscription_id),
             'Limit': 100,
         }
         if last_key:
@@ -177,9 +189,9 @@ def _publish_photo_ready(event_id: str, photo_id: str):
 
                 # Typical case when the client disconnected.
                 if hasattr(client, 'exceptions') and hasattr(client.exceptions, 'GoneException') and isinstance(e, client.exceptions.GoneException):
-                    table.delete_item(Key={'eventId': event_id, 'connectionId': cid})
+                    table.delete_item(Key={'eventId': subscription_id, 'connectionId': cid})
                 elif code == 410:
-                    table.delete_item(Key={'eventId': event_id, 'connectionId': cid})
+                    table.delete_item(Key={'eventId': subscription_id, 'connectionId': cid})
 
         last_key = res.get('LastEvaluatedKey')
         if not last_key:
@@ -187,18 +199,26 @@ def _publish_photo_ready(event_id: str, photo_id: str):
 
 
 def _parse_key(key: str):
-    # expected: eventos/<eventId>/guests/<guestId>/private/<photoId>.jpg
+    # Event and Collection originals share the same guest/private suffix.
     parts = key.split('/')
     if len(parts) != 6:
         return None, None
-    if parts[0] != 'eventos' or parts[2] != 'guests' or parts[4] != 'private':
+    if parts[2] != 'guests' or parts[4] != 'private':
         return None, None
-    event_id = parts[1]
     filename = parts[-1]
-    if not parts[3] or not filename.endswith('.jpg'):
+    if not parts[1] or not parts[3] or not filename.endswith('.jpg'):
         return None, None
     photo_id = filename[:-4]
-    return event_id, photo_id
+    if not photo_id:
+        return None, None
+    if parts[0] == 'colecciones':
+        java_hash = 0
+        for char in photo_id:
+            java_hash = (31 * java_hash + ord(char)) & 0xFFFFFFFF
+        return f"COLLECTION#{parts[1]}#{java_hash % 16:02d}", photo_id
+    if parts[0] == 'eventos':
+        return parts[1], photo_id
+    return None, None
 
 
 def _load_jpeg(bucket: str, key: str) -> Image.Image:

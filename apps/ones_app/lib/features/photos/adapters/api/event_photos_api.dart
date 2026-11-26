@@ -32,6 +32,14 @@ class EventPhotosApi {
     _idToken = token;
   }
 
+  String _photosPath(String ownerRef, [String suffix = '']) {
+    if (ownerRef.startsWith('COLLECTION#')) {
+      final collectionId = ownerRef.substring('COLLECTION#'.length);
+      return '/v1/collections/${Uri.encodeComponent(collectionId)}/photos$suffix';
+    }
+    return '/v1/events/${Uri.encodeComponent(ownerRef)}/photos$suffix';
+  }
+
   Future<void> uploadBytesToPresignedUrl({
     required String putUrl,
     required Uint8List bytes,
@@ -63,7 +71,7 @@ class EventPhotosApi {
     required String photoId,
   }) async {
     final res = await _dioFactory(_idToken).put(
-      '/v1/events/$eventId/photos/$photoId/like',
+      _photosPath(eventId, '/${Uri.encodeComponent(photoId)}/like'),
       options: Options(
         extra: {
           'secure': [
@@ -90,7 +98,7 @@ class EventPhotosApi {
     required String photoId,
   }) async {
     final res = await _dioFactory(_idToken).delete(
-      '/v1/events/$eventId/photos/$photoId/like',
+      _photosPath(eventId, '/${Uri.encodeComponent(photoId)}/like'),
       options: Options(
         extra: {
           'secure': [
@@ -118,7 +126,7 @@ class EventPhotosApi {
     required String contentType,
   }) async {
     final res = await _dioFactory(_idToken).post(
-      '/v1/events/$eventId/photos/presign',
+      _photosPath(eventId, '/presign'),
       data: {
         'photoId': photoId,
         'contentType': contentType,
@@ -164,7 +172,7 @@ class EventPhotosApi {
     String? variant,
   }) async {
     final res = await _dioFactory(_idToken).post(
-      '/v1/events/$eventId/photos/$photoId/social-share',
+      _photosPath(eventId, '/${Uri.encodeComponent(photoId)}/social-share'),
       data: {
         'variant': variant,
       },
@@ -202,7 +210,7 @@ class EventPhotosApi {
     required List<String> photoIds,
   }) async {
     await _dioFactory(_idToken).post(
-      '/v1/events/$eventId/photos/share',
+      _photosPath(eventId, '/share'),
       data: {
         'photoIds': photoIds,
       },
@@ -225,7 +233,7 @@ class EventPhotosApi {
     required List<String> photoIds,
   }) async {
     await _dioFactory(_idToken).delete(
-      '/v1/events/$eventId/photos',
+      _photosPath(eventId),
       data: {
         'photoIds': photoIds,
       },
@@ -248,7 +256,7 @@ class EventPhotosApi {
     required List<String> photoIds,
   }) async {
     await _dioFactory(_idToken).post(
-      '/v1/events/$eventId/photos/unshare',
+      _photosPath(eventId, '/unshare'),
       data: {
         'photoIds': photoIds,
       },
@@ -271,7 +279,7 @@ class EventPhotosApi {
     required String photoId,
   }) async {
     await _dioFactory(_idToken).post(
-      '/v1/events/$eventId/photos/$photoId/processing-retry',
+      _photosPath(eventId, '/${Uri.encodeComponent(photoId)}/processing-retry'),
       options: Options(
         extra: {
           'secure': [
@@ -333,7 +341,7 @@ class EventPhotosApi {
       );
     }
     await _dioFactory(_idToken).post(
-      '/v1/events/$eventId/photos/complete',
+      _photosPath(eventId, '/complete'),
       data: {
         'photoId': photoId,
         's3KeyOriginal': s3KeyOriginal,
@@ -368,7 +376,7 @@ class EventPhotosApi {
     List<String>? guestIds,
   }) async {
     final res = await _dioFactory(_idToken).get(
-      '/v1/events/$eventId/photos',
+      _photosPath(eventId),
       queryParameters: {
         'limit': limit,
         if (nextToken != null && nextToken.isNotEmpty) 'nextToken': nextToken,

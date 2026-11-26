@@ -5,12 +5,18 @@ import java.util.List;
 import java.util.Optional;
 
 import com.ones.api.domain.photos.Photo;
+import com.ones.api.domain.photos.PhotoOwner;
 
 public interface PhotosRepository {
 
     Optional<Photo> findById(String photoId);
 
     Photo upsert(Photo photo);
+
+    default boolean updateVisibility(Photo current, Photo updated) {
+        upsert(updated);
+        return true;
+    }
 
     Photo completeUpload(Photo photo);
 
@@ -70,6 +76,11 @@ public interface PhotosRepository {
     );
 
     PageResult<Photo> listByEventId(String eventId, int limit, String nextToken);
+
+    default PageResult<Photo> listByOwner(PhotoOwner owner, int limit, String nextToken) {
+        if (owner == null) return new PageResult<>(List.of(), null);
+        return listByEventId(owner.storagePartitionId(), limit, nextToken);
+    }
 
     PageResult<Photo> listByGuestId(String guestId, int limit, String nextToken);
 

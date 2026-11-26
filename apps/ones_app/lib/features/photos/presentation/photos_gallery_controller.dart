@@ -50,6 +50,11 @@ class PhotosGalleryController extends ChangeNotifier {
     final parsed = Uri.tryParse(url);
     final path = parsed?.path ?? url;
     final decoded = Uri.decodeFull(path);
+    if (trimmed.startsWith('COLLECTION#')) {
+      final collectionId = trimmed.substring('COLLECTION#'.length);
+      return decoded.contains('/colecciones/$collectionId/') ||
+          decoded.contains('colecciones/$collectionId/');
+    }
     return decoded.contains('/eventos/$trimmed/') ||
         decoded.contains('eventos/$trimmed/');
   }

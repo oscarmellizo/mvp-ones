@@ -49,6 +49,10 @@ import 'features/photos/adapters/local/photo_upload_db.dart';
 import 'features/photos/presentation/photos_upload_controller.dart';
 import 'features/photos/presentation/photos_ws_controller.dart';
 import 'features/users/adapters/api/users_api_repository.dart';
+import 'features/collections/adapters/api/collections_api_repository.dart';
+import 'features/collections/presentation/collections_controller.dart';
+import 'features/collections/presentation/pages/collection_invitation_link_page.dart';
+import 'features/collections/presentation/pages/collection_join_link_page.dart';
 import 'features/users/application/ensure_user_use_case.dart';
 import 'features/account/presentation/account_controller.dart';
 import 'core/services/live_event_notification_service.dart';
@@ -107,6 +111,50 @@ String? invitationRouteForLink(Uri? link, {bool allowDevHost = false}) {
   ).toString();
 }
 
+String? collectionInvitationRouteForLink(Uri? link, {bool allowDevHost = false}) {
+  if (link == null ||
+      link.scheme != 'https' ||
+      (link.host != 'app.ones.events' &&
+          !(allowDevHost && link.host == 'appdev.ones.events')) ||
+      link.hasPort ||
+      link.path != CollectionInvitationLinkPage.routeName) {
+    return null;
+  }
+  final tokens = link.queryParametersAll['token'];
+  if (tokens == null || tokens.length != 1 || tokens.single.trim().isEmpty) {
+    return null;
+  }
+  return Uri(
+    path: CollectionInvitationLinkPage.routeName,
+    queryParameters: {'token': tokens.single},
+  ).toString();
+}
+
+String? collectionJoinRouteForLink(Uri? link, {bool allowDevHost = false}) {
+  if (link == null ||
+      link.scheme != 'https' ||
+      (link.host != 'app.ones.events' &&
+          !(allowDevHost && link.host == 'appdev.ones.events')) ||
+      link.hasPort ||
+      link.path != '/collections/join') {
+    return null;
+  }
+  final ids = link.queryParametersAll['collectionId'];
+  final tokens = link.queryParametersAll['token'];
+  if (ids == null ||
+      tokens == null ||
+      ids.length != 1 ||
+      tokens.length != 1 ||
+      ids.single.trim().isEmpty ||
+      tokens.single.trim().isEmpty) {
+    return null;
+  }
+  return Uri(
+    path: '/collections/join',
+    queryParameters: {'collectionId': ids.single, 'token': tokens.single},
+  ).toString();
+}
+
 class OnesApp extends StatelessWidget {
   final AppConfig config;
 
@@ -135,6 +183,7 @@ class OnesApp extends StatelessWidget {
         AdminEventTemplatesApiRepository(apiFactory);
 
     final eventsRepository = EventsApiRepository(apiFactory);
+    final collectionsRepository = CollectionsApiRepository(apiFactory);
     final listEvents = ListEventsUseCase(eventsRepository);
     final getEvent = GetEventUseCase(eventsRepository);
     final createEvent = CreateEventUseCase(eventsRepository);
@@ -275,6 +324,15 @@ class OnesApp extends StatelessWidget {
             eventsRepository.setIdToken(auth.idToken);
             controller.setIdToken(auth.idToken, userId: auth.user?.userId);
             return controller;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthController, CollectionsController>(
+          create: (_) => CollectionsController(collectionsRepository),
+          update: (_, auth, controller) {
+            collectionsRepository.setIdToken(auth.idToken);
+            final value = controller ?? CollectionsController(collectionsRepository);
+            value.setIdToken(auth.idToken, userId: auth.user?.userId);
+            return value;
           },
         ),
         ChangeNotifierProxyProvider<AuthController,
@@ -471,6 +529,31 @@ class OnesApp extends StatelessWidget {
                     ),
                   );
                 }
+                if (uri.path == CollectionInvitationLinkPage.routeName) {
+                  final token = uri.queryParameters['token'];
+                  if (token == null || token.trim().isEmpty) return null;
+                  return MaterialPageRoute(
+                    settings: settings,
+                    builder: (_) => CollectionInvitationLinkPage(token: token),
+                  );
+                }
+                if (uri.path == '/collections/join') {
+                  final collectionId = uri.queryParameters['collectionId'];
+                  final token = uri.queryParameters['token'];
+                  if (collectionId == null ||
+                      collectionId.trim().isEmpty ||
+                      token == null ||
+                      token.trim().isEmpty) {
+                    return null;
+                  }
+                  return MaterialPageRoute(
+                    settings: settings,
+                    builder: (_) => CollectionJoinLinkPage(
+                      collectionId: collectionId,
+                      token: token,
+                    ),
+                  );
+                }
                 if (uri.path == EventInviteLinkPage.routeName) {
                   final eventId = uri.queryParameters['eventId'];
                   final sig = uri.queryParameters['sig'];
@@ -554,7 +637,15 @@ class _AppLinkHandlerState extends State<AppLinkHandler> {
     final invitationRoute = invitationRouteForLink(
       link,
       allowDevHost: context.read<AppConfig>().env == 'dev',
-    );
+    ) ??
+        collectionInvitationRouteForLink(
+          link,
+          allowDevHost: context.read<AppConfig>().env == 'dev',
+        ) ??
+        collectionJoinRouteForLink(
+          link,
+          allowDevHost: context.read<AppConfig>().env == 'dev',
+        );
     if (invitationRoute != null) {
       final recentlyOpened = _lastOpenedRoute == invitationRoute &&
           _lastOpenedAt != null &&
@@ -717,6 +808,26 @@ class _RootRouterState extends State<_RootRouter> with WidgetsBindingObserver {
       if (token != null && token.trim().isNotEmpty) {
         final action = base.queryParameters['action'];
         return InvitationLinkPage(token: token, action: action);
+      }
+    }
+    if (auth.isRegistered &&
+        base.path == CollectionInvitationLinkPage.routeName) {
+      final token = base.queryParameters['token'];
+      if (token != null && token.trim().isNotEmpty) {
+        return CollectionInvitationLinkPage(token: token);
+      }
+    }
+    if (auth.isRegistered && base.path == '/collections/join') {
+      final collectionId = base.queryParameters['collectionId'];
+      final token = base.queryParameters['token'];
+      if (collectionId != null &&
+          collectionId.trim().isNotEmpty &&
+          token != null &&
+          token.trim().isNotEmpty) {
+        return CollectionJoinLinkPage(
+          collectionId: collectionId,
+          token: token,
+        );
       }
     }
 

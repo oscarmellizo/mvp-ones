@@ -5,6 +5,7 @@ import java.time.format.DateTimeFormatter;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import com.ones.api.application.users.ports.UsersRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,21 +27,23 @@ public class InvitationEmailService {
 
     private static final Logger log = LoggerFactory.getLogger(InvitationEmailService.class);
 
-    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.of("UTC"));
-
     private final SesV2Client ses;
     private final InvitationActionTokenService tokenService;
     private final String fromAddress;
     private final String publicBaseUrl;
     private final String logoUrl;
     private final boolean enabled;
+    private final UsersRepository usersRepository;
 
     private final Counter sentCounter;
     private final Counter failedCounter;
+    private final Counter collectionSentCounter;
+    private final Counter collectionFailedCounter;
 
     public InvitationEmailService(
             SesV2Client ses,
             InvitationActionTokenService tokenService,
+            UsersRepository usersRepository,
             MeterRegistry meterRegistry,
             @Value("${ones.email.from:}") String fromAddress,
             @Value("${ones.email.public-base-url:${ones.app.base-url:}}") String publicBaseUrl,
@@ -49,6 +52,7 @@ public class InvitationEmailService {
     ) {
         this.ses = ses;
         this.tokenService = tokenService;
+        this.usersRepository = usersRepository;
         this.fromAddress = fromAddress;
         this.publicBaseUrl = publicBaseUrl;
         this.logoUrl = logoUrl;
@@ -64,6 +68,8 @@ public class InvitationEmailService {
 
         this.sentCounter = Counter.builder("ones.email.invitation.sent").register(meterRegistry);
         this.failedCounter = Counter.builder("ones.email.invitation.failed").register(meterRegistry);
+        this.collectionSentCounter = Counter.builder("ones.email.collection.invitation.sent").register(meterRegistry);
+        this.collectionFailedCounter = Counter.builder("ones.email.collection.invitation.failed").register(meterRegistry);
     }
 
     @Async("emailExecutor")
@@ -95,8 +101,9 @@ public class InvitationEmailService {
 
         String subject = "Invitación: " + safe(invitation.getEventTitle());
 
-        String html = renderHtml(invitation, viewUrl, acceptUrl, rejectUrl);
-        String text = renderText(invitation, viewUrl, acceptUrl, rejectUrl);
+        String when = formatEventTime(invitation);
+        String html = renderHtml(invitation, viewUrl, acceptUrl, rejectUrl, when);
+        String text = renderText(invitation, viewUrl, acceptUrl, rejectUrl, when);
 
         try {
             SendEmailRequest req = SendEmailRequest.builder()
@@ -126,12 +133,57 @@ public class InvitationEmailService {
         }
     }
 
-    private String renderText(Invitation inv, String viewUrl, String acceptUrl, String rejectUrl) {
-        String when = DATE_FMT.format(inv.getEventStartAt());
+    @Async("emailExecutor")
+    public void sendCollectionInvitation(String collectionId, String collectionName, String inviteeEmail, String inviterName) {
+        if (!enabled || fromAddress == null || fromAddress.isBlank()
+                || publicBaseUrl == null || publicBaseUrl.isBlank()
+                || inviteeEmail == null || inviteeEmail.isBlank()) {
+            return;
+        }
+        String resourceId = "collection:" + collectionId;
+        String acceptToken = tokenService.create(resourceId, inviteeEmail, InvitationActionTokenService.Action.accept);
+        String rejectToken = tokenService.create(resourceId, inviteeEmail, InvitationActionTokenService.Action.reject);
+        String base = normalizeBase(publicBaseUrl);
+        String acceptUrl = base + "/collection-invitation?token=" + acceptToken;
+        String rejectUrl = base + "/collection-invitation?token=" + rejectToken;
+        String safeName = safe(collectionName);
+        String safeInviter = safe(inviterName);
+        String subject = "Invitación a una colección de ONES: " + safeName;
+        String text = safeInviter + " te invitó a compartir recuerdos en la colección \""
+                + safeName + "\" de ONES.\n\nAceptar: " + acceptUrl + "\nRechazar: " + rejectUrl;
+        String html = "<!doctype html><html><head><meta charset=\"utf-8\"></head><body>"
+                + "<h2>Te invitaron a una colección de ONES</h2><p>"
+                + escapeHtml(safeInviter) + " te invitó a colaborar en <b>"
+                + escapeHtml(safeName) + "</b>.</p><p><a href=\"" + escapeHtml(acceptUrl)
+                + "\">Aceptar invitación</a></p><p><a href=\"" + escapeHtml(rejectUrl)
+                + "\">Rechazar</a></p></body></html>";
+        try {
+            ses.sendEmail(SendEmailRequest.builder()
+                    .fromEmailAddress(fromAddress)
+                    .destination(Destination.builder().toAddresses(inviteeEmail.trim()).build())
+                    .content(EmailContent.builder()
+                            .simple(Message.builder()
+                                    .subject(Content.builder().data(subject).charset("UTF-8").build())
+                                    .body(Body.builder()
+                                            .html(Content.builder().data(html).charset("UTF-8").build())
+                                            .text(Content.builder().data(text).charset("UTF-8").build())
+                                            .build())
+                                    .build())
+                            .build())
+                    .build());
+            collectionSentCounter.increment();
+        } catch (Exception e) {
+            collectionFailedCounter.increment();
+            log.error("[InvitationEmailService] Collection invitation delivery failed errorType={}",
+                    e.getClass().getSimpleName());
+        }
+    }
+
+    private String renderText(Invitation inv, String viewUrl, String acceptUrl, String rejectUrl, String when) {
         String where = inv.getEventLocation() != null ? inv.getEventLocation() : "";
         return "Te han invitado a un evento\n\n"
                 + "Evento: " + safe(inv.getEventTitle()) + "\n"
-                + "Cuándo: " + when + " UTC\n"
+                + "Cuándo: " + when + "\n"
                 + (where.isBlank() ? "" : ("Dónde: " + where + "\n"))
                 + "\n"
                 + "Ver evento: " + viewUrl + "\n"
@@ -139,8 +191,7 @@ public class InvitationEmailService {
                 + "Rechazar: " + rejectUrl + "\n";
     }
 
-    private String renderHtml(Invitation inv, String viewUrl, String acceptUrl, String rejectUrl) {
-        String when = DATE_FMT.format(inv.getEventStartAt());
+    private String renderHtml(Invitation inv, String viewUrl, String acceptUrl, String rejectUrl, String when) {
         String title = escapeHtml(safe(inv.getEventTitle()));
         String where = inv.getEventLocation() != null ? escapeHtml(inv.getEventLocation()) : "";
 
@@ -172,7 +223,7 @@ public class InvitationEmailService {
                 + "</div>"
                 + "<div style=\"background:#ffffff;padding:20px;border-radius:12px;margin-top:12px\">"
                 + "<div style=\"color:#111827;font-size:16px;font-weight:700\">Detalles</div>"
-                + "<div style=\"margin-top:10px;color:#374151;font-size:14px\"><b>Cuándo:</b> " + escapeHtml(when) + " UTC</div>"
+                + "<div style=\"margin-top:10px;color:#374151;font-size:14px\"><b>Cuándo:</b> " + escapeHtml(when) + "</div>"
                 + whereBlock
                 + "<div style=\"margin-top:16px\">"
                 + button("Ver evento", viewUrl, "#5C036E")
@@ -187,6 +238,23 @@ public class InvitationEmailService {
                 + "</div>"
                 + "</div>"
                 + "</body></html>";
+    }
+
+    private String formatEventTime(Invitation invitation) {
+        try {
+            var timeZone = usersRepository.findTimeZoneByEmail(invitation.getInviteeEmail());
+            if (timeZone.isPresent()) {
+                ZoneId zone = ZoneId.of(timeZone.get());
+                return DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+                        .format(invitation.getEventStartAt().atZone(zone))
+                        + " (" + zone.getId() + ")";
+            }
+        } catch (Exception ignored) {
+        }
+        return DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                .withZone(ZoneId.of("UTC"))
+                .format(invitation.getEventStartAt())
+                + " UTC (zona horaria no disponible)";
     }
 
     private static String button(String label, String href, String color) {

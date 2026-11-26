@@ -7,6 +7,7 @@ public class Photo {
 
     private final String photoId;
     private final String eventId;
+    private final PhotoOwner owner;
     private final String guestId;
     private final Instant createdAt;
     private final Instant uploadedAt;
@@ -98,8 +99,34 @@ public class Photo {
             Long processingLeaseUntilEpoch,
             Long processingRetryAtEpoch
     ) {
+        this(photoId, PhotoOwner.event(eventId), guestId, createdAt, uploadedAt, status,
+                s3KeyOriginal, s3KeyMedium, s3KeySmall, ownerName, sharedByUserId, sharedByName,
+                shared, processingAttempts, processingErrorCode, processingLeaseUntilEpoch,
+                processingRetryAtEpoch);
+    }
+
+    public Photo(
+            String photoId,
+            PhotoOwner owner,
+            String guestId,
+            Instant createdAt,
+            Instant uploadedAt,
+            String status,
+            String s3KeyOriginal,
+            String s3KeyMedium,
+            String s3KeySmall,
+            String ownerName,
+            String sharedByUserId,
+            String sharedByName,
+            boolean shared,
+            int processingAttempts,
+            String processingErrorCode,
+            Long processingLeaseUntilEpoch,
+            Long processingRetryAtEpoch
+    ) {
         this.photoId = Objects.requireNonNull(photoId);
-        this.eventId = Objects.requireNonNull(eventId);
+        this.owner = Objects.requireNonNull(owner);
+        this.eventId = owner.type() == PhotoOwner.Type.EVENT ? owner.id() : null;
         this.guestId = Objects.requireNonNull(guestId);
         this.createdAt = Objects.requireNonNull(createdAt);
         this.uploadedAt = uploadedAt;
@@ -124,6 +151,22 @@ public class Photo {
 
     public String getEventId() {
         return eventId;
+    }
+
+    public PhotoOwner getOwner() {
+        return owner;
+    }
+
+    public String getOwnerType() {
+        return owner.type().name();
+    }
+
+    public String getOwnerId() {
+        return owner.id();
+    }
+
+    public String getStoragePartitionId() {
+        return owner.storagePartitionId(photoId);
     }
 
     public String getGuestId() {

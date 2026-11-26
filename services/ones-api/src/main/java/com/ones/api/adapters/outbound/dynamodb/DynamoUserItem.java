@@ -16,6 +16,8 @@ public class DynamoUserItem {
     private String picture;
     private String preferredName;
     private String provider;
+    private String languagePreference;
+    private String timeZone;
     private boolean termsAccepted;
     private String createdAt;
     private String updatedAt;
@@ -99,6 +101,24 @@ public class DynamoUserItem {
 
     public void setProvider(String provider) {
         this.provider = provider;
+    }
+
+    @DynamoDbAttribute("languagePreference")
+    public String getLanguagePreference() {
+        return languagePreference;
+    }
+
+    public void setLanguagePreference(String languagePreference) {
+        this.languagePreference = languagePreference;
+    }
+
+    @DynamoDbAttribute("timeZone")
+    public String getTimeZone() {
+        return timeZone;
+    }
+
+    public void setTimeZone(String timeZone) {
+        this.timeZone = timeZone;
     }
 
     @DynamoDbAttribute("termsAccepted")

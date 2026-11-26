@@ -9,6 +9,7 @@ paths:
     get:
       operationId: health
       summary: Health check
+      security: []
       responses:
         '200':
           description: OK
@@ -16,6 +17,376 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
+  /v1/users/time-zone:
+    put:
+      operationId: updateUserTimeZone
+      summary: Store the authenticated user's IANA device time zone
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [timeZone]
+              properties:
+                timeZone:
+                  type: string
+                  maxLength: 64
+                  example: America/Mexico_City
+      responses:
+        '204': { description: Time zone updated }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/collections:
+    get:
+      operationId: listCollections
+      summary: List collections owned by the authenticated user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 100 }
+      responses:
+        '200':
+          description: Collections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Collection'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      operationId: createCollection
+      summary: Create a photo collection
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCollectionRequest'
+      responses:
+        '201':
+          description: Collection created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Collection'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /v1/collections/ensure-life:
+    post:
+      operationId: ensureLifeCollection
+      summary: Idempotently create or return the authenticated user's private Life Collection
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Life Collection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Collection'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /v1/collections/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      operationId: getCollection
+      summary: Read a collection
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Collection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Collection'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: updateCollection
+      summary: Update collection metadata
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCollectionRequest'
+      responses:
+        '200':
+          description: Updated collection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Collection'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteCollection
+      summary: Irreversibly delete a user-created collection
+      description: Revokes access immediately and completes media cleanup asynchronously.
+      security:
+        - bearerAuth: []
+      responses:
+        '202':
+          description: Deletion accepted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /v1/collections/{id}/members:
+    get:
+      operationId: listCollectionMembers
+      summary: List pending and accepted collection members
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        - name: nextToken
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Collection members
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/CollectionMember' }
+                  nextToken:
+                    type: string
+                    nullable: true
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /v1/collections/{id}/invitees:
+    post:
+      operationId: inviteCollectionMembers
+      summary: Invite people by email; accepted members may invite
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InviteCollectionMembersRequest' }
+      responses:
+        '200':
+          description: Invitation records
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CollectionMember' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /v1/collections/invitations/respond:
+    post:
+      operationId: respondToCollectionInvitation
+      summary: Accept or reject an authenticated email invitation using its signed token
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        '200':
+          description: Updated membership
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CollectionMember' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /v1/collections/{id}/members/leave:
+    post:
+      operationId: leaveCollection
+      summary: Leave a collection as a non-owner member
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: Left collection }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /v1/collections/{id}/members/{memberKey}:
+    delete:
+      operationId: removeCollectionMember
+      summary: Remove a pending or accepted member (owner only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: memberKey
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: Member removed }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /v1/collections/{id}/owner:
+    put:
+      operationId: transferCollectionOwnership
+      summary: Transfer ownership to an accepted member
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [newOwnerId]
+              properties:
+                newOwnerId: { type: string }
+      responses:
+        '204': { description: Ownership transferred }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /v1/collections/{id}/join-qr:
+    put:
+      operationId: setCollectionQrJoinEnabled
+      summary: Enable and rotate, or disable, QR joining
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled: { type: boolean }
+      responses:
+        '200':
+          description: QR join state and optional bearer URL
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CollectionJoinQrResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /v1/collections/{id}/join-qr/rotate:
+    post:
+      operationId: rotateCollectionJoinQr
+      summary: Rotate the bearer QR credential
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: New QR join URL
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CollectionJoinQrResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /v1/collections/join-qr/join:
+    post:
+      operationId: joinCollectionByQr
+      summary: Join immediately using an authenticated QR bearer credential
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [collectionId, token]
+              properties:
+                collectionId: { type: string }
+                token: { type: string }
+      responses:
+        '200':
+          description: Collection joined
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Collection' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429':
+          description: Too many QR join attempts
   /v1/events/covers/generate:
     post:
       operationId: generateEventCover
@@ -469,6 +840,276 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /v1/collections/{collectionId}/photos:
+    parameters:
+      - name: collectionId
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      operationId: listCollectionPhotos
+      summary: List photos visible to collection members
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 24 }
+        - name: nextToken
+          in: query
+          schema: { type: string, nullable: true }
+        - name: filter
+          in: query
+          schema: { type: string, enum: [all, mine, shared_by_me] }
+        - name: guestIds
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            items: { type: string }
+      responses:
+        '200':
+          description: Collection gallery page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventPhotosListPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteCollectionPhotos
+      summary: Delete unshared photos uploaded by the requester
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [photoIds]
+              properties:
+                photoIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items: { type: string }
+      responses:
+        '204':
+          description: Photos deleted
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/collections/{collectionId}/photos/presign:
+    post:
+      operationId: presignCollectionPhotoUpload
+      summary: Create a presigned upload URL for a JPEG photo
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: collectionId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [photoId]
+              properties:
+                photoId: { type: string }
+                contentType: { type: string, enum: [image/jpeg, image/jpg] }
+      responses:
+        '200':
+          description: Presigned PUT URL and object key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhotoPresignResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /v1/collections/{collectionId}/photos/complete:
+    post:
+      operationId: completeCollectionPhotoUpload
+      summary: Complete upload and queue photo processing
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: collectionId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [photoId, s3KeyOriginal]
+              properties:
+                photoId: { type: string }
+                s3KeyOriginal: { type: string }
+                createdAt: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Photo processing accepted
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /v1/collections/{collectionId}/photos/share:
+    post:
+      operationId: shareCollectionPhotos
+      summary: Share the requester's photos with collection members
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: collectionId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [photoIds]
+              properties:
+                photoIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items: { type: string }
+      responses:
+        '200':
+          description: Photos shared
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /v1/collections/{collectionId}/photos/unshare:
+    post:
+      operationId: unshareCollectionPhotos
+      summary: Make the requester's photos private again
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: collectionId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [photoIds]
+              properties:
+                photoIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items: { type: string }
+      responses:
+        '200':
+          description: Photos unshared
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /v1/collections/{collectionId}/photos/{photoId}/social-share:
+    post:
+      operationId: createCollectionPhotoShareLink
+      summary: Create a signed link for one collection photo
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: collectionId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: photoId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                variant: { type: string, enum: [original, medium, small] }
+      responses:
+        '200':
+          description: Signed link and expiry time
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhotoSocialShareLink'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /v1/collections/{collectionId}/photos/{photoId}/like:
+    parameters:
+      - name: collectionId
+        in: path
+        required: true
+        schema: { type: string }
+      - name: photoId
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      operationId: likeCollectionPhoto
+      summary: Like a collection photo
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Like recorded
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      operationId: unlikeCollectionPhoto
+      summary: Remove a like from a collection photo
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Like removed
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /v1/collections/{collectionId}/photos/{photoId}/processing-retry:
+    post:
+      operationId: retryCollectionPhotoProcessing
+      summary: Retry collection photo processing
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: collectionId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: photoId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '202':
+          description: Retry queued
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /v1/events/{eventId}/complements:
     get:
       operationId: listEventComplements
@@ -920,13 +1561,81 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
     Conflict:
-      description: Operation conflicts with the current tournament state
+      description: Operation conflicts with the current resource state
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
   schemas:
+    Collection:
+      type: object
+      required: [id, ownerId, name, type, createdAt, updatedAt, joinEnabled]
+      properties:
+        id: { type: string }
+        ownerId: { type: string }
+        name: { type: string, maxLength: 100 }
+        description: { type: string, nullable: true, maxLength: 500 }
+        type:
+          type: string
+          enum: [PRIVATE, COUPLE, FAMILY, FRIENDS, PROJECTS, OTHER]
+        coverKey: { type: string, nullable: true }
+        purpose: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        joinEnabled: { type: boolean }
+    CreateCollectionRequest:
+      type: object
+      required: [name, type]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        description: { type: string, nullable: true, maxLength: 500 }
+        type:
+          type: string
+          enum: [PRIVATE, COUPLE, FAMILY, FRIENDS, PROJECTS, OTHER]
+        coverKey: { type: string, nullable: true }
+        inviteeEmails:
+          type: array
+          maxItems: 50
+          items: { type: string, format: email }
+    InviteCollectionMembersRequest:
+      type: object
+      required: [inviteeEmails]
+      properties:
+        inviteeEmails:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { type: string, format: email }
+    CollectionMember:
+      type: object
+      required: [memberKey, status, createdAt]
+      properties:
+        memberKey: { type: string }
+        userId: { type: string, nullable: true }
+        email: { type: string, format: email, nullable: true }
+        status: { type: string, enum: [PENDING, ACCEPTED, REJECTED] }
+        invitedByUserId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    CollectionJoinQrResponse:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+        url: { type: string, nullable: true }
+    UpdateCollectionRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        description: { type: string, nullable: true, maxLength: 500 }
+        coverKey: { type: string, nullable: true }
     MatchScore:
       type: object
       properties:
@@ -1233,6 +1942,22 @@ components:
           type: string
           nullable: true
           description: Pagination cursor (opaque). Null when there are no more results.
+
+    PhotoPresignResponse:
+      type: object
+      required: [photoId, putUrl, s3KeyOriginal, expiresAt]
+      properties:
+        photoId: { type: string }
+        putUrl: { type: string, format: uri }
+        s3KeyOriginal: { type: string }
+        expiresAt: { type: string, format: date-time }
+
+    PhotoSocialShareLink:
+      type: object
+      required: [url, expiresAt]
+      properties:
+        url: { type: string, format: uri }
+        expiresAt: { type: string, format: date-time }
 
     EventPhotoListItem:
       type: object

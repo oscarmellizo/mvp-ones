@@ -73,6 +73,51 @@ void main() {
     }
   });
 
+  test('deep link de colección conserva el token firmado', () {
+    const route = '/collection-invitation?token=signed-token';
+    expect(
+      collectionInvitationRouteForLink(Uri.parse(
+        'https://app.ones.events/collection-invitation?token=signed-token',
+      )),
+      route,
+    );
+    final dev = Uri.parse(
+      'https://appdev.ones.events/collection-invitation?token=signed-token',
+    );
+    expect(collectionInvitationRouteForLink(dev), isNull);
+    expect(
+      collectionInvitationRouteForLink(dev, allowDevHost: true),
+      route,
+    );
+    expect(
+      collectionInvitationRouteForLink(Uri.parse(
+        'https://app.ones.events/collection-invitation?token=a&token=b',
+      )),
+      isNull,
+    );
+  });
+
+  test('deep link de unión por QR valida dominio y credenciales únicas', () {
+    expect(
+      collectionJoinRouteForLink(Uri.parse(
+        'https://app.ones.events/collections/join?collectionId=c-1&token=qr-token',
+      )),
+      '/collections/join?collectionId=c-1&token=qr-token',
+    );
+    final dev = Uri.parse(
+      'https://appdev.ones.events/collections/join?collectionId=c-1&token=qr-token',
+    );
+    expect(collectionJoinRouteForLink(dev), isNull);
+    expect(collectionJoinRouteForLink(dev, allowDevHost: true),
+        '/collections/join?collectionId=c-1&token=qr-token');
+    expect(
+      collectionJoinRouteForLink(Uri.parse(
+        'https://app.ones.events/collections/join?collectionId=c-1&token=a&token=b',
+      )),
+      isNull,
+    );
+  });
+
   testWidgets('enlace inicial espera login y no duplica el mismo enlace del stream',
       (tester) async {
     final auth = _Auth();

@@ -9,6 +9,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +22,7 @@ import com.ones.api.application.users.EnsureUserUseCase;
 import com.ones.api.application.users.GetUserByIdUseCase;
 import com.ones.api.application.users.LookupUserByEmailUseCase;
 import com.ones.api.application.users.UpdateUserPreferencesUseCase;
+import com.ones.api.application.users.UpdateUserTimeZoneUseCase;
 import com.ones.api.domain.users.User;
 
 @RestController
@@ -31,17 +35,20 @@ public class UsersController {
     private final GetUserByIdUseCase getUserByIdUseCase;
     private final LookupUserByEmailUseCase lookupUserByEmailUseCase;
     private final UpdateUserPreferencesUseCase updateUserPreferencesUseCase;
+    private final UpdateUserTimeZoneUseCase updateUserTimeZoneUseCase;
 
     public UsersController(
             EnsureUserUseCase ensureUserUseCase,
             GetUserByIdUseCase getUserByIdUseCase,
             LookupUserByEmailUseCase lookupUserByEmailUseCase,
-            UpdateUserPreferencesUseCase updateUserPreferencesUseCase
+            UpdateUserPreferencesUseCase updateUserPreferencesUseCase,
+            UpdateUserTimeZoneUseCase updateUserTimeZoneUseCase
     ) {
         this.ensureUserUseCase = ensureUserUseCase;
         this.getUserByIdUseCase = getUserByIdUseCase;
         this.lookupUserByEmailUseCase = lookupUserByEmailUseCase;
         this.updateUserPreferencesUseCase = updateUserPreferencesUseCase;
+        this.updateUserTimeZoneUseCase = updateUserTimeZoneUseCase;
     }
 
     @PostMapping("/ensure")
@@ -111,6 +118,16 @@ public class UsersController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    @PutMapping("/time-zone")
+    public ResponseEntity<Void> updateTimeZone(
+            Authentication authentication,
+            @Valid @RequestBody UpdateTimeZoneRequest request
+    ) {
+        return updateUserTimeZoneUseCase.execute(authentication.getName(), request.timeZone())
+                .map(user -> ResponseEntity.noContent().<Void>build())
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
     private static EnsureUserResponse toResponse(User u) {
         return new EnsureUserResponse(
                 u.getUserId(),
@@ -130,6 +147,9 @@ public class UsersController {
 }
 
 record UpdatePreferencesRequest(String preferredName, String languagePreference, Boolean termsAccepted) {
+}
+
+record UpdateTimeZoneRequest(@NotBlank @Size(max = 64) String timeZone) {
 }
 
 record UserLookupResponse(String email, String preferredName) {

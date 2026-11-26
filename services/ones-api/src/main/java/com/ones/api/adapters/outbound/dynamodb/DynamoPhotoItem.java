@@ -13,6 +13,8 @@ public class DynamoPhotoItem {
 
     private String eventId;
     private String eventSortKey;
+    private String ownerType;
+    private String ownerId;
 
     private String guestId;
 
@@ -63,6 +65,24 @@ public class DynamoPhotoItem {
 
     public void setEventSortKey(String eventSortKey) {
         this.eventSortKey = eventSortKey;
+    }
+
+    @DynamoDbAttribute("ownerType")
+    public String getOwnerType() {
+        return ownerType;
+    }
+
+    public void setOwnerType(String ownerType) {
+        this.ownerType = ownerType;
+    }
+
+    @DynamoDbAttribute("ownerId")
+    public String getOwnerId() {
+        return ownerId;
+    }
+
+    public void setOwnerId(String ownerId) {
+        this.ownerId = ownerId;
     }
 
     @DynamoDbAttribute("guestId")

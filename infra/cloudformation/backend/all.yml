@@ -276,6 +276,106 @@ Resources:
               - inviteLinkEnabled
               - frameIds
 
+  CollectionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-collections
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      AttributeDefinitions:
+        - AttributeName: collectionId
+          AttributeType: S
+        - AttributeName: gsi1pk
+          AttributeType: S
+        - AttributeName: gsi1sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: collectionId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: gsi1
+          KeySchema:
+            - AttributeName: gsi1pk
+              KeyType: HASH
+            - AttributeName: gsi1sk
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  CollectionMembersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-collection-members
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      AttributeDefinitions:
+        - AttributeName: collectionId
+          AttributeType: S
+        - AttributeName: memberKey
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: inviteeEmail
+          AttributeType: S
+      KeySchema:
+        - AttributeName: collectionId
+          KeyType: HASH
+        - AttributeName: memberKey
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: byUserId
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+            - AttributeName: collectionId
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: byInviteeEmail
+          KeySchema:
+            - AttributeName: inviteeEmail
+              KeyType: HASH
+            - AttributeName: collectionId
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: byCollectionUser
+          KeySchema:
+            - AttributeName: collectionId
+              KeyType: HASH
+            - AttributeName: userId
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  CollectionJoinAttemptsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${StackPrefix}-${Environment}-collection-join-attempts
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+      AttributeDefinitions:
+        - AttributeName: attemptKey
+          AttributeType: S
+      KeySchema:
+        - AttributeName: attemptKey
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
   EventComplementsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -362,10 +462,7 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: !Sub ${StackPrefix}-${Environment}-invitations
-      BillingMode: PROVISIONED
-      ProvisionedThroughput:
-        ReadCapacityUnits: 3
-        WriteCapacityUnits: 1
+      BillingMode: PAY_PER_REQUEST
       Tags:
         - Key: Environment
           Value: !Ref Environment
@@ -388,9 +485,6 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: ALL
-          ProvisionedThroughput:
-            ReadCapacityUnits: 1
-            WriteCapacityUnits: 1
 
   CoverPreviewsTable:
     Type: AWS::DynamoDB::Table
@@ -485,6 +579,32 @@ Resources:
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt PhotoThumbnailsDlq.Arn
         maxReceiveCount: !Ref PhotoThumbnailsMaxReceiveCount
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  CollectionDeletionDlq:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${StackPrefix}-${Environment}-collection-deletion-dlq
+      VisibilityTimeout: 1800
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  CollectionDeletionQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${StackPrefix}-${Environment}-collection-deletion
+      DelaySeconds: 900
+      VisibilityTimeout: 5400
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt CollectionDeletionDlq.Arn
+        maxReceiveCount: 5
       Tags:
         - Key: Environment
           Value: !Ref Environment
@@ -2264,6 +2384,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - dynamodb:PutItem
+                  - dynamodb:UpdateItem
                   - dynamodb:GetItem
                   - dynamodb:BatchGetItem
                   - dynamodb:Query
@@ -2274,6 +2395,11 @@ Resources:
                 Resource:
                   - !GetAtt EventsTable.Arn
                   - !Sub ${EventsTable.Arn}/index/*
+                  - !GetAtt CollectionsTable.Arn
+                  - !Sub ${CollectionsTable.Arn}/index/*
+                  - !GetAtt CollectionMembersTable.Arn
+                  - !Sub ${CollectionMembersTable.Arn}/index/*
+                  - !GetAtt CollectionJoinAttemptsTable.Arn
                   - !GetAtt UsersTable.Arn
                   - !Sub ${UsersTable.Arn}/index/*
                   - !GetAtt InvitationsTable.Arn
@@ -2339,6 +2465,7 @@ Resources:
                 Resource:
                   - !GetAtt PhotoThumbnailsQueue.Arn
                   - !GetAtt PhotoDateResolutionQueue.Arn
+                  - !GetAtt CollectionDeletionQueue.Arn
                   - !GetAtt TournamentScoringQueue.Arn
         - PolicyName: ones-s3
           PolicyDocument:
@@ -2361,13 +2488,15 @@ Resources:
                   - s3:AbortMultipartUpload
                 Resource:
                   - !Sub ${AccountExportsBucket.Arn}/*
-              - Sid: EventPhotosObjectAccess
+              - Sid: EventAndCollectionPhotosObjectAccess
                 Effect: Allow
                 Action:
                   - s3:GetObject
                   - s3:PutObject
                   - s3:DeleteObject
-                Resource: !Sub ${EventsPhotosBucket.Arn}/*
+                Resource:
+                  - !Sub ${EventsPhotosBucket.Arn}/eventos/*
+                  - !Sub ${EventsPhotosBucket.Arn}/colecciones/*
         - PolicyName: ones-secrets
           PolicyDocument:
             Version: '2012-10-17'
@@ -2537,6 +2666,12 @@ Resources:
               Value: !Ref InvitationEmailActionTokenSecret
             - Name: ONES_EVENTS_TABLE
               Value: !Ref EventsTable
+            - Name: ONES_COLLECTIONS_TABLE
+              Value: !Ref CollectionsTable
+            - Name: ONES_COLLECTION_MEMBERS_TABLE
+              Value: !Ref CollectionMembersTable
+            - Name: ONES_COLLECTION_JOIN_ATTEMPTS_TABLE
+              Value: !Ref CollectionJoinAttemptsTable
             - Name: ONES_USERS_TABLE
               Value: !Ref UsersTable
             - Name: ONES_INVITATIONS_TABLE
@@ -2585,6 +2720,8 @@ Resources:
               Value: !Sub ${StackPrefix}-${Environment}-events-photos
             - Name: ONES_PHOTO_PROCESSING_QUEUE_URL
               Value: !Ref PhotoThumbnailsQueue
+            - Name: ONES_SQS_COLLECTION_DELETION_QUEUE_URL
+              Value: !Ref CollectionDeletionQueue
             - Name: ONES_PHOTO_DATE_RESOLUTION_QUEUE_URL
               Value: !Ref PhotoDateResolutionQueue
             - Name: ONES_TOURNAMENT_SCORING_QUEUE_URL
@@ -2708,7 +2845,8 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                 Resource:
-                  - !Sub arn:aws:s3:::${StackPrefix}-${Environment}-events-photos/*
+                  - !Sub arn:aws:s3:::${StackPrefix}-${Environment}-events-photos/eventos/*
+                  - !Sub arn:aws:s3:::${StackPrefix}-${Environment}-events-photos/colecciones/*
               - Effect: Allow
                 Action:
                   - ecr:GetAuthorizationToken
@@ -2789,6 +2927,53 @@ Resources:
                   - dynamodb:GetItem
                   - dynamodb:PutItem
                 Resource: !GetAtt PhotoDateResolutionCacheTable.Arn
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref InternalBasicAuthSecret
+
+  CollectionDeletionWorkerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${StackPrefix}-${Environment}-collection-deletion-role
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: collection-deletion-jobs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                  - sqs:ChangeMessageVisibility
+                Resource:
+                  - !GetAtt CollectionDeletionQueue.Arn
+                  - !GetAtt CollectionDeletionDlq.Arn
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !GetAtt EventsPhotosBucket.Arn
+                Condition:
+                  StringLike:
+                    s3:prefix:
+                      - colecciones/*
+              - Effect: Allow
+                Action:
+                  - s3:DeleteObject
+                Resource: !Sub ${EventsPhotosBucket.Arn}/colecciones/*
               - Effect: Allow
                 Action:
                   - secretsmanager:GetSecretValue
@@ -2980,7 +3165,11 @@ Resources:
                   return False
               if not event_id or not token:
                   return False
-              url = f"{BACKEND_BASE_URL}/v1/events/{urllib.parse.quote(event_id)}"
+              if event_id.startswith('COLLECTION#'):
+                  collection_id = event_id.split('#', 2)[1]
+                  url = f"{BACKEND_BASE_URL}/v1/collections/{urllib.parse.quote(collection_id)}"
+              else:
+                  url = f"{BACKEND_BASE_URL}/v1/events/{urllib.parse.quote(event_id)}"
               req = urllib.request.Request(url, method='GET')
               req.add_header('Authorization', 'Bearer ' + token)
               try:
@@ -3178,6 +3367,127 @@ Resources:
       Code:
         S3Bucket: !Ref LambdaArtifactsBucket
         S3Key: !Ref PhotoDateResolverZipS3Key
+
+  CollectionDeletionWorker:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${StackPrefix}-${Environment}-collection-deletion
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+      Runtime: python3.12
+      Handler: index.handler
+      MemorySize: 512
+      Timeout: 900
+      Role: !GetAtt CollectionDeletionWorkerRole.Arn
+      Environment:
+        Variables:
+          BUCKET: !Ref EventsPhotosBucket
+          BACKEND_BASE_URL: !Sub http://${LoadBalancer.DNSName}
+          INTERNAL_SECRET_ARN: !Ref InternalBasicAuthSecret
+      Code:
+        ZipFile: |
+          import base64
+          import json
+          import os
+          import urllib.parse
+          import urllib.request
+
+          import boto3
+
+          s3 = boto3.client('s3')
+          secrets = boto3.client('secretsmanager')
+
+          def _basic_auth():
+              secret = secrets.get_secret_value(SecretId=os.environ['INTERNAL_SECRET_ARN'])
+              value = secret.get('SecretString') or '{}'
+              data = json.loads(value)
+              raw = f"{data.get('username', '')}:{data.get('password', '')}"
+              return 'Basic ' + base64.b64encode(raw.encode()).decode()
+
+          def _delete_prefix(bucket, prefix):
+              while True:
+                  page = s3.list_objects_v2(Bucket=bucket, Prefix=prefix, MaxKeys=1000)
+                  keys = [{'Key': item['Key']} for item in page.get('Contents', [])]
+                  if not keys:
+                      return
+                  result = s3.delete_objects(Bucket=bucket, Delete={'Objects': keys, 'Quiet': True})
+                  if result.get('Errors'):
+                      raise RuntimeError('S3 collection object cleanup failed')
+
+          def _finalize(collection_id):
+              base = (os.environ.get('BACKEND_BASE_URL') or '').rstrip('/')
+              url = (base + '/internal/collections/'
+                     + urllib.parse.quote(collection_id, safe='') + '/deletion-complete')
+              request = urllib.request.Request(url, data=b'{}', method='POST')
+              request.add_header('Authorization', _basic_auth())
+              request.add_header('Content-Type', 'application/json')
+              with urllib.request.urlopen(request, timeout=840) as response:
+                  if int(getattr(response, 'status', 200)) >= 300:
+                      raise RuntimeError('collection cleanup finalization failed')
+
+          def handler(event, context):
+              failures = []
+              for record in event.get('Records', []):
+                  message_id = record.get('messageId')
+                  try:
+                      body = json.loads(record.get('body') or '{}')
+                      collection_id = str(body.get('collectionId') or '').strip()
+                      if not collection_id:
+                          raise ValueError('collectionId is required')
+                      _delete_prefix(os.environ['BUCKET'], 'colecciones/' + collection_id + '/')
+                      _finalize(collection_id)
+                  except Exception:
+                      failures.append({'itemIdentifier': message_id})
+              return {'batchItemFailures': failures}
+
+  CollectionDeletionEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !GetAtt CollectionDeletionQueue.Arn
+      FunctionName: !Ref CollectionDeletionWorker
+      Enabled: true
+      BatchSize: 1
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
+      ScalingConfig:
+        MaximumConcurrency: 50
+
+  CollectionDeletionQueueAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-collection-deletion-queue-age
+      Namespace: AWS/SQS
+      MetricName: ApproximateAgeOfOldestMessage
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt CollectionDeletionQueue.QueueName
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 5
+      Threshold: 3600
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  CollectionDeletionDlqAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${StackPrefix}-${Environment}-collection-deletion-dlq
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt CollectionDeletionDlq.QueueName
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
 
   TournamentScoringQueueAgeAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -4106,6 +4416,12 @@ Outputs:
     Value: !GetAtt Service.Name
   EventsTableName:
     Value: !Ref EventsTable
+  CollectionsTableName:
+    Value: !Ref CollectionsTable
+  CollectionMembersTableName:
+    Value: !Ref CollectionMembersTable
+  CollectionJoinAttemptsTableName:
+    Value: !Ref CollectionJoinAttemptsTable
   UsersTableName:
     Value: !Ref UsersTable
   InvitationsTableName:
@@ -4116,6 +4432,8 @@ Outputs:
     Value: !Ref CoverReservationsTable
   PhotosTableName:
     Value: !Ref PhotosTable
+  CollectionDeletionQueueUrl:
+    Value: !Ref CollectionDeletionQueue
   PhotoLikesTableName:
     Value: !Ref PhotoLikesTable
   PreferredNamesCacheTableName:
