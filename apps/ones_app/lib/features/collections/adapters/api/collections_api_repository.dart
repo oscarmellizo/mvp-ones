@@ -70,6 +70,29 @@ class CollectionsApiRepository {
         .toList(growable: false);
   }
 
+  Future<CollectionMembersPage> membersPage(
+    String collectionId, {
+    int limit = 50,
+    String? nextToken,
+  }) async {
+    final response = await _secureDio().get(
+      '/v1/collections/$collectionId/members',
+      queryParameters: {
+        'limit': limit,
+        if (nextToken != null && nextToken.isNotEmpty) 'nextToken': nextToken,
+      },
+    );
+    final data = Map<String, dynamic>.from(response.data as Map);
+    return CollectionMembersPage(
+      items: (data['items'] as List? ?? const [])
+          .whereType<Map>()
+          .map((item) =>
+              CollectionMember.fromJson(Map<String, dynamic>.from(item)))
+          .toList(growable: false),
+      nextToken: data['nextToken'] as String?,
+    );
+  }
+
   Future<CollectionInvitationsPage> pendingInvitations({
     int limit = 100,
     String? nextToken,

@@ -7,6 +7,7 @@ void main() {
   testWidgets('collection filters match the event gallery and update selection',
       (tester) async {
     var selected = PhotosGalleryFilter.all;
+    var memberFilterOpened = false;
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -16,6 +17,10 @@ void main() {
             allLabel: 'Todas',
             sharedLabel: 'Compartidas',
             mineLabel: 'Mías',
+            membersLabel: 'Miembros',
+            membersButtonKey: const ValueKey('members-filter'),
+            memberSelectionEnabled: true,
+            onMembersSelected: () => memberFilterOpened = true,
             onSelected: (filter) => selected = filter,
           ),
         ),
@@ -40,6 +45,8 @@ void main() {
     await tester.tap(find.text('Compartidas'));
     await tester.pumpAndSettle();
     expect(selected, PhotosGalleryFilter.sharedByMe);
+    await tester.tap(find.text('Miembros'));
+    expect(memberFilterOpened, isTrue);
   });
 
   testWidgets('private collections do not show gallery filters',
@@ -53,6 +60,10 @@ void main() {
             allLabel: 'Todas',
             sharedLabel: 'Compartidas',
             mineLabel: 'Mías',
+            membersLabel: 'Miembros',
+            membersButtonKey: const ValueKey('members-filter'),
+            memberSelectionEnabled: true,
+            onMembersSelected: () {},
             onSelected: (_) {},
           ),
         ),
@@ -61,5 +72,6 @@ void main() {
 
     expect(find.byType(SegmentedButton<PhotosGalleryFilter>), findsNothing);
     expect(find.text('Compartidas'), findsNothing);
+    expect(find.text('Miembros'), findsNothing);
   });
 }

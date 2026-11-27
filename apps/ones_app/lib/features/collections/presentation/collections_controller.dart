@@ -77,6 +77,17 @@ class CollectionsController extends ChangeNotifier {
   Future<List<CollectionMember>> members(String collectionId) =>
       repository.members(collectionId);
 
+  Future<CollectionMembersPage> membersPage(
+    String collectionId, {
+    int limit = 50,
+    String? nextToken,
+  }) =>
+      repository.membersPage(
+        collectionId,
+        limit: limit,
+        nextToken: nextToken,
+      );
+
   Future<List<CollectionMember>> invite(
       String collectionId, List<String> emails) async {
     final members = await repository.invite(collectionId, emails);

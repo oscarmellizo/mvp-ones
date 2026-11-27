@@ -5,6 +5,11 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../../../../features/auth/presentation/auth_controller.dart';
+import '../../../invitations/presentation/invitations_controller.dart';
+import '../../../invitations/presentation/widgets/invitations_sheet.dart';
+import '../../../tutorial/domain/tutorial_steps.dart';
+import '../../../tutorial/presentation/tutorial_controller.dart';
+import '../../../tutorial/presentation/tutorial_keys.dart';
 import '../../domain/collection.dart';
 import '../collections_controller.dart';
 import '../widgets/collection_photos_tab.dart';
@@ -213,6 +218,7 @@ class _CollectionDetailPageState extends State<CollectionDetailPage> {
   Widget build(BuildContext context) {
     final t = context.watch<TranslationsService>();
     final auth = context.watch<AuthController>();
+    final unread = context.watch<InvitationsController>().unreadCount;
     final collection = widget.collection;
     final isOwner = collection.ownerId == auth.user?.userId;
     final canInvite = collection.type != CollectionType.private;
@@ -222,8 +228,63 @@ class _CollectionDetailPageState extends State<CollectionDetailPage> {
       child: Scaffold(
         backgroundColor: OnesColors.surfaceWarm,
         appBar: AppBar(
-          title: Text(collection.name),
+          title: Text(
+            collection.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
           actions: [
+            IconButton(
+              key: TutorialKeys.collectionHelpIcon,
+              onPressed: () => TutorialController.instance.start(
+                context,
+                routeName: TutorialSteps.collectionDetailRoute,
+              ),
+              tooltip: t.translate('common.help', fallback: 'Ayuda'),
+              icon: const Icon(Icons.help_outline),
+            ),
+            IconButton(
+              key: TutorialKeys.collectionBellIcon,
+              onPressed: () => showInvitationsSheet(context),
+              tooltip: t.translate(
+                'invitations.title',
+                fallback: 'Invitaciones',
+              ),
+              icon: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const Icon(Icons.notifications_none),
+                  if (unread > 0)
+                    Positioned(
+                      right: -3,
+                      top: -3,
+                      child: Container(
+                        constraints: const BoxConstraints(
+                          minWidth: 17,
+                          minHeight: 17,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 1,
+                        ),
+                        decoration: const BoxDecoration(
+                          color: OnesColors.danger,
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          unread > 99 ? '99+' : '$unread',
+                          style: const TextStyle(
+                            color: OnesColors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
             if (canInvite && !collection.isLifeCollection)
               IconButton(
                 onPressed: _showQr,
@@ -245,10 +306,17 @@ class _CollectionDetailPageState extends State<CollectionDetailPage> {
           ],
           bottom: TabBar(
             tabs: [
-              Tab(text: t.translate('collections.photos', fallback: 'Fotos')),
               Tab(
-                  text:
-                      t.translate('collections.members', fallback: 'Personas')),
+                key: TutorialKeys.collectionTabPhotos,
+                text: t.translate('collections.photos', fallback: 'Fotos'),
+              ),
+              Tab(
+                key: TutorialKeys.collectionTabMembers,
+                text: t.translate(
+                  'collections.members',
+                  fallback: 'Personas',
+                ),
+              ),
             ],
           ),
         ),

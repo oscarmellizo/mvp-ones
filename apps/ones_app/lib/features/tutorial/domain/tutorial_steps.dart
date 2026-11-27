@@ -6,6 +6,7 @@ class TutorialSteps {
   static const String homeRoute = '/events';
   static const String createRoute = '/events/create';
   static const String detailRoute = '/events/detail';
+  static const String collectionDetailRoute = '/collections/detail';
 
   static final List<TutorialStep> all = [
     TutorialStep(
@@ -193,7 +194,8 @@ class TutorialSteps {
       routeName: detailRoute,
       targetKey: () => TutorialKeys.eventSelShare,
       titleKey: 'Compartir / Descompartir',
-      bodyKey: 'Comparte tus fotos seleccionadas con los invitados o quita su compartición si ya están compartidas. No mezcles fotos compartidas y privadas a la vez.',
+      bodyKey:
+          'Comparte tus fotos seleccionadas con los invitados o quita su compartición si ya están compartidas. No mezcles fotos compartidas y privadas a la vez.',
       align: ContentAlign.top,
     ),
     TutorialStep(
@@ -201,8 +203,39 @@ class TutorialSteps {
       routeName: detailRoute,
       targetKey: () => TutorialKeys.eventSelDelete,
       titleKey: 'Eliminar (tus fotos no compartidas)',
-      bodyKey: 'Elimina definitivamente tus fotos seleccionadas que no estén compartidas. Esta acción no se puede deshacer.',
+      bodyKey:
+          'Elimina definitivamente tus fotos seleccionadas que no estén compartidas. Esta acción no se puede deshacer.',
       align: ContentAlign.top,
+    ),
+    TutorialStep(
+      id: 'collection_help',
+      routeName: collectionDetailRoute,
+      targetKey: () => TutorialKeys.collectionHelpIcon,
+      titleKey: 'Ayuda de la colección',
+      bodyKey: 'Toca aquí para volver a ver esta guía.',
+      shape: TutorialShape.circle,
+    ),
+    TutorialStep(
+      id: 'collection_bell',
+      routeName: collectionDetailRoute,
+      targetKey: () => TutorialKeys.collectionBellIcon,
+      titleKey: 'Invitaciones',
+      bodyKey: 'Consulta y responde invitaciones sin salir de la colección.',
+      shape: TutorialShape.circle,
+    ),
+    TutorialStep(
+      id: 'collection_tab_photos',
+      routeName: collectionDetailRoute,
+      targetKey: () => TutorialKeys.collectionTabPhotos,
+      titleKey: 'Fotos de la colección',
+      bodyKey: 'Explora, filtra y comparte los recuerdos de esta colección.',
+    ),
+    TutorialStep(
+      id: 'collection_tab_members',
+      routeName: collectionDetailRoute,
+      targetKey: () => TutorialKeys.collectionTabMembers,
+      titleKey: 'Miembros',
+      bodyKey: 'Consulta las personas que pertenecen a esta colección.',
     ),
   ];
 }
