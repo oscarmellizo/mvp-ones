@@ -3,13 +3,47 @@ import 'package:image/image.dart' as img;
 
 enum CaptureOrientation { portrait, landscape }
 
+class CaptureReadiness {
+  static const int maxPendingPreparations = 2;
+
+  bool _takingPicture = false;
+  int _pendingPreparations = 0;
+
+  bool get canCapture =>
+      !_takingPicture && _pendingPreparations < maxPendingPreparations;
+  bool get takingPicture => _takingPicture;
+  int get pendingPreparations => _pendingPreparations;
+
+  void beginCapture() {
+    if (!canCapture) {
+      throw StateError('Camera capture is currently unavailable');
+    }
+    _takingPicture = true;
+  }
+
+  void captureStaged() {
+    if (!_takingPicture) return;
+    _takingPicture = false;
+    _pendingPreparations++;
+  }
+
+  void captureFailed() {
+    _takingPicture = false;
+  }
+
+  void preparationFinished() {
+    if (_pendingPreparations > 0) _pendingPreparations--;
+  }
+}
+
 class NormalizedCapture {
   final Uint8List bytes;
   final int width;
   final int height;
   final CaptureOrientation orientation;
 
-  const NormalizedCapture(this.bytes, this.width, this.height, this.orientation);
+  const NormalizedCapture(
+      this.bytes, this.width, this.height, this.orientation);
 }
 
 class CaptureProcessingInput {
@@ -80,13 +114,14 @@ NormalizedCapture normalizeCapturedJpeg({
   final image = img.decodeImage(bytes);
   if (image == null) throw StateError('Failed to decode captured photo');
   var normalized = img.bakeOrientation(image);
-  final chosenOrientation = orientation ?? resolveCaptureOrientation(
-    viewportAspect: viewportAspect,
-    deviceOrientation: deviceOrientation,
-    prioritizeDeviceOrientation: prioritizeDeviceOrientation,
-    imageWidth: normalized.width,
-    imageHeight: normalized.height,
-  );
+  final chosenOrientation = orientation ??
+      resolveCaptureOrientation(
+        viewportAspect: viewportAspect,
+        deviceOrientation: deviceOrientation,
+        prioritizeDeviceOrientation: prioritizeDeviceOrientation,
+        imageWidth: normalized.width,
+        imageHeight: normalized.height,
+      );
   final shouldBeLandscape = chosenOrientation == CaptureOrientation.landscape;
   if ((normalized.width > normalized.height) != shouldBeLandscape) {
     final angle = switch (deviceOrientation) {

@@ -57,7 +57,7 @@ class CameraSettingsSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            
+
             // Quality settings
             const Text(
               'Calidad de foto',
@@ -79,9 +79,9 @@ class CameraSettingsSheet extends StatelessWidget {
                 _buildQualityButton('Máxima', ResolutionPreset.max),
               ],
             ),
-            
+
             const SizedBox(height: 20),
-            
+
             // Shutter settings
             const Text(
               'Obturador',
@@ -128,7 +128,8 @@ class CameraSettingsSheet extends StatelessWidget {
       child: ElevatedButton(
         onPressed: () => onQualityChanged(preset),
         style: ElevatedButton.styleFrom(
-          backgroundColor: isSelected ? Colors.white : Colors.white.withOpacity(0.2),
+          backgroundColor:
+              isSelected ? Colors.white : Colors.white.withOpacity(0.2),
           foregroundColor: isSelected ? Colors.black : Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 8),
           shape: RoundedRectangleBorder(
@@ -169,7 +170,8 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
   bool _disposed = false;
   int _controllerEpoch = 0;
   bool _switchingCamera = false;
-  bool _capturing = false;
+  final CaptureReadiness _captureReadiness = CaptureReadiness();
+  Future<void> _captureProcessingQueue = Future<void>.value();
   CaptureOrientation? _orientationOverride;
 
   String? _lastLanguage;
@@ -196,7 +198,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
   FlashMode _flashMode = FlashMode.auto;
   ResolutionPreset _qualityPreset = ResolutionPreset.high;
   bool _showZoomIndicator = false;
-  
+
   // Track two pointers for pinch zoom
   Map<int, Offset> _pointerPositions = {};
 
@@ -270,7 +272,10 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
       if (mounted && !_disposed) await _init();
     } catch (e) {
       if (mounted && !_disposed) {
-        setState(() { _initializing = false; _error = e; });
+        setState(() {
+          _initializing = false;
+          _error = e;
+        });
       }
     }
   }
@@ -397,15 +402,18 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
     try {
       final prefs = await SharedPreferences.getInstance();
       if (!mounted) return;
-      
+
       // Load flash mode
       final flashModeIndex = prefs.getInt('ones.camera.flashMode') ?? 0;
-      _flashMode = FlashMode.values[flashModeIndex.clamp(0, FlashMode.values.length - 1)];
-      
+      _flashMode = FlashMode
+          .values[flashModeIndex.clamp(0, FlashMode.values.length - 1)];
+
       // Load quality preset
-      final qualityIndex = prefs.getInt('ones.camera.qualityPreset') ?? 2; // high = 2
-      _qualityPreset = ResolutionPreset.values[qualityIndex.clamp(0, ResolutionPreset.values.length - 1)];
-      
+      final qualityIndex =
+          prefs.getInt('ones.camera.qualityPreset') ?? 2; // high = 2
+      _qualityPreset = ResolutionPreset
+          .values[qualityIndex.clamp(0, ResolutionPreset.values.length - 1)];
+
       setState(() {});
     } catch (_) {
       // If SharedPreferences fails, keep defaults
@@ -434,7 +442,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
 
   Future<void> _cycleFlashMode() async {
     if (_controller == null || !_controller!.value.isInitialized) return;
-    
+
     final hasFlash = _controller!.value.flashMode != null;
     if (!hasFlash) return;
 
@@ -477,18 +485,18 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
           shutterHapticEnabled: _shutterHapticEnabled,
           onQualityChanged: (preset) async {
             if (_qualityPreset == preset) return;
-            
+
             setState(() {
               _qualityPreset = preset;
             });
-            
+
             await _saveCameraPreferences();
-            
+
             // Restart camera with new quality
             if (_cameras.isNotEmpty) {
               await _startController(_cameras[_cameraIndex]);
             }
-            
+
             // Force modal rebuild
             if (mounted) {
               Navigator.of(context).pop();
@@ -647,13 +655,14 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
     _controller = next;
     try {
       await next.initialize();
-      
+
       // Initialize zoom settings
       if (mounted && !_disposed && epoch == _controllerEpoch) {
         _minZoom = 1.0;
         _maxZoom = await next.getMaxZoomLevel();
         _currentZoom = 1.0;
-        print('Camera initialized: zoom range $_minZoom - $_maxZoom, current: $_currentZoom');
+        print(
+            'Camera initialized: zoom range $_minZoom - $_maxZoom, current: $_currentZoom');
         await next.setZoomLevel(_currentZoom);
         await next.setFlashMode(_flashMode);
         setState(() {}); // Update UI to show zoom level
@@ -682,7 +691,9 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
 
   Future<void> _switchCamera() async {
     if (kIsWeb) return;
-    if (_initializing || _switchingCamera || _capturing) return;
+    if (_initializing || _switchingCamera || _captureReadiness.takingPicture) {
+      return;
+    }
     if (_cameras.isEmpty) return;
 
     try {
@@ -745,7 +756,8 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
     _controller = null;
     controller?.dispose();
     if (!kIsWeb) {
-      unawaited(SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]));
+      unawaited(SystemChrome.setPreferredOrientations(
+          [DeviceOrientation.portraitUp]));
     }
     _shutterAnimationController.dispose();
     super.dispose();
@@ -775,7 +787,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
           print('=== POINTER DOWN ===');
           print('Pointers: ${event.pointer}');
           _pointerPositions[event.pointer] = event.localPosition;
-          
+
           // Start zoom when we have two pointers
           if (_pointerPositions.length == 2) {
             final positions = _pointerPositions.values.toList();
@@ -789,30 +801,29 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
         onPointerMove: (event) {
           print('=== POINTER MOVE ===');
           print('Pointers: ${event.pointer}');
-          
+
           // Update pointer position
           _pointerPositions[event.pointer] = event.localPosition;
-          
+
           // Calculate zoom when we have two pointers
           if (_pointerPositions.length == 2 && _lastPointerDistance > 0) {
             final positions = _pointerPositions.values.toList();
             final currentDistance = (positions[0] - positions[1]).distance;
             print('Current distance: $currentDistance');
-            
+
             final scale = currentDistance / _lastPointerDistance;
             print('Scale: $scale');
-            
+
             if (_controller == null || !_controller!.value.isInitialized) {
               print('Controller not ready for zoom');
               return;
             }
-            
-            final newZoom = (_currentZoom * scale)
-                .clamp(_minZoom, _maxZoom);
-            
+
+            final newZoom = (_currentZoom * scale).clamp(_minZoom, _maxZoom);
+
             print('Calculated new zoom: $newZoom');
             print('Zoom range: $_minZoom - $_maxZoom');
-            
+
             if ((newZoom - _currentZoom).abs() > 0.01) {
               print('Zoom updating: $_currentZoom -> $newZoom');
               setState(() {
@@ -820,12 +831,12 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
                 _showZoomIndicator = true;
               });
               _controller!.setZoomLevel(_currentZoom).then((_) {
-                    print('✅ Zoom set successfully to $_currentZoom');
-                  }).catchError((e) {
-                    print('❌ Zoom error: $e');
-                  });
+                print('✅ Zoom set successfully to $_currentZoom');
+              }).catchError((e) {
+                print('❌ Zoom error: $e');
+              });
             }
-            
+
             _lastPointerDistance = currentDistance;
           }
         },
@@ -833,7 +844,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
           print('=== POINTER UP ===');
           print('Pointers: ${event.pointer}');
           _pointerPositions.remove(event.pointer);
-          
+
           // Hide zoom indicator when less than 2 pointers
           if (_pointerPositions.length < 2) {
             _lastPointerDistance = 0.0;
@@ -854,12 +865,11 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
                         )
                       : (controller == null || !controller.value.isInitialized)
                           ? _CameraErrorView(
-                              error: context
-                                  .read<TranslationsService>()
-                                  .translate(
-                                    'photo_capture.error_camera_not_initialized',
-                                    fallback: 'Camera not initialized',
-                                  ),
+                              error:
+                                  context.read<TranslationsService>().translate(
+                                        'photo_capture.error_camera_not_initialized',
+                                        fallback: 'Camera not initialized',
+                                      ),
                               onRetry: _init,
                             )
                           : LayoutBuilder(
@@ -871,13 +881,16 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
                                 final effectiveAspect = isPortrait
                                     ? (1.0 / controller.value.aspectRatio)
                                     : controller.value.aspectRatio;
-                                final screenAspect =
-                                    constraints.maxWidth / constraints.maxHeight;
+                                final screenAspect = constraints.maxWidth /
+                                    constraints.maxHeight;
                                 final rawScale = effectiveAspect / screenAspect;
                                 final scale =
                                     rawScale < 1 ? 1 / rawScale : rawScale;
 
-                                final isFront = _cameras.isNotEmpty ? _cameras[_cameraIndex].lensDirection == CameraLensDirection.front : false;
+                                final isFront = _cameras.isNotEmpty
+                                    ? _cameras[_cameraIndex].lensDirection ==
+                                        CameraLensDirection.front
+                                    : false;
 
                                 return ClipRect(
                                   child: Transform.scale(
@@ -898,297 +911,307 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
                               },
                             ),
             ),
-          AnimatedBuilder(
-            animation: _shutterAnimationController,
-            builder: (context, child) {
-              return Opacity(
-                opacity: _shutterOpacityAnimation.value,
-                child: Container(
-                  color: Colors.black,
-                ),
-              );
-            },
-          ),
-          // Zoom indicator - always show when not at 1.0x
-          if (_showZoomIndicator || _currentZoom != 1.0)
-            Positioned(
-              top: 100 + MediaQuery.paddingOf(context).top,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(20),
+            AnimatedBuilder(
+              animation: _shutterAnimationController,
+              builder: (context, child) {
+                return Opacity(
+                  opacity: _shutterOpacityAnimation.value,
+                  child: Container(
+                    color: Colors.black,
                   ),
-                  child: Text(
-                    '${_currentZoom.toStringAsFixed(1)}x',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                );
+              },
+            ),
+            // Zoom indicator - always show when not at 1.0x
+            if (_showZoomIndicator || _currentZoom != 1.0)
+              Positioned(
+                top: 100 + MediaQuery.paddingOf(context).top,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                  ),
-                ),
-              ),
-            ),
-          if (_framePairs.isNotEmpty && _framesEnabled)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: Builder(
-                  builder: (context) {
-                    final controller = _controller;
-                    if (controller == null || !controller.value.isInitialized) {
-                      return const SizedBox.shrink();
-                    }
-                    final size = MediaQuery.sizeOf(context);
-                    final orientation = resolveCaptureOrientation(
-                      viewportAspect: size.width / size.height,
-                      deviceOrientation: controller.value.deviceOrientation,
-                      forcedOrientation: _orientationOverride,
-                    );
-                    final frame =
-                        _framePairs[_currentFrameIndex % _framePairs.length];
-                    final url = orientation == CaptureOrientation.portrait
-                        ? frame.verticalUrl
-                        : frame.horizontalUrl;
-                    if (url == null || url.isEmpty) {
-                      return const SizedBox.shrink();
-                    }
-                    return Image.network(
-                      url,
-                      fit: BoxFit.fill,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const SizedBox.shrink();
-                      },
-                    );
-                  },
-                ),
-              ),
-            ),
-          Positioned(
-            left: 12,
-            top: 12 + MediaQuery.paddingOf(context).top,
-            child: IconButton(
-              onPressed: () => Navigator.of(context).pop(),
-              icon: const Icon(Icons.close, color: Colors.white),
-            ),
-          ),
-          Positioned(
-            right: 12,
-            top: 12 + MediaQuery.paddingOf(context).top,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  tooltip: _orientationOverride == null
-                      ? 'Orientación automática'
-                      : _orientationOverride == CaptureOrientation.landscape
-                          ? 'Orientación horizontal'
-                          : 'Orientación vertical',
-                  onPressed: () => setState(() {
-                    _orientationOverride = switch (_orientationOverride) {
-                      null => CaptureOrientation.landscape,
-                      CaptureOrientation.landscape => CaptureOrientation.portrait,
-                      CaptureOrientation.portrait => null,
-                    };
-                  }),
-                  icon: const Icon(Icons.screen_rotation, color: Colors.white),
-                ),
-                IconButton(
-                  onPressed: _showShutterSettings,
-                  icon: const Icon(Icons.settings, color: Colors.white),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: _controller?.value.isInitialized == true ? _cycleFlashMode : null,
-                  icon: Icon(_getFlashIcon(), color: Colors.white),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: _initializing ? null : _switchCamera,
-                  icon: const Icon(Icons.cameraswitch, color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-          if (widget.frameIds.isNotEmpty && _loadingFrames)
-            Positioned(
-              left: 12,
-              right: 12,
-              top: 60 + MediaQuery.paddingOf(context).top,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                color: Colors.black.withOpacity(0.45),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      context.read<TranslationsService>().translate(
-                            'photo_capture.frames_loading',
-                            fallback: 'Cargando frames…',
-                          ),
+                    child: Text(
+                      '${_currentZoom.toStringAsFixed(1)}x',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-          if (widget.frameIds.isNotEmpty &&
-              !_loadingFrames &&
-              _framesError != null)
-            Positioned(
-              left: 12,
-              right: 12,
-              top: 60 + MediaQuery.paddingOf(context).top,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                color: Colors.red.withOpacity(0.6),
-                child: Text(
-                  '${context.read<TranslationsService>().translate(
-                        "photo_capture.frames_error",
-                        fallback: 'Error cargando frames',
-                      )}: $_framesError',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
-            ),
-          if (_framePairs.isNotEmpty)
+            if (_framePairs.isNotEmpty && _framesEnabled)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Builder(
+                    builder: (context) {
+                      final controller = _controller;
+                      if (controller == null ||
+                          !controller.value.isInitialized) {
+                        return const SizedBox.shrink();
+                      }
+                      final size = MediaQuery.sizeOf(context);
+                      final orientation = resolveCaptureOrientation(
+                        viewportAspect: size.width / size.height,
+                        deviceOrientation: controller.value.deviceOrientation,
+                        forcedOrientation: _orientationOverride,
+                      );
+                      final frame =
+                          _framePairs[_currentFrameIndex % _framePairs.length];
+                      final url = orientation == CaptureOrientation.portrait
+                          ? frame.verticalUrl
+                          : frame.horizontalUrl;
+                      if (url == null || url.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      return Image.network(
+                        url,
+                        fit: BoxFit.fill,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const SizedBox.shrink();
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ),
             Positioned(
               left: 12,
+              top: 12 + MediaQuery.paddingOf(context).top,
+              child: IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close, color: Colors.white),
+              ),
+            ),
+            Positioned(
               right: 12,
-              bottom: 110 + MediaQuery.paddingOf(context).bottom,
+              top: 12 + MediaQuery.paddingOf(context).top,
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _framesEnabled = !_framesEnabled;
-                      });
-                    },
-                    icon: Icon(
-                      _framesEnabled
-                          ? Icons.filter_frames
-                          : Icons.filter_frames_outlined,
-                      color: Colors.white,
-                    ),
+                    tooltip: _orientationOverride == null
+                        ? 'Orientación automática'
+                        : _orientationOverride == CaptureOrientation.landscape
+                            ? 'Orientación horizontal'
+                            : 'Orientación vertical',
+                    onPressed: () => setState(() {
+                      _orientationOverride = switch (_orientationOverride) {
+                        null => CaptureOrientation.landscape,
+                        CaptureOrientation.landscape =>
+                          CaptureOrientation.portrait,
+                        CaptureOrientation.portrait => null,
+                      };
+                    }),
+                    icon:
+                        const Icon(Icons.screen_rotation, color: Colors.white),
                   ),
-                  const SizedBox(width: 16),
-                  if (_framePairs.length > 1) ...[
-                    IconButton(
-                      onPressed: () {
-                        setState(() {
-                          final len = _framePairs.length;
-                          _currentFrameIndex =
-                              (_currentFrameIndex - 1 + len) % len;
-                        });
-                      },
-                      icon: const Icon(Icons.chevron_left, color: Colors.white),
-                    ),
-                    Text(
-                      '${_currentFrameIndex + 1}/${_framePairs.length}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () {
-                        setState(() {
-                          final len = _framePairs.length;
-                          _currentFrameIndex = (_currentFrameIndex + 1) % len;
-                        });
-                      },
-                      icon:
-                          const Icon(Icons.chevron_right, color: Colors.white),
-                    ),
-                  ],
+                  IconButton(
+                    onPressed: _showShutterSettings,
+                    icon: const Icon(Icons.settings, color: Colors.white),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _controller?.value.isInitialized == true
+                        ? _cycleFlashMode
+                        : null,
+                    icon: Icon(_getFlashIcon(), color: Colors.white),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _initializing ? null : _switchCamera,
+                    icon: const Icon(Icons.cameraswitch, color: Colors.white),
+                  ),
                 ],
               ),
             ),
-          Builder(
-            builder: (context) {
-              final isPortrait =
-                  MediaQuery.orientationOf(context) == Orientation.portrait;
-              final isDisabled = _initializing || _capturing || _error != null;
-
-              if (isPortrait) {
-                return Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 24 + MediaQuery.paddingOf(context).bottom,
-                  child: Center(
-                    child: IconButton(
-                      onPressed:
-                          isDisabled ? null : () => _captureAndEnqueue(context),
-                      iconSize: 72,
-                      icon: Icon(
-                        Icons.radio_button_checked,
-                        color: isDisabled ? Colors.white54 : Colors.white,
+            if (widget.frameIds.isNotEmpty && _loadingFrames)
+              Positioned(
+                left: 12,
+                right: 12,
+                top: 60 + MediaQuery.paddingOf(context).top,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  color: Colors.black.withOpacity(0.45),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       ),
+                      const SizedBox(width: 10),
+                      Text(
+                        context.read<TranslationsService>().translate(
+                              'photo_capture.frames_loading',
+                              fallback: 'Cargando frames…',
+                            ),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            if (widget.frameIds.isNotEmpty &&
+                !_loadingFrames &&
+                _framesError != null)
+              Positioned(
+                left: 12,
+                right: 12,
+                top: 60 + MediaQuery.paddingOf(context).top,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  color: Colors.red.withOpacity(0.6),
+                  child: Text(
+                    '${context.read<TranslationsService>().translate(
+                          "photo_capture.frames_error",
+                          fallback: 'Error cargando frames',
+                        )}: $_framesError',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                );
-              } else {
-                return Stack(
+                ),
+              ),
+            if (_framePairs.isNotEmpty)
+              Positioned(
+                left: 12,
+                right: 12,
+                bottom: 110 + MediaQuery.paddingOf(context).bottom,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Positioned(
-                      left: 24,
-                      top: 0,
-                      bottom: 0,
-                      child: Center(
-                        child: IconButton(
-                          onPressed: isDisabled
-                              ? null
-                              : () => _captureAndEnqueue(context),
-                          iconSize: 72,
-                          icon: Icon(
-                            Icons.radio_button_checked,
-                            color: isDisabled ? Colors.white54 : Colors.white,
-                          ),
-                        ),
+                    IconButton(
+                      onPressed: () {
+                        setState(() {
+                          _framesEnabled = !_framesEnabled;
+                        });
+                      },
+                      icon: Icon(
+                        _framesEnabled
+                            ? Icons.filter_frames
+                            : Icons.filter_frames_outlined,
+                        color: Colors.white,
                       ),
                     ),
-                    Positioned(
-                      right: 24,
-                      top: 0,
-                      bottom: 0,
-                      child: Center(
-                        child: IconButton(
-                          onPressed: isDisabled
-                              ? null
-                              : () => _captureAndEnqueue(context),
-                          iconSize: 72,
-                          icon: Icon(
-                            Icons.radio_button_checked,
-                            color: isDisabled ? Colors.white54 : Colors.white,
-                          ),
+                    const SizedBox(width: 16),
+                    if (_framePairs.length > 1) ...[
+                      IconButton(
+                        onPressed: () {
+                          setState(() {
+                            final len = _framePairs.length;
+                            _currentFrameIndex =
+                                (_currentFrameIndex - 1 + len) % len;
+                          });
+                        },
+                        icon:
+                            const Icon(Icons.chevron_left, color: Colors.white),
+                      ),
+                      Text(
+                        '${_currentFrameIndex + 1}/${_framePairs.length}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                    ),
+                      IconButton(
+                        onPressed: () {
+                          setState(() {
+                            final len = _framePairs.length;
+                            _currentFrameIndex = (_currentFrameIndex + 1) % len;
+                          });
+                        },
+                        icon: const Icon(Icons.chevron_right,
+                            color: Colors.white),
+                      ),
+                    ],
                   ],
-                );
-              }
-            },
-          ),
-        ],
-      ),
+                ),
+              ),
+            Builder(
+              builder: (context) {
+                final isPortrait =
+                    MediaQuery.orientationOf(context) == Orientation.portrait;
+                final isDisabled = _initializing ||
+                    !_captureReadiness.canCapture ||
+                    _error != null;
+
+                if (isPortrait) {
+                  return Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 24 + MediaQuery.paddingOf(context).bottom,
+                    child: Center(
+                      child: IconButton(
+                        onPressed: isDisabled
+                            ? null
+                            : () => _captureAndEnqueue(context),
+                        iconSize: 72,
+                        icon: Icon(
+                          Icons.radio_button_checked,
+                          color: isDisabled ? Colors.white54 : Colors.white,
+                        ),
+                      ),
+                    ),
+                  );
+                } else {
+                  return Stack(
+                    children: [
+                      Positioned(
+                        left: 24,
+                        top: 0,
+                        bottom: 0,
+                        child: Center(
+                          child: IconButton(
+                            onPressed: isDisabled
+                                ? null
+                                : () => _captureAndEnqueue(context),
+                            iconSize: 72,
+                            icon: Icon(
+                              Icons.radio_button_checked,
+                              color: isDisabled ? Colors.white54 : Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        right: 24,
+                        top: 0,
+                        bottom: 0,
+                        child: Center(
+                          child: IconButton(
+                            onPressed: isDisabled
+                                ? null
+                                : () => _captureAndEnqueue(context),
+                            iconSize: 72,
+                            icon: Icon(
+                              Icons.radio_button_checked,
+                              color: isDisabled ? Colors.white54 : Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1199,13 +1222,23 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
     final size = MediaQuery.sizeOf(context);
     final viewportAspect = size.width / size.height;
     final cam = _controller;
-    if (_capturing || cam == null || !cam.value.isInitialized) return;
+    if (!_captureReadiness.canCapture ||
+        cam == null ||
+        !cam.value.isInitialized) {
+      return;
+    }
 
     final uploader = context.read<PhotosUploadController>();
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final captureError = context.read<TranslationsService>().translate(
+          'photo_capture.error_capture_failed',
+          fallback: 'Error capturando foto',
+        );
+    final eventId = widget.eventId;
     Directory? scratchDir;
-    setState(() {
-      _capturing = true;
-    });
+    var staged = false;
+    _captureReadiness.beginCapture();
+    setState(() {});
 
     try {
       if (_shutterHapticEnabled) {
@@ -1223,37 +1256,99 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
       await _shutterAnimationController.forward();
       await _shutterAnimationController.reverse();
       final photoId = const Uuid().v4();
-
-      final isFront = cam.description.lensDirection == CameraLensDirection.front;
-
+      final isFront =
+          cam.description.lensDirection == CameraLensDirection.front;
       final orientation = resolveCaptureOrientation(
         viewportAspect: viewportAspect,
         deviceOrientation: deviceOrientation,
         forcedOrientation: orientationOverride,
       );
+      scratchDir = await Directory.systemTemp.createTemp('ones_capture_');
+      final stagedFile = File('${scratchDir.path}/source.jpg');
+      await File(file.path).copy(stagedFile.path);
+      final sensorOrientation = cam.description.sensorOrientation;
+      final capturedAt = DateTime.now();
+
+      _captureReadiness.captureStaged();
+      staged = true;
+      if (mounted) setState(() {});
+
+      final task = _captureProcessingQueue.then((_) async {
+        await _prepareAndEnqueueCapture(
+          eventId: eventId,
+          photoId: photoId,
+          stagedFile: stagedFile,
+          scratchDir: scratchDir!,
+          uploader: uploader,
+          capturedAt: capturedAt,
+          orientation: orientation,
+          deviceOrientation: deviceOrientation,
+          isFront: isFront,
+          sensorOrientation: sensorOrientation,
+          frame: frame,
+          captureError: captureError,
+          messenger: messenger,
+        );
+      });
+      _captureProcessingQueue = task;
+      await task;
+    } catch (e) {
+      if (mounted && messenger != null) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('$captureError: $e')),
+        );
+      }
+    } finally {
+      if (!staged) {
+        _captureReadiness.captureFailed();
+        if (scratchDir != null) {
+          try {
+            await scratchDir.delete(recursive: true);
+          } catch (_) {}
+        }
+      }
+      if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _prepareAndEnqueueCapture({
+    required String eventId,
+    required String photoId,
+    required File stagedFile,
+    required Directory scratchDir,
+    required PhotosUploadController uploader,
+    required DateTime capturedAt,
+    required CaptureOrientation orientation,
+    required DeviceOrientation? deviceOrientation,
+    required bool isFront,
+    required int sensorOrientation,
+    required TemplateFrame? frame,
+    required String captureError,
+    required ScaffoldMessengerState? messenger,
+  }) async {
+    String? usedFrameId;
+    try {
       final normalized = await compute(
         normalizeNativeCapture,
         CaptureProcessingInput(
-          await file.readAsBytes(),
+          await stagedFile.readAsBytes(),
           orientation,
           deviceOrientation,
           isFront,
         ),
       );
-      scratchDir = await Directory.systemTemp.createTemp('ones_capture_');
       final captured = File('${scratchDir.path}/$photoId.jpg');
       await captured.writeAsBytes(normalized.bytes, flush: true);
-      String? usedFrameId;
 
       if (frame != null) {
-        final url = orientation == CaptureOrientation.portrait
+        final overlayUrl = orientation == CaptureOrientation.portrait
             ? frame.verticalUrl
             : frame.horizontalUrl;
-        if (url != null && url.isNotEmpty) {
+        if (overlayUrl != null && overlayUrl.isNotEmpty) {
           usedFrameId = frame.frameId;
           final framedBytes = await _composeJpegWithOverlay(
             photo: captured,
-            overlayUrl: url,
+            overlayUrl: overlayUrl,
             mirrorHorizontally: isFront,
             targetAspectRatio: normalized.width / normalized.height,
             deviceOrientation: deviceOrientation,
@@ -1264,43 +1359,31 @@ class _PhotoCapturePageState extends State<PhotoCapturePage>
 
       if (kDebugMode) {
         debugPrint(
-          'photo_capture: eventId=$widget.eventId photoId=$photoId frameId=${usedFrameId ?? '-'} orientation=${orientation.name} deviceOrientation=$deviceOrientation sensorOrientation=${cam.description.sensorOrientation} camera=${isFront ? 'front' : 'back'}',
+          'photo_capture: eventId=$eventId photoId=$photoId frameId=${usedFrameId ?? '-'} orientation=${orientation.name} deviceOrientation=$deviceOrientation sensorOrientation=$sensorOrientation camera=${isFront ? 'front' : 'back'}',
         );
       }
 
       await uploader.enqueueCapturedJpeg(
-        eventId: widget.eventId,
+        eventId: eventId,
         photoId: photoId,
         capturedFile: captured,
-        createdAt: DateTime.now(),
+        createdAt: capturedAt,
         frameId: usedFrameId,
         orientation: orientation.name,
         cameraType: isFront ? 'front' : 'back',
       );
-    } catch (e) {
-      if (!context.mounted) return;
-      final t = context.read<TranslationsService>();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${t.translate(
-                  "photo_capture.error_capture_failed",
-                  fallback: 'Error capturando foto',
-                )}: $e',
-          ),
-        ),
-      );
+    } catch (error) {
+      if (mounted && messenger != null) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('$captureError: $error')),
+        );
+      }
     } finally {
-      if (scratchDir != null) {
-        try {
-          await scratchDir.delete(recursive: true);
-        } catch (_) {}
-      }
-      if (mounted) {
-        setState(() {
-          _capturing = false;
-        });
-      }
+      try {
+        await scratchDir.delete(recursive: true);
+      } catch (_) {}
+      _captureReadiness.preparationFinished();
+      if (mounted) setState(() {});
     }
   }
 }
@@ -1324,9 +1407,9 @@ class _CameraErrorView extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               '${t.translate(
-                    "photo_capture.camera_error",
-                    fallback: 'Camera error',
-                  )}: $error',
+                "photo_capture.camera_error",
+                fallback: 'Camera error',
+              )}: $error',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Colors.white,

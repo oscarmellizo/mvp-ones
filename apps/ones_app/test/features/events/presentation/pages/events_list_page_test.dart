@@ -10,8 +10,11 @@ import 'package:ones_app/features/invitations/presentation/invitations_controlle
 import 'package:provider/provider.dart';
 
 class _Events extends Mock implements EventsController {}
+
 class _Invitations extends Mock implements InvitationsController {}
+
 class _CoverUrls extends Mock implements EventCoverUrlsController {}
+
 class _Translations extends Mock implements TranslationsService {}
 
 Event _event(
@@ -68,19 +71,20 @@ void main() {
         ChangeNotifierProvider<TranslationsService>.value(value: translations),
       ],
       child: MaterialApp(
-        home: Scaffold(body: Builder(builder: (context) => const EventsListPage())),
+        home: Scaffold(
+            body: Builder(builder: (context) => const EventsListPage())),
       ),
     ));
     await tester.pumpAndSettle();
   }
 
-  testWidgets('Inicio no ofrece planes y conserva menú e invitaciones',
+  testWidgets('la lista de eventos no duplica el encabezado de Home',
       (tester) async {
     await pumpEventsList(tester);
 
     expect(find.byTooltip('Plus'), findsNothing);
-    expect(find.byTooltip('Menú'), findsOneWidget);
-    expect(find.byTooltip('Ayuda'), findsOneWidget);
+    expect(find.byTooltip('Menú'), findsNothing);
+    expect(find.byTooltip('Ayuda'), findsNothing);
   });
 
   testWidgets('buscador filtra eventos por título y ubicación', (tester) async {

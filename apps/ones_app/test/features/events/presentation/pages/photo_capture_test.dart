@@ -6,6 +6,26 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ones_app/features/events/presentation/pages/photo_capture_web_page.dart';
 
 void main() {
+  test('shutter reopens after staging while image preparation continues', () {
+    final readiness = CaptureReadiness();
+
+    expect(readiness.canCapture, isTrue);
+    readiness.beginCapture();
+    expect(readiness.canCapture, isFalse);
+
+    readiness.captureStaged();
+    expect(readiness.canCapture, isTrue);
+    expect(readiness.pendingPreparations, 1);
+
+    readiness.beginCapture();
+    readiness.captureStaged();
+    expect(readiness.canCapture, isFalse);
+    readiness.preparationFinished();
+    expect(readiness.canCapture, isTrue);
+    readiness.preparationFinished();
+    expect(readiness.pendingPreparations, 0);
+  });
+
   for (final opacity in [0.0, 0.8]) {
     testWidgets('la capa de obturador no bloquea taps con opacidad $opacity',
         (tester) async {
@@ -15,7 +35,8 @@ void main() {
           body: Stack(
             fit: StackFit.expand,
             children: [
-              Center(child: IconButton(
+              Center(
+                  child: IconButton(
                 onPressed: () => taps++,
                 icon: const Icon(Icons.camera),
               )),
@@ -116,15 +137,16 @@ void main() {
       orientation: CaptureOrientation.landscape,
     );
     expect(normalized.width, greaterThan(normalized.height));
-    expect(img.decodeJpg(normalized.bytes)!.exif.imageIfd.orientation, isNot(8));
+    expect(
+        img.decodeJpg(normalized.bytes)!.exif.imageIfd.orientation, isNot(8));
   });
 
   test('landscapeLeft y landscapeRight giran en sentidos opuestos', () {
     final source = img.Image(width: 120, height: 80);
-    img.fillRect(source, x1: 0, y1: 0, x2: 59, y2: 79,
-        color: img.ColorRgb8(255, 0, 0));
-    img.fillRect(source, x1: 60, y1: 0, x2: 119, y2: 79,
-        color: img.ColorRgb8(0, 0, 255));
+    img.fillRect(source,
+        x1: 0, y1: 0, x2: 59, y2: 79, color: img.ColorRgb8(255, 0, 0));
+    img.fillRect(source,
+        x1: 60, y1: 0, x2: 119, y2: 79, color: img.ColorRgb8(0, 0, 255));
     final bytes = Uint8List.fromList(img.encodeJpg(source));
     final left = normalizeCapturedJpeg(
       bytes: bytes,
@@ -143,7 +165,8 @@ void main() {
 
   test('reduce fotografías grandes antes de subir sin cambiar orientación', () {
     final normalized = normalizeCapturedJpeg(
-      bytes: Uint8List.fromList(img.encodeJpg(img.Image(width: 300, height: 200))),
+      bytes:
+          Uint8List.fromList(img.encodeJpg(img.Image(width: 300, height: 200))),
       orientation: CaptureOrientation.landscape,
       maxDimension: 120,
     );
@@ -161,7 +184,8 @@ void main() {
     );
     expect(normalized.width, greaterThan(normalized.height));
     final overlay = Uint8List.fromList(img.encodePng(img.Image(
-      width: 120, height: 80,
+      width: 120,
+      height: 80,
     )));
     final framed = composeJpegWithOverlayBytes(
       baseJpegBytes: normalized.bytes,

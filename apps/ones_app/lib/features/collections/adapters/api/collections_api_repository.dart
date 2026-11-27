@@ -3,6 +3,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 
 import '../../../../core/http/ones_api_factory.dart';
 import '../../domain/collection.dart';
+import '../../domain/collection_invitation.dart';
 
 class CollectionsApiRepository {
   final Dio Function(String? idToken) _dioFactory;
@@ -67,6 +68,41 @@ class CollectionsApiRepository {
         .map((item) =>
             CollectionMember.fromJson(Map<String, dynamic>.from(item)))
         .toList(growable: false);
+  }
+
+  Future<CollectionInvitationsPage> pendingInvitations({
+    int limit = 100,
+    String? nextToken,
+  }) async {
+    final response = await _secureDio().get(
+      '/v1/collections/invitations',
+      queryParameters: {
+        'limit': limit,
+        if (nextToken != null && nextToken.isNotEmpty) 'nextToken': nextToken,
+      },
+    );
+    final data = Map<String, dynamic>.from(response.data as Map);
+    return CollectionInvitationsPage(
+      items: (data['items'] as List? ?? const [])
+          .whereType<Map>()
+          .map((item) =>
+              CollectionInvitation.fromJson(Map<String, dynamic>.from(item)))
+          .toList(growable: false),
+      nextToken: data['nextToken'] as String?,
+    );
+  }
+
+  Future<void> respondToIncomingInvitation({
+    required String collectionId,
+    required String action,
+  }) async {
+    if (action != 'accept' && action != 'reject') {
+      throw ArgumentError.value(action, 'action', 'Expected accept or reject');
+    }
+    await _secureDio().post(
+      '/v1/collections/invitations/${Uri.encodeComponent(collectionId)}/respond',
+      data: {'action': action},
+    );
   }
 
   Future<List<CollectionMember>> invite(

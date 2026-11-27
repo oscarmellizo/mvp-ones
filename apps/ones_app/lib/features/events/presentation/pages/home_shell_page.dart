@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../invitations/presentation/invitations_controller.dart';
+import '../../../invitations/presentation/widgets/invitations_sheet.dart';
 import '../../../tutorial/presentation/tutorial_keys.dart';
 import '../../../tutorial/presentation/tutorial_store.dart';
-import '../../../tutorial/presentation/tutorial_controller.dart';
 
 import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/ui/ones_colors.dart';
@@ -14,6 +17,7 @@ import 'event_join_scan_page.dart';
 import 'event_join_code_page.dart';
 import '../../../account/presentation/pages/account_page.dart';
 import '../../../account/presentation/pages/about_page.dart';
+import '../../../tutorial/presentation/tutorial_controller.dart';
 import '../../../collections/presentation/pages/collection_join_qr_page.dart';
 import '../../../collections/presentation/pages/create_collection_page.dart';
 import '../../../collections/presentation/pages/home_collections_events_page.dart';
@@ -68,6 +72,7 @@ class _MainDrawer extends StatelessWidget {
 }
 
 class _HomeShellPageState extends State<HomeShellPage> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _index = 0;
   int _homeTabIndex = 0;
   String? _lastLanguage;
@@ -94,6 +99,7 @@ class _HomeShellPageState extends State<HomeShellPage> {
             page: 'home',
             requiredKeys: _homeRequiredKeys,
           );
+      unawaited(context.read<InvitationsController>().refresh());
       // Autodisparo en primer arranque (sin i18n, sólo español)
       () async {
         final show = await TutorialStore().shouldShow(
@@ -127,6 +133,8 @@ class _HomeShellPageState extends State<HomeShellPage> {
     }
 
     return Scaffold(
+      key: _scaffoldKey,
+      backgroundColor: OnesColors.surfaceWarm,
       drawer: _MainDrawer(
         onSelect: (dest) {
           Navigator.of(context).pop();
@@ -147,17 +155,35 @@ class _HomeShellPageState extends State<HomeShellPage> {
       ),
       body: Stack(
         children: [
-          _index == 0
-              ? HomeCollectionsEventsPage(
-                  onTabChanged: (tab) {
-                    if (_homeTabIndex == tab) return;
-                    setState(() {
-                      _homeTabIndex = tab;
-                      _isFabMenuExpanded = false;
-                    });
-                  },
-                )
-              : const GalleriesPage(),
+          if (_index == 0)
+            Column(
+              children: [
+                SafeArea(
+                  bottom: false,
+                  child: _HomeHeader(
+                    onMenu: () => _scaffoldKey.currentState?.openDrawer(),
+                    onHelp: () => TutorialController.instance.start(
+                      context,
+                      routeName: EventsListPage.routeName,
+                    ),
+                    onBell: () => showInvitationsSheet(context),
+                  ),
+                ),
+                Expanded(
+                  child: HomeCollectionsEventsPage(
+                    onTabChanged: (tab) {
+                      if (_homeTabIndex == tab) return;
+                      setState(() {
+                        _homeTabIndex = tab;
+                        _isFabMenuExpanded = false;
+                      });
+                    },
+                  ),
+                ),
+              ],
+            )
+          else
+            const GalleriesPage(),
           Positioned.fill(
             child: IgnorePointer(
               ignoring: !_isFabMenuExpanded,
@@ -382,6 +408,93 @@ class _HomeShellPageState extends State<HomeShellPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _HomeHeader extends StatelessWidget {
+  final VoidCallback onMenu;
+  final VoidCallback onHelp;
+  final VoidCallback onBell;
+
+  const _HomeHeader({
+    required this.onMenu,
+    required this.onHelp,
+    required this.onBell,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.watch<TranslationsService>();
+    final unread = context.watch<InvitationsController>().unreadCount;
+
+    return SizedBox(
+      height: 56,
+      child: Row(
+        children: [
+          IconButton(
+            tooltip: t.translate('common.menu', fallback: 'Menú'),
+            onPressed: onMenu,
+            icon: const Icon(Icons.menu),
+          ),
+          const Expanded(
+            child: Center(
+              child: Image(
+                image: AssetImage('assets/splash/symbol_purple.png'),
+                width: 112,
+              ),
+            ),
+          ),
+          IconButton(
+            key: TutorialKeys.homeHelpIcon,
+            tooltip: t.translate('common.help', fallback: 'Ayuda'),
+            onPressed: onHelp,
+            icon: const Icon(Icons.help_outline),
+          ),
+          IconButton(
+            key: TutorialKeys.homeBellIcon,
+            tooltip: t.translate(
+              'invitations.title',
+              fallback: 'Invitaciones',
+            ),
+            onPressed: onBell,
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.notifications_none),
+                if (unread > 0)
+                  Positioned(
+                    right: -3,
+                    top: -3,
+                    child: Container(
+                      constraints: const BoxConstraints(
+                        minWidth: 17,
+                        minHeight: 17,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
+                      decoration: const BoxDecoration(
+                        color: OnesColors.danger,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        unread > 99 ? '99+' : '$unread',
+                        style: const TextStyle(
+                          color: OnesColors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
