@@ -293,6 +293,97 @@ public class DynamoDbCollectionMembersRepository implements CollectionMembersRep
     }
 
     @Override
+    public PageResult<CollectionMember> pagePendingByInviteeEmail(
+            String email,
+            int limit,
+            String nextToken
+    ) {
+        if (email == null || email.isBlank()) {
+            return new PageResult<>(List.of(), null);
+        }
+        String normalizedEmail = email.trim().toLowerCase(java.util.Locale.ROOT);
+        int pageSize = Math.min(Math.max(limit, 1), 100);
+        QueryEnhancedRequest.Builder request = QueryEnhancedRequest.builder()
+                .queryConditional(QueryConditional.keyEqualTo(Key.builder()
+                        .partitionValue(normalizedEmail)
+                        .sortValue(CollectionMember.Status.PENDING.name())
+                        .build()))
+                .limit(pageSize);
+        if (nextToken != null && !nextToken.isBlank()) {
+            request.exclusiveStartKey(decodePendingInvitationCursor(
+                    nextToken, normalizedEmail));
+        }
+
+        var page = table.index("byInviteeEmailStatus")
+                .query(request.build())
+                .iterator()
+                .next();
+        String cursor = encodePendingInvitationCursor(page.lastEvaluatedKey());
+        return new PageResult<>(
+                page.items().stream()
+                        .map(DynamoDbCollectionMembersRepository::toDomain)
+                        .toList(),
+                cursor
+        );
+    }
+
+    private static Map<String, AttributeValue> decodePendingInvitationCursor(
+            String cursor,
+            String expectedEmail
+    ) {
+        try {
+            String[] parts = cursor.split("\\.", -1);
+            if (parts.length != 4) {
+                throw new IllegalArgumentException("Invalid invitation cursor");
+            }
+            String collectionId = decodeCursorPart(parts[0]);
+            String memberKey = decodeCursorPart(parts[1]);
+            String email = decodeCursorPart(parts[2]);
+            String status = decodeCursorPart(parts[3]);
+            if (!expectedEmail.equals(email)
+                    || !CollectionMember.Status.PENDING.name().equals(status)) {
+                throw new IllegalArgumentException("Invitation cursor does not match query");
+            }
+            return Map.of(
+                    "collectionId", AttributeValue.fromS(collectionId),
+                    "memberKey", AttributeValue.fromS(memberKey),
+                    "inviteeEmail", AttributeValue.fromS(email),
+                    "status", AttributeValue.fromS(status)
+            );
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid collection invitation cursor", e);
+        }
+    }
+
+    private static String encodePendingInvitationCursor(
+            Map<String, AttributeValue> key
+    ) {
+        if (key == null || key.isEmpty()) return null;
+        var collectionId = key.get("collectionId");
+        var memberKey = key.get("memberKey");
+        var email = key.get("inviteeEmail");
+        var status = key.get("status");
+        if (collectionId == null || memberKey == null || email == null || status == null) {
+            return null;
+        }
+        return String.join(".",
+                encodeCursorPart(collectionId.s()),
+                encodeCursorPart(memberKey.s()),
+                encodeCursorPart(email.s()),
+                encodeCursorPart(status.s()));
+    }
+
+    private static String encodeCursorPart(String value) {
+        return Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    private static String decodeCursorPart(String value) {
+        return new String(Base64.getUrlDecoder().decode(value),
+                java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    @Override
     public List<CollectionMember> listByUser(String userId, int limit) {
         if (userId == null || userId.isBlank()) return List.of();
         DynamoDbIndex<DynamoCollectionMemberItem> index = table.index("byUserId");

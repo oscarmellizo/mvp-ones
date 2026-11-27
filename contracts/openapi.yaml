@@ -224,6 +224,69 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /v1/collections/invitations:
+    get:
+      operationId: listIncomingCollectionInvitations
+      summary: List pending collection invitations for the authenticated email
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - name: nextToken
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: A bounded page of pending invitations
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/CollectionInvitation' }
+                  nextToken:
+                    type: string
+                    nullable: true
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /v1/collections/invitations/{id}/respond:
+    post:
+      operationId: respondToIncomingCollectionInvitation
+      summary: Accept or reject a pending invitation addressed to the authenticated email
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [accept, reject]
+      responses:
+        '200':
+          description: Updated membership
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CollectionMember' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /v1/collections/invitations/respond:
     post:
       operationId: respondToCollectionInvitation
@@ -1621,6 +1684,14 @@ components:
         userId: { type: string, nullable: true }
         email: { type: string, format: email, nullable: true }
         status: { type: string, enum: [PENDING, ACCEPTED, REJECTED] }
+        invitedByUserId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    CollectionInvitation:
+      type: object
+      required: [collectionId, collectionName, createdAt]
+      properties:
+        collectionId: { type: string }
+        collectionName: { type: string }
         invitedByUserId: { type: string, nullable: true }
         createdAt: { type: string, format: date-time }
     CollectionJoinQrResponse:

@@ -39,8 +39,37 @@ class _CollectionDetailPageState extends State<CollectionDetailPage> {
   Future<void> _manageMember(CollectionMember member, String action) async {
     final controller = context.read<CollectionsController>();
     if (action == 'remove') {
-      await controller.removeMember(widget.collection.id, member.memberKey);
-      if (mounted) await _refreshMembers();
+      try {
+        await controller.removeMember(widget.collection.id, member.memberKey);
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('No se pudo quitar a la persona: $error')),
+          );
+        }
+        return;
+      }
+      if (!mounted) return;
+      try {
+        await _refreshMembers();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Se quitó a la persona de la colección.'),
+            ),
+          );
+        }
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'La persona se quitó, pero no se pudo actualizar la lista: $error',
+              ),
+            ),
+          );
+        }
+      }
       return;
     }
     final userId = member.userId;

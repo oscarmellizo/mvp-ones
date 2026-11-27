@@ -4,6 +4,8 @@ import 'package:ones_api_client/ones_api_client.dart' as api;
 
 import '../../../../core/utils/datetime_formatters.dart';
 import '../../../../core/ui/ones_colors.dart';
+import '../../../collections/domain/collection_invitation.dart';
+import '../../../collections/presentation/collections_controller.dart';
 import '../../../events/presentation/events_controller.dart';
 import '../invitations_controller.dart';
 
@@ -82,7 +84,23 @@ class _InvitationsSheetState extends State<_InvitationsSheet> {
                     padding: EdgeInsets.all(16),
                     child: Center(child: CircularProgressIndicator()),
                   )
-                else if (invites.items.isEmpty)
+                else if (invites.items.isEmpty &&
+                    invites.collectionItems.isEmpty &&
+                    (invites.error != null || invites.collectionError != null))
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        const Text('No se pudieron cargar las invitaciones.'),
+                        TextButton(
+                          onPressed: invites.refresh,
+                          child: const Text('Reintentar'),
+                        ),
+                      ],
+                    ),
+                  )
+                else if (invites.items.isEmpty &&
+                    invites.collectionItems.isEmpty)
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: Text(
@@ -95,13 +113,47 @@ class _InvitationsSheetState extends State<_InvitationsSheet> {
                   Expanded(
                     child: ListView.separated(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      itemCount: invites.items.length,
+                      itemCount: invites.collectionItems.length +
+                          invites.items.length +
+                          (invites.collectionHasMore ? 1 : 0),
                       separatorBuilder: (_, __) => Divider(
                         height: 16,
                         color: OnesColors.black.withOpacity(0.08),
                       ),
                       itemBuilder: (context, index) {
-                        final inv = invites.items[index];
+                        if (index < invites.collectionItems.length) {
+                          return _CollectionInvitationRow(
+                            invitation: invites.collectionItems[index],
+                          );
+                        }
+                        final eventIndex =
+                            index - invites.collectionItems.length;
+                        if (eventIndex >= invites.items.length) {
+                          return Center(
+                            child: TextButton(
+                              onPressed: invites.loading
+                                  ? null
+                                  : () async {
+                                      try {
+                                        await invites
+                                            .loadMoreCollectionInvitations();
+                                        await invites.markAllSeen();
+                                      } catch (error) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                              content: Text(error.toString()),
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    },
+                              child: const Text('Ver más invitaciones'),
+                            ),
+                          );
+                        }
+                        final inv = invites.items[eventIndex];
                         return _InvitationRow(
                           eventId: inv.eventId,
                           title: inv.eventTitle,
@@ -118,6 +170,93 @@ class _InvitationsSheetState extends State<_InvitationsSheet> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _CollectionInvitationRow extends StatelessWidget {
+  final CollectionInvitation invitation;
+
+  const _CollectionInvitationRow({required this.invitation});
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = context.read<InvitationsController>();
+    final createdAt = formatMonthDayYear(invitation.createdAt.toLocal());
+
+    Future<void> respond(bool accept) async {
+      try {
+        if (accept) {
+          await controller.acceptCollection(invitation.collectionId);
+          if (context.mounted) {
+            await context.read<CollectionsController>().refresh();
+          }
+        } else {
+          await controller.rejectCollection(invitation.collectionId);
+        }
+      } catch (error) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error.toString())),
+          );
+        }
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(right: 10, top: 2),
+              child: Icon(
+                Icons.collections_bookmark_outlined,
+                color: OnesColors.purpleMid,
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    invitation.collectionName,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Te invitaron a una colección · $createdAt',
+                    style: TextStyle(color: OnesColors.black.withOpacity(0.6)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: controller.loading ? null : () => respond(false),
+                child: const Text('Rechazar'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: OnesColors.purpleMid,
+                  foregroundColor: OnesColors.white,
+                ),
+                onPressed: controller.loading ? null : () => respond(true),
+                child: const Text('Aceptar'),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

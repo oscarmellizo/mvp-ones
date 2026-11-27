@@ -16,6 +16,11 @@ public interface CollectionMembersRepository {
     Optional<CollectionMember> findByCollectionAndUser(String collectionId, String userId);
     Optional<CollectionMember> findByCollectionAndEmail(String collectionId, String email);
     List<CollectionMember> listByCollection(String collectionId, int limit);
+    PageResult<CollectionMember> pagePendingByInviteeEmail(
+            String email,
+            int limit,
+            String nextToken
+    );
 
     default PageResult<CollectionMember> pageByCollection(
             String collectionId,

@@ -15,9 +15,6 @@ import '../events_controller.dart';
 import 'create_event_page.dart';
 import 'event_detail_page.dart';
 import 'event_join_code_page.dart';
-import '../../../invitations/presentation/widgets/invitations_sheet.dart';
-import '../../../invitations/presentation/invitations_controller.dart';
-import '../../../tutorial/presentation/tutorial_controller.dart';
 import '../../../tutorial/presentation/tutorial_keys.dart';
 
 const String _defaultEventCoverAsset = 'assets/branding/ones-logo.png';
@@ -70,7 +67,6 @@ class _EventsListPageState extends State<EventsListPage> {
             requiredKeys: _homeRequiredKeys,
           );
       context.read<EventsController>().refresh();
-      context.read<InvitationsController>().refresh();
     });
     _searchController.addListener(_onSearchChanged);
   }
@@ -153,13 +149,6 @@ class _EventsListPageState extends State<EventsListPage> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(0, 10, 0, 16),
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _Header(
-                  onBell: () => showInvitationsSheet(context),
-                ),
-              ),
-              const SizedBox(height: 14),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: OnesSearchField(
@@ -441,97 +430,6 @@ class _EventsListPageState extends State<EventsListPage> {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  final VoidCallback onBell;
-
-  const _Header({required this.onBell});
-
-  @override
-  Widget build(BuildContext context) {
-    final invitations = context.watch<InvitationsController>();
-    final unread = invitations.unreadCount;
-
-    return SizedBox(
-      height: 56,
-      child: Stack(
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Padding(
-              padding: const EdgeInsets.only(left: 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    tooltip: 'Menú',
-                    icon: const Icon(Icons.menu),
-                    onPressed: () => Scaffold.of(context).openDrawer(),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const Align(
-            alignment: Alignment.center,
-            child: Image(
-              image: AssetImage('assets/splash/symbol_purple.png'),
-              width: 120,
-            ),
-          ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  key: TutorialKeys.homeHelpIcon,
-                  tooltip: 'Ayuda',
-                  onPressed: () => TutorialController.instance.start(
-                    context,
-                    routeName: EventsListPage.routeName,
-                  ),
-                  icon: const Icon(Icons.help_outline),
-                ),
-                IconButton(
-                  key: TutorialKeys.homeBellIcon,
-                  onPressed: onBell,
-                  icon: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      const Icon(Icons.notifications_none),
-                      if (unread > 0)
-                        Positioned(
-                          right: -2,
-                          top: -2,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: const BoxDecoration(
-                              color: OnesColors.danger,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Text(
-                              unread > 99 ? '99+' : unread.toString(),
-                              style: const TextStyle(
-                                color: OnesColors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

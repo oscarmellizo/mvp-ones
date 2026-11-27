@@ -75,15 +75,6 @@ class _CollectionsPageState extends State<CollectionsPage> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             children: [
-              Text(
-                translations.translate('collections.title',
-                    fallback: 'Colecciones'),
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: OnesColors.purpleDeep,
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-              const SizedBox(height: 12),
               OnesSearchField(
                 key: TutorialKeys.homeCollectionsSearch,
                 controller: _search,

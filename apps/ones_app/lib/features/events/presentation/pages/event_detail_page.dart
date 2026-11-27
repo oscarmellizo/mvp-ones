@@ -554,8 +554,6 @@ class _GalleryTabState extends State<_GalleryTab> {
   final Set<String> _selectedIds = {};
   bool _selectionTutorialShown = false;
 
-  final Set<String> _cleanupUploadPhotoIds = {};
-
   final ScrollController _gridScrollController = ScrollController();
 
   int _autoFillLoadMoreAttempts = 0;
@@ -708,9 +706,6 @@ class _GalleryTabState extends State<_GalleryTab> {
       setState(() {
         _selecting = false;
         _selectedIds.clear();
-        if (eventChanged) {
-          _cleanupUploadPhotoIds.clear();
-        }
         _badgeColorByIdentity.clear();
         _nextBadgeColorIndex = 0;
         _guestsFuture =
@@ -1196,28 +1191,13 @@ class _GalleryTabState extends State<_GalleryTab> {
       localById[it.photoId] = it;
     }
 
-    final doneLocal = <String>[];
-    for (final it in localActive) {
-      final pid = it.photoId.trim();
-      if (pid.isEmpty) continue;
-      final remote = remoteById[pid];
-      if (remote == null) continue;
-      final status = remote.status.trim().toLowerCase();
-      final hasThumb =
-          remote.smallUrl != null && remote.smallUrl!.trim().isNotEmpty;
-      if ((status == 'ready' || hasThumb) &&
-          !_cleanupUploadPhotoIds.contains(pid)) {
-        doneLocal.add(pid);
-      }
-    }
-    if (doneLocal.isNotEmpty) {
+    if (localActive.isNotEmpty && remoteItems.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        for (final pid in doneLocal) {
-          if (_cleanupUploadPhotoIds.contains(pid)) continue;
-          _cleanupUploadPhotoIds.add(pid);
-          uploader.markDoneByPhotoId(eventId: widget.eventId, photoId: pid);
-        }
+        unawaited(uploader.reconcileReadyPhotos(
+          eventId: widget.eventId,
+          photos: remoteItems,
+        ));
       });
     }
 
@@ -1371,7 +1351,8 @@ class _GalleryTabState extends State<_GalleryTab> {
                             horizontal: 8, vertical: 6),
                         decoration: BoxDecoration(
                           color: OnesColors.white,
-                          borderRadius: const BorderRadius.all(Radius.circular(12)),
+                          borderRadius:
+                              const BorderRadius.all(Radius.circular(12)),
                         ),
                         child:
                             _buildTopSelectionActionsBar(context, controller),
@@ -1909,7 +1890,8 @@ class _GalleryTabState extends State<_GalleryTab> {
                               ),
                             );
                           },
-                          borderRadius: const BorderRadius.all(Radius.circular(12)),
+                          borderRadius:
+                              const BorderRadius.all(Radius.circular(12)),
                           child: Stack(
                             fit: StackFit.expand,
                             children: [
@@ -3302,7 +3284,8 @@ class _DetailsTabState extends State<_DetailsTab> {
                                   padding:
                                       const EdgeInsets.symmetric(vertical: 12),
                                   shape: const RoundedRectangleBorder(
-                                    borderRadius: const BorderRadius.all(Radius.circular(12)),
+                                    borderRadius: const BorderRadius.all(
+                                        Radius.circular(12)),
                                   ),
                                 ),
                                 onPressed: canUseLink ? onCopy : null,
@@ -3327,7 +3310,8 @@ class _DetailsTabState extends State<_DetailsTab> {
                                     padding: const EdgeInsets.symmetric(
                                         vertical: 12),
                                     shape: const RoundedRectangleBorder(
-                                      borderRadius: const BorderRadius.all(Radius.circular(12)),
+                                      borderRadius: const BorderRadius.all(
+                                          Radius.circular(12)),
                                     ),
                                   ),
                                   onPressed: canUseLink

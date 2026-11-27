@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Locale;
 import java.util.stream.Collectors;
 import java.util.UUID;
 
@@ -19,6 +20,7 @@ import com.ones.api.application.invitations.email.InvitationActionTokenService;
 import com.ones.api.application.invitations.email.InvitationEmailService;
 import com.ones.api.application.users.ports.UsersRepository;
 import com.ones.api.domain.collections.Collection;
+import com.ones.api.domain.collections.CollectionInvitation;
 import com.ones.api.domain.collections.CollectionMember;
 import com.ones.api.domain.collections.CollectionPolicy;
 import com.ones.api.domain.collections.CollectionType;
@@ -215,16 +217,51 @@ public class CollectionService {
         return List.copyOf(result);
     }
 
+    public CollectionMembersRepository.PageResult<CollectionInvitation> listIncomingInvitations(
+            String inviteeEmail,
+            int limit,
+            String nextToken
+    ) {
+        String email = normalizeEmail(inviteeEmail);
+        if (email.isBlank()) {
+            return new CollectionMembersRepository.PageResult<>(List.of(), null);
+        }
+
+        var page = membersRepository.pagePendingByInviteeEmail(email, limit, nextToken);
+        List<String> collectionIds = page.items().stream()
+                .map(CollectionMember::collectionId)
+                .distinct()
+                .toList();
+        Map<String, Collection> collectionsById = repository.findByIds(collectionIds).stream()
+                .filter(collection -> !collection.deleting())
+                .collect(Collectors.toMap(Collection::id, collection -> collection));
+
+        List<CollectionInvitation> invitations = page.items().stream()
+                .filter(member -> member.status() == CollectionMember.Status.PENDING)
+                .map(member -> collectionsById.get(member.collectionId()) == null
+                        ? null
+                        : new CollectionInvitation(
+                                member.collectionId(),
+                                collectionsById.get(member.collectionId()).name(),
+                                member.invitedByUserId(),
+                                member.createdAt()))
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        return new CollectionMembersRepository.PageResult<>(invitations, page.nextToken());
+    }
+
     public CollectionMember respondToInvitation(
             String collectionId,
             String inviteeEmail,
             String userId,
             InvitationActionTokenService.Action action
     ) {
+        String normalizedEmail = normalizeEmail(inviteeEmail);
         Collection collection = repository.findById(collectionId)
                 .filter(c -> !c.deleting())
                 .orElseThrow(() -> new CollectionNotFoundException(collectionId));
-        CollectionMember pending = membersRepository.find(collectionId, emailKey(inviteeEmail))
+        CollectionMember pending = membersRepository.find(
+                        collectionId, emailKey(normalizedEmail))
                 .filter(member -> member.status() == CollectionMember.Status.PENDING)
                 .orElseThrow(() -> new CollectionNotFoundException(collectionId));
         if (action == InvitationActionTokenService.Action.accept) {
@@ -365,6 +402,10 @@ public class CollectionService {
 
     private static String normalize(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private static String normalizeEmail(String email) {
+        return email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
     }
 
     private static List<String> normalizeEmails(List<String> values) {

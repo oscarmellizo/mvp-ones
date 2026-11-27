@@ -14,7 +14,9 @@ import '../../../photos/presentation/pages/photo_import_web_sheet.dart';
 import '../../../photos/presentation/pages/photo_viewer_page.dart';
 import '../../../photos/presentation/photos_gallery_controller.dart';
 import '../../../photos/presentation/photos_upload_controller.dart';
+import '../../../photos/presentation/photo_upload_status_badge.dart';
 import '../../../photos/presentation/photos_ws_controller.dart';
+import '../../../photos/domain/photo_upload_item.dart';
 import '../../../events/presentation/pages/photo_capture_page.dart';
 import '../../../events/presentation/pages/photo_capture_web_page.dart';
 import '../../domain/collection.dart';
@@ -35,6 +37,7 @@ class _CollectionPhotosTabState extends State<CollectionPhotosTab> {
   final ScrollController _scrollController = ScrollController();
   final Set<String> _selected = <String>{};
   PhotosWsController? _ws;
+  Timer? _processingRecheckTimer;
 
   @override
   void initState() {
@@ -68,6 +71,8 @@ class _CollectionPhotosTabState extends State<CollectionPhotosTab> {
 
   @override
   void dispose() {
+    _processingRecheckTimer?.cancel();
+    _processingRecheckTimer = null;
     _ws?.unsubscribe(eventId: _ownerRef);
     _ws?.onPhotoReady = null;
     _scrollController
@@ -192,7 +197,32 @@ class _CollectionPhotosTabState extends State<CollectionPhotosTab> {
     );
   }
 
-  Widget _photoTile(EventPhoto photo, int index, String? userId) {
+  void _scheduleProcessingRecheck(List<EventPhoto> photos) {
+    final hasProcessing = photos.any((photo) {
+      final status = photo.status.trim().toLowerCase();
+      final hasThumbnail =
+          photo.smallUrl != null && photo.smallUrl!.trim().isNotEmpty;
+      return !hasThumbnail &&
+          const {'uploaded', 'processing', 'retrying'}.contains(status);
+    });
+    if (hasProcessing && _processingRecheckTimer == null) {
+      _processingRecheckTimer = Timer(const Duration(seconds: 8), () {
+        _processingRecheckTimer = null;
+        if (!mounted || _gallery.loading) return;
+        unawaited(_gallery.refresh(eventId: _ownerRef));
+      });
+    } else if (!hasProcessing) {
+      _processingRecheckTimer?.cancel();
+      _processingRecheckTimer = null;
+    }
+  }
+
+  Widget _photoTile(
+    EventPhoto photo,
+    int index,
+    String? userId,
+    PhotoUploadItem? upload,
+  ) {
     final selected = _selected.contains(photo.photoId);
     final isMine = photo.guestId == userId;
     final isCollectionOwner = widget.collection.ownerId == userId;
@@ -268,6 +298,23 @@ class _CollectionPhotosTabState extends State<CollectionPhotosTab> {
                 ),
               ),
             ),
+          if (upload != null ||
+              const {'uploaded', 'processing', 'retrying', 'uploading'}
+                  .contains(photo.status.trim().toLowerCase()))
+            Positioned(
+              left: 6,
+              bottom: 6,
+              child: PhotoUploadStatusBadge(
+                status: upload?.status ?? photo.status,
+                progress: _uploader.uploadProgressByPhotoId(photo.photoId),
+                onRetry: upload?.status == 'failed'
+                    ? () => _uploader.retryFailedByPhotoId(
+                          eventId: _ownerRef,
+                          photoId: photo.photoId,
+                        )
+                    : null,
+              ),
+            ),
           if (_selected.isNotEmpty)
             Positioned(
               top: 4,
@@ -289,6 +336,25 @@ class _CollectionPhotosTabState extends State<CollectionPhotosTab> {
         final photos = _gallery.items;
         final userId = context.read<AuthController>().user?.userId;
         final pendingUploads = _uploader.activeByEvent(_ownerRef);
+        final localById = <String, PhotoUploadItem>{
+          for (final upload in pendingUploads) upload.photoId: upload,
+        };
+        final remoteIds = photos.map((photo) => photo.photoId).toSet();
+        final localOnlyUploads = pendingUploads
+            .where((upload) => !remoteIds.contains(upload.photoId))
+            .toList(growable: false);
+        _scheduleProcessingRecheck(photos);
+        if (!_gallery.loading &&
+            photos.isNotEmpty &&
+            pendingUploads.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            unawaited(_uploader.reconcileReadyPhotos(
+              eventId: _ownerRef,
+              photos: photos,
+            ));
+          });
+        }
         return RefreshIndicator(
           onRefresh: _refresh,
           child: CustomScrollView(
@@ -309,7 +375,7 @@ class _CollectionPhotosTabState extends State<CollectionPhotosTab> {
                   ),
                 ),
               ),
-              if (pendingUploads.isNotEmpty)
+              if (localOnlyUploads.isNotEmpty)
                 SliverToBoxAdapter(
                   child: Card(
                     margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
@@ -318,34 +384,33 @@ class _CollectionPhotosTabState extends State<CollectionPhotosTab> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('${pendingUploads.length} cargas pendientes',
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w700)),
+                          const Text('Fotos pendientes',
+                              style: TextStyle(fontWeight: FontWeight.w700)),
                           const SizedBox(height: 6),
-                          for (final upload in pendingUploads)
+                          for (var i = 0; i < localOnlyUploads.length; i++)
                             Row(
                               children: [
-                                const Icon(Icons.cloud_upload_outlined,
-                                    size: 18),
-                                const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    upload.status == 'failed'
-                                        ? 'No se pudo subir una foto'
-                                        : 'Subiendo foto…',
+                                    'Foto ${i + 1}',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                if (upload.status == 'failed')
-                                  TextButton(
-                                    onPressed: () =>
-                                        _uploader.retryFailedByPhotoId(
-                                      eventId: _ownerRef,
-                                      photoId: upload.photoId,
-                                    ),
-                                    child: const Text('Reintentar'),
+                                PhotoUploadStatusBadge(
+                                  status: localOnlyUploads[i].status,
+                                  progress: _uploader.uploadProgressByPhotoId(
+                                    localOnlyUploads[i].photoId,
                                   ),
+                                  onRetry: localOnlyUploads[i].status ==
+                                          'failed'
+                                      ? () => _uploader.retryFailedByPhotoId(
+                                            eventId: _ownerRef,
+                                            photoId:
+                                                localOnlyUploads[i].photoId,
+                                          )
+                                      : null,
+                                ),
                               ],
                             ),
                         ],
@@ -454,8 +519,12 @@ class _CollectionPhotosTabState extends State<CollectionPhotosTab> {
                   padding: const EdgeInsets.all(2),
                   sliver: SliverGrid(
                     delegate: SliverChildBuilderDelegate(
-                      (context, index) =>
-                          _photoTile(photos[index], index, userId),
+                      (context, index) => _photoTile(
+                        photos[index],
+                        index,
+                        userId,
+                        localById[photos[index].photoId],
+                      ),
                       childCount: photos.length,
                     ),
                     gridDelegate:

@@ -3,6 +3,7 @@ package com.ones.api.adapters.inbound.rest.collections;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.List;
 
 import jakarta.validation.Valid;
@@ -10,6 +11,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -23,7 +25,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.ones.api.application.collections.CollectionService;
@@ -32,6 +33,7 @@ import com.ones.api.application.collections.CollectionJoinRateLimiter;
 import com.ones.api.application.invitations.email.InvitationActionTokenService;
 import com.ones.api.adapters.inbound.rest.AuthClaims;
 import com.ones.api.domain.collections.Collection;
+import com.ones.api.domain.collections.CollectionInvitation;
 import com.ones.api.domain.collections.CollectionMember;
 
 @RestController
@@ -134,6 +136,37 @@ public class CollectionsController {
                 .stream().map(CollectionsController::toMemberResponse).toList();
     }
 
+    @GetMapping("/invitations")
+    public CollectionInvitationsPageResponse incomingInvitations(
+            Authentication authentication,
+            @RequestParam(defaultValue = "50") @Min(1) @Max(100) int limit,
+            @RequestParam(required = false) String nextToken
+    ) {
+        var page = collectionService.listIncomingInvitations(
+                AuthClaims.requireEmail(authentication), limit, nextToken);
+        return new CollectionInvitationsPageResponse(
+                page.items().stream().map(CollectionsController::toInvitationResponse).toList(),
+                page.nextToken()
+        );
+    }
+
+    @PostMapping("/invitations/{id}/respond")
+    public CollectionMemberResponse respondToIncomingInvitation(
+            Authentication authentication,
+            @PathVariable("id") String collectionId,
+            @Valid @RequestBody RespondToIncomingCollectionInvitationRequest request
+    ) {
+        String email = AuthClaims.requireEmail(authentication);
+        InvitationActionTokenService.Action action = switch (
+                request.action().trim().toLowerCase(Locale.ROOT)) {
+            case "accept" -> InvitationActionTokenService.Action.accept;
+            case "reject" -> InvitationActionTokenService.Action.reject;
+            default -> throw new IllegalArgumentException("Action must be accept or reject");
+        };
+        return toMemberResponse(collectionService.respondToInvitation(
+                collectionId, email, authentication.getName(), action));
+    }
+
     @PostMapping("/invitations/respond")
     public CollectionMemberResponse respondToInvitation(
             Authentication authentication,
@@ -159,11 +192,11 @@ public class CollectionsController {
         return ResponseEntity.noContent().build();
     }
 
-    @DeleteMapping("/{id}/members/{userId}")
+    @DeleteMapping("/{id}/members/{memberKey}")
     public ResponseEntity<Void> removeMember(
-            Authentication authentication,
-            @PathVariable String id,
-            @PathVariable String memberKey
+        Authentication authentication,
+        @PathVariable("id") String id,
+        @PathVariable("memberKey") String memberKey
     ) {
         collectionService.removeMember(authentication.getName(), id, memberKey);
         return ResponseEntity.noContent().build();
@@ -233,6 +266,17 @@ public class CollectionsController {
         );
     }
 
+    private static CollectionInvitationResponse toInvitationResponse(
+            CollectionInvitation invitation
+    ) {
+        return new CollectionInvitationResponse(
+                invitation.collectionId(),
+                invitation.collectionName(),
+                invitation.invitedByUserId(),
+                invitation.createdAt().toString()
+        );
+    }
+
     public record CreateCollectionRequest(
             @NotBlank @Size(max = 100) String name,
             @Size(max = 500) String description,
@@ -262,6 +306,9 @@ public class CollectionsController {
 
     public record InviteCollectionMembersRequest(List<@Email String> inviteeEmails) {}
     public record RespondToCollectionInvitationRequest(@NotBlank String token) {}
+    public record RespondToIncomingCollectionInvitationRequest(
+            @NotBlank @Pattern(regexp = "(?i)accept|reject") String action
+    ) {}
     public record JoinQrRequest(boolean enabled) {}
     public record TransferOwnershipRequest(@NotBlank String newOwnerId) {}
     public record JoinByQrRequest(@NotBlank String collectionId, @NotBlank String token) {}
@@ -272,6 +319,16 @@ public class CollectionsController {
     ) {}
     public record CollectionMembersPageResponse(
             List<CollectionMemberResponse> items,
+            String nextToken
+    ) {}
+    public record CollectionInvitationResponse(
+            String collectionId,
+            String collectionName,
+            String invitedByUserId,
+            String createdAt
+    ) {}
+    public record CollectionInvitationsPageResponse(
+            List<CollectionInvitationResponse> items,
             String nextToken
     ) {}
 }

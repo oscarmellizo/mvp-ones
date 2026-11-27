@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import '../adapters/api/event_photos_api.dart';
 import '../adapters/local/photo_storage.dart';
 import '../adapters/local/photo_upload_db.dart';
+import '../domain/event_photo.dart';
 import '../domain/photo_upload_item.dart';
 
 class PhotosUploadController extends ChangeNotifier {
@@ -28,6 +29,7 @@ class PhotosUploadController extends ChangeNotifier {
   final Map<String, List<PhotoUploadItem>> _activeByEvent = {};
 
   final Map<String, double> _uploadProgressByPhotoId = {};
+  final Set<String> _finalizingUploads = {};
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
@@ -90,6 +92,41 @@ class PhotosUploadController extends ChangeNotifier {
     _uploadProgressByPhotoId.remove(photoId);
     await _refreshActiveForEvent(eventId);
     _safeNotify();
+  }
+
+  Future<void> reconcileReadyPhotos({
+    required String eventId,
+    required Iterable<EventPhoto> photos,
+  }) async {
+    if (!useLocalQueue) return;
+    final readyIds = photos
+        .where((photo) {
+          final ready = photo.status.trim().toLowerCase() == 'ready';
+          final hasThumbnail =
+              photo.smallUrl != null && photo.smallUrl!.trim().isNotEmpty;
+          return ready || hasThumbnail;
+        })
+        .map((photo) => photo.photoId)
+        .toSet();
+    if (readyIds.isEmpty) return;
+
+    final localItems = activeByEvent(eventId);
+    for (final item in localItems) {
+      if (!readyIds.contains(item.photoId)) continue;
+      final key = '$eventId:${item.photoId}';
+      if (!_finalizingUploads.add(key)) continue;
+      try {
+        await markDoneByPhotoId(eventId: eventId, photoId: item.photoId);
+      } catch (error) {
+        if (kDebugMode) {
+          debugPrint(
+            'photo_upload: local_cleanup_failed eventId=$eventId photoId=${item.photoId} error=$error',
+          );
+        }
+      } finally {
+        _finalizingUploads.remove(key);
+      }
+    }
   }
 
   Future<void> retryFailedByPhotoId({

@@ -111,7 +111,8 @@ String? invitationRouteForLink(Uri? link, {bool allowDevHost = false}) {
   ).toString();
 }
 
-String? collectionInvitationRouteForLink(Uri? link, {bool allowDevHost = false}) {
+String? collectionInvitationRouteForLink(Uri? link,
+    {bool allowDevHost = false}) {
   if (link == null ||
       link.scheme != 'https' ||
       (link.host != 'app.ones.events' &&
@@ -330,7 +331,8 @@ class OnesApp extends StatelessWidget {
           create: (_) => CollectionsController(collectionsRepository),
           update: (_, auth, controller) {
             collectionsRepository.setIdToken(auth.idToken);
-            final value = controller ?? CollectionsController(collectionsRepository);
+            final value =
+                controller ?? CollectionsController(collectionsRepository);
             value.setIdToken(auth.idToken, userId: auth.user?.userId);
             return value;
           },
@@ -437,11 +439,13 @@ class OnesApp extends StatelessWidget {
         ChangeNotifierProxyProvider<AuthController, InvitationsController>(
           create: (_) => InvitationsController(
             repository: invitationsRepository,
+            collectionsRepository: collectionsRepository,
           ),
           update: (_, auth, inv) {
             final controller = inv ??
                 InvitationsController(
                   repository: invitationsRepository,
+                  collectionsRepository: collectionsRepository,
                 );
             controller.setIdToken(auth.idToken);
             return controller;
@@ -635,9 +639,9 @@ class _AppLinkHandlerState extends State<AppLinkHandler> {
   void _handleLink(Uri? link) {
     if (!mounted || link == null) return;
     final invitationRoute = invitationRouteForLink(
-      link,
-      allowDevHost: context.read<AppConfig>().env == 'dev',
-    ) ??
+          link,
+          allowDevHost: context.read<AppConfig>().env == 'dev',
+        ) ??
         collectionInvitationRouteForLink(
           link,
           allowDevHost: context.read<AppConfig>().env == 'dev',

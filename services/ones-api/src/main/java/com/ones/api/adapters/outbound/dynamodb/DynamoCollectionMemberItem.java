@@ -36,6 +36,7 @@ public class DynamoCollectionMemberItem {
     public String getInviteeEmail() { return inviteeEmail; }
     public void setInviteeEmail(String value) { inviteeEmail = value; }
 
+    @DynamoDbSecondarySortKey(indexNames = "byInviteeEmailStatus")
     public String getStatus() { return status; }
     public void setStatus(String value) { status = value; }
     public String getInvitedByUserId() { return invitedByUserId; }

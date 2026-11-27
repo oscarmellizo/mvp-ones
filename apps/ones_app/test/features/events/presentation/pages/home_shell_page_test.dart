@@ -112,6 +112,27 @@ void main() {
 
     expect(find.text('create event destination'), findsOneWidget);
   });
+  testWidgets('header is shared and fixed above collection and event tabs',
+      (tester) async {
+    await _pumpHomeShellPage(tester);
+
+    expect(find.byKey(TutorialKeys.homeHelpIcon), findsOneWidget);
+    expect(find.byKey(TutorialKeys.homeBellIcon), findsOneWidget);
+    expect(find.byIcon(Icons.menu), findsOneWidget);
+    expect(find.byType(Image), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('home.events_tab')).dy,
+      greaterThan(tester.getTopLeft(find.byKey(TutorialKeys.homeHelpIcon)).dy),
+    );
+
+    await tester.tap(find.text('home.events_tab'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(TutorialKeys.homeHelpIcon), findsOneWidget);
+    expect(find.byKey(TutorialKeys.homeBellIcon), findsOneWidget);
+    expect(find.byIcon(Icons.menu), findsOneWidget);
+    expect(find.byType(Image), findsOneWidget);
+  });
 }
 
 Future<void> _pumpHomeShellPage(WidgetTester tester) async {
