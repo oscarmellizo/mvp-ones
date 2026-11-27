@@ -18,6 +18,7 @@ import com.ones.api.application.photos.CloudFrontSignedUrlService;
 import com.ones.api.application.photos.PhotoNotFoundException;
 import com.ones.api.application.photos.PhotoNotOwnedException;
 import com.ones.api.application.photos.PhotosService;
+import com.ones.api.application.photos.ShortPhotoShareLinkService;
 import com.ones.api.application.photos.ports.PhotoLikesRepository;
 import com.ones.api.application.photos.ports.PhotoProcessingQueue;
 import com.ones.api.application.photos.ports.PhotosRepository;
@@ -35,6 +36,7 @@ public class CollectionPhotosService {
     private final ObjectStoragePresigner presigner;
     private final ObjectStorage storage;
     private final CloudFrontSignedUrlService cdn;
+    private final ShortPhotoShareLinkService shortPhotoShareLinkService;
     private final Clock clock;
     private final String bucket;
     private final long putPresignTtlMinutes;
@@ -47,6 +49,7 @@ public class CollectionPhotosService {
             ObjectStoragePresigner presigner,
             ObjectStorage storage,
             CloudFrontSignedUrlService cdn,
+            ShortPhotoShareLinkService shortPhotoShareLinkService,
             Clock clock,
             @Value("${ones.s3.events.photos.bucket}") String bucket,
             @Value("${ones.s3.events.photos.put-presign-ttl-minutes:15}") long putPresignTtlMinutes
@@ -58,6 +61,7 @@ public class CollectionPhotosService {
         this.presigner = presigner;
         this.storage = storage;
         this.cdn = cdn;
+        this.shortPhotoShareLinkService = shortPhotoShareLinkService;
         this.clock = clock;
         this.bucket = bucket;
         this.putPresignTtlMinutes = putPresignTtlMinutes;
@@ -237,23 +241,11 @@ public class CollectionPhotosService {
             String userId, String collectionId, String photoId, String variant
     ) {
         collections.get(userId, collectionId);
-        Photo photo = requireVisiblePhoto(userId, collectionId, photoId);
-        String original = photo.getS3KeyOriginal();
-        String key = switch (variant == null ? "medium" : variant.trim().toLowerCase()) {
-            case "original" -> original;
-            case "small" -> photo.getS3KeySmall() == null
-                    ? variantKey(original, "_s") : photo.getS3KeySmall();
-            default -> photo.getS3KeyMedium() == null
-                    ? variantKey(original, "_m") : photo.getS3KeyMedium();
-        };
-        CloudFrontSignedUrlService.SignedUrlResult signed = cdn.signForSocialShare(key);
-        if (signed.url() != null && !signed.url().isBlank()) {
-            return new PhotosService.SocialShareLink(signed.url(), signed.expiresAt());
-        }
-        Instant expiresAt = Instant.now(clock).plus(GET_URL_TTL);
-        return new PhotosService.SocialShareLink(
-                presigner.presignGet(bucket, key, GET_URL_TTL).toString(), expiresAt
-        );
+        requireVisiblePhoto(userId, collectionId, photoId);
+        ShortPhotoShareLinkService.SocialShareLink link =
+                shortPhotoShareLinkService.create(
+                        "COLLECTION#" + collectionId, photoId, variant);
+        return new PhotosService.SocialShareLink(link.url(), link.expiresAt());
     }
 
     public boolean like(String userId, String collectionId, String photoId) {

@@ -79,6 +79,28 @@ class _InvitationsSheetState extends State<_InvitationsSheet> {
                     ],
                   ),
                 ),
+                if (invites.collectionError != null &&
+                    (invites.items.isNotEmpty ||
+                        invites.collectionItems.isNotEmpty))
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.cloud_off_outlined,
+                            color: OnesColors.danger),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'No se pudieron cargar las invitaciones de colecciones.',
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: invites.loading ? null : invites.refresh,
+                          child: const Text('Reintentar'),
+                        ),
+                      ],
+                    ),
+                  ),
                 if (invites.loading)
                   const Padding(
                     padding: EdgeInsets.all(16),
@@ -91,7 +113,11 @@ class _InvitationsSheetState extends State<_InvitationsSheet> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        const Text('No se pudieron cargar las invitaciones.'),
+                        Text(
+                          invites.collectionError != null
+                              ? 'No se pudieron cargar las invitaciones de colecciones.'
+                              : 'No se pudieron cargar las invitaciones.',
+                        ),
                         TextButton(
                           onPressed: invites.refresh,
                           child: const Text('Reintentar'),
