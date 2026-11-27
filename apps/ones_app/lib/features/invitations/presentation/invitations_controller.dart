@@ -85,13 +85,23 @@ class InvitationsController extends ChangeNotifier {
       await _ensureSeenLoaded();
       Object? eventError;
       Object? collectionError;
-      try {
-        _items = await repository.list();
-      } catch (error) {
-        eventError = error;
-      }
       final collections = collectionsRepository;
-      if (collections != null) {
+
+      Future<void> loadEventInvitations() async {
+        try {
+          _items = await repository.list();
+        } catch (error) {
+          eventError = error;
+        }
+      }
+
+      Future<void> loadCollectionInvitations() async {
+        if (collections == null) {
+          _collectionItems = const [];
+          _collectionNextToken = null;
+          _collectionHasMore = false;
+          return;
+        }
         try {
           final page = await collections.pendingInvitations(limit: 100);
           _collectionItems = page.items;
@@ -100,12 +110,17 @@ class InvitationsController extends ChangeNotifier {
               page.nextToken != null && page.nextToken!.isNotEmpty;
         } catch (error) {
           collectionError = error;
+          if (kDebugMode) {
+            debugPrint('collection_invitations_list_failed: $error');
+          }
         }
-      } else {
-        _collectionItems = const [];
-        _collectionNextToken = null;
-        _collectionHasMore = false;
       }
+
+      _collectionError = null;
+      await Future.wait([
+        loadEventInvitations(),
+        loadCollectionInvitations(),
+      ]);
       _error = eventError;
       _collectionError = collectionError;
     } catch (e) {

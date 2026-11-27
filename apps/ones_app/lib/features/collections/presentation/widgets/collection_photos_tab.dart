@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/i18n/translations_service.dart';
 import '../../../../core/ui/ones_colors.dart';
 import '../../../auth/presentation/auth_controller.dart';
 import '../../../photos/adapters/api/event_photos_api.dart';
@@ -19,6 +20,7 @@ import '../../../photos/presentation/photos_ws_controller.dart';
 import '../../../photos/domain/photo_upload_item.dart';
 import '../../../events/presentation/pages/photo_capture_page.dart';
 import '../../../events/presentation/pages/photo_capture_web_page.dart';
+import 'collection_gallery_filters.dart';
 import '../../domain/collection.dart';
 
 class CollectionPhotosTab extends StatefulWidget {
@@ -131,6 +133,15 @@ class _CollectionPhotosTabState extends State<CollectionPhotosTab> {
     if (ids.isEmpty) return;
     final selectedPhotos =
         _gallery.items.where((photo) => ids.contains(photo.photoId));
+    final sharedCount = selectedPhotos.where((photo) => photo.shared).length;
+    if (sharedCount > 0 && sharedCount < ids.length) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecciona solo fotos compartidas o solo privadas.'),
+        ),
+      );
+      return;
+    }
     final shouldUnshare = selectedPhotos.any((photo) => photo.shared);
     try {
       if (shouldUnshare) {
@@ -217,11 +228,55 @@ class _CollectionPhotosTabState extends State<CollectionPhotosTab> {
     }
   }
 
+  Widget _selectionActions(String? userId, TranslationsService t) {
+    final selectedPhotos =
+        _gallery.items.where((photo) => _selected.contains(photo.photoId));
+    final canShare = widget.collection.type != CollectionType.private &&
+        selectedPhotos.isNotEmpty &&
+        selectedPhotos.every((photo) => photo.guestId == userId);
+    final hasShared = selectedPhotos.any((photo) => photo.shared);
+
+    return Material(
+      color: OnesColors.white,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          children: [
+            Text('${_selected.length} seleccionadas'),
+            const Spacer(),
+            if (canShare)
+              IconButton(
+                tooltip: hasShared
+                    ? 'Dejar de compartir'
+                    : 'Compartir con la colección',
+                onPressed: _toggleShare,
+                icon: Icon(
+                  hasShared ? Icons.people : Icons.people_alt_outlined,
+                ),
+              ),
+            IconButton(
+              tooltip: t.translate('common.delete', fallback: 'Eliminar'),
+              onPressed: _deleteSelected,
+              icon: const Icon(Icons.delete_outline),
+            ),
+            IconButton(
+              tooltip:
+                  t.translate('common.cancel', fallback: 'Cancelar selección'),
+              onPressed: () => setState(_selected.clear),
+              icon: const Icon(Icons.close),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _photoTile(
     EventPhoto photo,
     int index,
     String? userId,
     PhotoUploadItem? upload,
+    TranslationsService t,
   ) {
     final selected = _selected.contains(photo.photoId);
     final isMine = photo.guestId == userId;
@@ -274,10 +329,31 @@ class _CollectionPhotosTabState extends State<CollectionPhotosTab> {
                   ),
           ),
           if (photo.shared)
-            const Positioned(
-              top: 6,
-              left: 6,
-              child: Icon(Icons.people, color: Colors.white, size: 18),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                color: OnesColors.yellow.withOpacity(0.72),
+                child: Text(
+                  photo.sharedByUserId == userId
+                      ? t.translate('event_detail.shared',
+                          fallback: 'Compartida')
+                      : (photo.ownerName?.trim().isNotEmpty == true
+                          ? photo.ownerName!.trim()
+                          : t.translate('event_detail.guest',
+                              fallback: 'Invitado')),
+                  style: const TextStyle(
+                    color: OnesColors.black,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ),
           if (photo.status.toLowerCase() == 'failed' &&
               photo.processingRetryable &&
@@ -335,6 +411,7 @@ class _CollectionPhotosTabState extends State<CollectionPhotosTab> {
       builder: (context, _) {
         final photos = _gallery.items;
         final userId = context.read<AuthController>().user?.userId;
+        final translations = context.watch<TranslationsService>();
         final pendingUploads = _uploader.activeByEvent(_ownerRef);
         final localById = <String, PhotoUploadItem>{
           for (final upload in pendingUploads) upload.photoId: upload,
@@ -361,20 +438,34 @@ class _CollectionPhotosTabState extends State<CollectionPhotosTab> {
             controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-                  child: Wrap(
-                    spacing: 8,
-                    children: [
-                      _filterChip('Todas', PhotosGalleryFilter.all),
-                      _filterChip('Mías', PhotosGalleryFilter.mine),
-                      _filterChip(
-                          'Compartidas por mí', PhotosGalleryFilter.sharedByMe),
-                    ],
+              if (_selected.isNotEmpty)
+                SliverToBoxAdapter(
+                    child: _selectionActions(userId, translations))
+              else
+                SliverToBoxAdapter(
+                  child: CollectionGalleryFilters(
+                    privateCollection:
+                        widget.collection.type == CollectionType.private,
+                    selected: _gallery.filter,
+                    allLabel: translations.translate(
+                      'event_detail.filter_all',
+                      fallback: 'Todas',
+                    ),
+                    sharedLabel: translations.translate(
+                      'event_detail.filter_shared',
+                      fallback: 'Compartidas',
+                    ),
+                    mineLabel: translations.translate(
+                      'event_detail.filter_mine',
+                      fallback: 'Mías',
+                    ),
+                    onSelected: (filter) {
+                      if (filter == _gallery.filter) return;
+                      _gallery.setFilter(filter);
+                      unawaited(_gallery.refresh(eventId: _ownerRef));
+                    },
                   ),
                 ),
-              ),
               if (localOnlyUploads.isNotEmpty)
                 SliverToBoxAdapter(
                   child: Card(
@@ -413,40 +504,6 @@ class _CollectionPhotosTabState extends State<CollectionPhotosTab> {
                                 ),
                               ],
                             ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              if (_selected.isNotEmpty)
-                SliverToBoxAdapter(
-                  child: Material(
-                    color: OnesColors.white,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Row(
-                        children: [
-                          Text('${_selected.length} seleccionadas'),
-                          const Spacer(),
-                          if (_gallery.items
-                              .where(
-                                  (photo) => _selected.contains(photo.photoId))
-                              .every((photo) => photo.guestId == userId))
-                            IconButton(
-                              tooltip: 'Compartir con la colección',
-                              onPressed: _toggleShare,
-                              icon: const Icon(Icons.people_alt_outlined),
-                            ),
-                          IconButton(
-                            tooltip: 'Eliminar',
-                            onPressed: _deleteSelected,
-                            icon: const Icon(Icons.delete_outline),
-                          ),
-                          IconButton(
-                            tooltip: 'Cancelar selección',
-                            onPressed: () => setState(_selected.clear),
-                            icon: const Icon(Icons.close),
-                          ),
                         ],
                       ),
                     ),
@@ -524,6 +581,7 @@ class _CollectionPhotosTabState extends State<CollectionPhotosTab> {
                         index,
                         userId,
                         localById[photos[index].photoId],
+                        translations,
                       ),
                       childCount: photos.length,
                     ),
@@ -554,20 +612,6 @@ class _CollectionPhotosTabState extends State<CollectionPhotosTab> {
           ),
         );
       },
-    );
-  }
-
-  Widget _filterChip(String label, PhotosGalleryFilter filter) {
-    final selected = _gallery.filter == filter;
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: selected
-          ? null
-          : (_) {
-              _gallery.setFilter(filter);
-              unawaited(_gallery.refresh(eventId: _ownerRef));
-            },
     );
   }
 

@@ -75,7 +75,7 @@ public class PhotoShortLinksService {
         }
 
         Photo p = photosRepository.findById(link.photoId()).orElse(null);
-        if (p == null || p.getEventId() == null || !p.getEventId().equals(link.eventId())) {
+        if (p == null || !belongsToOwner(p, link.eventId())) {
             return Optional.empty();
         }
 
@@ -90,6 +90,16 @@ public class PhotoShortLinksService {
         }
 
         return Optional.of(new Resolved(link, url));
+    }
+
+    private static boolean belongsToOwner(Photo photo, String ownerRef) {
+        if (ownerRef == null || ownerRef.isBlank()) return false;
+        if (ownerRef.startsWith("COLLECTION#")) {
+            return "COLLECTION".equals(photo.getOwnerType())
+                    && ownerRef.substring("COLLECTION#".length()).equals(photo.getOwnerId());
+        }
+        return ownerRef.equals(photo.getEventId())
+                || ("EVENT".equals(photo.getOwnerType()) && ownerRef.equals(photo.getOwnerId()));
     }
 
     private String signedUrl(String key) {
