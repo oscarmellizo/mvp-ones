@@ -83,6 +83,7 @@ class CollectionsApiRepository {
       },
     );
     final data = Map<String, dynamic>.from(response.data as Map);
+    final owner = data['owner'];
     return CollectionMembersPage(
       items: (data['items'] as List? ?? const [])
           .whereType<Map>()
@@ -90,6 +91,9 @@ class CollectionsApiRepository {
               CollectionMember.fromJson(Map<String, dynamic>.from(item)))
           .toList(growable: false),
       nextToken: data['nextToken'] as String?,
+      owner: owner is Map
+          ? CollectionOwnerProfile.fromJson(Map<String, dynamic>.from(owner))
+          : null,
     );
   }
 

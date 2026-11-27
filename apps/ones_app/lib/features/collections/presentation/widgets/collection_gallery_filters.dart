@@ -12,6 +12,7 @@ class CollectionGalleryFilters extends StatelessWidget {
   final String membersLabel;
   final Key? membersButtonKey;
   final bool memberSelectionEnabled;
+  final int selectedMemberCount;
   final VoidCallback onMembersSelected;
   final ValueChanged<PhotosGalleryFilter> onSelected;
 
@@ -25,6 +26,7 @@ class CollectionGalleryFilters extends StatelessWidget {
     required this.membersLabel,
     required this.membersButtonKey,
     required this.memberSelectionEnabled,
+    required this.selectedMemberCount,
     required this.onMembersSelected,
     required this.onSelected,
   });
@@ -48,6 +50,9 @@ class CollectionGalleryFilters extends StatelessWidget {
       PhotosGalleryFilter.sharedByMe: sharedLabel,
       PhotosGalleryFilter.mine: mineLabel,
     };
+    final memberTooltip = selectedMemberCount > 0
+        ? '$membersLabel ($selectedMemberCount)'
+        : membersLabel;
 
     return ColoredBox(
       color: OnesColors.surfaceWarm,
@@ -105,13 +110,46 @@ class CollectionGalleryFilters extends StatelessWidget {
                 minimumSize: const Size(48, 48),
               ),
               child: Tooltip(
-                message: membersLabel,
+                message: memberTooltip,
                 child: Semantics(
-                  label: membersLabel,
+                  label: memberTooltip,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.groups_outlined),
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          const Icon(Icons.groups_outlined),
+                          if (selectedMemberCount > 0)
+                            Positioned(
+                              right: -9,
+                              top: -8,
+                              child: Container(
+                                constraints: const BoxConstraints(
+                                  minWidth: 16,
+                                  minHeight: 16,
+                                ),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 3),
+                                decoration: const BoxDecoration(
+                                  color: OnesColors.orange,
+                                  shape: BoxShape.circle,
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  selectedMemberCount > 99
+                                      ? '99+'
+                                      : '$selectedMemberCount',
+                                  style: const TextStyle(
+                                    color: OnesColors.black,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         membersLabel,

@@ -206,14 +206,22 @@ class _CollectionMemberFilterSheetState
                             title: Text(ownerTitle),
                             activeColor: OnesColors.purpleMid,
                           ),
-                        ...members.map(
-                          (member) => _memberTile(
+                        ...members.map((member) {
+                          final preferredName = member.preferredName?.trim();
+                          final email = member.email?.trim();
+                          return _memberTile(
                             userId: member.userId!.trim(),
-                            title: member.email?.trim().isNotEmpty == true
-                                ? member.email!.trim()
-                                : member.userId!.trim(),
-                          ),
-                        ),
+                            title: preferredName?.isNotEmpty == true
+                                ? preferredName!
+                                : email?.isNotEmpty == true
+                                    ? email!
+                                    : member.userId!.trim(),
+                            subtitle: preferredName?.isNotEmpty == true &&
+                                    email?.isNotEmpty == true
+                                ? email
+                                : null,
+                          );
+                        }),
                         if (_loaded && members.isEmpty && _nextToken == null)
                           Padding(
                             padding: const EdgeInsets.all(16),

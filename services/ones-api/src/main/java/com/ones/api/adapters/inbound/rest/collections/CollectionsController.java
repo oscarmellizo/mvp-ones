@@ -5,6 +5,10 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
@@ -31,26 +35,31 @@ import com.ones.api.application.collections.CollectionService;
 import com.ones.api.application.collections.CollectionJoinRateLimitException;
 import com.ones.api.application.collections.CollectionJoinRateLimiter;
 import com.ones.api.application.invitations.email.InvitationActionTokenService;
+import com.ones.api.application.users.ports.UsersRepository;
 import com.ones.api.adapters.inbound.rest.AuthClaims;
 import com.ones.api.domain.collections.Collection;
 import com.ones.api.domain.collections.CollectionInvitation;
 import com.ones.api.domain.collections.CollectionMember;
+import com.ones.api.domain.users.User;
 
 @RestController
 @RequestMapping("/v1/collections")
 public class CollectionsController {
     private final CollectionService collectionService;
+    private final UsersRepository usersRepository;
     private final InvitationActionTokenService invitationTokenService;
     private final CollectionJoinRateLimiter joinRateLimiter;
     private final String appBaseUrl;
 
     public CollectionsController(
             CollectionService collectionService,
+            UsersRepository usersRepository,
             InvitationActionTokenService invitationTokenService,
             CollectionJoinRateLimiter joinRateLimiter,
             @Value("${ones.app.base-url:}") String appBaseUrl
     ) {
         this.collectionService = collectionService;
+        this.usersRepository = usersRepository;
         this.invitationTokenService = invitationTokenService;
         this.joinRateLimiter = joinRateLimiter;
         this.appBaseUrl = appBaseUrl;
@@ -117,11 +126,29 @@ public class CollectionsController {
             @RequestParam(defaultValue = "50") @Min(1) @Max(200) int limit,
             @RequestParam(required = false) String nextToken
     ) {
-        var page = collectionService.listMembersPage(
+        var directory = collectionService.listMemberDirectoryPage(
                 authentication.getName(), id, limit, nextToken);
+        var page = directory.page();
+        Set<String> userIds = new LinkedHashSet<>();
+        userIds.add(directory.ownerId());
+        page.items().stream()
+                .map(CollectionMember::userId)
+                .filter(userId -> userId != null && !userId.isBlank())
+                .forEach(userIds::add);
+        Map<String, User> profiles = usersRepository.findByIds(userIds).stream()
+                .collect(Collectors.toMap(User::getUserId, user -> user, (first, ignored) -> first));
+        var items = page.items().stream()
+                .map(member -> toMemberResponse(member, profiles.get(member.userId())))
+                .toList();
+        User owner = profiles.get(directory.ownerId());
         return new CollectionMembersPageResponse(
-                page.items().stream().map(CollectionsController::toMemberResponse).toList(),
-                page.nextToken()
+                items,
+                page.nextToken(),
+                new CollectionOwnerProfile(
+                        directory.ownerId(),
+                        owner == null ? null : owner.getEmail(),
+                        owner == null ? null : owner.getPreferredName()
+                )
         );
     }
 
@@ -260,9 +287,25 @@ public class CollectionsController {
     }
 
     private static CollectionMemberResponse toMemberResponse(CollectionMember member) {
+        return toMemberResponse(member, null);
+    }
+
+    private static CollectionMemberResponse toMemberResponse(
+            CollectionMember member,
+            User profile
+    ) {
+        String email = member.email();
+        if ((email == null || email.isBlank()) && profile != null) {
+            email = profile.getEmail();
+        }
         return new CollectionMemberResponse(
-                member.memberKey(), member.userId(), member.email(), member.status().name(),
-                member.invitedByUserId(), member.createdAt().toString()
+                member.memberKey(),
+                member.userId(),
+                email,
+                profile == null ? null : profile.getPreferredName(),
+                member.status().name(),
+                member.invitedByUserId(),
+                member.createdAt().toString()
         );
     }
 
@@ -314,12 +357,16 @@ public class CollectionsController {
     public record JoinByQrRequest(@NotBlank String collectionId, @NotBlank String token) {}
     public record JoinQrResponse(boolean enabled, String url) {}
     public record CollectionMemberResponse(
-            String memberKey, String userId, String email, String status,
+            String memberKey, String userId, String email, String preferredName, String status,
             String invitedByUserId, String createdAt
+    ) {}
+    public record CollectionOwnerProfile(
+            String userId, String email, String preferredName
     ) {}
     public record CollectionMembersPageResponse(
             List<CollectionMemberResponse> items,
-            String nextToken
+            String nextToken,
+            CollectionOwnerProfile owner
     ) {}
     public record CollectionInvitationResponse(
             String collectionId,

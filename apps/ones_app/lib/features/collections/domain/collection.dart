@@ -87,6 +87,7 @@ class CollectionMember {
   final String memberKey;
   final String? userId;
   final String? email;
+  final String? preferredName;
   final String status;
   final String? invitedByUserId;
 
@@ -94,6 +95,7 @@ class CollectionMember {
     required this.memberKey,
     required this.userId,
     required this.email,
+    this.preferredName,
     required this.status,
     required this.invitedByUserId,
   });
@@ -103,17 +105,39 @@ class CollectionMember {
         memberKey: json['memberKey'] as String? ?? '',
         userId: json['userId'] as String?,
         email: json['email'] as String?,
+        preferredName: json['preferredName'] as String?,
         status: json['status'] as String? ?? 'PENDING',
         invitedByUserId: json['invitedByUserId'] as String?,
+      );
+}
+
+class CollectionOwnerProfile {
+  final String userId;
+  final String? email;
+  final String? preferredName;
+
+  const CollectionOwnerProfile({
+    required this.userId,
+    required this.email,
+    required this.preferredName,
+  });
+
+  factory CollectionOwnerProfile.fromJson(Map<String, dynamic> json) =>
+      CollectionOwnerProfile(
+        userId: json['userId'] as String? ?? '',
+        email: json['email'] as String?,
+        preferredName: json['preferredName'] as String?,
       );
 }
 
 class CollectionMembersPage {
   final List<CollectionMember> items;
   final String? nextToken;
+  final CollectionOwnerProfile? owner;
 
   const CollectionMembersPage({
     required this.items,
     required this.nextToken,
+    this.owner,
   });
 }

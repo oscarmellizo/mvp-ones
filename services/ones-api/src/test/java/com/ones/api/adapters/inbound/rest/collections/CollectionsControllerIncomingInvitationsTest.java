@@ -17,6 +17,7 @@ import com.ones.api.application.collections.CollectionJoinRateLimiter;
 import com.ones.api.application.collections.CollectionService;
 import com.ones.api.application.collections.ports.CollectionMembersRepository;
 import com.ones.api.application.invitations.email.InvitationActionTokenService;
+import com.ones.api.application.users.ports.UsersRepository;
 import com.ones.api.domain.collections.CollectionInvitation;
 
 class CollectionsControllerIncomingInvitationsTest {
@@ -25,6 +26,7 @@ class CollectionsControllerIncomingInvitationsTest {
         CollectionService service = mock(CollectionService.class);
         CollectionsController controller = new CollectionsController(
                 service,
+                mock(UsersRepository.class),
                 mock(InvitationActionTokenService.class),
                 mock(CollectionJoinRateLimiter.class),
                 "https://appdev.ones.events"
