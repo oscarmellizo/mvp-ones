@@ -25,6 +25,15 @@ import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsResponse;
 
 class DynamoDbCollectionMembersRepositoryTest {
+    @Test
+    void pendingInviteIndexSchemaIncludesInviteeEmailAndStatusKeys() {
+        var metadata = TableSchema.fromBean(DynamoCollectionMemberItem.class)
+                .tableMetadata();
+
+        assertEquals("inviteeEmail", metadata.indexPartitionKey("byInviteeEmailStatus"));
+        assertEquals("status", metadata.indexSortKey("byInviteeEmailStatus").orElseThrow());
+    }
+
     @SuppressWarnings("unchecked")
     @Test
     void coupleInviteUsesAtomicConditionalReservationForItsOnlyMemberSlot() {

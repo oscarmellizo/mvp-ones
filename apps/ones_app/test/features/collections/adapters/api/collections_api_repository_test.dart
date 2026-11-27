@@ -3,6 +3,48 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ones_app/features/collections/adapters/api/collections_api_repository.dart';
 
 void main() {
+  test('loads collection members with bounded cursor pagination', () async {
+    RequestOptions? request;
+    final dio = Dio(BaseOptions(baseUrl: 'https://appdev.ones.events/api'));
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          request = options;
+          handler.resolve(
+            Response<dynamic>(
+              requestOptions: options,
+              data: {
+                'items': [
+                  {
+                    'memberKey': 'USER#member-1',
+                    'userId': 'member-1',
+                    'email': 'member@example.com',
+                    'status': 'ACCEPTED',
+                  },
+                ],
+                'nextToken': 'member-cursor',
+              },
+            ),
+          );
+        },
+      ),
+    );
+    final repository = CollectionsApiRepository.forTesting((_) => dio);
+
+    final page = await repository.membersPage(
+      'collection-1',
+      limit: 50,
+      nextToken: 'previous-cursor',
+    );
+
+    expect(request?.path, '/v1/collections/collection-1/members');
+    expect(request?.method, 'GET');
+    expect(request?.queryParameters['limit'], 50);
+    expect(request?.queryParameters['nextToken'], 'previous-cursor');
+    expect(page.items.single.userId, 'member-1');
+    expect(page.nextToken, 'member-cursor');
+  });
+
   test('loads pending collection invitations from the bell endpoint', () async {
     RequestOptions? request;
     final dio = Dio(BaseOptions(baseUrl: 'https://appdev.ones.events/api'));

@@ -32,7 +32,7 @@ public class DynamoCollectionMemberItem {
     public String getUserId() { return userId; }
     public void setUserId(String value) { userId = value; }
 
-    @DynamoDbSecondaryPartitionKey(indexNames = "byInviteeEmail")
+    @DynamoDbSecondaryPartitionKey(indexNames = {"byInviteeEmail", "byInviteeEmailStatus"})
     public String getInviteeEmail() { return inviteeEmail; }
     public void setInviteeEmail(String value) { inviteeEmail = value; }
 

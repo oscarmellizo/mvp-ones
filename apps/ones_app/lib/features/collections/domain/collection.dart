@@ -107,3 +107,13 @@ class CollectionMember {
         invitedByUserId: json['invitedByUserId'] as String?,
       );
 }
+
+class CollectionMembersPage {
+  final List<CollectionMember> items;
+  final String? nextToken;
+
+  const CollectionMembersPage({
+    required this.items,
+    required this.nextToken,
+  });
+}

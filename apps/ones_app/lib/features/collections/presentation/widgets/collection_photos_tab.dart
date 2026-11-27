@@ -20,8 +20,11 @@ import '../../../photos/presentation/photos_ws_controller.dart';
 import '../../../photos/domain/photo_upload_item.dart';
 import '../../../events/presentation/pages/photo_capture_page.dart';
 import '../../../events/presentation/pages/photo_capture_web_page.dart';
+import '../../../tutorial/presentation/tutorial_keys.dart';
 import 'collection_gallery_filters.dart';
+import 'collection_member_filter_sheet.dart';
 import '../../domain/collection.dart';
+import '../collections_controller.dart';
 
 class CollectionPhotosTab extends StatefulWidget {
   final OnesCollection collection;
@@ -95,6 +98,61 @@ class _CollectionPhotosTabState extends State<CollectionPhotosTab> {
   }
 
   Future<void> _refresh() => _gallery.refresh(eventId: _ownerRef);
+
+  Future<void> _selectMembers(TranslationsService t) async {
+    final collections = context.read<CollectionsController>();
+    final currentUserId = context.read<AuthController>().user?.userId;
+    final selected = await showModalBottomSheet<Set<String>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => CollectionMemberFilterSheet(
+        collectionOwnerId: widget.collection.ownerId,
+        currentUserId: currentUserId,
+        initialSelectedIds: _gallery.guestIds,
+        loadMembersPage: (nextToken, limit) => collections.membersPage(
+          widget.collection.id,
+          limit: limit,
+          nextToken: nextToken,
+        ),
+        title: t.translate(
+          'collections.filter_members.title',
+          fallback: 'Filtrar por miembros',
+        ),
+        ownerLabel: t.translate(
+          'collections.owner',
+          fallback: 'Propietario',
+        ),
+        youLabel: t.translate('common.you', fallback: 'Tú'),
+        emptyLabel: t.translate(
+          'collections.filter_members.empty',
+          fallback: 'No hay otros miembros activos en esta colección.',
+        ),
+        errorLabel: t.translate(
+          'collections.filter_members.error',
+          fallback: 'No se pudieron cargar los miembros.',
+        ),
+        retryLabel: t.translate('common.retry', fallback: 'Reintentar'),
+        loadMoreLabel: t.translate('common.load_more', fallback: 'Cargar más'),
+        selectionLimitLabel: t.translate(
+          'collections.filter_members.limit',
+          fallback: 'Selecciona hasta 100 miembros para filtrar las fotos.',
+        ),
+        clearLabel: t.translate(
+          'event_detail.action_clear',
+          fallback: 'Limpiar',
+        ),
+        cancelLabel: t.translate('common.cancel', fallback: 'Cancelar'),
+        applyLabel: t.translate(
+          'event_detail.action_apply',
+          fallback: 'Aplicar',
+        ),
+      ),
+    );
+    if (!mounted || selected == null) return;
+    _gallery.setGuestIds(selected);
+    await _refresh();
+  }
 
   Future<void> _importPhotos() async {
     final uploaded = await showModalBottomSheet<bool>(
@@ -459,9 +517,18 @@ class _CollectionPhotosTabState extends State<CollectionPhotosTab> {
                       'event_detail.filter_mine',
                       fallback: 'Mías',
                     ),
+                    membersLabel: translations.translate(
+                      'collections.members',
+                      fallback: 'Miembros',
+                    ),
+                    membersButtonKey: TutorialKeys.collectionFilterMembers,
+                    memberSelectionEnabled:
+                        _gallery.filter == PhotosGalleryFilter.all,
+                    onMembersSelected: () => _selectMembers(translations),
                     onSelected: (filter) {
                       if (filter == _gallery.filter) return;
                       _gallery.setFilter(filter);
+                      _gallery.setGuestIds(<String>{});
                       unawaited(_gallery.refresh(eventId: _ownerRef));
                     },
                   ),

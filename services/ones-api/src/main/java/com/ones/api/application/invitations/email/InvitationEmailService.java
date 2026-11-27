@@ -147,16 +147,14 @@ public class InvitationEmailService {
         String acceptUrl = base + "/collection-invitation?token=" + acceptToken;
         String rejectUrl = base + "/collection-invitation?token=" + rejectToken;
         String safeName = safe(collectionName);
-        String safeInviter = safe(inviterName);
-        String subject = "Invitación a una colección de ONES: " + safeName;
-        String text = safeInviter + " te invitó a compartir recuerdos en la colección \""
-                + safeName + "\" de ONES.\n\nAceptar: " + acceptUrl + "\nRechazar: " + rejectUrl;
-        String html = "<!doctype html><html><head><meta charset=\"utf-8\"></head><body>"
-                + "<h2>Te invitaron a una colección de ONES</h2><p>"
-                + escapeHtml(safeInviter) + " te invitó a colaborar en <b>"
-                + escapeHtml(safeName) + "</b>.</p><p><a href=\"" + escapeHtml(acceptUrl)
-                + "\">Aceptar invitación</a></p><p><a href=\"" + escapeHtml(rejectUrl)
-                + "\">Rechazar</a></p></body></html>";
+        String safeInviter = inviterName == null || inviterName.isBlank()
+                ? "Alguien"
+                : inviterName.trim();
+        String subject = "Invitaci\u00F3n a unirte a " + safeName + " en ONES";
+        String text = renderCollectionInvitationText(
+                safeName, safeInviter, acceptUrl, rejectUrl);
+        String html = renderCollectionInvitationHtml(
+                safeName, safeInviter, acceptUrl, rejectUrl);
         try {
             ses.sendEmail(SendEmailRequest.builder()
                     .fromEmailAddress(fromAddress)
@@ -179,6 +177,84 @@ public class InvitationEmailService {
         }
     }
 
+    private String renderCollectionInvitationText(
+            String collectionName,
+            String inviterName,
+            String acceptUrl,
+            String rejectUrl
+    ) {
+        return "\u00A1Te invitaron a una colecci\u00F3n de ONES!\n\n"
+                + inviterName + " te invit\u00F3 a unirte a \"" + collectionName + "\".\n"
+                + "Al aceptar, podrás ver los recuerdos que se comparten con el grupo "
+                + "y aportar tus propias fotos.\n\n"
+                + "Aceptar invitación: " + acceptUrl + "\n"
+                + "Rechazar invitación: " + rejectUrl + "\n\n"
+                + "Si no esperabas esta invitación, puedes ignorar este correo.";
+    }
+
+    private String renderCollectionInvitationHtml(
+            String collectionName,
+            String inviterName,
+            String acceptUrl,
+            String rejectUrl
+    ) {
+        String safeName = escapeHtml(collectionName);
+        String safeInviter = escapeHtml(inviterName);
+        return "<!doctype html><html data-ones-template=\"collection-invitation-v2\">"
+                + "<head><meta charset=\"utf-8\"></head>"
+                + "<body style=\"margin:0;padding:0;background:#FAB14E;font-family:Arial,sans-serif\">"
+                + "<div style=\"max-width:600px;margin:0 auto;padding:24px\">"
+                + "<div style=\"background:#4A036E;color:#fff;padding:18px 20px;border-radius:12px\">"
+                + logoBlock()
+                + "<div style=\"font-size:14px;opacity:0.9\">Ones Collections</div>"
+                + "<div style=\"font-size:20px;font-weight:700;margin-top:6px\">"
+                + "Te invitaron a una colecci\u00F3n</div>"
+                + "</div>"
+                + "<div style=\"background:#ffffff;padding:20px;border-radius:12px;margin-top:12px\">"
+                + "<div style=\"color:#111827;font-size:16px\">Hola,</div>"
+                + "<div style=\"margin-top:10px;color:#374151;font-size:15px;line-height:1.5\">"
+                + "<b>" + safeInviter + "</b> te invit\u00F3 a unirte a "
+                + "<b>" + safeName + "</b> en ONES.</div>"
+                + "<div style=\"margin-top:16px;padding:14px;background:#FFF8E8;"
+                + "border-radius:10px;color:#374151;font-size:14px;line-height:1.5\">"
+                + "<b>Comparte recuerdos con tu grupo</b>"
+                + "<div style=\"margin-top:5px\">Al aceptar, la colección aparecerá en tu cuenta. "
+                + "Podrás ver las fotos compartidas y aportar las tuyas.</div>"
+                + "</div>"
+                + "<div style=\"margin-top:18px\">"
+                + button("Aceptar invitación", acceptUrl, "#4A036E")
+                + "</div>"
+                + "<div style=\"margin-top:10px\">"
+                + button("Rechazar invitación", rejectUrl, "#E25555")
+                + "</div>"
+                + "<div style=\"margin-top:16px;color:#6b7280;font-size:12px;line-height:1.5\">"
+                + "Si no esperabas esta invitación, puedes ignorar este correo."
+                + "</div>"
+                + "</div></div></body></html>";
+    }
+
+    private String logoBlock() {
+        String resolvedLogoUrl = logoUrl != null && !logoUrl.isBlank()
+                ? logoUrl.trim()
+                : null;
+        if (resolvedLogoUrl == null) {
+            String base = publicBaseUrl == null ? "" : publicBaseUrl.trim();
+            while (base.endsWith("/")) {
+                base = base.substring(0, base.length() - 1);
+            }
+            if (!base.isBlank()) {
+                resolvedLogoUrl = base + "/assets/assets/branding/ones-logo.png";
+            }
+        }
+        if (resolvedLogoUrl == null || resolvedLogoUrl.isBlank()) {
+            return "";
+        }
+        return "<div style=\"margin-bottom:10px\"><img src=\""
+                + escapeHtml(resolvedLogoUrl)
+                + "\" alt=\"Ones\" width=\"48\" height=\"48\" "
+                + "style=\"display:block;border-radius:12px;background:#FFFFFF\"/></div>";
+    }
+
     private String renderText(Invitation inv, String viewUrl, String acceptUrl, String rejectUrl, String when) {
         String where = inv.getEventLocation() != null ? inv.getEventLocation() : "";
         return "Te han invitado a un evento\n\n"
@@ -195,21 +271,7 @@ public class InvitationEmailService {
         String title = escapeHtml(safe(inv.getEventTitle()));
         String where = inv.getEventLocation() != null ? escapeHtml(inv.getEventLocation()) : "";
 
-        String logoBlock = "";
-        String resolvedLogoUrl = (logoUrl != null && !logoUrl.isBlank()) ? logoUrl.trim() : null;
-        if (resolvedLogoUrl == null || resolvedLogoUrl.isBlank()) {
-            String base = publicBaseUrl != null ? publicBaseUrl.trim() : "";
-            if (!base.isBlank()) {
-                while (base.endsWith("/")) {
-                    base = base.substring(0, base.length() - 1);
-                }
-                resolvedLogoUrl = base + "/assets/assets/branding/ones-logo.png";
-            }
-        }
-
-        if (resolvedLogoUrl != null && !resolvedLogoUrl.isBlank()) {
-            logoBlock = "<div style=\"margin-bottom:10px\"><img src=\"" + escapeHtml(resolvedLogoUrl) + "\" alt=\"Ones\" width=\"48\" height=\"48\" style=\"display:block;border-radius:12px;background:#FFFFFF\"/></div>";
-        }
+        String logoBlock = logoBlock();
 
         String whereBlock = where.isBlank() ? "" : ("<div style=\"margin-top:6px;color:#374151;font-size:14px\"><b>Dónde:</b> " + where + "</div>");
 
