@@ -524,13 +524,45 @@ class _CollectionPhotosTabState extends State<CollectionPhotosTab> {
                     membersButtonKey: TutorialKeys.collectionFilterMembers,
                     memberSelectionEnabled:
                         _gallery.filter == PhotosGalleryFilter.all,
+                    selectedMemberCount: _gallery.guestIds.length,
                     onMembersSelected: () => _selectMembers(translations),
                     onSelected: (filter) {
-                      if (filter == _gallery.filter) return;
+                      if (filter == _gallery.filter &&
+                          _gallery.guestIds.isEmpty) {
+                        return;
+                      }
                       _gallery.setFilter(filter);
                       _gallery.setGuestIds(<String>{});
                       unawaited(_gallery.refresh(eventId: _ownerRef));
                     },
+                  ),
+                ),
+              if (_selected.isEmpty && _gallery.guestIds.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 12, 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _gallery.guestIds.length == 1
+                                ? 'Mostrando fotos de 1 miembro'
+                                : 'Mostrando fotos de ${_gallery.guestIds.length} miembros',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            _gallery.setGuestIds(<String>{});
+                            unawaited(_refresh());
+                          },
+                          child: Text(translations.translate(
+                            'collections.filter_members.show_all',
+                            fallback: 'Ver todas',
+                          )),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               if (localOnlyUploads.isNotEmpty)

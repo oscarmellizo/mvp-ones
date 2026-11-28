@@ -293,15 +293,30 @@ public class CollectionService {
             int limit,
             String nextToken
     ) {
-        get(requesterId, collectionId);
+        return listMemberDirectoryPage(requesterId, collectionId, limit, nextToken).page();
+    }
+
+    public CollectionMembersDirectoryPage listMemberDirectoryPage(
+            String requesterId,
+            String collectionId,
+            int limit,
+            String nextToken
+    ) {
+        Collection collection = get(requesterId, collectionId);
         var page = membersRepository.pageByCollection(collectionId, limit, nextToken);
-        return new CollectionMembersRepository.PageResult<>(
+        var visibleMembers = new CollectionMembersRepository.PageResult<>(
                 page.items().stream()
-                .filter(member -> member.status() != CollectionMember.Status.REJECTED)
-                .toList(),
+                        .filter(member -> member.status() != CollectionMember.Status.REJECTED)
+                        .toList(),
                 page.nextToken()
         );
+        return new CollectionMembersDirectoryPage(collection.ownerId(), visibleMembers);
     }
+
+    public record CollectionMembersDirectoryPage(
+            String ownerId,
+            CollectionMembersRepository.PageResult<CollectionMember> page
+    ) {}
 
     public void leave(String requesterId, String collectionId) {
         Collection collection = get(requesterId, collectionId);

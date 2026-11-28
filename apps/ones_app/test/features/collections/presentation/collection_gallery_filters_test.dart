@@ -20,6 +20,7 @@ void main() {
             membersLabel: 'Miembros',
             membersButtonKey: const ValueKey('members-filter'),
             memberSelectionEnabled: true,
+            selectedMemberCount: 2,
             onMembersSelected: () => memberFilterOpened = true,
             onSelected: (filter) => selected = filter,
           ),
@@ -41,6 +42,7 @@ void main() {
     expect(find.text('Todas'), findsOneWidget);
     expect(find.text('Compartidas'), findsOneWidget);
     expect(find.text('Mías'), findsOneWidget);
+    expect(find.byTooltip('Miembros (2)'), findsOneWidget);
 
     await tester.tap(find.text('Compartidas'));
     await tester.pumpAndSettle();
@@ -63,6 +65,7 @@ void main() {
             membersLabel: 'Miembros',
             membersButtonKey: const ValueKey('members-filter'),
             memberSelectionEnabled: true,
+            selectedMemberCount: 0,
             onMembersSelected: () {},
             onSelected: (_) {},
           ),

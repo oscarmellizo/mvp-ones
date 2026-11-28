@@ -11,6 +11,17 @@ public interface UsersRepository {
 
     Optional<User> findById(String userId);
 
+    default List<User> findByIds(Set<String> userIds) {
+        if (userIds == null || userIds.isEmpty()) return List.of();
+        return userIds.stream()
+                .filter(userId -> userId != null && !userId.isBlank())
+                .map(String::trim)
+                .distinct()
+                .map(this::findById)
+                .flatMap(Optional::stream)
+                .toList();
+    }
+
     Optional<User> findByEmail(String email);
 
     default Optional<String> findTimeZoneByEmail(String email) {

@@ -19,10 +19,16 @@ void main() {
                     'memberKey': 'USER#member-1',
                     'userId': 'member-1',
                     'email': 'member@example.com',
+                    'preferredName': 'Preferred Member',
                     'status': 'ACCEPTED',
                   },
                 ],
                 'nextToken': 'member-cursor',
+                'owner': {
+                  'userId': 'owner-1',
+                  'email': 'owner@example.com',
+                  'preferredName': 'Preferred Owner',
+                },
               },
             ),
           );
@@ -42,6 +48,9 @@ void main() {
     expect(request?.queryParameters['limit'], 50);
     expect(request?.queryParameters['nextToken'], 'previous-cursor');
     expect(page.items.single.userId, 'member-1');
+    expect(page.items.single.preferredName, 'Preferred Member');
+    expect(page.owner?.preferredName, 'Preferred Owner');
+    expect(page.owner?.email, 'owner@example.com');
     expect(page.nextToken, 'member-cursor');
   });
 

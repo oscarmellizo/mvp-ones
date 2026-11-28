@@ -24,19 +24,20 @@ class CollectionDetailPage extends StatefulWidget {
 }
 
 class _CollectionDetailPageState extends State<CollectionDetailPage> {
-  late Future<List<CollectionMember>> _members;
+  late Future<CollectionMembersPage> _members;
 
   @override
   void initState() {
     super.initState();
     _members =
-        context.read<CollectionsController>().members(widget.collection.id);
+        context.read<CollectionsController>().membersPage(widget.collection.id);
   }
 
   Future<void> _refreshMembers() async {
     setState(() {
-      _members =
-          context.read<CollectionsController>().members(widget.collection.id);
+      _members = context
+          .read<CollectionsController>()
+          .membersPage(widget.collection.id);
     });
     await _members;
   }
@@ -323,7 +324,7 @@ class _CollectionDetailPageState extends State<CollectionDetailPage> {
         body: TabBarView(
           children: [
             CollectionPhotosTab(collection: collection),
-            FutureBuilder<List<CollectionMember>>(
+            FutureBuilder<CollectionMembersPage>(
               future: _members,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -340,18 +341,28 @@ class _CollectionDetailPageState extends State<CollectionDetailPage> {
                     ),
                   );
                 }
-                final members = snapshot.data ?? const <CollectionMember>[];
+                final directory = snapshot.data;
+                final members = directory?.items ?? const <CollectionMember>[];
+                final ownerProfile = directory?.owner;
+                final ownerName = ownerProfile?.preferredName?.trim();
+                final ownerEmail = ownerProfile?.email?.trim();
+                final ownerRole = t.translate(
+                  'collections.owner',
+                  fallback: 'Propietario',
+                );
+                final ownerSubtitle = [
+                  ownerRole,
+                  if (ownerEmail?.isNotEmpty == true) ownerEmail,
+                  if (isOwner) t.translate('common.you', fallback: 'Tú'),
+                ].join(' · ');
                 return ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
                     _MemberTile(
-                      title: t.translate(
-                        'collections.owner',
-                        fallback: 'Propietario',
-                      ),
-                      subtitle: isOwner
-                          ? t.translate('common.you', fallback: 'Tú')
-                          : null,
+                      title: ownerName?.isNotEmpty == true
+                          ? ownerName!
+                          : ownerRole,
+                      subtitle: ownerSubtitle,
                       icon: Icons.workspace_premium_outlined,
                     ),
                     ...members
@@ -359,20 +370,36 @@ class _CollectionDetailPageState extends State<CollectionDetailPage> {
                         .map((member) {
                       final pending = member.status == 'PENDING';
                       final isSelf = member.userId == auth.user?.userId;
+                      final preferredName = member.preferredName?.trim();
+                      final email = member.email?.trim();
+                      final memberRole = pending
+                          ? t.translate(
+                              'collections.pending',
+                              fallback: 'Invitación pendiente',
+                            )
+                          : t.translate(
+                              'collections.member',
+                              fallback: 'Miembro',
+                            );
+                      final memberName = preferredName?.isNotEmpty == true
+                          ? preferredName!
+                          : email?.isNotEmpty == true
+                              ? email!
+                              : member.userId ??
+                                  t.translate(
+                                    'collections.member',
+                                    fallback: 'Miembro',
+                                  );
+                      final memberSubtitle = [
+                        memberRole,
+                        if (email?.isNotEmpty == true && email != memberName)
+                          email,
+                        if (!pending && isSelf)
+                          t.translate('common.you', fallback: 'Tú'),
+                      ].join(' · ');
                       return _MemberTile(
-                        title: member.email ??
-                            member.userId ??
-                            t.translate('collections.member',
-                                fallback: 'Miembro'),
-                        subtitle: pending
-                            ? t.translate(
-                                'collections.pending',
-                                fallback: 'Invitación pendiente',
-                              )
-                            : t.translate(
-                                'collections.administrator',
-                                fallback: 'Administra esta colección',
-                              ),
+                        title: memberName,
+                        subtitle: memberSubtitle,
                         icon: pending
                             ? Icons.hourglass_empty
                             : Icons.person_outline,

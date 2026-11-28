@@ -144,6 +144,7 @@ class _EventsListPageState extends State<EventsListPage> {
     return ColoredBox(
       color: _bg,
       child: SafeArea(
+        top: false,
         child: RefreshIndicator(
           onRefresh: () => controller.refresh(),
           child: ListView(

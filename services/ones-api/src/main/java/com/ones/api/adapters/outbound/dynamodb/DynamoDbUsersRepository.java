@@ -1,8 +1,10 @@
 package com.ones.api.adapters.outbound.dynamodb;
 
 import java.time.Instant;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -24,6 +26,8 @@ import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Expression;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.model.PutItemEnhancedRequest;
+import software.amazon.awssdk.enhanced.dynamodb.model.BatchGetItemEnhancedRequest;
+import software.amazon.awssdk.enhanced.dynamodb.model.ReadBatch;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
 import software.amazon.awssdk.enhanced.dynamodb.model.ScanEnhancedRequest;
@@ -31,14 +35,17 @@ import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
+import io.micrometer.core.instrument.Timer;
 
 @Repository
 public class DynamoDbUsersRepository implements UsersRepository {
 
     private static final Logger log = LoggerFactory.getLogger(DynamoDbUsersRepository.class);
 
+    private final DynamoDbEnhancedClient enhancedClient;
     private final DynamoDbTable<DynamoUserItem> table;
     private final Counter scanFallbackCounter;
+    private final Timer batchProfileLookupTimer;
     private final boolean failOnScanFallback;
 
     public DynamoDbUsersRepository(
@@ -47,10 +54,14 @@ public class DynamoDbUsersRepository implements UsersRepository {
             @Value("${ones.dynamodb.users-table-name:ones-users}") String tableName,
             @Value("${ones.dynamodb.fail-on-scan-fallback:false}") boolean failOnScanFallback
     ) {
+        this.enhancedClient = enhancedClient;
         this.table = enhancedClient.table(tableName, TableSchema.fromBean(DynamoUserItem.class));
         this.scanFallbackCounter = Counter.builder("ones.dynamodb.scan_fallback")
                 .tag("repository", "users")
                 .tag("operation", "findByEmail")
+                .register(meterRegistry);
+        this.batchProfileLookupTimer = Timer.builder("ones.users.profile_batch_lookup")
+                .tag("repository", "users")
                 .register(meterRegistry);
         this.failOnScanFallback = failOnScanFallback;
     }
@@ -59,6 +70,43 @@ public class DynamoDbUsersRepository implements UsersRepository {
     public Optional<User> findById(String userId) {
         DynamoUserItem item = table.getItem(Key.builder().partitionValue(userId).build());
         return Optional.ofNullable(item).map(DynamoDbUsersRepository::toDomain);
+    }
+
+    @Override
+    public List<User> findByIds(Set<String> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return List.of();
+        }
+        var normalized = new LinkedHashSet<String>();
+        for (String userId : userIds) {
+            if (userId != null && !userId.isBlank()) {
+                normalized.add(userId.trim());
+            }
+        }
+        if (normalized.isEmpty()) {
+            return List.of();
+        }
+
+        long startedAt = System.nanoTime();
+        try {
+            var ids = new ArrayList<>(normalized);
+            List<User> users = new ArrayList<>(ids.size());
+            for (int offset = 0; offset < ids.size(); offset += 100) {
+                var batch = ReadBatch.builder(DynamoUserItem.class)
+                        .mappedTableResource(table);
+                for (String id : ids.subList(offset, Math.min(offset + 100, ids.size()))) {
+                    batch.addGetItem(Key.builder().partitionValue(id).build());
+                }
+                enhancedClient.batchGetItem(BatchGetItemEnhancedRequest.builder()
+                                .readBatches(batch.build())
+                                .build())
+                        .resultsForTable(table)
+                        .forEach(item -> users.add(toDomain(item)));
+            }
+            return users;
+        } finally {
+            batchProfileLookupTimer.record(Duration.ofNanos(System.nanoTime() - startedAt));
+        }
     }
 
     @Override
